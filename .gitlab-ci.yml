@@ -1,0 +1,119 @@
+stages:
+- static-test
+- validate
+- test
+- deploy
+
+variables:
+  SECRET_DETECTION_ENABLED: 'true'
+
+include:
+- template: Security/Secret-Detection.gitlab-ci.yml
+- template: Security/SAST.gitlab-ci.yml
+
+secret_detection:
+  stage: static-test
+  tags:
+  - playground-bravo
+
+check_secrets:
+  stage: validate
+  image: apteno/alpine-jq:latest
+  tags:
+  - playground-bravo
+  needs:
+  - job: secret_detection
+    artifacts: true
+  script:
+  - |
+    if [ ! -f "gl-secret-detection-report.json" ]; then
+      echo "Secret detection report not found!"
+      exit 1
+    fi
+
+    if [ "$(jq '.vulnerabilities | length' gl-secret-detection-report.json)" -gt 0 ]; then
+      echo "Secrets detected in the codebase!"
+      jq -r '.vulnerabilities[] | "- \(.message) in \(.location.file):\(.location.start_line)"' \
+        gl-secret-detection-report.json
+      exit 1
+    else
+      echo "No secrets detected"
+    fi
+
+lint:
+  stage: validate
+  image: golangci/golangci-lint:v2.8-alpine
+  tags:
+  - playground-bravo
+  needs:
+  - job: secret_detection
+  script:
+  - golangci-lint run --timeout=5m ./...
+
+
+test:
+  stage: test
+  image: golang:1.25-alpine
+  tags:
+  - playground-bravo
+  needs:
+  - job: check_secrets
+  - job: lint
+  script:
+  - go test -v ./...
+
+deploy:
+  stage: deploy
+  image: alpine:latest
+  tags:
+  - playground-bravo
+  needs:
+  - job: test
+  - job: check_sast
+  before_script:
+  - apk add --no-cache git openssh-client
+  - eval $(ssh-agent -s)
+  - echo "$DOKKU_SSH_PRIVATE_KEY_B64" | base64 -d | tr -d '\r' | ssh-add -
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+  - echo "$DOKKU_HOST_KEY" >> ~/.ssh/known_hosts
+  script:
+  - git remote add dokku dokku@$DOKKU_HOST:csy-helper-bot || true
+  - git push dokku HEAD:main --force
+  rules:
+  - if: $CI_COMMIT_BRANCH == "master"
+
+semgrep-sast:
+  stage: static-test
+  tags:
+  - playground-bravo
+
+check_sast:
+  stage: test
+  image: apteno/alpine-jq:latest
+  tags:
+  - playground-bravo
+  needs:
+  - job: semgrep-sast
+    artifacts: true
+  - job: check_secrets
+  - job: lint
+  script:
+  - |
+    if [ ! -f "gl-sast-report.json" ]; then
+      echo "SAST report not found!"
+      exit 1
+    fi
+
+    VULN_COUNT=$(jq '.vulnerabilities | length' gl-sast-report.json)
+    if [ "$VULN_COUNT" -gt 0 ]; then
+      echo "SAST vulnerabilities detected!"
+      jq -r '.vulnerabilities[] | "- [\(.severity)] \(.name) in \(.location.file):\(.location.start_line)"' \
+        gl-sast-report.json
+      exit 1
+    else
+      echo "No SAST vulnerabilities detected"
+    fi
+  rules:
+  - if: $CI_COMMIT_BRANCH == "master"
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
