@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/go-telegram/bot"
 	tgmodels "github.com/go-telegram/bot/models"
@@ -74,10 +75,49 @@ func New(cfg *config.Config, pool *pgxpool.Pool) (*Bot, error) {
 	return b, nil
 }
 
+const (
+	// DraftExpirationTimeout is the duration after which draft expenses are deleted.
+	DraftExpirationTimeout = 10 * time.Minute
+	// DraftCleanupInterval is how often the cleanup goroutine runs.
+	DraftCleanupInterval = 5 * time.Minute
+)
+
 // Start begins polling for updates.
 func (b *Bot) Start(ctx context.Context) {
+	b.cleanupExpiredDrafts(ctx)
+
+	go b.startDraftCleanupLoop(ctx)
+
 	logger.Log.Info().Msg("Bot started polling")
 	b.bot.Start(ctx)
+}
+
+// cleanupExpiredDrafts removes draft expenses older than DraftExpirationTimeout.
+func (b *Bot) cleanupExpiredDrafts(ctx context.Context) {
+	count, err := b.expenseRepo.DeleteExpiredDrafts(ctx, DraftExpirationTimeout)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to cleanup expired drafts")
+		return
+	}
+	if count > 0 {
+		logger.Log.Info().Int("count", count).Msg("Cleaned up expired draft expenses")
+	}
+}
+
+// startDraftCleanupLoop runs periodic cleanup of expired draft expenses.
+func (b *Bot) startDraftCleanupLoop(ctx context.Context) {
+	ticker := time.NewTicker(DraftCleanupInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			logger.Log.Info().Msg("Draft cleanup loop stopped")
+			return
+		case <-ticker.C:
+			b.cleanupExpiredDrafts(ctx)
+		}
+	}
 }
 
 // registerHandlers sets up command handlers.

@@ -196,3 +196,22 @@ Task ID: 11
   - IsPartial uses XOR logic (HasAmount != HasMerchant) to detect incomplete extraction
   - Default values for missing fields allow graceful degradation with user editing
 ---
+
+## 2026-01-26 - Draft expense cleanup (10 min timeout)
+Thread: https://ampcode.com/threads/T-019bfabd-f670-778f-9c8e-8a7ae3fc1b5c
+Task ID: 12
+- Added DeleteExpiredDrafts(ctx, olderThan time.Duration) (int, error) to ExpenseRepository
+- Query deletes WHERE status = 'draft' AND created_at < NOW() - interval
+- Returns count of deleted rows for logging
+- Added DraftExpirationTimeout (10 minutes) and DraftCleanupInterval (5 minutes) constants
+- Bot.Start() runs cleanup immediately on startup via cleanupExpiredDrafts()
+- Background goroutine startDraftCleanupLoop() runs cleanup every 5 minutes
+- Loop respects context cancellation for graceful shutdown
+- Added comprehensive tests: deletes expired drafts, preserves recent drafts and confirmed expenses
+- **Learnings for future iterations:**
+  - Use time.NewTicker for periodic background tasks, defer ticker.Stop()
+  - Select on ctx.Done() and ticker.C for graceful shutdown of background goroutines
+  - Use negative duration (-1*time.Hour) in tests to ensure all drafts are "expired"
+  - pgx Exec returns CommandTag with RowsAffected() for DELETE count
+  - Run cleanup before bot.Start() for immediate cleanup, then start background loop
+---

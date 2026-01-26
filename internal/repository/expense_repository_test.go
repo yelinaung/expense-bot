@@ -230,6 +230,81 @@ func TestExpenseRepository_Delete(t *testing.T) {
 	})
 }
 
+func TestExpenseRepository_DeleteExpiredDrafts(t *testing.T) {
+	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
+
+	user := &models.User{ID: 888, Username: "user8", FirstName: "Test", LastName: "User"}
+	err := userRepo.UpsertUser(ctx, user)
+	require.NoError(t, err)
+
+	t.Run("deletes expired draft expenses", func(t *testing.T) {
+		draftExpense := &models.Expense{
+			UserID:      888,
+			Amount:      decimal.NewFromFloat(10.00),
+			Currency:    "SGD",
+			Description: "Draft expense",
+			Status:      models.ExpenseStatusDraft,
+		}
+		err := expenseRepo.Create(ctx, draftExpense)
+		require.NoError(t, err)
+
+		confirmedExpense := &models.Expense{
+			UserID:      888,
+			Amount:      decimal.NewFromFloat(20.00),
+			Currency:    "SGD",
+			Description: "Confirmed expense",
+			Status:      models.ExpenseStatusConfirmed,
+		}
+		err = expenseRepo.Create(ctx, confirmedExpense)
+		require.NoError(t, err)
+
+		count, err := expenseRepo.DeleteExpiredDrafts(ctx, -1*time.Hour)
+		require.NoError(t, err)
+		require.Equal(t, 1, count)
+
+		_, err = expenseRepo.GetByID(ctx, draftExpense.ID)
+		require.Error(t, err)
+
+		fetched, err := expenseRepo.GetByID(ctx, confirmedExpense.ID)
+		require.NoError(t, err)
+		require.Equal(t, confirmedExpense.ID, fetched.ID)
+	})
+
+	t.Run("does not delete recent drafts", func(t *testing.T) {
+		database.CleanupTables(t, expenseRepo.pool)
+
+		user := &models.User{ID: 889, Username: "user9", FirstName: "Test", LastName: "User"}
+		err := userRepo.UpsertUser(ctx, user)
+		require.NoError(t, err)
+
+		recentDraft := &models.Expense{
+			UserID:      889,
+			Amount:      decimal.NewFromFloat(15.00),
+			Currency:    "SGD",
+			Description: "Recent draft",
+			Status:      models.ExpenseStatusDraft,
+		}
+		err = expenseRepo.Create(ctx, recentDraft)
+		require.NoError(t, err)
+
+		count, err := expenseRepo.DeleteExpiredDrafts(ctx, 10*time.Minute)
+		require.NoError(t, err)
+		require.Equal(t, 0, count)
+
+		fetched, err := expenseRepo.GetByID(ctx, recentDraft.ID)
+		require.NoError(t, err)
+		require.Equal(t, recentDraft.ID, fetched.ID)
+	})
+
+	t.Run("returns zero when no expired drafts", func(t *testing.T) {
+		database.CleanupTables(t, expenseRepo.pool)
+
+		count, err := expenseRepo.DeleteExpiredDrafts(ctx, 10*time.Minute)
+		require.NoError(t, err)
+		require.Equal(t, 0, count)
+	})
+}
+
 func TestExpenseRepository_GetTotalByUserIDAndDateRange(t *testing.T) {
 	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
 

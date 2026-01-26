@@ -127,6 +127,20 @@ func (r *ExpenseRepository) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
+// DeleteExpiredDrafts removes draft expenses older than the specified duration.
+// Returns the number of deleted rows.
+func (r *ExpenseRepository) DeleteExpiredDrafts(ctx context.Context, olderThan time.Duration) (int, error) {
+	cutoff := time.Now().Add(-olderThan)
+	result, err := r.pool.Exec(ctx, `
+		DELETE FROM expenses
+		WHERE status = $1 AND created_at < $2
+	`, models.ExpenseStatusDraft, cutoff)
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete expired drafts: %w", err)
+	}
+	return int(result.RowsAffected()), nil
+}
+
 // GetTotalByUserIDAndDateRange calculates total spending for confirmed expenses in a date range.
 func (r *ExpenseRepository) GetTotalByUserIDAndDateRange(
 	ctx context.Context,
