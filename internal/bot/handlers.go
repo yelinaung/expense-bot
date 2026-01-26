@@ -1128,6 +1128,8 @@ func (b *Bot) handlePendingEdit(ctx context.Context, tgBot *bot.Bot, update *mod
 	switch pending.EditType {
 	case "amount":
 		return b.processAmountEdit(ctx, tgBot, chatID, userID, pending, update.Message.Text)
+	case "category":
+		return b.processCategoryCreate(ctx, tgBot, chatID, userID, pending, update.Message.Text)
 	}
 
 	return false
@@ -1310,6 +1312,7 @@ func (b *Bot) showCategorySelection(
 	}
 
 	rows = append(rows, []models.InlineKeyboardButton{
+		{Text: "➕ Create New", CallbackData: fmt.Sprintf("create_category_%d", expense.ID)},
 		{Text: "⬅️ Back", CallbackData: fmt.Sprintf("receipt_edit_%d", expense.ID)},
 	})
 
@@ -1414,6 +1417,180 @@ Category updated. Confirm to save.`,
 		expense.Amount.StringFixed(2),
 		expense.Description,
 		category.Name)
+
+	_, _ = tgBot.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:      chatID,
+		MessageID:   messageID,
+		Text:        text,
+		ParseMode:   models.ParseModeHTML,
+		ReplyMarkup: keyboard,
+	})
+}
+
+// processCategoryCreate processes user input for creating a new category.
+func (b *Bot) processCategoryCreate(
+	ctx context.Context,
+	tgBot *bot.Bot,
+	chatID int64,
+	userID int64,
+	pending *pendingEdit,
+	input string,
+) bool {
+	b.pendingEditsMu.Lock()
+	delete(b.pendingEdits, chatID)
+	b.pendingEditsMu.Unlock()
+
+	categoryName := strings.TrimSpace(input)
+	if categoryName == "" {
+		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Category name cannot be empty.",
+		})
+		return true
+	}
+
+	if len(categoryName) > 50 {
+		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Category name is too long (max 50 characters).",
+		})
+		return true
+	}
+
+	expense, err := b.expenseRepo.GetByID(ctx, pending.ExpenseID)
+	if err != nil {
+		logger.Log.Error().Err(err).Int("expense_id", pending.ExpenseID).Msg("Expense not found")
+		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Expense not found.",
+		})
+		return true
+	}
+
+	if expense.UserID != userID {
+		logger.Log.Warn().Int64("user_id", userID).Int("expense_id", pending.ExpenseID).Msg("User mismatch")
+		return true
+	}
+
+	category, err := b.categoryRepo.Create(ctx, categoryName)
+	if err != nil {
+		logger.Log.Error().Err(err).Str("name", categoryName).Msg("Failed to create category")
+		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to create category. It may already exist.",
+		})
+		return true
+	}
+
+	expense.CategoryID = &category.ID
+	expense.Category = category
+	if err := b.expenseRepo.Update(ctx, expense); err != nil {
+		logger.Log.Error().Err(err).Int("expense_id", expense.ID).Msg("Failed to update expense category")
+		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Category created but failed to assign it. Please select it from the list.",
+		})
+		return true
+	}
+
+	logger.Log.Info().
+		Int("expense_id", expense.ID).
+		Int("category_id", category.ID).
+		Str("category_name", category.Name).
+		Msg("New category created and assigned")
+
+	keyboard := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{Text: "✅ Confirm", CallbackData: fmt.Sprintf("receipt_confirm_%d", expense.ID)},
+				{Text: "✏️ Edit", CallbackData: fmt.Sprintf("receipt_edit_%d", expense.ID)},
+				{Text: "❌ Cancel", CallbackData: fmt.Sprintf("receipt_cancel_%d", expense.ID)},
+			},
+		},
+	}
+
+	text := fmt.Sprintf(`📸 <b>Category Created!</b>
+
+💰 Amount: $%s SGD
+🏪 Merchant: %s
+📁 Category: %s
+
+New category created. Confirm to save.`,
+		expense.Amount.StringFixed(2),
+		expense.Description,
+		category.Name)
+
+	_, _ = tgBot.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:      chatID,
+		MessageID:   pending.MessageID,
+		Text:        text,
+		ParseMode:   models.ParseModeHTML,
+		ReplyMarkup: keyboard,
+	})
+
+	return true
+}
+
+// handleCreateCategoryCallback handles the create new category button press.
+func (b *Bot) handleCreateCategoryCallback(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	if update.CallbackQuery == nil {
+		return
+	}
+
+	data := update.CallbackQuery.Data
+	userID := update.CallbackQuery.From.ID
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	messageID := update.CallbackQuery.Message.Message.ID
+
+	_, _ = tgBot.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
+
+	parts := strings.Split(data, "_")
+	if len(parts) < 3 {
+		return
+	}
+
+	expenseID, err := strconv.Atoi(parts[2])
+	if err != nil {
+		return
+	}
+
+	expense, err := b.expenseRepo.GetByID(ctx, expenseID)
+	if err != nil || expense.UserID != userID {
+		return
+	}
+
+	b.promptCreateCategory(ctx, tgBot, chatID, messageID, expense)
+}
+
+// promptCreateCategory prompts the user to enter a new category name.
+func (b *Bot) promptCreateCategory(
+	ctx context.Context,
+	tgBot *bot.Bot,
+	chatID int64,
+	messageID int,
+	expense *appmodels.Expense,
+) {
+	b.pendingEditsMu.Lock()
+	b.pendingEdits[chatID] = &pendingEdit{
+		ExpenseID: expense.ID,
+		EditType:  "category",
+		MessageID: messageID,
+	}
+	b.pendingEditsMu.Unlock()
+
+	text := `📁 <b>Create New Category</b>
+
+Please type the name for the new category (e.g., <code>Subscriptions</code>):`
+
+	keyboard := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{Text: "⬅️ Cancel", CallbackData: fmt.Sprintf("cancel_edit_%d", expense.ID)},
+			},
+		},
+	}
 
 	_, _ = tgBot.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      chatID,

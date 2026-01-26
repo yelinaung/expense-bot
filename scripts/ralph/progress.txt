@@ -155,3 +155,24 @@ Task ID: 7
   - Word-based matching useful for partial matches like "travel" -> "Travel & Vacation"
   - Filter words under 3 chars and stop words to avoid false positives
 ---
+
+## 2026-01-26 - Edit category flow with inline keyboard
+Thread: https://ampcode.com/threads/T-019bfab7-99cd-72af-998a-6a5e23fba890
+Task ID: 10
+- Verified existing showCategorySelection displays all categories in 2 per row layout
+- Verified existing handleSetCategoryCallback updates expense category and returns to confirmation
+- Added "Create New" button to category selection keyboard
+- Registered create_category_ callback handler in bot.go
+- Added handleCreateCategoryCallback to handle create new category button press
+- Added promptCreateCategory to show input prompt and store pending edit state
+- Extended pendingEdit.EditType to support "category" in addition to "amount"
+- Extended handlePendingEdit switch to route "category" to processCategoryCreate
+- Added processCategoryCreate to validate input, create category, assign to expense
+- Category name validation: cannot be empty, max 50 characters
+- After category creation, shows updated confirmation message with Confirm/Edit/Cancel buttons
+- **Learnings for future iterations:**
+  - Reuse pendingEdit pattern for any free-text input flow (amount, category name, etc.)
+  - Callback data format create_category_{expense_id} parsed with strings.Split
+  - Category creation uses categoryRepo.Create which returns the new category with ID
+  - Always update expense.Category pointer after setting expense.CategoryID for display
+---

@@ -21,7 +21,7 @@ import (
 // pendingEdit represents a pending edit operation waiting for user input.
 type pendingEdit struct {
 	ExpenseID int
-	EditType  string // "amount"
+	EditType  string // "amount" or "category"
 	MessageID int    // Message ID to edit after update.
 }
 
@@ -97,6 +97,7 @@ func (b *Bot) registerHandlers() {
 	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "edit_", bot.MatchTypePrefix, b.handleEditCallback)
 	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "set_category_", bot.MatchTypePrefix, b.handleSetCategoryCallback)
 	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "cancel_edit_", bot.MatchTypePrefix, b.handleCancelEditCallback)
+	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "create_category_", bot.MatchTypePrefix, b.handleCreateCategoryCallback)
 }
 
 // whitelistMiddleware checks if the user is whitelisted before processing.
