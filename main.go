@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"gitlab.com/yelinaung/expense-bot/internal/bot"
 	"gitlab.com/yelinaung/expense-bot/internal/config"
 	"gitlab.com/yelinaung/expense-bot/internal/database"
 )
@@ -37,11 +38,18 @@ func main() {
 
 	log.Println("Database initialized successfully")
 
-	// TODO: Initialize Telegram bot here
+	telegramBot, err := bot.New(cfg, pool)
+	if err != nil {
+		log.Fatalf("Failed to create bot: %v", err)
+	}
 
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	<-sigChan
+	go func() {
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+		<-sigChan
+		log.Println("Shutting down...")
+		cancel()
+	}()
 
-	log.Println("Shutting down...")
+	telegramBot.Start(ctx)
 }

@@ -59,8 +59,22 @@ test:
   needs:
   - job: check_secrets
   - job: lint
+  services:
+  - name: postgres:16-alpine
+    alias: postgres
+  variables:
+    POSTGRES_USER: test
+    POSTGRES_PASSWORD: test
+    POSTGRES_DB: expense_bot_test
+    TEST_DATABASE_URL: "postgres://test:test@postgres:5432/expense_bot_test?sslmode=disable"
   script:
-  - go test -v ./...
+  - go test -v -coverprofile=coverage.out -covermode=atomic ./...
+  - go tool cover -func=coverage.out
+  artifacts:
+    paths:
+    - coverage.out
+    expire_in: 1 week
+  coverage: '/total:\s+\(statements\)\s+(\d+\.\d+)%/'
 
 semgrep-sast:
   stage: static-test

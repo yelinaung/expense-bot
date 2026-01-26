@@ -1,4 +1,5 @@
 # Binaries
+bin/
 *.exe
 *.exe~
 *.dll
@@ -11,6 +12,7 @@ expense-bot
 
 # Output of go coverage
 *.out
+coverage.html
 
 # Go workspace
 go.work

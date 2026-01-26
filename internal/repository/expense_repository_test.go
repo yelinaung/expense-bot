@@ -177,7 +177,7 @@ func TestExpenseRepository_Update(t *testing.T) {
 	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
-	cat, err := categoryRepo.Create(ctx, "Entertainment")
+	cat, err := categoryRepo.Create(ctx, "Entertainment Update Test")
 	require.NoError(t, err)
 
 	expense := &models.Expense{
