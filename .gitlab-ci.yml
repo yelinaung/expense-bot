@@ -66,7 +66,8 @@ test:
     POSTGRES_USER: test
     POSTGRES_PASSWORD: test
     POSTGRES_DB: expense_bot_test
-    TEST_DATABASE_URL: "postgres://test:test@postgres:5432/expense_bot_test?sslmode=disable"
+  before_script:
+  - export TEST_DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
   script:
   - go test -v -coverprofile=coverage.out -covermode=atomic ./...
   - go tool cover -func=coverage.out

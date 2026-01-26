@@ -17,7 +17,7 @@ func TestConnect(t *testing.T) {
 
 	t.Run("fails with unreachable host", func(t *testing.T) {
 		ctx := context.Background()
-		pool, err := Connect(ctx, "postgres://user:pass@localhost:59999/nonexistent?connect_timeout=1")
+		pool, err := Connect(ctx, "postgres://localhost:59999/nonexistent?connect_timeout=1")
 		require.Error(t, err)
 		require.Nil(t, pool)
 	})

@@ -24,7 +24,8 @@ test-db-down:
 	docker compose -f docker-compose.test.yml down -v
 
 test-integration: test-db-up
-	TEST_DATABASE_URL="postgres://test:test@localhost:5433/expense_bot_test?sslmode=disable" go test -v -coverprofile=coverage.out -covermode=atomic ./...
+	@TEST_DATABASE_URL="postgres://$${POSTGRES_USER:-test}:$${POSTGRES_PASSWORD:-test}@localhost:5433/$${POSTGRES_DB:-expense_bot_test}?sslmode=disable" \
+		go test -v -coverprofile=coverage.out -covermode=atomic ./...
 	@go tool cover -func=coverage.out
 	@$(MAKE) test-db-down
 
