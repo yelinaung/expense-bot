@@ -215,3 +215,26 @@ Task ID: 12
   - pgx Exec returns CommandTag with RowsAffected() for DELETE count
   - Run cleanup before bot.Start() for immediate cleanup, then start background loop
 ---
+
+## 2026-01-26 - Integration test for receipt OCR flow
+Thread: https://ampcode.com/threads/T-019bfac0-f6e1-762a-848c-769f63a23d92
+Task ID: 14
+- Created internal/gemini/receipt_parser_integration_test.go with real Gemini API tests
+- Added TestParseReceipt_Integration: tests sample_receipt.jpeg extraction (Amount=54.60, Merchant contains "Swee Choon", Category="Food - Dining Out")
+- Added TestParseReceiptResponse_EdgeCases: 8 additional edge cases for parser robustness
+- Created comprehensive handlers_test.go tests for receipt OCR flow:
+  - TestReceiptOCRFlow_Integration: full flow (parse → draft → confirm) and (parse → draft → cancel)
+  - TestReceiptData_Flow: unit tests for ReceiptData helper methods
+  - TestDraftExpenseStatus: tests draft exclusion from GetByUserID, GetByID returns drafts, status defaults to confirmed
+- Added Pool() method to ExpenseRepository for test cleanup access
+- Integration tests skip when GEMINI_API_KEY or TEST_DATABASE_URL not set
+- All tests pass: make test, make test-integration, make test-race, golangci-lint run
+- **Learnings for future iterations:**
+  - Skip integration tests with t.Skip() when env vars not set for CI compatibility
+  - Use os.ReadFile to load test images for Gemini API integration tests
+  - Clean up tables between test runs with database.CleanupTables(t, pool)
+  - Re-seed categories after cleanup: database.SeedCategories(ctx, pool)
+  - Add Pool() accessor to repository for test cleanup access
+  - Test both happy path (confirm) and cancel path for complete coverage
+  - Verify sample receipt extraction with specific assertions (amount, merchant substring)
+---

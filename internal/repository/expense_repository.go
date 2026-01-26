@@ -20,6 +20,11 @@ func NewExpenseRepository(pool *pgxpool.Pool) *ExpenseRepository {
 	return &ExpenseRepository{pool: pool}
 }
 
+// Pool returns the underlying database pool. Used for testing.
+func (r *ExpenseRepository) Pool() *pgxpool.Pool {
+	return r.pool
+}
+
 // Create adds a new expense.
 func (r *ExpenseRepository) Create(ctx context.Context, expense *models.Expense) error {
 	// Default to confirmed if not specified.

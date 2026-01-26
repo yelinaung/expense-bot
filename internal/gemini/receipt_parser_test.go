@@ -214,3 +214,130 @@ func TestReceiptData_IsEmpty(t *testing.T) {
 		})
 	}
 }
+
+func TestParseReceiptResponse_EdgeCases(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		response string
+		want     *ReceiptData
+		wantErr  bool
+	}{
+		{
+			name:     "response with only json prefix",
+			response: "```json\n{\"amount\": \"15.00\", \"merchant\": \"Cafe\", \"date\": \"\", \"suggested_category\": \"Food - Dining Out\", \"confidence\": 0.8}\n```",
+			want: &ReceiptData{
+				Amount:            decimal.NewFromFloat(15.00),
+				Merchant:          "Cafe",
+				Date:              time.Time{},
+				SuggestedCategory: "Food - Dining Out",
+				Confidence:        0.8,
+			},
+			wantErr: false,
+		},
+		{
+			name:     "response with extra whitespace",
+			response: "  \n\n  {\"amount\": \"20.00\", \"merchant\": \"Store\", \"date\": \"2024-06-15\", \"suggested_category\": \"Others\", \"confidence\": 0.9}  \n\n  ",
+			want: &ReceiptData{
+				Amount:            decimal.NewFromFloat(20.00),
+				Merchant:          "Store",
+				Date:              time.Date(2024, 6, 15, 0, 0, 0, 0, time.UTC),
+				SuggestedCategory: "Others",
+				Confidence:        0.9,
+			},
+			wantErr: false,
+		},
+		{
+			name:     "empty amount string treated as zero",
+			response: `{"amount": "", "merchant": "Shop", "date": "2024-01-01", "suggested_category": "Others", "confidence": 0.5}`,
+			want: &ReceiptData{
+				Amount:            decimal.Zero,
+				Merchant:          "Shop",
+				Date:              time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				SuggestedCategory: "Others",
+				Confidence:        0.5,
+			},
+			wantErr: false,
+		},
+		{
+			name:     "invalid date format is ignored",
+			response: `{"amount": "30.00", "merchant": "Restaurant", "date": "not-a-date", "suggested_category": "Food - Dining Out", "confidence": 0.75}`,
+			want: &ReceiptData{
+				Amount:            decimal.NewFromFloat(30.00),
+				Merchant:          "Restaurant",
+				Date:              time.Time{},
+				SuggestedCategory: "Food - Dining Out",
+				Confidence:        0.75,
+			},
+			wantErr: false,
+		},
+		{
+			name:     "decimal amount with many places",
+			response: `{"amount": "99.999", "merchant": "Market", "date": "2024-03-20", "suggested_category": "Food - Grocery", "confidence": 0.88}`,
+			want: &ReceiptData{
+				Amount:            decimal.NewFromFloat(99.999),
+				Merchant:          "Market",
+				Date:              time.Date(2024, 3, 20, 0, 0, 0, 0, time.UTC),
+				SuggestedCategory: "Food - Grocery",
+				Confidence:        0.88,
+			},
+			wantErr: false,
+		},
+		{
+			name:     "empty json object",
+			response: `{}`,
+			want: &ReceiptData{
+				Amount:            decimal.Zero,
+				Merchant:          "",
+				Date:              time.Time{},
+				SuggestedCategory: "",
+				Confidence:        0,
+			},
+			wantErr: false,
+		},
+		{
+			name:     "merchant with special characters",
+			response: `{"amount": "45.00", "merchant": "Café & Bar - O'Brien's", "date": "2024-05-10", "suggested_category": "Food - Dining Out", "confidence": 0.92}`,
+			want: &ReceiptData{
+				Amount:            decimal.NewFromFloat(45.00),
+				Merchant:          "Café & Bar - O'Brien's",
+				Date:              time.Date(2024, 5, 10, 0, 0, 0, 0, time.UTC),
+				SuggestedCategory: "Food - Dining Out",
+				Confidence:        0.92,
+			},
+			wantErr: false,
+		},
+		{
+			name:     "zero confidence",
+			response: `{"amount": "10.00", "merchant": "Unknown", "date": "", "suggested_category": "", "confidence": 0}`,
+			want: &ReceiptData{
+				Amount:            decimal.NewFromFloat(10.00),
+				Merchant:          "Unknown",
+				Date:              time.Time{},
+				SuggestedCategory: "",
+				Confidence:        0,
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := parseReceiptResponse(tt.response)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			require.True(t, tt.want.Amount.Equal(got.Amount), "amount mismatch: want %s, got %s", tt.want.Amount, got.Amount)
+			require.Equal(t, tt.want.Merchant, got.Merchant)
+			require.Equal(t, tt.want.Date, got.Date)
+			require.Equal(t, tt.want.SuggestedCategory, got.SuggestedCategory)
+			require.InDelta(t, tt.want.Confidence, got.Confidence, 0.001)
+		})
+	}
+}
