@@ -176,3 +176,23 @@ Task ID: 10
   - Category creation uses categoryRepo.Create which returns the new category with ID
   - Always update expense.Category pointer after setting expense.CategoryID for display
 ---
+
+## 2026-01-26 - Error handling and fallback
+Thread: https://ampcode.com/threads/T-019bfaba-8039-717c-86c2-59f7e017bd33
+Task ID: 11
+- Added 30-second timeout (ParseReceiptTimeout) to Gemini API calls in receipt_parser.go
+- Added ErrParseTimeout and ErrNoData sentinel errors for specific failure handling
+- Added helper methods to ReceiptData: HasAmount(), HasMerchant(), IsPartial(), IsEmpty()
+- Updated handlePhoto to detect timeout vs no-data vs other errors with different messages
+- Timeout: "⏱️ Receipt processing timed out. Please try again or add manually..."
+- No data/failure: "❌ Could not read this receipt. Please add manually..."
+- Partial extraction shows warning with "⚠️ Partial Extraction - Please Verify" header
+- Partial data allows proceeding with defaults ("Unknown merchant" for missing merchant)
+- Added comprehensive unit tests for ReceiptData helper methods
+- **Learnings for future iterations:**
+  - Use context.WithTimeout for API call timeouts, check errors.Is(err, context.DeadlineExceeded)
+  - Define sentinel errors (var ErrX = errors.New(...)) for specific error handling with errors.Is
+  - Use switch with errors.Is for multi-case error handling
+  - IsPartial uses XOR logic (HasAmount != HasMerchant) to detect incomplete extraction
+  - Default values for missing fields allow graceful degradation with user editing
+---

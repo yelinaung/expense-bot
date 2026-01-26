@@ -3,6 +3,7 @@ package gemini
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -10,6 +11,15 @@ import (
 	"github.com/shopspring/decimal"
 	"google.golang.org/genai"
 )
+
+// ParseReceiptTimeout is the timeout for Gemini API calls.
+const ParseReceiptTimeout = 30 * time.Second
+
+// ErrParseTimeout indicates the Gemini API call timed out.
+var ErrParseTimeout = errors.New("receipt parsing timed out")
+
+// ErrNoData indicates no usable data could be extracted from the receipt.
+var ErrNoData = errors.New("no usable data extracted from receipt")
 
 // DefaultCategories is the list of expense categories to suggest from.
 var DefaultCategories = []string{
@@ -40,6 +50,26 @@ type ReceiptData struct {
 	Confidence        float64
 }
 
+// HasAmount returns true if the amount was extracted.
+func (r *ReceiptData) HasAmount() bool {
+	return !r.Amount.IsZero()
+}
+
+// HasMerchant returns true if the merchant was extracted.
+func (r *ReceiptData) HasMerchant() bool {
+	return r.Merchant != ""
+}
+
+// IsPartial returns true if only some data was extracted.
+func (r *ReceiptData) IsPartial() bool {
+	return r.HasAmount() != r.HasMerchant()
+}
+
+// IsEmpty returns true if no usable data was extracted.
+func (r *ReceiptData) IsEmpty() bool {
+	return !r.HasAmount() && !r.HasMerchant()
+}
+
 // receiptResponse is the JSON structure returned by Gemini.
 type receiptResponse struct {
 	Amount            string  `json:"amount"`
@@ -50,6 +80,7 @@ type receiptResponse struct {
 }
 
 // ParseReceipt extracts expense data from a receipt image using Gemini.
+// It applies a 30-second timeout to the API call.
 func (c *Client) ParseReceipt(ctx context.Context, imageBytes []byte, mimeType string) (*ReceiptData, error) {
 	if len(imageBytes) == 0 {
 		return nil, fmt.Errorf("image data is required")
@@ -59,9 +90,13 @@ func (c *Client) ParseReceipt(ctx context.Context, imageBytes []byte, mimeType s
 		mimeType = "image/jpeg"
 	}
 
+	// Apply timeout to the Gemini API call.
+	timeoutCtx, cancel := context.WithTimeout(ctx, ParseReceiptTimeout)
+	defer cancel()
+
 	prompt := buildReceiptPrompt(DefaultCategories)
 
-	resp, err := c.client.Models.GenerateContent(ctx, ModelName, []*genai.Content{
+	resp, err := c.client.Models.GenerateContent(timeoutCtx, ModelName, []*genai.Content{
 		{
 			Parts: []*genai.Part{
 				{InlineData: &genai.Blob{MIMEType: mimeType, Data: imageBytes}},
@@ -70,6 +105,9 @@ func (c *Client) ParseReceipt(ctx context.Context, imageBytes []byte, mimeType s
 		},
 	}, nil)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return nil, ErrParseTimeout
+		}
 		return nil, fmt.Errorf("failed to generate content: %w", err)
 	}
 
@@ -88,7 +126,17 @@ func (c *Client) ParseReceipt(ctx context.Context, imageBytes []byte, mimeType s
 		return nil, fmt.Errorf("empty response from Gemini")
 	}
 
-	return parseReceiptResponse(textContent)
+	data, err := parseReceiptResponse(textContent)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return error if no usable data was extracted.
+	if data.IsEmpty() {
+		return nil, ErrNoData
+	}
+
+	return data, nil
 }
 
 func buildReceiptPrompt(categories []string) string {

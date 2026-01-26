@@ -122,3 +122,95 @@ func TestDefaultCategories(t *testing.T) {
 	require.Contains(t, DefaultCategories, "Food - Grocery")
 	require.Contains(t, DefaultCategories, "Transportation")
 }
+
+func TestReceiptData_HasAmount(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		amount decimal.Decimal
+		want   bool
+	}{
+		{"zero amount", decimal.Zero, false},
+		{"non-zero amount", decimal.NewFromFloat(10.50), true},
+		{"negative amount", decimal.NewFromFloat(-5.00), true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			r := &ReceiptData{Amount: tt.amount}
+			require.Equal(t, tt.want, r.HasAmount())
+		})
+	}
+}
+
+func TestReceiptData_HasMerchant(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		merchant string
+		want     bool
+	}{
+		{"empty merchant", "", false},
+		{"non-empty merchant", "Coffee Shop", true},
+		{"whitespace only", "   ", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			r := &ReceiptData{Merchant: tt.merchant}
+			require.Equal(t, tt.want, r.HasMerchant())
+		})
+	}
+}
+
+func TestReceiptData_IsPartial(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		amount   decimal.Decimal
+		merchant string
+		want     bool
+	}{
+		{"both present", decimal.NewFromFloat(10.50), "Shop", false},
+		{"both missing", decimal.Zero, "", false},
+		{"only amount", decimal.NewFromFloat(10.50), "", true},
+		{"only merchant", decimal.Zero, "Shop", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			r := &ReceiptData{Amount: tt.amount, Merchant: tt.merchant}
+			require.Equal(t, tt.want, r.IsPartial())
+		})
+	}
+}
+
+func TestReceiptData_IsEmpty(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		amount   decimal.Decimal
+		merchant string
+		want     bool
+	}{
+		{"both present", decimal.NewFromFloat(10.50), "Shop", false},
+		{"both missing", decimal.Zero, "", true},
+		{"only amount", decimal.NewFromFloat(10.50), "", false},
+		{"only merchant", decimal.Zero, "Shop", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			r := &ReceiptData{Amount: tt.amount, Merchant: tt.merchant}
+			require.Equal(t, tt.want, r.IsEmpty())
+		})
+	}
+}

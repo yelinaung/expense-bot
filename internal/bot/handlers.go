@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
+	"gitlab.com/yelinaung/expense-bot/internal/gemini"
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
@@ -691,12 +693,31 @@ func (b *Bot) handlePhoto(ctx context.Context, tgBot *bot.Bot, update *models.Up
 			Int64("chat_id", chatID).
 			Int64("user_id", userID).
 			Msg("Failed to parse receipt")
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
-			Text:   "❌ Failed to read receipt. Please try again with a clearer image or add manually.",
-		})
+
+		switch {
+		case errors.Is(err, gemini.ErrParseTimeout):
+			_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    chatID,
+				Text:      "⏱️ Receipt processing timed out. Please try again or add manually: <code>/add &lt;amount&gt; &lt;description&gt;</code>",
+				ParseMode: models.ParseModeHTML,
+			})
+		case errors.Is(err, gemini.ErrNoData):
+			_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    chatID,
+				Text:      "❌ Could not read this receipt. Please add manually: <code>/add &lt;amount&gt; &lt;description&gt;</code>",
+				ParseMode: models.ParseModeHTML,
+			})
+		default:
+			_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    chatID,
+				Text:      "❌ Could not read this receipt. Please add manually: <code>/add &lt;amount&gt; &lt;description&gt;</code>",
+				ParseMode: models.ParseModeHTML,
+			})
+		}
 		return
 	}
+
+	isPartial := receiptData.IsPartial()
 
 	logger.Log.Info().
 		Int64("chat_id", chatID).
@@ -705,7 +726,8 @@ func (b *Bot) handlePhoto(ctx context.Context, tgBot *bot.Bot, update *models.Up
 		Str("merchant", receiptData.Merchant).
 		Str("category", receiptData.SuggestedCategory).
 		Float64("confidence", receiptData.Confidence).
-		Msg("Receipt parsed successfully")
+		Bool("partial", isPartial).
+		Msg("Receipt parsed")
 
 	categories, _ := b.categoryRepo.GetAll(ctx)
 	var categoryID *int
@@ -718,11 +740,17 @@ func (b *Bot) handlePhoto(ctx context.Context, tgBot *bot.Bot, update *models.Up
 		}
 	}
 
+	// Use sensible defaults for partial data.
+	description := receiptData.Merchant
+	if description == "" {
+		description = "Unknown merchant"
+	}
+
 	expense := &appmodels.Expense{
 		UserID:        userID,
 		Amount:        receiptData.Amount,
 		Currency:      "SGD",
-		Description:   receiptData.Merchant,
+		Description:   description,
 		CategoryID:    categoryID,
 		Category:      category,
 		ReceiptFileID: largestPhoto.FileID,
@@ -748,16 +776,33 @@ func (b *Bot) handlePhoto(ctx context.Context, tgBot *bot.Bot, update *models.Up
 		dateText = receiptData.Date.Format("02 Jan 2006")
 	}
 
-	text := fmt.Sprintf(`📸 <b>Receipt Scanned!</b>
+	// Build message based on extraction completeness.
+	var text string
+	if isPartial {
+		text = fmt.Sprintf(`⚠️ <b>Partial Extraction - Please Verify</b>
+
+💰 Amount: $%s SGD
+🏪 Merchant: %s
+📅 Date: %s
+📁 Category: %s
+
+<i>Some data could not be extracted. Please edit or confirm.</i>`,
+			expense.Amount.StringFixed(2),
+			expense.Description,
+			dateText,
+			categoryText)
+	} else {
+		text = fmt.Sprintf(`📸 <b>Receipt Scanned!</b>
 
 💰 Amount: $%s SGD
 🏪 Merchant: %s
 📅 Date: %s
 📁 Category: %s`,
-		expense.Amount.StringFixed(2),
-		expense.Description,
-		dateText,
-		categoryText)
+			expense.Amount.StringFixed(2),
+			expense.Description,
+			dateText,
+			categoryText)
+	}
 
 	keyboard := &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{
@@ -784,6 +829,7 @@ func (b *Bot) handlePhoto(ctx context.Context, tgBot *bot.Bot, update *models.Up
 		Int64("chat_id", chatID).
 		Int("expense_id", expense.ID).
 		Int("message_id", msg.ID).
+		Bool("partial", isPartial).
 		Msg("Receipt confirmation sent with inline keyboard")
 }
 
