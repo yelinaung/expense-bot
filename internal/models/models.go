@@ -24,6 +24,12 @@ type Category struct {
 	CreatedAt time.Time
 }
 
+// ExpenseStatus represents the status of an expense.
+const (
+	ExpenseStatusDraft     = "draft"
+	ExpenseStatusConfirmed = "confirmed"
+)
+
 // Expense represents a single expense entry.
 type Expense struct {
 	ID            int
@@ -34,6 +40,7 @@ type Expense struct {
 	CategoryID    *int
 	Category      *Category
 	ReceiptFileID string
+	Status        string
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 }

@@ -22,12 +22,16 @@ func NewExpenseRepository(pool *pgxpool.Pool) *ExpenseRepository {
 
 // Create adds a new expense.
 func (r *ExpenseRepository) Create(ctx context.Context, expense *models.Expense) error {
+	// Default to confirmed if not specified.
+	if expense.Status == "" {
+		expense.Status = models.ExpenseStatusConfirmed
+	}
 	err := r.pool.QueryRow(ctx, `
-		INSERT INTO expenses (user_id, amount, currency, description, category_id, receipt_file_id)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO expenses (user_id, amount, currency, description, category_id, receipt_file_id, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, updated_at
 	`, expense.UserID, expense.Amount, expense.Currency, expense.Description,
-		expense.CategoryID, expense.ReceiptFileID,
+		expense.CategoryID, expense.ReceiptFileID, expense.Status,
 	).Scan(&expense.ID, &expense.CreatedAt, &expense.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to create expense: %w", err)
@@ -40,10 +44,10 @@ func (r *ExpenseRepository) GetByID(ctx context.Context, id int) (*models.Expens
 	var exp models.Expense
 	var categoryID *int
 	err := r.pool.QueryRow(ctx, `
-		SELECT id, user_id, amount, currency, description, category_id, receipt_file_id, created_at, updated_at
+		SELECT id, user_id, amount, currency, description, category_id, receipt_file_id, status, created_at, updated_at
 		FROM expenses WHERE id = $1
 	`, id).Scan(&exp.ID, &exp.UserID, &exp.Amount, &exp.Currency, &exp.Description,
-		&categoryID, &exp.ReceiptFileID, &exp.CreatedAt, &exp.UpdatedAt)
+		&categoryID, &exp.ReceiptFileID, &exp.Status, &exp.CreatedAt, &exp.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get expense: %w", err)
 	}
@@ -51,15 +55,15 @@ func (r *ExpenseRepository) GetByID(ctx context.Context, id int) (*models.Expens
 	return &exp, nil
 }
 
-// GetByUserID retrieves all expenses for a user.
+// GetByUserID retrieves all confirmed expenses for a user.
 func (r *ExpenseRepository) GetByUserID(ctx context.Context, userID int64, limit int) ([]models.Expense, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT e.id, e.user_id, e.amount, e.currency, e.description, e.category_id,
-		       e.receipt_file_id, e.created_at, e.updated_at,
+		       e.receipt_file_id, e.status, e.created_at, e.updated_at,
 		       c.id, c.name, c.created_at
 		FROM expenses e
 		LEFT JOIN categories c ON e.category_id = c.id
-		WHERE e.user_id = $1
+		WHERE e.user_id = $1 AND e.status = 'confirmed'
 		ORDER BY e.created_at DESC
 		LIMIT $2
 	`, userID, limit)
@@ -71,7 +75,7 @@ func (r *ExpenseRepository) GetByUserID(ctx context.Context, userID int64, limit
 	return scanExpenses(rows)
 }
 
-// GetByUserIDAndDateRange retrieves expenses for a user within a date range.
+// GetByUserIDAndDateRange retrieves confirmed expenses for a user within a date range.
 func (r *ExpenseRepository) GetByUserIDAndDateRange(
 	ctx context.Context,
 	userID int64,
@@ -79,11 +83,11 @@ func (r *ExpenseRepository) GetByUserIDAndDateRange(
 ) ([]models.Expense, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT e.id, e.user_id, e.amount, e.currency, e.description, e.category_id,
-		       e.receipt_file_id, e.created_at, e.updated_at,
+		       e.receipt_file_id, e.status, e.created_at, e.updated_at,
 		       c.id, c.name, c.created_at
 		FROM expenses e
 		LEFT JOIN categories c ON e.category_id = c.id
-		WHERE e.user_id = $1 AND e.created_at >= $2 AND e.created_at < $3
+		WHERE e.user_id = $1 AND e.created_at >= $2 AND e.created_at < $3 AND e.status = 'confirmed'
 		ORDER BY e.created_at DESC
 	`, userID, startDate, endDate)
 	if err != nil {
@@ -103,10 +107,11 @@ func (r *ExpenseRepository) Update(ctx context.Context, expense *models.Expense)
 			description = $4,
 			category_id = $5,
 			receipt_file_id = $6,
+			status = $7,
 			updated_at = NOW()
 		WHERE id = $1
 	`, expense.ID, expense.Amount, expense.Currency, expense.Description,
-		expense.CategoryID, expense.ReceiptFileID)
+		expense.CategoryID, expense.ReceiptFileID, expense.Status)
 	if err != nil {
 		return fmt.Errorf("failed to update expense: %w", err)
 	}
@@ -122,7 +127,7 @@ func (r *ExpenseRepository) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
-// GetTotalByUserIDAndDateRange calculates total spending for a user in a date range.
+// GetTotalByUserIDAndDateRange calculates total spending for confirmed expenses in a date range.
 func (r *ExpenseRepository) GetTotalByUserIDAndDateRange(
 	ctx context.Context,
 	userID int64,
@@ -131,7 +136,7 @@ func (r *ExpenseRepository) GetTotalByUserIDAndDateRange(
 	var total decimal.Decimal
 	err := r.pool.QueryRow(ctx, `
 		SELECT COALESCE(SUM(amount), 0) FROM expenses
-		WHERE user_id = $1 AND created_at >= $2 AND created_at < $3
+		WHERE user_id = $1 AND created_at >= $2 AND created_at < $3 AND status = 'confirmed'
 	`, userID, startDate, endDate).Scan(&total)
 	if err != nil {
 		return decimal.Zero, fmt.Errorf("failed to get total: %w", err)
@@ -155,7 +160,7 @@ func scanExpenses(rows interface {
 
 		if err := rows.Scan(
 			&exp.ID, &exp.UserID, &exp.Amount, &exp.Currency, &exp.Description,
-			&categoryID, &exp.ReceiptFileID, &exp.CreatedAt, &exp.UpdatedAt,
+			&categoryID, &exp.ReceiptFileID, &exp.Status, &exp.CreatedAt, &exp.UpdatedAt,
 			&catID, &catName, &catCreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan expense: %w", err)

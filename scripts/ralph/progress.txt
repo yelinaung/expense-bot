@@ -1,0 +1,28 @@
+# Ralph Progress Log
+Started: 2026-01-26
+Feature: Receipt OCR Feature
+Parent Task: 1
+
+## Codebase Patterns
+(Patterns discovered during this feature build)
+
+---
+
+## 2026-01-26 - Add status field to expenses table
+Thread: https://ampcode.com/threads/T-019bfa99-5eab-7233-b180-cc878c77b38e
+Task ID: 2
+- Added migration to add 'status' column (TEXT, default 'confirmed')
+- Added ExpenseStatusDraft and ExpenseStatusConfirmed constants in models
+- Added Status field to Expense model
+- Updated Create() to default status to 'confirmed' if not specified
+- Updated GetByID() to include status field
+- Updated GetByUserID() to filter by status='confirmed'
+- Updated GetByUserIDAndDateRange() to filter by status='confirmed'
+- Updated Update() to include status field
+- Updated GetTotalByUserIDAndDateRange() to only sum confirmed expenses
+- Updated scanExpenses() helper to include status field
+- **Learnings for future iterations:**
+  - When adding columns, use ALTER TABLE ADD COLUMN IF NOT EXISTS for idempotent migrations
+  - List queries should filter by status='confirmed' to exclude drafts from user-facing views
+  - Create() defaults status to confirmed for backward compatibility
+---

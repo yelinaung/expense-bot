@@ -40,6 +40,9 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		`CREATE INDEX IF NOT EXISTS idx_expenses_user_id ON expenses(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_expenses_created_at ON expenses(created_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_expenses_category_id ON expenses(category_id)`,
+
+		`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'confirmed'`,
+		`CREATE INDEX IF NOT EXISTS idx_expenses_status ON expenses(status)`,
 	}
 
 	for i, migration := range migrations {
