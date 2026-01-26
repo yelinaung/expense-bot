@@ -59,6 +59,12 @@ func (b *Bot) registerHandlers() {
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypePrefix, b.handleStart)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/help", bot.MatchTypePrefix, b.handleHelp)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/categories", bot.MatchTypePrefix, b.handleCategories)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/add", bot.MatchTypePrefix, b.handleAdd)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/list", bot.MatchTypePrefix, b.handleList)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/today", bot.MatchTypePrefix, b.handleToday)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/week", bot.MatchTypePrefix, b.handleWeek)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/edit", bot.MatchTypePrefix, b.handleEdit)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/delete", bot.MatchTypePrefix, b.handleDelete)
 }
 
 // whitelistMiddleware checks if the user is whitelisted before processing.
@@ -195,7 +201,7 @@ func extractUserID(update *tgmodels.Update) int64 {
 	return 0
 }
 
-// defaultHandler handles unrecognized messages.
+// defaultHandler handles unrecognized messages, attempting free-text expense parsing.
 func (b *Bot) defaultHandler(ctx context.Context, tgBot *bot.Bot, update *tgmodels.Update) {
 	if update.Message == nil {
 		return
@@ -206,9 +212,14 @@ func (b *Bot) defaultHandler(ctx context.Context, tgBot *bot.Bot, update *tgmode
 		Str("text", update.Message.Text).
 		Msg("Default handler triggered")
 
+	if b.handleFreeTextExpense(ctx, tgBot, update) {
+		return
+	}
+
 	_, err := tgBot.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: update.Message.Chat.ID,
-		Text:   "I didn't understand that. Use /help to see available commands.",
+		ChatID:    update.Message.Chat.ID,
+		Text:      "I didn't understand that. Use /help to see available commands, or send an expense like <code>5.50 Coffee</code>",
+		ParseMode: tgmodels.ParseModeHTML,
 	})
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to send default response")
