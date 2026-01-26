@@ -719,13 +719,14 @@ func (b *Bot) handlePhoto(ctx context.Context, tgBot *bot.Bot, update *models.Up
 	}
 
 	expense := &appmodels.Expense{
-		UserID:      userID,
-		Amount:      receiptData.Amount,
-		Currency:    "SGD",
-		Description: receiptData.Merchant,
-		CategoryID:  categoryID,
-		Category:    category,
-		Status:      appmodels.ExpenseStatusDraft,
+		UserID:        userID,
+		Amount:        receiptData.Amount,
+		Currency:      "SGD",
+		Description:   receiptData.Merchant,
+		CategoryID:    categoryID,
+		Category:      category,
+		ReceiptFileID: largestPhoto.FileID,
+		Status:        appmodels.ExpenseStatusDraft,
 	}
 
 	if err := b.expenseRepo.Create(ctx, expense); err != nil {
@@ -742,26 +743,46 @@ func (b *Bot) handlePhoto(ctx context.Context, tgBot *bot.Bot, update *models.Up
 		categoryText = category.Name
 	}
 
-	text := fmt.Sprintf(`📷 <b>Receipt Scanned</b>
+	dateText := "Unknown"
+	if !receiptData.Date.IsZero() {
+		dateText = receiptData.Date.Format("02 Jan 2006")
+	}
 
-💰 $%s SGD
-📝 %s
-📁 %s
-🎯 Confidence: %.0f%%
+	text := fmt.Sprintf(`📸 <b>Receipt Scanned!</b>
 
-Expense saved as draft #%d.`,
+💰 Amount: $%s SGD
+🏪 Merchant: %s
+📅 Date: %s
+📁 Category: %s`,
 		expense.Amount.StringFixed(2),
 		expense.Description,
-		categoryText,
-		receiptData.Confidence*100,
-		expense.ID)
+		dateText,
+		categoryText)
 
-	_, err = tgBot.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    chatID,
-		Text:      text,
-		ParseMode: models.ParseModeHTML,
+	keyboard := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{Text: "✅ Confirm", CallbackData: fmt.Sprintf("receipt_confirm_%d", expense.ID)},
+				{Text: "✏️ Edit", CallbackData: fmt.Sprintf("receipt_edit_%d", expense.ID)},
+				{Text: "❌ Cancel", CallbackData: fmt.Sprintf("receipt_cancel_%d", expense.ID)},
+			},
+		},
+	}
+
+	msg, err := tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:      chatID,
+		Text:        text,
+		ParseMode:   models.ParseModeHTML,
+		ReplyMarkup: keyboard,
 	})
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to send receipt confirmation")
+		return
 	}
+
+	logger.Log.Debug().
+		Int64("chat_id", chatID).
+		Int("expense_id", expense.ID).
+		Int("message_id", msg.ID).
+		Msg("Receipt confirmation sent with inline keyboard")
 }

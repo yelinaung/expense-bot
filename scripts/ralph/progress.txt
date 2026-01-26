@@ -80,3 +80,19 @@ Task ID: 5
   - Defer resp.Body.Close() needs explicit error discard: defer func() { _ = resp.Body.Close() }()
   - Receipt OCR creates draft expenses (status=draft) for user confirmation
 ---
+
+## 2026-01-26 - Create draft expense from receipt
+Thread: https://ampcode.com/threads/T-019bfaa3-3406-7519-aedd-2b68dc6757a8
+Task ID: 6
+- Extended handlePhoto to store receipt_file_id in the expense (largestPhoto.FileID)
+- Added inline keyboard with Confirm/Edit/Cancel buttons using models.InlineKeyboardMarkup
+- Buttons use CallbackData format: receipt_confirm_ID, receipt_edit_ID, receipt_cancel_ID
+- Updated message format to show date from receipt parsing
+- Message now returns *models.Message with ID for future message editing
+- Added logging of message_id after successful send
+- **Learnings for future iterations:**
+  - InlineKeyboardMarkup uses nested [][]InlineKeyboardButton for rows of buttons
+  - CallbackData is the string sent back when user clicks the button
+  - SendMessage returns *models.Message which has ID field for message_id tracking
+  - Date formatting: use "02 Jan 2006" for human-readable format
+---
