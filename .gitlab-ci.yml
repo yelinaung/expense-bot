@@ -60,7 +60,7 @@ test:
   - job: check_secrets
   - job: lint
   services:
-  - name: postgres:16-alpine
+  - name: postgres:18-alpine
     alias: postgres
   variables:
     POSTGRES_USER: test
