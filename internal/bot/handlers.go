@@ -1060,37 +1060,221 @@ func (b *Bot) handleEditCallback(ctx context.Context, tgBot *bot.Bot, update *mo
 
 	switch action {
 	case "amount":
-		text := fmt.Sprintf(`💰 <b>Edit Amount</b>
-
-Current amount: $%s SGD
-
-To change the amount, use:
-<code>/edit %d amount NEW_AMOUNT</code>
-
-Example: <code>/edit %d amount 15.50</code>`,
-			expense.Amount.StringFixed(2),
-			expense.ID,
-			expense.ID)
-
-		keyboard := &models.InlineKeyboardMarkup{
-			InlineKeyboard: [][]models.InlineKeyboardButton{
-				{
-					{Text: "⬅️ Back", CallbackData: fmt.Sprintf("receipt_edit_%d", expense.ID)},
-				},
-			},
-		}
-
-		_, _ = tgBot.EditMessageText(ctx, &bot.EditMessageTextParams{
-			ChatID:      chatID,
-			MessageID:   messageID,
-			Text:        text,
-			ParseMode:   models.ParseModeHTML,
-			ReplyMarkup: keyboard,
-		})
+		b.promptEditAmount(ctx, tgBot, chatID, messageID, expense)
 
 	case "category":
 		b.showCategorySelection(ctx, tgBot, chatID, messageID, expense)
 	}
+}
+
+// promptEditAmount prompts the user to enter a new amount.
+func (b *Bot) promptEditAmount(
+	ctx context.Context,
+	tgBot *bot.Bot,
+	chatID int64,
+	messageID int,
+	expense *appmodels.Expense,
+) {
+	// Store pending edit state.
+	b.pendingEditsMu.Lock()
+	b.pendingEdits[chatID] = &pendingEdit{
+		ExpenseID: expense.ID,
+		EditType:  "amount",
+		MessageID: messageID,
+	}
+	b.pendingEditsMu.Unlock()
+
+	text := fmt.Sprintf(`💰 <b>Edit Amount</b>
+
+Current amount: $%s SGD
+
+Please type the new amount (e.g., <code>25.50</code>):`,
+		expense.Amount.StringFixed(2))
+
+	keyboard := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{Text: "⬅️ Cancel", CallbackData: fmt.Sprintf("cancel_edit_%d", expense.ID)},
+			},
+		},
+	}
+
+	_, _ = tgBot.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:      chatID,
+		MessageID:   messageID,
+		Text:        text,
+		ParseMode:   models.ParseModeHTML,
+		ReplyMarkup: keyboard,
+	})
+}
+
+// handlePendingEdit checks for and processes pending edit operations.
+func (b *Bot) handlePendingEdit(ctx context.Context, tgBot *bot.Bot, update *models.Update) bool {
+	if update.Message == nil || update.Message.Text == "" {
+		return false
+	}
+
+	chatID := update.Message.Chat.ID
+	userID := update.Message.From.ID
+
+	b.pendingEditsMu.RLock()
+	pending, exists := b.pendingEdits[chatID]
+	b.pendingEditsMu.RUnlock()
+
+	if !exists {
+		return false
+	}
+
+	switch pending.EditType {
+	case "amount":
+		return b.processAmountEdit(ctx, tgBot, chatID, userID, pending, update.Message.Text)
+	}
+
+	return false
+}
+
+// processAmountEdit processes user input for amount editing.
+func (b *Bot) processAmountEdit(
+	ctx context.Context,
+	tgBot *bot.Bot,
+	chatID int64,
+	userID int64,
+	pending *pendingEdit,
+	input string,
+) bool {
+	// Clear pending edit state.
+	b.pendingEditsMu.Lock()
+	delete(b.pendingEdits, chatID)
+	b.pendingEditsMu.Unlock()
+
+	// Parse the amount.
+	input = strings.TrimSpace(input)
+	input = strings.TrimPrefix(input, "$")
+	input = strings.TrimSpace(input)
+
+	amount, err := parseAmount(input)
+	if err != nil {
+		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    chatID,
+			Text:      "❌ Invalid amount. Please enter a valid number (e.g., 25.50).",
+			ParseMode: models.ParseModeHTML,
+		})
+		return true
+	}
+
+	// Fetch and verify expense ownership.
+	expense, err := b.expenseRepo.GetByID(ctx, pending.ExpenseID)
+	if err != nil {
+		logger.Log.Error().Err(err).Int("expense_id", pending.ExpenseID).Msg("Expense not found for edit")
+		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Expense not found.",
+		})
+		return true
+	}
+
+	if expense.UserID != userID {
+		logger.Log.Warn().Int64("user_id", userID).Int("expense_id", pending.ExpenseID).Msg("User mismatch on edit")
+		return true
+	}
+
+	// Update the expense amount.
+	expense.Amount = amount
+	if err := b.expenseRepo.Update(ctx, expense); err != nil {
+		logger.Log.Error().Err(err).Int("expense_id", expense.ID).Msg("Failed to update amount")
+		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to update amount. Please try again.",
+		})
+		return true
+	}
+
+	logger.Log.Info().
+		Int("expense_id", expense.ID).
+		Str("new_amount", amount.String()).
+		Msg("Amount updated via pending edit")
+
+	// Show updated confirmation message.
+	categoryText := categoryUncategorized
+	if expense.Category != nil {
+		categoryText = expense.Category.Name
+	} else if expense.CategoryID != nil {
+		cat, err := b.categoryRepo.GetByID(ctx, *expense.CategoryID)
+		if err == nil {
+			categoryText = cat.Name
+		}
+	}
+
+	keyboard := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{Text: "✅ Confirm", CallbackData: fmt.Sprintf("receipt_confirm_%d", expense.ID)},
+				{Text: "✏️ Edit", CallbackData: fmt.Sprintf("receipt_edit_%d", expense.ID)},
+				{Text: "❌ Cancel", CallbackData: fmt.Sprintf("receipt_cancel_%d", expense.ID)},
+			},
+		},
+	}
+
+	text := fmt.Sprintf(`📸 <b>Amount Updated!</b>
+
+💰 Amount: $%s SGD
+🏪 Merchant: %s
+📁 Category: %s
+
+Amount updated. Confirm to save.`,
+		expense.Amount.StringFixed(2),
+		expense.Description,
+		categoryText)
+
+	// Edit the original message.
+	_, _ = tgBot.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:      chatID,
+		MessageID:   pending.MessageID,
+		Text:        text,
+		ParseMode:   models.ParseModeHTML,
+		ReplyMarkup: keyboard,
+	})
+
+	return true
+}
+
+// handleCancelEditCallback handles cancel edit button presses.
+func (b *Bot) handleCancelEditCallback(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	if update.CallbackQuery == nil {
+		return
+	}
+
+	data := update.CallbackQuery.Data
+	userID := update.CallbackQuery.From.ID
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	messageID := update.CallbackQuery.Message.Message.ID
+
+	_, _ = tgBot.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
+
+	// Clear any pending edit state.
+	b.pendingEditsMu.Lock()
+	delete(b.pendingEdits, chatID)
+	b.pendingEditsMu.Unlock()
+
+	parts := strings.Split(data, "_")
+	if len(parts) < 3 {
+		return
+	}
+
+	expenseID, err := strconv.Atoi(parts[2])
+	if err != nil {
+		return
+	}
+
+	expense, err := b.expenseRepo.GetByID(ctx, expenseID)
+	if err != nil || expense.UserID != userID {
+		return
+	}
+
+	// Return to edit menu.
+	b.handleEditReceipt(ctx, tgBot, chatID, messageID, expense)
 }
 
 // showCategorySelection shows category selection buttons.

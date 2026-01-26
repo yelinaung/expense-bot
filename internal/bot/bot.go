@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 
 	"github.com/go-telegram/bot"
 	tgmodels "github.com/go-telegram/bot/models"
@@ -17,6 +18,13 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
 )
 
+// pendingEdit represents a pending edit operation waiting for user input.
+type pendingEdit struct {
+	ExpenseID int
+	EditType  string // "amount"
+	MessageID int    // Message ID to edit after update.
+}
+
 // Bot wraps the Telegram bot with application dependencies.
 type Bot struct {
 	bot          *bot.Bot
@@ -25,6 +33,9 @@ type Bot struct {
 	categoryRepo *repository.CategoryRepository
 	expenseRepo  *repository.ExpenseRepository
 	geminiClient *gemini.Client
+
+	pendingEdits   map[int64]*pendingEdit // key is chatID
+	pendingEditsMu sync.RWMutex
 }
 
 // New creates a new Bot instance.
@@ -34,6 +45,7 @@ func New(cfg *config.Config, pool *pgxpool.Pool) (*Bot, error) {
 		userRepo:     repository.NewUserRepository(pool),
 		categoryRepo: repository.NewCategoryRepository(pool),
 		expenseRepo:  repository.NewExpenseRepository(pool),
+		pendingEdits: make(map[int64]*pendingEdit),
 	}
 
 	if cfg.GeminiAPIKey != "" {
@@ -84,6 +96,7 @@ func (b *Bot) registerHandlers() {
 	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "receipt_", bot.MatchTypePrefix, b.handleReceiptCallback)
 	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "edit_", bot.MatchTypePrefix, b.handleEditCallback)
 	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "set_category_", bot.MatchTypePrefix, b.handleSetCategoryCallback)
+	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "cancel_edit_", bot.MatchTypePrefix, b.handleCancelEditCallback)
 }
 
 // whitelistMiddleware checks if the user is whitelisted before processing.
@@ -226,8 +239,10 @@ func (b *Bot) defaultHandler(ctx context.Context, tgBot *bot.Bot, update *tgmode
 		return
 	}
 
+	chatID := update.Message.Chat.ID
+
 	logger.Log.Debug().
-		Int64("chat_id", update.Message.Chat.ID).
+		Int64("chat_id", chatID).
 		Str("text", update.Message.Text).
 		Msg("Default handler triggered")
 
@@ -236,12 +251,17 @@ func (b *Bot) defaultHandler(ctx context.Context, tgBot *bot.Bot, update *tgmode
 		return
 	}
 
+	// Check for pending edit operations first.
+	if b.handlePendingEdit(ctx, tgBot, update) {
+		return
+	}
+
 	if b.handleFreeTextExpense(ctx, tgBot, update) {
 		return
 	}
 
 	_, err := tgBot.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
+		ChatID:    chatID,
 		Text:      "I didn't understand that. Use /help to see available commands, or send an expense like <code>5.50 Coffee</code>",
 		ParseMode: tgmodels.ParseModeHTML,
 	})

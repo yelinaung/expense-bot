@@ -1,11 +1,16 @@
 package bot
 
 import (
+	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/shopspring/decimal"
 )
+
+// errInvalidAmount is returned when the amount is zero or negative.
+var errInvalidAmount = errors.New("amount must be greater than zero")
 
 // ParsedExpense represents a parsed expense from user input.
 type ParsedExpense struct {
@@ -16,6 +21,23 @@ type ParsedExpense struct {
 
 // amountRegex matches amounts like "5", "5.50", "5,50".
 var amountRegex = regexp.MustCompile(`^(\d+(?:[.,]\d{1,2})?)`)
+
+// parseAmount parses a string into a decimal amount.
+func parseAmount(input string) (decimal.Decimal, error) {
+	input = strings.TrimSpace(input)
+	input = strings.ReplaceAll(input, ",", ".")
+
+	amount, err := decimal.NewFromString(input)
+	if err != nil {
+		return decimal.Zero, fmt.Errorf("invalid amount format: %w", err)
+	}
+
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return decimal.Zero, errInvalidAmount
+	}
+
+	return amount, nil
+}
 
 // ParseExpenseInput parses free-text expense input like "5.50 Coffee" or "10 Lunch Food - Dining Out".
 // Returns nil if the input cannot be parsed as an expense.

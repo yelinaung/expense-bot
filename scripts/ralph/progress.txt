@@ -120,3 +120,22 @@ Task ID: 8
   - Use EditMessageText with ReplyMarkup to update both text and inline keyboard
   - Parse callback data format "action_subaction_id" with strings.Split
 ---
+
+## 2026-01-26 - Edit amount flow
+Thread: https://ampcode.com/threads/T-019bfaa8-aaea-715b-ace6-e2d484aa3dff
+Task ID: 9
+- Added pendingEdit struct to track pending edit operations (ExpenseID, EditType, MessageID)
+- Added pendingEdits map and pendingEditsMu mutex to Bot struct for concurrent access
+- Added promptEditAmount: prompts user to enter new amount, stores pending edit state
+- Added handlePendingEdit: checks for pending edits in defaultHandler before expense parsing
+- Added processAmountEdit: parses user input, updates expense, shows updated confirmation
+- Added handleCancelEditCallback: clears pending state and returns to edit menu
+- Registered cancel_edit_ callback handler in bot.go
+- Added parseAmount helper function in parser.go for amount parsing with validation
+- **Learnings for future iterations:**
+  - Use map[chatID]*pendingEdit for storing pending edit state per chat
+  - Use sync.RWMutex for concurrent map access (RLock for reads, Lock for writes)
+  - Check pending edit state before processing free-text expense input in defaultHandler
+  - Store MessageID in pending state to edit the original message after update
+  - parseAmount strips $ prefix and handles comma decimal separators
+---
