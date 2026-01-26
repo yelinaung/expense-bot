@@ -14,6 +14,7 @@ import (
 type Config struct {
 	TelegramBotToken   string
 	DatabaseURL        string
+	GeminiAPIKey       string
 	WhitelistedUserIDs []int64
 }
 
@@ -24,6 +25,7 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		TelegramBotToken: os.Getenv("TELEGRAM_BOT_TOKEN"),
 		DatabaseURL:      os.Getenv("DATABASE_URL"),
+		GeminiAPIKey:     os.Getenv("GEMINI_API_KEY"),
 	}
 
 	whitelistStr := os.Getenv("WHITELISTED_USER_IDS")

@@ -26,3 +26,18 @@ Task ID: 2
   - List queries should filter by status='confirmed' to exclude drafts from user-facing views
   - Create() defaults status to confirmed for backward compatibility
 ---
+
+## 2026-01-26 - Add Gemini API config and client
+Thread: https://ampcode.com/threads/T-019bfa9b-a8e2-7521-a455-3b183111f0fa
+Task ID: 3
+- Added GeminiAPIKey field to Config struct in internal/config/config.go
+- Added GEMINI_API_KEY to .env.example with documentation
+- Created internal/gemini/client.go with Client wrapper
+- Uses google.golang.org/genai SDK (v1.43.0) with BackendGeminiAPI
+- Model constant: gemini-2.5-flash-preview-05-20
+- NewClient validates API key and wraps genai.Client
+- **Learnings for future iterations:**
+  - Use genai.BackendGeminiAPI for Gemini Developer API (not Vertex AI)
+  - API key env var is GEMINI_API_KEY (SDK also supports GOOGLE_API_KEY)
+  - SDK uses google.golang.org/genai not the deprecated google.golang.org/generative-ai
+---
