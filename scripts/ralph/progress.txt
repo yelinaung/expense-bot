@@ -139,3 +139,19 @@ Task ID: 9
   - Store MessageID in pending state to edit the original message after update
   - parseAmount strips $ prefix and handles comma decimal separators
 ---
+
+## 2026-01-26 - Category matching logic
+Thread: https://ampcode.com/threads/T-019bfaac-93aa-7010-bf41-5e6b63aff8c9
+Task ID: 7
+- Created internal/bot/category_matcher.go with MatchCategory function
+- Matching strategy: exact (case-insensitive) -> contains -> reverse contains -> word-based
+- extractSignificantWords splits on -, /, & and filters stop words and short words
+- isStopWord filters common words (and, the, for) from matching
+- Returns *models.Category pointer or nil if no match found
+- Added comprehensive unit tests in category_matcher_test.go
+- **Learnings for future iterations:**
+  - For contains matching, prefer shorter category names (more specific match)
+  - For reverse contains (suggested contains category name), prefer longer matches
+  - Word-based matching useful for partial matches like "travel" -> "Travel & Vacation"
+  - Filter words under 3 chars and stop words to avoid false positives
+---
