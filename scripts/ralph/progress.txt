@@ -41,3 +41,20 @@ Task ID: 3
   - API key env var is GEMINI_API_KEY (SDK also supports GOOGLE_API_KEY)
   - SDK uses google.golang.org/genai not the deprecated google.golang.org/generative-ai
 ---
+
+## 2026-01-26 - Create receipt parser service
+Thread: https://ampcode.com/threads/T-019bfa9d-7bdc-7609-a175-63936eeca1ed
+Task ID: 4
+- Created internal/gemini/receipt_parser.go with ParseReceipt function
+- Defined ReceiptData struct: Amount (decimal.Decimal), Merchant (string), Date (time.Time), SuggestedCategory (string), Confidence (float64)
+- DefaultCategories list matches database SeedCategories for consistent category suggestions
+- Prompt instructs Gemini to return JSON with amount, merchant, date, suggested_category, confidence fields
+- parseReceiptResponse handles markdown code block wrappers (```json...```)
+- Handles partial extraction gracefully (empty strings, zero values)
+- Added comprehensive unit tests for parseReceiptResponse covering edge cases
+- **Learnings for future iterations:**
+  - Gemini may wrap JSON in markdown code blocks - strip ```json and ``` before parsing
+  - Use genai.Blob with InlineData for image bytes, not file uploads
+  - Include example JSON in prompt for better structured output
+  - Keep DefaultCategories in sync with database SeedCategories
+---
