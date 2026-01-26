@@ -58,3 +58,25 @@ Task ID: 4
   - Include example JSON in prompt for better structured output
   - Keep DefaultCategories in sync with database SeedCategories
 ---
+
+## 2026-01-26 - Add photo message handler
+Thread: https://ampcode.com/threads/T-019bfa9f-89c7-765a-a1ee-25f186f09800
+Task ID: 5
+- Added geminiClient field to Bot struct in internal/bot/bot.go
+- Gemini client is initialized in New() if GEMINI_API_KEY is configured
+- Modified defaultHandler to detect photo messages and route to handlePhoto
+- Added downloadPhoto helper function using bot.GetFile and bot.FileDownloadLink
+- Added handlePhoto handler in internal/bot/handlers.go:
+  - Gets largest photo size (last in Photo array)
+  - Downloads photo from Telegram servers
+  - Passes image bytes to gemini.ParseReceipt
+  - Creates expense with status=draft and extracted data
+  - Returns confirmation with amount, merchant, category, and confidence
+- Added categoryUncategorized constant to fix goconst lint warning
+- **Learnings for future iterations:**
+  - Telegram provides multiple photo sizes, use update.Message.Photo[len-1] for largest
+  - Use bot.GetFile(ctx, &GetFileParams{FileID}) then bot.FileDownloadLink(file) to download
+  - Must use http.NewRequestWithContext for proper cancellation support
+  - Defer resp.Body.Close() needs explicit error discard: defer func() { _ = resp.Body.Close() }()
+  - Receipt OCR creates draft expenses (status=draft) for user confirmation
+---

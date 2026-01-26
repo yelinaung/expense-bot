@@ -14,6 +14,8 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
 )
 
+const categoryUncategorized = "Uncategorized"
+
 // handleStart handles the /start command.
 func (b *Bot) handleStart(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
 	if update.Message == nil {
@@ -242,7 +244,7 @@ func (b *Bot) saveExpense(
 		Str("description", expense.Description).
 		Msg("Expense created")
 
-	categoryText := "Uncategorized"
+	categoryText := categoryUncategorized
 	if expense.Category != nil {
 		categoryText = expense.Category.Name
 	}
@@ -519,7 +521,7 @@ func (b *Bot) handleEdit(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 		Int("expense_id", expenseID).
 		Msg("Expense updated")
 
-	categoryText := "Uncategorized"
+	categoryText := categoryUncategorized
 	if expense.Category != nil {
 		categoryText = expense.Category.Name
 	}
@@ -622,5 +624,144 @@ func (b *Bot) handleDelete(ctx context.Context, tgBot *bot.Bot, update *models.U
 	})
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to send delete confirmation")
+	}
+}
+
+// handlePhoto handles photo messages for receipt OCR.
+func (b *Bot) handlePhoto(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	if update.Message == nil || len(update.Message.Photo) == 0 {
+		return
+	}
+
+	chatID := update.Message.Chat.ID
+	userID := update.Message.From.ID
+
+	logger.Log.Info().
+		Int64("chat_id", chatID).
+		Int64("user_id", userID).
+		Int("photo_count", len(update.Message.Photo)).
+		Msg("Received photo message")
+
+	if b.geminiClient == nil {
+		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    chatID,
+			Text:      "📷 Receipt OCR is not configured. Please add expenses manually using /add or send text like <code>5.50 Coffee</code>",
+			ParseMode: models.ParseModeHTML,
+		})
+		return
+	}
+
+	largestPhoto := update.Message.Photo[len(update.Message.Photo)-1]
+
+	logger.Log.Debug().
+		Int64("chat_id", chatID).
+		Int64("user_id", userID).
+		Str("file_id", largestPhoto.FileID).
+		Int("width", largestPhoto.Width).
+		Int("height", largestPhoto.Height).
+		Msg("Downloading photo")
+
+	_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: chatID,
+		Text:   "📷 Processing receipt...",
+	})
+
+	imageBytes, err := b.downloadPhoto(ctx, tgBot, largestPhoto.FileID)
+	if err != nil {
+		logger.Log.Error().Err(err).
+			Int64("chat_id", chatID).
+			Int64("user_id", userID).
+			Msg("Failed to download photo")
+		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to download photo. Please try again.",
+		})
+		return
+	}
+
+	logger.Log.Info().
+		Int64("chat_id", chatID).
+		Int64("user_id", userID).
+		Int("size_bytes", len(imageBytes)).
+		Msg("Photo downloaded successfully")
+
+	receiptData, err := b.geminiClient.ParseReceipt(ctx, imageBytes, "image/jpeg")
+	if err != nil {
+		logger.Log.Error().Err(err).
+			Int64("chat_id", chatID).
+			Int64("user_id", userID).
+			Msg("Failed to parse receipt")
+		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to read receipt. Please try again with a clearer image or add manually.",
+		})
+		return
+	}
+
+	logger.Log.Info().
+		Int64("chat_id", chatID).
+		Int64("user_id", userID).
+		Str("amount", receiptData.Amount.String()).
+		Str("merchant", receiptData.Merchant).
+		Str("category", receiptData.SuggestedCategory).
+		Float64("confidence", receiptData.Confidence).
+		Msg("Receipt parsed successfully")
+
+	categories, _ := b.categoryRepo.GetAll(ctx)
+	var categoryID *int
+	var category *appmodels.Category
+	for i := range categories {
+		if strings.EqualFold(categories[i].Name, receiptData.SuggestedCategory) {
+			categoryID = &categories[i].ID
+			category = &categories[i]
+			break
+		}
+	}
+
+	expense := &appmodels.Expense{
+		UserID:      userID,
+		Amount:      receiptData.Amount,
+		Currency:    "SGD",
+		Description: receiptData.Merchant,
+		CategoryID:  categoryID,
+		Category:    category,
+		Status:      appmodels.ExpenseStatusDraft,
+	}
+
+	if err := b.expenseRepo.Create(ctx, expense); err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to create draft expense")
+		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to save expense. Please try again.",
+		})
+		return
+	}
+
+	categoryText := categoryUncategorized
+	if category != nil {
+		categoryText = category.Name
+	}
+
+	text := fmt.Sprintf(`📷 <b>Receipt Scanned</b>
+
+💰 $%s SGD
+📝 %s
+📁 %s
+🎯 Confidence: %.0f%%
+
+Expense saved as draft #%d.`,
+		expense.Amount.StringFixed(2),
+		expense.Description,
+		categoryText,
+		receiptData.Confidence*100,
+		expense.ID)
+
+	_, err = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:    chatID,
+		Text:      text,
+		ParseMode: models.ParseModeHTML,
+	})
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to send receipt confirmation")
 	}
 }

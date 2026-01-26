@@ -4,11 +4,14 @@ package bot
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 
 	"github.com/go-telegram/bot"
 	tgmodels "github.com/go-telegram/bot/models"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gitlab.com/yelinaung/expense-bot/internal/config"
+	"gitlab.com/yelinaung/expense-bot/internal/gemini"
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
@@ -21,6 +24,7 @@ type Bot struct {
 	userRepo     *repository.UserRepository
 	categoryRepo *repository.CategoryRepository
 	expenseRepo  *repository.ExpenseRepository
+	geminiClient *gemini.Client
 }
 
 // New creates a new Bot instance.
@@ -30,6 +34,16 @@ func New(cfg *config.Config, pool *pgxpool.Pool) (*Bot, error) {
 		userRepo:     repository.NewUserRepository(pool),
 		categoryRepo: repository.NewCategoryRepository(pool),
 		expenseRepo:  repository.NewExpenseRepository(pool),
+	}
+
+	if cfg.GeminiAPIKey != "" {
+		geminiClient, err := gemini.NewClient(context.Background(), cfg.GeminiAPIKey)
+		if err != nil {
+			logger.Log.Warn().Err(err).Msg("Failed to create Gemini client, receipt OCR disabled")
+		} else {
+			b.geminiClient = geminiClient
+			logger.Log.Info().Msg("Gemini client initialized for receipt OCR")
+		}
 	}
 
 	opts := []bot.Option{
@@ -212,6 +226,11 @@ func (b *Bot) defaultHandler(ctx context.Context, tgBot *bot.Bot, update *tgmode
 		Str("text", update.Message.Text).
 		Msg("Default handler triggered")
 
+	if len(update.Message.Photo) > 0 {
+		b.handlePhoto(ctx, tgBot, update)
+		return
+	}
+
 	if b.handleFreeTextExpense(ctx, tgBot, update) {
 		return
 	}
@@ -224,4 +243,38 @@ func (b *Bot) defaultHandler(ctx context.Context, tgBot *bot.Bot, update *tgmode
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to send default response")
 	}
+}
+
+// downloadPhoto downloads a photo from Telegram servers.
+func (b *Bot) downloadPhoto(ctx context.Context, tgBot *bot.Bot, fileID string) ([]byte, error) {
+	file, err := tgBot.GetFile(ctx, &bot.GetFileParams{
+		FileID: fileID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get file info: %w", err)
+	}
+
+	downloadURL := tgBot.FileDownloadLink(file)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create download request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to download file: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("download failed with status: %d", resp.StatusCode)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file data: %w", err)
+	}
+
+	return data, nil
 }
