@@ -4,12 +4,12 @@ package bot
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/go-telegram/bot"
 	tgmodels "github.com/go-telegram/bot/models"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gitlab.com/yelinaung/expense-bot/internal/config"
+	"gitlab.com/yelinaung/expense-bot/internal/logger"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
 )
@@ -50,15 +50,15 @@ func New(cfg *config.Config, pool *pgxpool.Pool) (*Bot, error) {
 
 // Start begins polling for updates.
 func (b *Bot) Start(ctx context.Context) {
-	log.Println("Bot started polling...")
+	logger.Log.Info().Msg("Bot started polling")
 	b.bot.Start(ctx)
 }
 
 // registerHandlers sets up command handlers.
 func (b *Bot) registerHandlers() {
-	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypeExact, b.handleStart)
-	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/help", bot.MatchTypeExact, b.handleHelp)
-	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/categories", bot.MatchTypeExact, b.handleCategories)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypePrefix, b.handleStart)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/help", bot.MatchTypePrefix, b.handleHelp)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/categories", bot.MatchTypePrefix, b.handleCategories)
 }
 
 // whitelistMiddleware checks if the user is whitelisted before processing.
@@ -69,7 +69,14 @@ func (b *Bot) whitelistMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 			return
 		}
 
+		username := extractUsername(update)
+		logUserAction(userID, username, update)
+
 		if !b.cfg.IsUserWhitelisted(userID) {
+			logger.Log.Warn().
+				Int64("user_id", userID).
+				Str("username", username).
+				Msg("Blocked non-whitelisted user")
 			if update.Message != nil {
 				_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
 					ChatID: update.Message.Chat.ID,
@@ -80,11 +87,66 @@ func (b *Bot) whitelistMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 		}
 
 		if err := b.ensureUserRegistered(ctx, update); err != nil {
-			log.Printf("Failed to register user: %v", err)
+			logger.Log.Error().
+				Int64("user_id", userID).
+				Err(err).
+				Msg("Failed to register user")
 		}
 
 		next(ctx, tgBot, update)
 	}
+}
+
+// logUserAction logs the user's input/action.
+func logUserAction(userID int64, username string, update *tgmodels.Update) {
+	switch {
+	case update.Message != nil:
+		msg := update.Message
+		event := logger.Log.Info().
+			Int64("user_id", userID).
+			Str("username", username).
+			Int64("chat_id", msg.Chat.ID)
+
+		if msg.Text != "" {
+			event = event.Str("text", msg.Text)
+		}
+		if len(msg.Photo) > 0 {
+			event = event.Str("type", "photo")
+		}
+		if msg.Document != nil {
+			event = event.Str("type", "document").Str("filename", msg.Document.FileName)
+		}
+
+		event.Msg("User input")
+
+	case update.CallbackQuery != nil:
+		logger.Log.Info().
+			Int64("user_id", userID).
+			Str("username", username).
+			Str("data", update.CallbackQuery.Data).
+			Msg("Callback query")
+
+	case update.EditedMessage != nil:
+		logger.Log.Info().
+			Int64("user_id", userID).
+			Str("username", username).
+			Str("text", update.EditedMessage.Text).
+			Msg("Edited message")
+	}
+}
+
+// extractUsername gets the username from the update.
+func extractUsername(update *tgmodels.Update) string {
+	if update.Message != nil && update.Message.From != nil {
+		return update.Message.From.Username
+	}
+	if update.CallbackQuery != nil {
+		return update.CallbackQuery.From.Username
+	}
+	if update.EditedMessage != nil && update.EditedMessage.From != nil {
+		return update.EditedMessage.From.Username
+	}
+	return ""
 }
 
 // ensureUserRegistered creates or updates the user record.
@@ -139,8 +201,16 @@ func (b *Bot) defaultHandler(ctx context.Context, tgBot *bot.Bot, update *tgmode
 		return
 	}
 
-	_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+	logger.Log.Debug().
+		Int64("chat_id", update.Message.Chat.ID).
+		Str("text", update.Message.Text).
+		Msg("Default handler triggered")
+
+	_, err := tgBot.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: update.Message.Chat.ID,
 		Text:   "I didn't understand that. Use /help to see available commands.",
 	})
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to send default response")
+	}
 }

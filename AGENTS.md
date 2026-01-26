@@ -53,6 +53,14 @@ func TestYourFunction(t *testing.T) {
     // ... test logic
 }
 ```
+ALWAYS RUN these `make` commands
+- test
+- test-coverage
+- test-race
+- test-integration
+
+ENSURE that the test coverage is above 80 %
+
 
 ## Formatting
 

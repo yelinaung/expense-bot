@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
+	"gitlab.com/yelinaung/expense-bot/internal/logger"
 )
 
 // handleStart handles the /start command.
@@ -24,18 +25,22 @@ func (b *Bot) handleStart(ctx context.Context, tgBot *bot.Bot, update *models.Up
 
 I'm your personal expense tracker bot. I help you track your daily expenses in SGD.
 
-*Quick Start:*
-• Send an expense like: `+"`5.50 Coffee`"+`
-• Or use structured format: `+"`/add 5.50 Coffee Food - Dining Out`"+`
+<b>Quick Start:</b>
+• Send an expense like: <code>5.50 Coffee</code>
+• Or use structured format: <code>/add 5.50 Coffee Food - Dining Out</code>
 
 Use /help to see all available commands.`,
 		formatGreeting(firstName))
 
-	_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+	logger.Log.Debug().Int64("chat_id", update.Message.Chat.ID).Msg("Sending /start response")
+	_, err := tgBot.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    update.Message.Chat.ID,
 		Text:      text,
-		ParseMode: models.ParseModeMarkdown,
+		ParseMode: models.ParseModeHTML,
 	})
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to send /start response")
+	}
 }
 
 // handleHelp handles the /help command.
@@ -44,28 +49,32 @@ func (b *Bot) handleHelp(_ context.Context, tgBot *bot.Bot, update *models.Updat
 		return
 	}
 
-	text := `📚 *Available Commands*
+	text := `📚 <b>Available Commands</b>
 
-*Expense Tracking:*
-• ` + "`/add <amount> <description> [category]`" + ` - Add an expense
-• Just send a message like ` + "`5.50 Coffee`" + ` to quickly add
+<b>Expense Tracking:</b>
+• <code>/add &lt;amount&gt; &lt;description&gt; [category]</code> - Add an expense
+• Just send a message like <code>5.50 Coffee</code> to quickly add
 
-*Viewing Expenses:*
-• ` + "`/list`" + ` - Show recent expenses
-• ` + "`/today`" + ` - Show today's expenses
-• ` + "`/week`" + ` - Show this week's expenses
+<b>Viewing Expenses:</b>
+• <code>/list</code> - Show recent expenses
+• <code>/today</code> - Show today's expenses
+• <code>/week</code> - Show this week's expenses
 
-*Categories:*
-• ` + "`/categories`" + ` - List all categories
+<b>Categories:</b>
+• <code>/categories</code> - List all categories
 
-*Other:*
-• ` + "`/help`" + ` - Show this help message`
+<b>Other:</b>
+• <code>/help</code> - Show this help message`
 
-	_, _ = tgBot.SendMessage(context.Background(), &bot.SendMessageParams{
+	logger.Log.Debug().Int64("chat_id", update.Message.Chat.ID).Msg("Sending /help response")
+	_, err := tgBot.SendMessage(context.Background(), &bot.SendMessageParams{
 		ChatID:    update.Message.Chat.ID,
 		Text:      text,
-		ParseMode: models.ParseModeMarkdown,
+		ParseMode: models.ParseModeHTML,
 	})
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to send /help response")
+	}
 }
 
 // handleCategories handles the /categories command.
@@ -92,16 +101,20 @@ func (b *Bot) handleCategories(ctx context.Context, tgBot *bot.Bot, update *mode
 	}
 
 	var sb strings.Builder
-	sb.WriteString("📁 *Expense Categories*\n\n")
+	sb.WriteString("📁 <b>Expense Categories</b>\n\n")
 	for i, cat := range categories {
 		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, cat.Name))
 	}
 
-	_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+	logger.Log.Debug().Int64("chat_id", update.Message.Chat.ID).Msg("Sending /categories response")
+	_, err = tgBot.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    update.Message.Chat.ID,
 		Text:      sb.String(),
-		ParseMode: models.ParseModeMarkdown,
+		ParseMode: models.ParseModeHTML,
 	})
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to send /categories response")
+	}
 }
 
 // formatGreeting returns a greeting suffix with the user's name.

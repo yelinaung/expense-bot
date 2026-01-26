@@ -3,7 +3,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,6 +10,7 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/bot"
 	"gitlab.com/yelinaung/expense-bot/internal/config"
 	"gitlab.com/yelinaung/expense-bot/internal/database"
+	"gitlab.com/yelinaung/expense-bot/internal/logger"
 )
 
 func main() {
@@ -19,35 +19,35 @@ func main() {
 
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		logger.Log.Fatal().Err(err).Msg("Failed to load config")
 	}
 
 	pool, err := database.Connect(ctx, cfg.DatabaseURL)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		logger.Log.Fatal().Err(err).Msg("Failed to connect to database")
 	}
 	defer pool.Close()
 
 	if err := database.RunMigrations(ctx, pool); err != nil {
-		log.Fatalf("Failed to run migrations: %v", err)
+		logger.Log.Fatal().Err(err).Msg("Failed to run migrations")
 	}
 
 	if err := database.SeedCategories(ctx, pool); err != nil {
-		log.Fatalf("Failed to seed categories: %v", err)
+		logger.Log.Fatal().Err(err).Msg("Failed to seed categories")
 	}
 
-	log.Println("Database initialized successfully")
+	logger.Log.Info().Msg("Database initialized successfully")
 
 	telegramBot, err := bot.New(cfg, pool)
 	if err != nil {
-		log.Fatalf("Failed to create bot: %v", err)
+		logger.Log.Fatal().Err(err).Msg("Failed to create bot")
 	}
 
 	go func() {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 		<-sigChan
-		log.Println("Shutting down...")
+		logger.Log.Info().Msg("Shutting down...")
 		cancel()
 	}()
 
