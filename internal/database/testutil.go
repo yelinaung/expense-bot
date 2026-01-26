@@ -36,11 +36,9 @@ func CleanupTables(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 
 	ctx := context.Background()
-	tables := []string{"expenses", "users", "categories"}
-	for _, table := range tables {
-		_, err := pool.Exec(ctx, "TRUNCATE TABLE "+table+" CASCADE")
-		if err != nil {
-			t.Fatalf("failed to truncate table %s: %v", table, err)
-		}
+
+	_, err := pool.Exec(ctx, "TRUNCATE TABLE expenses, users, categories CASCADE")
+	if err != nil {
+		t.Fatalf("failed to truncate tables: %v", err)
 	}
 }
