@@ -79,6 +79,11 @@ func (b *Bot) registerHandlers() {
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/week", bot.MatchTypePrefix, b.handleWeek)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/edit", bot.MatchTypePrefix, b.handleEdit)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/delete", bot.MatchTypePrefix, b.handleDelete)
+
+	// Callback query handlers for receipt confirmation flow.
+	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "receipt_", bot.MatchTypePrefix, b.handleReceiptCallback)
+	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "edit_", bot.MatchTypePrefix, b.handleEditCallback)
+	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "set_category_", bot.MatchTypePrefix, b.handleSetCategoryCallback)
 }
 
 // whitelistMiddleware checks if the user is whitelisted before processing.

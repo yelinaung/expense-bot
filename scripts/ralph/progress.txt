@@ -96,3 +96,27 @@ Task ID: 6
   - SendMessage returns *models.Message which has ID field for message_id tracking
   - Date formatting: use "02 Jan 2006" for human-readable format
 ---
+
+## 2026-01-26 - Handle callback queries for confirmation
+Thread: https://ampcode.com/threads/T-019bfaa5-1059-7542-bf4f-951af59b5688
+Task ID: 8
+- Registered callback query handlers in bot.go using HandlerTypeCallbackQueryData
+- Added handleReceiptCallback for receipt_confirm, receipt_cancel, receipt_edit, receipt_back
+- handleConfirmReceipt: updates expense status to 'confirmed' and edits message
+- handleCancelReceipt: deletes draft expense and edits message with cancellation
+- handleEditReceipt: shows sub-menu with Edit Amount / Edit Category buttons
+- handleBackToReceipt: returns to main confirmation view with Confirm/Edit/Cancel buttons
+- Added handleEditCallback for edit_amount and edit_category actions
+- showCategorySelection: displays inline keyboard with all categories (2 per row)
+- handleSetCategoryCallback: updates expense category and returns to confirmation view
+- All handlers use bot.AnswerCallbackQuery to acknowledge button press (removes spinner)
+- All handlers use bot.EditMessageText to update existing messages
+- **Learnings for future iterations:**
+  - Use bot.HandlerTypeCallbackQueryData for callback query handlers
+  - Pattern "receipt_" with MatchTypePrefix catches all receipt_confirm, receipt_cancel, etc.
+  - update.CallbackQuery.Message.Message.Chat.ID for chat ID (nested Message field)
+  - update.CallbackQuery.Message.Message.ID for message ID to edit
+  - Always call AnswerCallbackQuery first to remove loading spinner
+  - Use EditMessageText with ReplyMarkup to update both text and inline keyboard
+  - Parse callback data format "action_subaction_id" with strings.Split
+---
