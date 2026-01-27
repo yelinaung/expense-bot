@@ -69,3 +69,23 @@ Task ID: 18
   - Date range queries use >= start and < end (half-open interval)
   - Status filtering in queries is important for business logic tests
 ---
+
+## 2026-01-27 - Bot mock infrastructure
+Thread: https://ampcode.com/threads/T-019bfdee-df0a-77db-afc9-085f42c38745
+Task ID: 19
+- Created internal/bot/mocks/bot_mock.go with MockBot struct:
+  - SendMessage, EditMessageText, AnswerCallbackQuery, GetFile, FileDownloadLink
+  - Stores sent messages, edited messages, answered callbacks in slices for assertion
+  - Error injection support for testing error paths
+  - Helper methods: LastSentMessage(), LastEditedMessage(), SentMessageCount(), Reset()
+- Created internal/bot/mocks/update_builder.go with UpdateBuilder:
+  - Fluent API for building test Update objects
+  - WithMessage, WithCallbackQuery, WithPhoto, WithDocument, WithEditedMessage
+  - Helper functions: MessageUpdate, CommandUpdate, CallbackQueryUpdate, PhotoUpdate
+- Added comprehensive tests for both mock files (100% coverage)
+- Files changed: internal/bot/mocks/bot_mock.go, internal/bot/mocks/update_builder.go, internal/bot/mocks/*_test.go
+- **Learnings for future iterations:**
+  - go-telegram/bot uses models.ReplyMarkup interface (not concrete *InlineKeyboardMarkup)
+  - models.MaybeInaccessibleMessage is a value type, not pointer
+  - Thread-safe mocks with sync.RWMutex allow parallel test execution
+---
