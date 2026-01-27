@@ -39,7 +39,7 @@ expense-bot/
 
 ### Technology Stack
 
-- **Language**: Go 1.21+
+- **Language**: Go 1.25+
 - **Database**: PostgreSQL with pgx driver
 - **Bot Framework**: go-telegram/bot
 - **AI/OCR**: Google Gemini API
@@ -48,8 +48,8 @@ expense-bot/
 
 ## Prerequisites
 
-- Go 1.21 or higher
-- PostgreSQL 14+
+- Go 1.25 or higher
+- PostgreSQL 18+
 - Telegram Bot Token (from [@BotFather](https://t.me/BotFather))
 - Google Gemini API Key (optional, for receipt OCR)
 - Docker and Docker Compose (for testing)
@@ -84,7 +84,7 @@ Edit `.env` with your configuration:
 TELEGRAM_BOT_TOKEN=your_bot_token_here
 
 # PostgreSQL Database Connection
-DATABASE_URL=postgres://USER:PASS@localhost:5432/expense_bot?sslmode=disable
+DATABASE_URL=postgres://YOUR_DATABASE_URL
 
 # Whitelisted Telegram User IDs (comma-separated)
 # Get your user ID by messaging @userinfobot
@@ -230,7 +230,7 @@ This will:
 make test-db-up
 
 # Run tests with TEST_DATABASE_URL set
-TEST_DATABASE_URL="postgres://<user>:<pass>@localhost:5433/expense_bot_test?sslmode=disable" go test -v ./...
+TEST_DATABASE_URL="postgres://YOUR_DATABASE_URL" go test -v ./...
 
 # Stop test database
 make test-db-down
