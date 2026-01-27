@@ -113,3 +113,29 @@ Task ID: 20
   - Database integration tests verify actual behavior, wrapper functions verify logic flow
   - Each test cleans up with mockBot.Reset() between subtests
 ---
+
+## 2026-01-27 - Handler unit tests - callbacks
+Thread: https://ampcode.com/threads/T-019bfdf7-37fe-722e-8f70-20a0c522a367
+Task ID: 21
+- Added comprehensive callback handler tests to handlers_test.go:
+  - TestHandleReceiptCallback: confirm/cancel/edit/back actions, nil CallbackQuery, invalid format, expense not found, user ownership check
+  - TestHandleEditCallback: amount/category actions, pending edit state, nil CallbackQuery, invalid format, expense not found, user ownership
+  - TestHandleSetCategoryCallback: sets category and updates message, invalid format, expense/category not found, user ownership
+  - TestHandleCancelEditCallback: clears pending edit state, returns to edit menu, nil CallbackQuery, invalid format, ownership
+  - TestHandleCreateCategoryCallback: prompts for category name, sets pending edit state, nil CallbackQuery, invalid format, ownership
+  - TestGetCategoryName: helper function for category text extraction
+- Created helper functions simulating callback handler logic:
+  - callHandleReceiptCallback, callHandleConfirmReceipt, callHandleCancelReceipt, callHandleEditReceipt, callHandleBackToReceipt
+  - callHandleEditCallback, callPromptEditAmount, callShowCategorySelection
+  - callHandleSetCategoryCallback, callHandleCancelEditCallback, callHandleCreateCategoryCallback
+  - getCategoryText helper for consistent category name lookup
+- Verified inline keyboard responses via mockBot.EditedMessages with ReplyMarkup assertions
+- Verified callback query answers via mockBot.AnsweredCallbacks
+- Files changed: internal/bot/handlers_test.go
+- **Learnings for future iterations:**
+  - Callback handlers use EditMessageText instead of SendMessage
+  - MockBot.EditedMessages captures ReplyMarkup for keyboard verification
+  - MockBot.AnsweredCallbacks tracks callback query acknowledgments
+  - testBot struct needs pendingEdits map for testing pending edit flows
+  - Callback data format: "prefix_action_expenseID" or "prefix_action_expenseID_categoryID"
+---
