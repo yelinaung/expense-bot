@@ -84,7 +84,7 @@ Edit `.env` with your configuration:
 TELEGRAM_BOT_TOKEN=your_bot_token_here
 
 # PostgreSQL Database Connection
-DATABASE_URL=postgres://user:password@localhost:5432/expense_bot?sslmode=disable
+DATABASE_URL=postgres://<username>:<password>@localhost:5432/expense_bot?sslmode=disable
 
 # Whitelisted Telegram User IDs (comma-separated)
 # Get your user ID by messaging @userinfobot
@@ -230,7 +230,7 @@ This will:
 make test-db-up
 
 # Run tests with TEST_DATABASE_URL set
-TEST_DATABASE_URL="postgres://test:test@localhost:5433/expense_bot_test?sslmode=disable" go test -v ./...
+TEST_DATABASE_URL="postgres://<user>:<pass>@localhost:5433/expense_bot_test?sslmode=disable" go test -v ./...
 
 # Stop test database
 make test-db-down
