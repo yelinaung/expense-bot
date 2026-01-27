@@ -42,10 +42,6 @@ func setupReceiptOCRTest(t *testing.T) (*repository.ExpenseRepository, *reposito
 
 	err := database.RunMigrations(ctx, pool)
 	require.NoError(t, err)
-
-	err = database.SeedCategories(ctx, pool)
-	require.NoError(t, err)
-
 	database.CleanupTables(t, pool)
 
 	err = database.SeedCategories(ctx, pool)

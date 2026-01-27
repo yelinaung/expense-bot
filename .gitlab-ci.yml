@@ -69,7 +69,7 @@ test:
   before_script:
   - export TEST_DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
   script:
-  - go test -v -coverprofile=coverage.out -covermode=atomic ./...
+  - go test -v -coverprofile=coverage.out -covermode=atomic -p 1 ./...
   - go tool cover -func=coverage.out
   artifacts:
     paths:
