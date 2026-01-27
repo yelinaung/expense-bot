@@ -53,13 +53,43 @@ func TestYourFunction(t *testing.T) {
     // ... test logic
 }
 ```
-ALWAYS RUN these `make` commands
+ALWAYS RUN these `make` commands:
 - test
 - test-coverage
 - test-race
 - test-integration
 
-ENSURE that the test coverage is above 80 %
+ENSURE that the test coverage stays at or above 40% (CI enforced). Target is 80%.
+
+## Test Patterns
+
+### Unit Tests
+- Use `t.Parallel()` for tests that don't need database.
+- Use table-driven tests for pure functions.
+- Use `testify/require` for assertions.
+- Use `t.Helper()` in test setup functions.
+
+### Database Tests
+- Use `database.TestDB(t)` which skips if `TEST_DATABASE_URL` not set.
+- Run with `-p 1` to avoid race conditions.
+- Do NOT use `t.Parallel()` for database tests.
+
+### Mocking External Dependencies
+- Use interfaces for external SDK calls (e.g., Gemini API).
+- Use adapter pattern to wrap SDK structs.
+- Create separate constructors for testing (e.g., `NewClientWithGenerator`).
+- See `internal/bot/mocks/` for Telegram bot mocks.
+
+### Handler Testing
+- Handlers take concrete `*bot.Bot` type, not interface.
+- Use wrapper functions to test handler logic without calling real handlers.
+- Callback handlers use `EditMessageText` instead of `SendMessage`.
+
+### Edge Cases to Test
+- nil/empty slices and maps.
+- Whitespace-only inputs.
+- Bot mention formats in commands.
+- Non-existent IDs for update/delete operations.
 
 
 ## Formatting

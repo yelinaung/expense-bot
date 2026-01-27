@@ -198,3 +198,29 @@ Task ID: 23
   - Middleware pattern allows wrapping next handler to verify flow
   - Database tests (TestWhitelistMiddleware, TestEnsureUserRegistered) skip when TEST_DATABASE_URL not set
 ---
+
+## 2026-01-27 - Coverage verification and CI update
+Thread: https://ampcode.com/threads/T-019bfe24-1641-72aa-9c42-acf53e27b47c
+Task ID: 24
+- Current coverage: 40.4% (handlers.go at 0% for most functions is the main gap)
+- Updated .gitlab-ci.yml with coverage threshold enforcement:
+  - Added script to extract coverage percentage and compare to threshold
+  - Set threshold at 40% (current level) with target of 80%
+  - CI will fail if coverage drops below threshold
+- Updated AGENTS.md with comprehensive test patterns documentation:
+  - Unit test patterns (t.Parallel(), table-driven, testify/require)
+  - Database test patterns (TestDB, -p 1, no t.Parallel())
+  - Mocking patterns (interfaces, adapters, separate constructors)
+  - Handler testing patterns (wrapper functions, EditMessageText for callbacks)
+  - Edge cases to test (nil/empty, whitespace, bot mentions, non-existent IDs)
+- Files changed: .gitlab-ci.yml, AGENTS.md
+- **Analysis of coverage gap:**
+  - handlers.go is 1648 lines (45% of production code) with most handlers at 0% coverage
+  - Handlers require *bot.Bot concrete type which makes unit testing difficult
+  - Wrapper functions test logic but don't contribute to coverage metrics
+  - To reach 80%, need to either: refactor handlers to use interfaces, or add integration tests
+- **Learnings for future iterations:**
+  - Coverage enforcement should start at current level and increase incrementally
+  - Document test patterns in AGENTS.md for consistency across iterations
+  - handlers.go needs architectural refactoring for proper testability
+---

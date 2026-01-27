@@ -71,6 +71,14 @@ test:
   script:
   - go test -v -coverprofile=coverage.out -covermode=atomic -p 1 ./...
   - go tool cover -func=coverage.out
+  - |
+    COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+    THRESHOLD=40
+    echo "Coverage: ${COVERAGE}% (threshold: ${THRESHOLD}%)"
+    if [ "$(echo "$COVERAGE < $THRESHOLD" | bc)" -eq 1 ]; then
+      echo "Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%!"
+      exit 1
+    fi
   artifacts:
     paths:
     - coverage.out
