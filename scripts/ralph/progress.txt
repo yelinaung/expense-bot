@@ -27,3 +27,15 @@ Task ID: 16
   - Table-driven tests with t.Parallel() work well for pure functions
   - Test edge cases like nil/empty slices, whitespace-only inputs, and bot mention formats
 ---
+
+## 2026-01-27 - Config unit tests
+Thread: https://ampcode.com/threads/T-019bfdea-e164-76dc-bb19-ad8ecaab5069
+Task ID: 17
+- Added test for empty entries from trailing/consecutive commas (covers line 36 continue branch)
+- Added test for GeminiAPIKey loading
+- Config package now has 100% test coverage
+- Files changed: internal/config/config_test.go
+- **Learnings for future iterations:**
+  - Use t.Setenv() for env var tests, no t.Parallel() needed for subtests
+  - Trailing commas/consecutive delimiters create empty strings after split
+---

@@ -57,6 +57,27 @@ func TestLoad(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, cfg.WhitelistedUserIDs)
 	})
+
+	t.Run("skips empty entries from trailing commas", func(t *testing.T) {
+		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
+		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("WHITELISTED_USER_IDS", "123,,456,")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Equal(t, []int64{123, 456}, cfg.WhitelistedUserIDs)
+	})
+
+	t.Run("loads GeminiAPIKey from env", func(t *testing.T) {
+		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
+		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("GEMINI_API_KEY", "test-gemini-key")
+		t.Setenv("WHITELISTED_USER_IDS", "")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Equal(t, "test-gemini-key", cfg.GeminiAPIKey)
+	})
 }
 
 func TestConfig_IsUserWhitelisted(t *testing.T) {
