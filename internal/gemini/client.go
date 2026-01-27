@@ -9,7 +9,7 @@ import (
 )
 
 // ModelName is the Gemini model to use for receipt OCR.
-const ModelName = "gemini-2.5-flash-preview-05-20"
+const ModelName = "gemini-3-flash-preview"
 
 // Client wraps the Gemini API client.
 type Client struct {
