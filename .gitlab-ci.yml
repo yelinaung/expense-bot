@@ -144,8 +144,9 @@ test:
   before_script:
     - export TEST_DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
   script:
-    # OPTIMIZED: Increased parallelization from -p 1 to -p 4 (4-8x faster)
-    - go test -v -coverprofile=coverage.out -covermode=atomic -p 4 ./...
+    # NOTE: Using -p 1 to avoid race conditions in database tests
+    # Multiple packages connecting to same test DB causes migration conflicts
+    - go test -v -coverprofile=coverage.out -covermode=atomic -p 1 ./...
     # OPTIMIZED: Calculate coverage once and reuse
     - |
       COVERAGE_OUTPUT=$(go tool cover -func=coverage.out)
