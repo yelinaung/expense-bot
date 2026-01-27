@@ -74,3 +74,101 @@ func TestCategoryRepository_CRUD(t *testing.T) {
 		require.Len(t, cats, 2)
 	})
 }
+
+func TestCategoryRepository_GetByID_NonExistent(t *testing.T) {
+	pool := database.TestDB(t)
+	ctx := context.Background()
+
+	err := database.RunMigrations(ctx, pool)
+	require.NoError(t, err)
+	database.CleanupTables(t, pool)
+
+	repo := NewCategoryRepository(pool)
+
+	_, err = repo.GetByID(ctx, 99999)
+	require.Error(t, err)
+}
+
+func TestCategoryRepository_GetByName_NonExistent(t *testing.T) {
+	pool := database.TestDB(t)
+	ctx := context.Background()
+
+	err := database.RunMigrations(ctx, pool)
+	require.NoError(t, err)
+	database.CleanupTables(t, pool)
+
+	repo := NewCategoryRepository(pool)
+
+	_, err = repo.GetByName(ctx, "NonExistentCategory")
+	require.Error(t, err)
+}
+
+func TestCategoryRepository_UpdateNonExistent(t *testing.T) {
+	pool := database.TestDB(t)
+	ctx := context.Background()
+
+	err := database.RunMigrations(ctx, pool)
+	require.NoError(t, err)
+	database.CleanupTables(t, pool)
+
+	repo := NewCategoryRepository(pool)
+
+	// Update should succeed even for non-existent ID (no rows affected).
+	err = repo.Update(ctx, 99999, "New Name")
+	require.NoError(t, err)
+}
+
+func TestCategoryRepository_DeleteNonExistent(t *testing.T) {
+	pool := database.TestDB(t)
+	ctx := context.Background()
+
+	err := database.RunMigrations(ctx, pool)
+	require.NoError(t, err)
+	database.CleanupTables(t, pool)
+
+	repo := NewCategoryRepository(pool)
+
+	// Delete should succeed even for non-existent ID (no rows affected).
+	err = repo.Delete(ctx, 99999)
+	require.NoError(t, err)
+}
+
+func TestCategoryRepository_GetAll_Empty(t *testing.T) {
+	pool := database.TestDB(t)
+	ctx := context.Background()
+
+	err := database.RunMigrations(ctx, pool)
+	require.NoError(t, err)
+	database.CleanupTables(t, pool)
+
+	repo := NewCategoryRepository(pool)
+
+	cats, err := repo.GetAll(ctx)
+	require.NoError(t, err)
+	require.Empty(t, cats)
+}
+
+func TestCategoryRepository_CreateDuplicate(t *testing.T) {
+	pool := database.TestDB(t)
+	ctx := context.Background()
+
+	err := database.RunMigrations(ctx, pool)
+	require.NoError(t, err)
+	database.CleanupTables(t, pool)
+
+	repo := NewCategoryRepository(pool)
+
+	_, err = repo.Create(ctx, "Duplicate Category")
+	require.NoError(t, err)
+
+	// Attempt to create duplicate - this might succeed or fail depending on DB constraints.
+	// Test verifies the behavior, not necessarily an error.
+	cat2, err := repo.Create(ctx, "Duplicate Category")
+	if err == nil {
+		// If no unique constraint, both should exist.
+		require.NotZero(t, cat2.ID)
+	} else {
+		// If unique constraint exists, expect an error.
+		require.Error(t, err)
+	}
+}

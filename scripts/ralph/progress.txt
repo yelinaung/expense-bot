@@ -39,3 +39,33 @@ Task ID: 17
   - Use t.Setenv() for env var tests, no t.Parallel() needed for subtests
   - Trailing commas/consecutive delimiters create empty strings after split
 ---
+
+## 2026-01-27 - Repository edge case tests
+Thread: https://ampcode.com/threads/T-019bfdec-5e1e-7649-9f1a-20ced70cfb39
+Task ID: 18
+- Added expense repository tests:
+  - TestExpenseRepository_GetTotalByUserIDAndDateRange_MixedStatuses (only counts confirmed)
+  - TestExpenseRepository_UpdateNonExistent (no error for non-existent ID)
+  - TestExpenseRepository_DeleteNonExistent (no error for non-existent ID)
+  - TestExpenseRepository_GetByUserIDAndDateRange_EdgeBoundaries (boundary inclusion/exclusion)
+  - TestExpenseRepository_GetByUserID_OnlyConfirmed (filters draft expenses)
+  - TestExpenseRepository_GetByUserIDAndDateRange_OnlyConfirmed (filters draft expenses)
+  - TestExpenseRepository_Create_DefaultStatus (defaults to confirmed)
+  - TestExpenseRepository_Pool (tests Pool() accessor)
+- Added category repository tests:
+  - TestCategoryRepository_GetByID_NonExistent
+  - TestCategoryRepository_GetByName_NonExistent
+  - TestCategoryRepository_UpdateNonExistent
+  - TestCategoryRepository_DeleteNonExistent
+  - TestCategoryRepository_GetAll_Empty
+  - TestCategoryRepository_CreateDuplicate
+- Added user repository tests:
+  - TestUserRepository_UpsertUser_WithEmptyFields
+  - TestUserRepository_UpsertUser_UpdateToEmpty
+- Files changed: internal/repository/*_test.go
+- Repository coverage: expense_repository 83-100%, category_repository 75-100%, user_repository 75-100%
+- **Learnings for future iterations:**
+  - PostgreSQL Update/Delete with non-existent IDs succeed without error (0 rows affected)
+  - Date range queries use >= start and < end (half-open interval)
+  - Status filtering in queries is important for business logic tests
+---

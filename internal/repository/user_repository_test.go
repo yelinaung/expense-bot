@@ -70,3 +70,65 @@ func TestUserRepository_GetUserByID(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+func TestUserRepository_UpsertUser_WithEmptyFields(t *testing.T) {
+	pool := database.TestDB(t)
+	ctx := context.Background()
+
+	err := database.RunMigrations(ctx, pool)
+	require.NoError(t, err)
+	database.CleanupTables(t, pool)
+
+	repo := NewUserRepository(pool)
+
+	// Create user with minimal fields.
+	user := &models.User{
+		ID:        54321,
+		Username:  "",
+		FirstName: "",
+		LastName:  "",
+	}
+
+	err = repo.UpsertUser(ctx, user)
+	require.NoError(t, err)
+
+	fetched, err := repo.GetUserByID(ctx, 54321)
+	require.NoError(t, err)
+	require.Equal(t, "", fetched.Username)
+	require.Equal(t, "", fetched.FirstName)
+	require.Equal(t, "", fetched.LastName)
+}
+
+func TestUserRepository_UpsertUser_UpdateToEmpty(t *testing.T) {
+	pool := database.TestDB(t)
+	ctx := context.Background()
+
+	err := database.RunMigrations(ctx, pool)
+	require.NoError(t, err)
+	database.CleanupTables(t, pool)
+
+	repo := NewUserRepository(pool)
+
+	// Create user with values.
+	user := &models.User{
+		ID:        65432,
+		Username:  "originaluser",
+		FirstName: "Original",
+		LastName:  "User",
+	}
+	err = repo.UpsertUser(ctx, user)
+	require.NoError(t, err)
+
+	// Update to empty values.
+	user.Username = ""
+	user.FirstName = ""
+	user.LastName = ""
+	err = repo.UpsertUser(ctx, user)
+	require.NoError(t, err)
+
+	fetched, err := repo.GetUserByID(ctx, 65432)
+	require.NoError(t, err)
+	require.Equal(t, "", fetched.Username)
+	require.Equal(t, "", fetched.FirstName)
+	require.Equal(t, "", fetched.LastName)
+}

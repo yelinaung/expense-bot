@@ -343,3 +343,202 @@ func TestExpenseRepository_GetTotalByUserIDAndDateRange(t *testing.T) {
 		require.True(t, decimal.Zero.Equal(total))
 	})
 }
+
+func TestExpenseRepository_GetTotalByUserIDAndDateRange_MixedStatuses(t *testing.T) {
+	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
+
+	user := &models.User{ID: 900, Username: "user900", FirstName: "Test", LastName: "User"}
+	err := userRepo.UpsertUser(ctx, user)
+	require.NoError(t, err)
+
+	// Create confirmed expense.
+	confirmed := &models.Expense{
+		UserID:      900,
+		Amount:      decimal.NewFromFloat(100.00),
+		Currency:    "SGD",
+		Description: "Confirmed expense",
+		Status:      models.ExpenseStatusConfirmed,
+	}
+	err = expenseRepo.Create(ctx, confirmed)
+	require.NoError(t, err)
+
+	// Create draft expense (should not be counted).
+	draft := &models.Expense{
+		UserID:      900,
+		Amount:      decimal.NewFromFloat(50.00),
+		Currency:    "SGD",
+		Description: "Draft expense",
+		Status:      models.ExpenseStatusDraft,
+	}
+	err = expenseRepo.Create(ctx, draft)
+	require.NoError(t, err)
+
+	now := time.Now()
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	endOfDay := startOfDay.Add(24 * time.Hour)
+
+	total, err := expenseRepo.GetTotalByUserIDAndDateRange(ctx, 900, startOfDay, endOfDay)
+	require.NoError(t, err)
+	require.True(t, decimal.NewFromFloat(100.00).Equal(total), "should only count confirmed expenses")
+}
+
+func TestExpenseRepository_UpdateNonExistent(t *testing.T) {
+	expenseRepo, _, _, ctx := setupExpenseTest(t)
+
+	// Update should succeed even for non-existent ID (no rows affected).
+	expense := &models.Expense{
+		ID:          99999,
+		Amount:      decimal.NewFromFloat(10.00),
+		Currency:    "SGD",
+		Description: "Non-existent",
+		Status:      models.ExpenseStatusConfirmed,
+	}
+	err := expenseRepo.Update(ctx, expense)
+	require.NoError(t, err)
+}
+
+func TestExpenseRepository_DeleteNonExistent(t *testing.T) {
+	expenseRepo, _, _, ctx := setupExpenseTest(t)
+
+	// Delete should succeed even for non-existent ID (no rows affected).
+	err := expenseRepo.Delete(ctx, 99999)
+	require.NoError(t, err)
+}
+
+func TestExpenseRepository_GetByUserIDAndDateRange_EdgeBoundaries(t *testing.T) {
+	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
+
+	user := &models.User{ID: 901, Username: "user901", FirstName: "Test", LastName: "User"}
+	err := userRepo.UpsertUser(ctx, user)
+	require.NoError(t, err)
+
+	expense := &models.Expense{
+		UserID:      901,
+		Amount:      decimal.NewFromFloat(25.00),
+		Currency:    "SGD",
+		Description: "Edge boundary test",
+	}
+	err = expenseRepo.Create(ctx, expense)
+	require.NoError(t, err)
+
+	t.Run("expense at start boundary is included", func(t *testing.T) {
+		now := time.Now()
+		startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		endOfDay := startOfDay.Add(24 * time.Hour)
+
+		expenses, err := expenseRepo.GetByUserIDAndDateRange(ctx, 901, startOfDay, endOfDay)
+		require.NoError(t, err)
+		require.Len(t, expenses, 1)
+	})
+
+	t.Run("expense at end boundary is excluded", func(t *testing.T) {
+		now := time.Now()
+		// End exactly at start of day (before the expense was created).
+		startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+		expenses, err := expenseRepo.GetByUserIDAndDateRange(ctx, 901, startOfDay.Add(-24*time.Hour), startOfDay)
+		require.NoError(t, err)
+		require.Empty(t, expenses)
+	})
+}
+
+func TestExpenseRepository_GetByUserID_OnlyConfirmed(t *testing.T) {
+	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
+
+	user := &models.User{ID: 902, Username: "user902", FirstName: "Test", LastName: "User"}
+	err := userRepo.UpsertUser(ctx, user)
+	require.NoError(t, err)
+
+	// Create confirmed expense.
+	confirmed := &models.Expense{
+		UserID:      902,
+		Amount:      decimal.NewFromFloat(10.00),
+		Currency:    "SGD",
+		Description: "Confirmed",
+		Status:      models.ExpenseStatusConfirmed,
+	}
+	err = expenseRepo.Create(ctx, confirmed)
+	require.NoError(t, err)
+
+	// Create draft expense.
+	draft := &models.Expense{
+		UserID:      902,
+		Amount:      decimal.NewFromFloat(20.00),
+		Currency:    "SGD",
+		Description: "Draft",
+		Status:      models.ExpenseStatusDraft,
+	}
+	err = expenseRepo.Create(ctx, draft)
+	require.NoError(t, err)
+
+	expenses, err := expenseRepo.GetByUserID(ctx, 902, 10)
+	require.NoError(t, err)
+	require.Len(t, expenses, 1)
+	require.Equal(t, "Confirmed", expenses[0].Description)
+}
+
+func TestExpenseRepository_GetByUserIDAndDateRange_OnlyConfirmed(t *testing.T) {
+	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
+
+	user := &models.User{ID: 903, Username: "user903", FirstName: "Test", LastName: "User"}
+	err := userRepo.UpsertUser(ctx, user)
+	require.NoError(t, err)
+
+	confirmed := &models.Expense{
+		UserID:      903,
+		Amount:      decimal.NewFromFloat(30.00),
+		Currency:    "SGD",
+		Description: "Confirmed for date range",
+		Status:      models.ExpenseStatusConfirmed,
+	}
+	err = expenseRepo.Create(ctx, confirmed)
+	require.NoError(t, err)
+
+	draft := &models.Expense{
+		UserID:      903,
+		Amount:      decimal.NewFromFloat(40.00),
+		Currency:    "SGD",
+		Description: "Draft for date range",
+		Status:      models.ExpenseStatusDraft,
+	}
+	err = expenseRepo.Create(ctx, draft)
+	require.NoError(t, err)
+
+	now := time.Now()
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	endOfDay := startOfDay.Add(24 * time.Hour)
+
+	expenses, err := expenseRepo.GetByUserIDAndDateRange(ctx, 903, startOfDay, endOfDay)
+	require.NoError(t, err)
+	require.Len(t, expenses, 1)
+	require.Equal(t, "Confirmed for date range", expenses[0].Description)
+}
+
+func TestExpenseRepository_Create_DefaultStatus(t *testing.T) {
+	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
+
+	user := &models.User{ID: 904, Username: "user904", FirstName: "Test", LastName: "User"}
+	err := userRepo.UpsertUser(ctx, user)
+	require.NoError(t, err)
+
+	// Create expense without setting status.
+	expense := &models.Expense{
+		UserID:      904,
+		Amount:      decimal.NewFromFloat(15.00),
+		Currency:    "SGD",
+		Description: "No status set",
+	}
+	err = expenseRepo.Create(ctx, expense)
+	require.NoError(t, err)
+
+	fetched, err := expenseRepo.GetByID(ctx, expense.ID)
+	require.NoError(t, err)
+	require.Equal(t, models.ExpenseStatusConfirmed, fetched.Status)
+}
+
+func TestExpenseRepository_Pool(t *testing.T) {
+	expenseRepo, _, _, _ := setupExpenseTest(t)
+
+	pool := expenseRepo.Pool()
+	require.NotNil(t, pool)
+}

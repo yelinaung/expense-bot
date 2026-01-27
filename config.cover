@@ -1,0 +1,10 @@
+mode: set
+gitlab.com/yelinaung/expense-bot/internal/config/config.go:22.30,32.24 4 1
+gitlab.com/yelinaung/expense-bot/internal/config/config.go:32.24,33.58 1 1
+gitlab.com/yelinaung/expense-bot/internal/config/config.go:33.58,35.19 2 1
+gitlab.com/yelinaung/expense-bot/internal/config/config.go:35.19,36.13 1 0
+gitlab.com/yelinaung/expense-bot/internal/config/config.go:38.4,39.18 2 1
+gitlab.com/yelinaung/expense-bot/internal/config/config.go:39.18,40.13 1 1
+gitlab.com/yelinaung/expense-bot/internal/config/config.go:42.4,42.63 1 1
+gitlab.com/yelinaung/expense-bot/internal/config/config.go:46.2,46.17 1 1
+gitlab.com/yelinaung/expense-bot/internal/config/config.go:50.55,52.2 1 1
