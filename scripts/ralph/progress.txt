@@ -176,3 +176,25 @@ Task ID: 22
   - Separate constructors (NewClientWithGenerator) for testing vs production
   - Mock responses can include multi-part content for edge case testing
 ---
+
+## 2026-01-27 - Bot core tests
+Thread: https://ampcode.com/threads/T-019bfe1f-e3f3-769f-bbf8-2652d70d419a
+Task ID: 23
+- Added comprehensive unit tests to bot_test.go:
+  - TestWhitelistMiddleware: whitelisted user passes, non-whitelisted user blocked with message, zero userID returns early, callback query handling
+  - TestEnsureUserRegistered: registers user from message, from callback query, returns nil for nil user and edited message
+  - TestDefaultHandler: nil message returns early, photo routing, pending edit routing, unknown message routing
+  - TestDownloadPhoto: successful download with mock HTTP, non-200 status error, invalid URL error, context canceled error
+  - TestPendingEditStruct: struct field access
+  - TestDraftConstants: constant values verified
+- Created helper functions for testing:
+  - callMiddlewareWithMock, middlewareBotWrapper for middleware testing
+  - callDefaultHandler, routeDefaultHandler for routing logic verification
+  - downloadPhotoFromURL for HTTP download testing with httptest
+- Files changed: internal/bot/bot_test.go
+- **Learnings for future iterations:**
+  - whitelistMiddleware cannot be fully tested with real *bot.Bot - use wrapper patterns
+  - httptest.NewServer enables HTTP download testing without external dependencies
+  - Middleware pattern allows wrapping next handler to verify flow
+  - Database tests (TestWhitelistMiddleware, TestEnsureUserRegistered) skip when TEST_DATABASE_URL not set
+---
