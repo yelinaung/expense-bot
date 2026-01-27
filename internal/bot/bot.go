@@ -37,6 +37,11 @@ type Bot struct {
 
 	pendingEdits   map[int64]*pendingEdit // key is chatID
 	pendingEditsMu sync.RWMutex
+
+	// Category cache to reduce database queries.
+	categoryCache       []models.Category
+	categoryCacheExpiry time.Time
+	categoryCacheMu     sync.RWMutex
 }
 
 // New creates a new Bot instance.
@@ -80,6 +85,8 @@ const (
 	DraftExpirationTimeout = 10 * time.Minute
 	// DraftCleanupInterval is how often the cleanup goroutine runs.
 	DraftCleanupInterval = 5 * time.Minute
+	// CategoryCacheTTL is how long category cache remains valid.
+	CategoryCacheTTL = 5 * time.Minute
 )
 
 // Start begins polling for updates.
@@ -343,4 +350,48 @@ func (b *Bot) downloadPhoto(ctx context.Context, tgBot *bot.Bot, fileID string) 
 	}
 
 	return data, nil
+}
+
+// getCategoriesWithCache returns categories from cache if valid, otherwise fetches from DB.
+func (b *Bot) getCategoriesWithCache(ctx context.Context) ([]models.Category, error) {
+	// Try reading from cache first.
+	b.categoryCacheMu.RLock()
+	if time.Now().Before(b.categoryCacheExpiry) && b.categoryCache != nil {
+		categories := b.categoryCache
+		b.categoryCacheMu.RUnlock()
+		logger.Log.Debug().Msg("Categories served from cache")
+		return categories, nil
+	}
+	b.categoryCacheMu.RUnlock()
+
+	// Cache miss or expired, fetch from database.
+	b.categoryCacheMu.Lock()
+	defer b.categoryCacheMu.Unlock()
+
+	// Double-check after acquiring write lock (another goroutine might have updated it).
+	if time.Now().Before(b.categoryCacheExpiry) && b.categoryCache != nil {
+		logger.Log.Debug().Msg("Categories served from cache after lock")
+		return b.categoryCache, nil
+	}
+
+	categories, err := b.categoryRepo.GetAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch categories: %w", err)
+	}
+
+	// Update cache.
+	b.categoryCache = categories
+	b.categoryCacheExpiry = time.Now().Add(CategoryCacheTTL)
+	logger.Log.Debug().Int("count", len(categories)).Msg("Categories cached")
+
+	return categories, nil
+}
+
+// invalidateCategoryCache clears the category cache, forcing a refresh on next access.
+func (b *Bot) invalidateCategoryCache() {
+	b.categoryCacheMu.Lock()
+	defer b.categoryCacheMu.Unlock()
+	b.categoryCache = nil
+	b.categoryCacheExpiry = time.Time{}
+	logger.Log.Debug().Msg("Category cache invalidated")
 }
