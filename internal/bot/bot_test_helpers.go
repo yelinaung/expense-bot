@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/shopspring/decimal"
 	"gitlab.com/yelinaung/expense-bot/internal/config"
 	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
@@ -57,4 +58,15 @@ func setupTestBot(t *testing.T, pool *pgxpool.Pool) *Bot {
 	}
 
 	return b
+}
+
+// mustParseDecimal parses a decimal string or panics (for test data).
+//
+//nolint:unused // Used in test files
+func mustParseDecimal(s string) decimal.Decimal {
+	d, err := decimal.NewFromString(s)
+	if err != nil {
+		panic("invalid decimal in test: " + s)
+	}
+	return d
 }
