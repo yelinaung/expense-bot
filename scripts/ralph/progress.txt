@@ -89,3 +89,27 @@ Task ID: 19
   - models.MaybeInaccessibleMessage is a value type, not pointer
   - Thread-safe mocks with sync.RWMutex allow parallel test execution
 ---
+
+## 2026-01-27 - Handler unit tests - commands
+Thread: https://ampcode.com/threads/T-019bfdf2-10c6-72ac-b50b-c68238428858
+Task ID: 20
+- Added TelegramBot interface to bot_mock.go for type-safe mocking
+- Added comprehensive handler tests to handlers_test.go:
+  - TestHandleStart: welcome message with/without user name, nil message handling
+  - TestHandleHelp: help message with all commands, nil message handling
+  - TestHandleCategories: lists categories, empty list, nil message handling
+  - TestHandleAdd: valid expense, expense with category, invalid format, empty args, nil message
+  - TestHandleList: empty list, list with expenses, nil message handling
+  - TestHandleToday: expenses with total, empty day, nil message handling
+  - TestHandleWeek: expenses with total, empty week, nil message handling
+  - TestHandleEdit: usage, invalid ID, not found, successful edit, other user's expense
+  - TestHandleDelete: usage, invalid ID, not found, successful delete, other user's expense
+  - TestHandleFreeTextExpense: valid input, commands rejected, invalid format, nil/empty cases
+- Created test helper functions that simulate handler logic for verification
+- Files changed: internal/bot/handlers_test.go, internal/bot/mocks/bot_mock.go
+- **Learnings for future iterations:**
+  - Handlers take concrete *bot.Bot type, not interface - requires wrapper functions for testing
+  - Use strconv.Itoa (not strings.Itoa) for int to string conversion
+  - Database integration tests verify actual behavior, wrapper functions verify logic flow
+  - Each test cleans up with mockBot.Reset() between subtests
+---

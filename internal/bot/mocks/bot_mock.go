@@ -9,6 +9,16 @@ import (
 	"github.com/go-telegram/bot/models"
 )
 
+// TelegramBot defines the interface for Telegram bot operations.
+// This allows MockBot to be used in place of *bot.Bot for testing.
+type TelegramBot interface {
+	SendMessage(ctx context.Context, params *bot.SendMessageParams) (*models.Message, error)
+	EditMessageText(ctx context.Context, params *bot.EditMessageTextParams) (*models.Message, error)
+	AnswerCallbackQuery(ctx context.Context, params *bot.AnswerCallbackQueryParams) (bool, error)
+	GetFile(ctx context.Context, params *bot.GetFileParams) (*models.File, error)
+	FileDownloadLink(f *models.File) string
+}
+
 // SentMessage captures a message sent via MockBot.
 type SentMessage struct {
 	ChatID    any
@@ -31,6 +41,9 @@ type AnsweredCallback struct {
 	Text            string
 	ShowAlert       bool
 }
+
+// Compile-time check that MockBot implements TelegramBot.
+var _ TelegramBot = (*MockBot)(nil)
 
 // MockBot simulates Telegram bot operations for testing.
 type MockBot struct {
