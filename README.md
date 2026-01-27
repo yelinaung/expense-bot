@@ -84,7 +84,7 @@ Edit `.env` with your configuration:
 TELEGRAM_BOT_TOKEN=your_bot_token_here
 
 # PostgreSQL Database Connection
-DATABASE_URL=postgres://<username>:<password>@localhost:5432/expense_bot?sslmode=disable
+DATABASE_URL=postgres://USER:PASS@localhost:5432/expense_bot?sslmode=disable
 
 # Whitelisted Telegram User IDs (comma-separated)
 # Get your user ID by messaging @userinfobot
