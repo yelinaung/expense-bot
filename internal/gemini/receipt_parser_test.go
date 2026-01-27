@@ -1,12 +1,30 @@
 package gemini
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/genai"
 )
+
+// mockGenerator implements ContentGenerator for testing.
+type mockGenerator struct {
+	response *genai.GenerateContentResponse
+	err      error
+}
+
+func (m *mockGenerator) GenerateContent(
+	_ context.Context,
+	_ string,
+	_ []*genai.Content,
+	_ *genai.GenerateContentConfig,
+) (*genai.GenerateContentResponse, error) {
+	return m.response, m.err
+}
 
 func TestBuildReceiptPrompt(t *testing.T) {
 	t.Parallel()
@@ -340,4 +358,338 @@ func TestParseReceiptResponse_EdgeCases(t *testing.T) {
 			require.InDelta(t, tt.want.Confidence, got.Confidence, 0.001)
 		})
 	}
+}
+
+func TestParseReceipt(t *testing.T) {
+	t.Parallel()
+
+	t.Run("successful response", func(t *testing.T) {
+		t.Parallel()
+
+		mock := &mockGenerator{
+			response: &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []*genai.Part{
+								{Text: `{"amount": "54.60", "merchant": "Swee Choon", "date": "2024-01-15", "suggested_category": "Food - Dining Out", "confidence": 0.95}`},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		client := NewClientWithGenerator(mock)
+		result, err := client.ParseReceipt(context.Background(), []byte("fake-image"), "image/jpeg")
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.True(t, decimal.NewFromFloat(54.60).Equal(result.Amount))
+		require.Equal(t, "Swee Choon", result.Merchant)
+		require.Equal(t, "Food - Dining Out", result.SuggestedCategory)
+		require.InDelta(t, 0.95, result.Confidence, 0.001)
+	})
+
+	t.Run("timeout returns ErrParseTimeout", func(t *testing.T) {
+		t.Parallel()
+
+		mock := &mockGenerator{
+			err: context.DeadlineExceeded,
+		}
+
+		client := NewClientWithGenerator(mock)
+		result, err := client.ParseReceipt(context.Background(), []byte("fake-image"), "image/jpeg")
+
+		require.Error(t, err)
+		require.Nil(t, result)
+		require.ErrorIs(t, err, ErrParseTimeout)
+	})
+
+	t.Run("empty image returns error", func(t *testing.T) {
+		t.Parallel()
+
+		mock := &mockGenerator{}
+		client := NewClientWithGenerator(mock)
+		result, err := client.ParseReceipt(context.Background(), []byte{}, "image/jpeg")
+
+		require.Error(t, err)
+		require.Nil(t, result)
+		require.Contains(t, err.Error(), "image data is required")
+	})
+
+	t.Run("nil response returns error", func(t *testing.T) {
+		t.Parallel()
+
+		mock := &mockGenerator{
+			response: nil,
+		}
+
+		client := NewClientWithGenerator(mock)
+		result, err := client.ParseReceipt(context.Background(), []byte("fake-image"), "image/jpeg")
+
+		require.Error(t, err)
+		require.Nil(t, result)
+		require.Contains(t, err.Error(), "no response from Gemini")
+	})
+
+	t.Run("empty candidates returns error", func(t *testing.T) {
+		t.Parallel()
+
+		mock := &mockGenerator{
+			response: &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{},
+			},
+		}
+
+		client := NewClientWithGenerator(mock)
+		result, err := client.ParseReceipt(context.Background(), []byte("fake-image"), "image/jpeg")
+
+		require.Error(t, err)
+		require.Nil(t, result)
+		require.Contains(t, err.Error(), "no response from Gemini")
+	})
+
+	t.Run("nil content returns error", func(t *testing.T) {
+		t.Parallel()
+
+		mock := &mockGenerator{
+			response: &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{
+					{Content: nil},
+				},
+			},
+		}
+
+		client := NewClientWithGenerator(mock)
+		result, err := client.ParseReceipt(context.Background(), []byte("fake-image"), "image/jpeg")
+
+		require.Error(t, err)
+		require.Nil(t, result)
+		require.Contains(t, err.Error(), "no response from Gemini")
+	})
+
+	t.Run("empty text content returns error", func(t *testing.T) {
+		t.Parallel()
+
+		mock := &mockGenerator{
+			response: &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []*genai.Part{
+								{Text: ""},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		client := NewClientWithGenerator(mock)
+		result, err := client.ParseReceipt(context.Background(), []byte("fake-image"), "image/jpeg")
+
+		require.Error(t, err)
+		require.Nil(t, result)
+		require.Contains(t, err.Error(), "empty response from Gemini")
+	})
+
+	t.Run("empty data returns ErrNoData", func(t *testing.T) {
+		t.Parallel()
+
+		mock := &mockGenerator{
+			response: &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []*genai.Part{
+								{Text: `{"amount": "0", "merchant": "", "date": "", "suggested_category": "", "confidence": 0}`},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		client := NewClientWithGenerator(mock)
+		result, err := client.ParseReceipt(context.Background(), []byte("fake-image"), "image/jpeg")
+
+		require.Error(t, err)
+		require.Nil(t, result)
+		require.ErrorIs(t, err, ErrNoData)
+	})
+
+	t.Run("partial data with amount only", func(t *testing.T) {
+		t.Parallel()
+
+		mock := &mockGenerator{
+			response: &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []*genai.Part{
+								{Text: `{"amount": "25.00", "merchant": "", "date": "", "suggested_category": "", "confidence": 0.5}`},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		client := NewClientWithGenerator(mock)
+		result, err := client.ParseReceipt(context.Background(), []byte("fake-image"), "image/jpeg")
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.True(t, result.HasAmount())
+		require.False(t, result.HasMerchant())
+		require.True(t, result.IsPartial())
+	})
+
+	t.Run("partial data with merchant only", func(t *testing.T) {
+		t.Parallel()
+
+		mock := &mockGenerator{
+			response: &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []*genai.Part{
+								{Text: `{"amount": "0", "merchant": "Coffee Shop", "date": "", "suggested_category": "Food - Dining Out", "confidence": 0.6}`},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		client := NewClientWithGenerator(mock)
+		result, err := client.ParseReceipt(context.Background(), []byte("fake-image"), "image/jpeg")
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.False(t, result.HasAmount())
+		require.True(t, result.HasMerchant())
+		require.True(t, result.IsPartial())
+		require.Equal(t, "Coffee Shop", result.Merchant)
+	})
+
+	t.Run("invalid JSON returns error", func(t *testing.T) {
+		t.Parallel()
+
+		mock := &mockGenerator{
+			response: &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []*genai.Part{
+								{Text: `not valid json`},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		client := NewClientWithGenerator(mock)
+		result, err := client.ParseReceipt(context.Background(), []byte("fake-image"), "image/jpeg")
+
+		require.Error(t, err)
+		require.Nil(t, result)
+		require.Contains(t, err.Error(), "failed to parse receipt response")
+	})
+
+	t.Run("API error returns wrapped error", func(t *testing.T) {
+		t.Parallel()
+
+		mock := &mockGenerator{
+			err: errors.New("API rate limit exceeded"),
+		}
+
+		client := NewClientWithGenerator(mock)
+		result, err := client.ParseReceipt(context.Background(), []byte("fake-image"), "image/jpeg")
+
+		require.Error(t, err)
+		require.Nil(t, result)
+		require.Contains(t, err.Error(), "failed to generate content")
+	})
+
+	t.Run("default MIME type when empty", func(t *testing.T) {
+		t.Parallel()
+
+		mock := &mockGenerator{
+			response: &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []*genai.Part{
+								{Text: `{"amount": "10.00", "merchant": "Store", "date": "", "suggested_category": "", "confidence": 0.8}`},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		client := NewClientWithGenerator(mock)
+		result, err := client.ParseReceipt(context.Background(), []byte("fake-image"), "")
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.True(t, decimal.NewFromFloat(10.00).Equal(result.Amount))
+	})
+
+	t.Run("multiple parts concatenated", func(t *testing.T) {
+		t.Parallel()
+
+		mock := &mockGenerator{
+			response: &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []*genai.Part{
+								{Text: `{"amount": "30.00", `},
+								{Text: `"merchant": "Split Response", `},
+								{Text: `"date": "2024-02-20", "suggested_category": "Others", "confidence": 0.7}`},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		client := NewClientWithGenerator(mock)
+		result, err := client.ParseReceipt(context.Background(), []byte("fake-image"), "image/png")
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.True(t, decimal.NewFromFloat(30.00).Equal(result.Amount))
+		require.Equal(t, "Split Response", result.Merchant)
+	})
+
+	t.Run("response with markdown wrapper", func(t *testing.T) {
+		t.Parallel()
+
+		mock := &mockGenerator{
+			response: &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []*genai.Part{
+								{Text: "```json\n{\"amount\": \"45.00\", \"merchant\": \"Markdown Store\", \"date\": \"2024-03-10\", \"suggested_category\": \"Others\", \"confidence\": 0.85}\n```"},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		client := NewClientWithGenerator(mock)
+		result, err := client.ParseReceipt(context.Background(), []byte("fake-image"), "image/jpeg")
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.True(t, decimal.NewFromFloat(45.00).Equal(result.Amount))
+		require.Equal(t, "Markdown Store", result.Merchant)
+	})
 }

@@ -139,3 +139,40 @@ Task ID: 21
   - testBot struct needs pendingEdits map for testing pending edit flows
   - Callback data format: "prefix_action_expenseID" or "prefix_action_expenseID_categoryID"
 ---
+
+## 2026-01-27 - Gemini mock tests
+Thread: https://ampcode.com/threads/T-019bfe1b-9fae-7578-881d-ec4f6028aa0c
+Task ID: 22
+- Refactored Gemini client to use ContentGenerator interface for testability:
+  - Added ContentGenerator interface with GenerateContent method
+  - Added modelsAdapter struct to wrap *genai.Models
+  - Added NewClientWithGenerator constructor for testing with mocks
+- Added comprehensive ParseReceipt unit tests with mockGenerator:
+  - TestParseReceipt/successful_response: valid JSON extraction
+  - TestParseReceipt/timeout_returns_ErrParseTimeout: context.DeadlineExceeded handling
+  - TestParseReceipt/empty_image_returns_error: input validation
+  - TestParseReceipt/nil_response_returns_error, empty_candidates_returns_error, nil_content_returns_error
+  - TestParseReceipt/empty_text_content_returns_error: empty response handling
+  - TestParseReceipt/empty_data_returns_ErrNoData: no usable data extracted
+  - TestParseReceipt/partial_data_with_amount_only, partial_data_with_merchant_only
+  - TestParseReceipt/invalid_JSON_returns_error, API_error_returns_wrapped_error
+  - TestParseReceipt/default_MIME_type_when_empty: default to image/jpeg
+  - TestParseReceipt/multiple_parts_concatenated: multi-part response handling
+  - TestParseReceipt/response_with_markdown_wrapper: strips markdown code blocks
+- Added NewClient unit tests in client_test.go:
+  - TestNewClient/empty_API_key_returns_error
+  - TestNewClient/whitespace-only_API_key_is_treated_as_valid_input
+  - TestClient_GenerativeClient: tests accessor method
+- Coverage results:
+  - ParseReceipt: 100%
+  - NewClient: 83.3% (uncovered line is genai SDK call)
+  - NewClientWithGenerator: 100%
+  - GenerativeClient: 100%
+  - Overall gemini package: 96.7%
+- Files changed: internal/gemini/client.go, internal/gemini/client_test.go, internal/gemini/receipt_parser.go, internal/gemini/receipt_parser_test.go
+- **Learnings for future iterations:**
+  - Introduce interfaces for external SDK calls to enable unit testing
+  - Use adapter pattern to wrap SDK structs that don't implement interfaces
+  - Separate constructors (NewClientWithGenerator) for testing vs production
+  - Mock responses can include multi-part content for edge case testing
+---

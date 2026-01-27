@@ -96,7 +96,7 @@ func (c *Client) ParseReceipt(ctx context.Context, imageBytes []byte, mimeType s
 
 	prompt := buildReceiptPrompt(DefaultCategories)
 
-	resp, err := c.client.Models.GenerateContent(timeoutCtx, ModelName, []*genai.Content{
+	resp, err := c.generator.GenerateContent(timeoutCtx, ModelName, []*genai.Content{
 		{
 			Parts: []*genai.Part{
 				{InlineData: &genai.Blob{MIMEType: mimeType, Data: imageBytes}},
