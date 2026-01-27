@@ -12,3 +12,18 @@ Parent Task: 15
 - Run tests with -p 1 to avoid database race conditions
 
 ---
+
+## 2026-01-27 - Parser unit tests
+Thread: https://ampcode.com/threads/T-019bfde8-b41a-70fd-94f2-6fe71497296d
+Task ID: 16
+- Added comprehensive tests for parseAmount function (100% coverage)
+- Added tests for extractDescription function (100% coverage)
+- Improved ParseAddCommand coverage to 100% with edge cases for bot mentions
+- Added edge case tests for ParseExpenseInput (93.8% coverage - remaining uncovered line is unreachable via regex)
+- Added edge case tests for ParseAddCommandWithCategories and ParseExpenseInputWithCategories
+- Files changed: internal/bot/parser_test.go
+- **Learnings for future iterations:**
+  - Regex validation before decimal parsing makes some error branches unreachable
+  - Table-driven tests with t.Parallel() work well for pure functions
+  - Test edge cases like nil/empty slices, whitespace-only inputs, and bot mention formats
+---

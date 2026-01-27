@@ -7,6 +7,111 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestParseAmount(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		input   string
+		want    string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:  "simple integer",
+			input: "25",
+			want:  "25.00",
+		},
+		{
+			name:  "decimal with dot",
+			input: "25.50",
+			want:  "25.50",
+		},
+		{
+			name:  "decimal with comma",
+			input: "25,50",
+			want:  "25.50",
+		},
+		{
+			name:  "single decimal place",
+			input: "25.5",
+			want:  "25.50",
+		},
+		{
+			name:  "with leading whitespace",
+			input: "  25.50",
+			want:  "25.50",
+		},
+		{
+			name:  "with trailing whitespace",
+			input: "25.50  ",
+			want:  "25.50",
+		},
+		{
+			name:  "large amount",
+			input: "9999.99",
+			want:  "9999.99",
+		},
+		{
+			name:  "small amount",
+			input: "0.01",
+			want:  "0.01",
+		},
+		{
+			name:    "zero amount",
+			input:   "0",
+			wantErr: true,
+			errMsg:  "amount must be greater than zero",
+		},
+		{
+			name:    "negative amount",
+			input:   "-25.50",
+			wantErr: true,
+			errMsg:  "amount must be greater than zero",
+		},
+		{
+			name:    "invalid format letters",
+			input:   "abc",
+			wantErr: true,
+			errMsg:  "invalid amount format",
+		},
+		{
+			name:    "empty string",
+			input:   "",
+			wantErr: true,
+			errMsg:  "invalid amount format",
+		},
+		{
+			name:    "only whitespace",
+			input:   "   ",
+			wantErr: true,
+			errMsg:  "invalid amount format",
+		},
+		{
+			name:    "mixed letters and numbers",
+			input:   "25abc",
+			wantErr: true,
+			errMsg:  "invalid amount format",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := parseAmount(tt.input)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.errMsg)
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, tt.want, result.StringFixed(2))
+		})
+	}
+}
+
 func TestParseExpenseInput(t *testing.T) {
 	t.Parallel()
 
@@ -79,6 +184,35 @@ func TestParseExpenseInput(t *testing.T) {
 			wantAmt:  "1234.56",
 			wantDesc: "Big purchase",
 		},
+		{
+			name:     "amount with single decimal",
+			input:    "5.5 Coffee",
+			wantAmt:  "5.50",
+			wantDesc: "Coffee",
+		},
+		{
+			name:     "description with special characters",
+			input:    "15.00 Coffee @ Starbucks",
+			wantAmt:  "15.00",
+			wantDesc: "Coffee @ Starbucks",
+		},
+		{
+			name:     "description with numbers",
+			input:    "20.00 Order 12345",
+			wantAmt:  "20.00",
+			wantDesc: "Order 12345",
+		},
+		{
+			name:     "description with hyphen",
+			input:    "10.00 Food - Dining",
+			wantAmt:  "10.00",
+			wantDesc: "Food - Dining",
+		},
+		{
+			name:    "zero decimal",
+			input:   "0.00 Coffee",
+			wantNil: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -135,6 +269,39 @@ func TestParseAddCommand(t *testing.T) {
 			name:    "empty add command",
 			input:   "/add",
 			wantNil: true,
+		},
+		{
+			name:    "add command with only bot mention",
+			input:   "/add@mybot",
+			wantNil: true,
+		},
+		{
+			name:     "add command with bot mention and space",
+			input:    "/add@mybot 10.00 Snacks",
+			wantAmt:  "10.00",
+			wantDesc: "Snacks",
+		},
+		{
+			name:    "add command with @ in middle no space after",
+			input:   "/add@bot",
+			wantNil: true,
+		},
+		{
+			name:     "add command with only amount",
+			input:    "/add 50.00",
+			wantAmt:  "50.00",
+			wantDesc: "",
+		},
+		{
+			name:    "add command with whitespace only after prefix",
+			input:   "/add   ",
+			wantNil: true,
+		},
+		{
+			name:     "add command comma decimal",
+			input:    "/add 5,50 Coffee",
+			wantAmt:  "5.50",
+			wantDesc: "Coffee",
 		},
 	}
 
@@ -277,4 +444,187 @@ func TestDecimalParsing(t *testing.T) {
 	result := ParseExpenseInput("5.50 Test")
 	require.NotNil(t, result)
 	require.True(t, result.Amount.Equal(decimal.NewFromFloat(5.50)))
+}
+
+func TestExtractDescription(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "simple text",
+			input: "Coffee",
+			want:  "Coffee",
+		},
+		{
+			name:  "text with leading whitespace",
+			input: "  Coffee",
+			want:  "Coffee",
+		},
+		{
+			name:  "text with trailing whitespace",
+			input: "Coffee  ",
+			want:  "Coffee",
+		},
+		{
+			name:  "text with both whitespace",
+			input: "  Coffee  ",
+			want:  "Coffee",
+		},
+		{
+			name:  "multi-word text",
+			input: "Lunch with friends",
+			want:  "Lunch with friends",
+		},
+		{
+			name:  "empty string",
+			input: "",
+			want:  "",
+		},
+		{
+			name:  "only whitespace",
+			input: "   ",
+			want:  "",
+		},
+		{
+			name:  "text with special characters",
+			input: "Coffee @ Starbucks - Downtown",
+			want:  "Coffee @ Starbucks - Downtown",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := extractDescription(tt.input)
+			require.Equal(t, tt.want, result)
+		})
+	}
+}
+
+func TestParseAddCommandWithCategoriesEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		input       string
+		categories  []string
+		wantNil     bool
+		wantAmt     string
+		wantDesc    string
+		wantCatName string
+	}{
+		{
+			name:        "empty category list",
+			input:       "/add 5.50 Coffee",
+			categories:  []string{},
+			wantAmt:     "5.50",
+			wantDesc:    "Coffee",
+			wantCatName: "",
+		},
+		{
+			name:        "nil category list",
+			input:       "/add 5.50 Coffee",
+			categories:  nil,
+			wantAmt:     "5.50",
+			wantDesc:    "Coffee",
+			wantCatName: "",
+		},
+		{
+			name:        "amount only with categories",
+			input:       "/add 5.50",
+			categories:  []string{"Food"},
+			wantAmt:     "5.50",
+			wantDesc:    "",
+			wantCatName: "",
+		},
+		{
+			name:        "partial category match should not match",
+			input:       "/add 5.50 Coffee Foo",
+			categories:  []string{"Food"},
+			wantAmt:     "5.50",
+			wantDesc:    "Coffee Foo",
+			wantCatName: "",
+		},
+		{
+			name:       "invalid input returns nil",
+			input:      "/add Coffee",
+			categories: []string{"Food"},
+			wantNil:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := ParseAddCommandWithCategories(tt.input, tt.categories)
+
+			if tt.wantNil {
+				require.Nil(t, result)
+				return
+			}
+
+			require.NotNil(t, result)
+			require.Equal(t, tt.wantAmt, result.Amount.StringFixed(2))
+			require.Equal(t, tt.wantDesc, result.Description)
+			require.Equal(t, tt.wantCatName, result.CategoryName)
+		})
+	}
+}
+
+func TestParseExpenseInputWithCategoriesEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		input       string
+		categories  []string
+		wantNil     bool
+		wantAmt     string
+		wantDesc    string
+		wantCatName string
+	}{
+		{
+			name:        "empty category list",
+			input:       "5.50 Coffee",
+			categories:  []string{},
+			wantAmt:     "5.50",
+			wantDesc:    "Coffee",
+			wantCatName: "",
+		},
+		{
+			name:        "amount only with categories",
+			input:       "5.50",
+			categories:  []string{"Food"},
+			wantAmt:     "5.50",
+			wantDesc:    "",
+			wantCatName: "",
+		},
+		{
+			name:       "invalid input returns nil",
+			input:      "Coffee",
+			categories: []string{"Food"},
+			wantNil:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := ParseExpenseInputWithCategories(tt.input, tt.categories)
+
+			if tt.wantNil {
+				require.Nil(t, result)
+				return
+			}
+
+			require.NotNil(t, result)
+			require.Equal(t, tt.wantAmt, result.Amount.StringFixed(2))
+			require.Equal(t, tt.wantDesc, result.Description)
+			require.Equal(t, tt.wantCatName, result.CategoryName)
+		})
+	}
 }
