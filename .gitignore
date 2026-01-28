@@ -35,3 +35,6 @@ go.work.sum
 Thumbs.db
 
 .agents/*
+
+# Claude Code local settings
+.claude/
