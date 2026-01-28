@@ -24,6 +24,11 @@ func formatGreeting(firstName string) string {
 
 // handleStart handles the /start command.
 func (b *Bot) handleStart(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleStartCore(ctx, tgBot, update)
+}
+
+// handleStartCore is the testable implementation of handleStart.
+func (b *Bot) handleStartCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
 	if update.Message == nil {
 		return
 	}
@@ -45,7 +50,7 @@ Use /help to see all available commands.`,
 		formatGreeting(firstName))
 
 	logger.Log.Debug().Int64("chat_id", update.Message.Chat.ID).Msg("Sending /start response")
-	_, err := tgBot.SendMessage(ctx, &bot.SendMessageParams{
+	_, err := tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    update.Message.Chat.ID,
 		Text:      text,
 		ParseMode: models.ParseModeHTML,
@@ -57,6 +62,11 @@ Use /help to see all available commands.`,
 
 // handleHelp handles the /help command.
 func (b *Bot) handleHelp(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleHelpCore(ctx, tgBot, update)
+}
+
+// handleHelpCore is the testable implementation of handleHelp.
+func (b *Bot) handleHelpCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
 	if update.Message == nil {
 		return
 	}
@@ -79,7 +89,7 @@ func (b *Bot) handleHelp(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 • <code>/help</code> - Show this help message`
 
 	logger.Log.Debug().Int64("chat_id", update.Message.Chat.ID).Msg("Sending /help response")
-	_, err := tgBot.SendMessage(ctx, &bot.SendMessageParams{
+	_, err := tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    update.Message.Chat.ID,
 		Text:      text,
 		ParseMode: models.ParseModeHTML,
@@ -91,13 +101,18 @@ func (b *Bot) handleHelp(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 
 // handleCategories handles the /categories command.
 func (b *Bot) handleCategories(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleCategoriesCore(ctx, tgBot, update)
+}
+
+// handleCategoriesCore is the testable implementation of handleCategories.
+func (b *Bot) handleCategoriesCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
 	if update.Message == nil {
 		return
 	}
 
 	categories, err := b.getCategoriesWithCache(ctx)
 	if err != nil {
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
 			Text:   "❌ Failed to fetch categories. Please try again.",
 		})
@@ -105,7 +120,7 @@ func (b *Bot) handleCategories(ctx context.Context, tgBot *bot.Bot, update *mode
 	}
 
 	if len(categories) == 0 {
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
 			Text:   "No categories found.",
 		})
@@ -119,7 +134,7 @@ func (b *Bot) handleCategories(ctx context.Context, tgBot *bot.Bot, update *mode
 	}
 
 	logger.Log.Debug().Int64("chat_id", update.Message.Chat.ID).Msg("Sending /categories response")
-	_, err = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+	_, err = tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    update.Message.Chat.ID,
 		Text:      sb.String(),
 		ParseMode: models.ParseModeHTML,
@@ -131,6 +146,11 @@ func (b *Bot) handleCategories(ctx context.Context, tgBot *bot.Bot, update *mode
 
 // handleAdd handles the /add command for structured expense input.
 func (b *Bot) handleAdd(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleAddCore(ctx, tgBot, update)
+}
+
+// handleAddCore is the testable implementation of handleAdd.
+func (b *Bot) handleAddCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
 	if update.Message == nil {
 		return
 	}
@@ -141,7 +161,7 @@ func (b *Bot) handleAdd(ctx context.Context, tgBot *bot.Bot, update *models.Upda
 	categories, err := b.getCategoriesWithCache(ctx)
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to fetch categories for parsing")
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Failed to process expense. Please try again.",
 		})
@@ -155,7 +175,7 @@ func (b *Bot) handleAdd(ctx context.Context, tgBot *bot.Bot, update *models.Upda
 
 	parsed := ParseAddCommandWithCategories(update.Message.Text, categoryNames)
 	if parsed == nil {
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
 			Text:      "❌ Invalid format. Use: <code>/add 5.50 Coffee [category]</code>",
 			ParseMode: models.ParseModeHTML,
@@ -163,7 +183,7 @@ func (b *Bot) handleAdd(ctx context.Context, tgBot *bot.Bot, update *models.Upda
 		return
 	}
 
-	b.saveExpense(ctx, tgBot, chatID, userID, parsed, categories)
+	b.saveExpenseCore(ctx, tg, chatID, userID, parsed, categories)
 }
 
 // handleFreeTextExpense handles free-text expense input like "5.50 Coffee".
@@ -209,6 +229,18 @@ func (b *Bot) saveExpense(
 	parsed *ParsedExpense,
 	categories []appmodels.Category,
 ) {
+	b.saveExpenseCore(ctx, tgBot, chatID, userID, parsed, categories)
+}
+
+// saveExpenseCore is the testable implementation of saveExpense.
+func (b *Bot) saveExpenseCore(
+	ctx context.Context,
+	tg TelegramAPI,
+	chatID int64,
+	userID int64,
+	parsed *ParsedExpense,
+	categories []appmodels.Category,
+) {
 	expense := &appmodels.Expense{
 		UserID:      userID,
 		Amount:      parsed.Amount,
@@ -228,7 +260,7 @@ func (b *Bot) saveExpense(
 
 	if err := b.expenseRepo.Create(ctx, expense); err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to create expense")
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Failed to save expense. Please try again.",
 		})
@@ -262,7 +294,7 @@ func (b *Bot) saveExpense(
 		categoryText,
 		expense.ID)
 
-	_, err := tgBot.SendMessage(ctx, &bot.SendMessageParams{
+	_, err := tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    chatID,
 		Text:      text,
 		ParseMode: models.ParseModeHTML,
@@ -274,6 +306,11 @@ func (b *Bot) saveExpense(
 
 // handleList handles the /list command to show recent expenses.
 func (b *Bot) handleList(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleListCore(ctx, tgBot, update)
+}
+
+// handleListCore is the testable implementation of handleList.
+func (b *Bot) handleListCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
 	if update.Message == nil {
 		return
 	}
@@ -284,18 +321,23 @@ func (b *Bot) handleList(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 	expenses, err := b.expenseRepo.GetByUserID(ctx, userID, 10)
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to fetch expenses")
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Failed to fetch expenses. Please try again.",
 		})
 		return
 	}
 
-	b.sendExpenseList(ctx, tgBot, chatID, expenses, "📋 <b>Recent Expenses</b>")
+	b.sendExpenseListCore(ctx, tg, chatID, expenses, "📋 <b>Recent Expenses</b>")
 }
 
 // handleToday handles the /today command to show today's expenses.
 func (b *Bot) handleToday(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleTodayCore(ctx, tgBot, update)
+}
+
+// handleTodayCore is the testable implementation of handleToday.
+func (b *Bot) handleTodayCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
 	if update.Message == nil {
 		return
 	}
@@ -310,7 +352,7 @@ func (b *Bot) handleToday(ctx context.Context, tgBot *bot.Bot, update *models.Up
 	expenses, err := b.expenseRepo.GetByUserIDAndDateRange(ctx, userID, startOfDay, endOfDay)
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to fetch today's expenses")
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Failed to fetch expenses. Please try again.",
 		})
@@ -319,11 +361,16 @@ func (b *Bot) handleToday(ctx context.Context, tgBot *bot.Bot, update *models.Up
 
 	total, _ := b.expenseRepo.GetTotalByUserIDAndDateRange(ctx, userID, startOfDay, endOfDay)
 	header := fmt.Sprintf("📅 <b>Today's Expenses</b> (Total: $%s)", total.StringFixed(2))
-	b.sendExpenseList(ctx, tgBot, chatID, expenses, header)
+	b.sendExpenseListCore(ctx, tg, chatID, expenses, header)
 }
 
 // handleWeek handles the /week command to show this week's expenses.
 func (b *Bot) handleWeek(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleWeekCore(ctx, tgBot, update)
+}
+
+// handleWeekCore is the testable implementation of handleWeek.
+func (b *Bot) handleWeekCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
 	if update.Message == nil {
 		return
 	}
@@ -342,7 +389,7 @@ func (b *Bot) handleWeek(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 	expenses, err := b.expenseRepo.GetByUserIDAndDateRange(ctx, userID, startOfWeek, endOfWeek)
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to fetch week's expenses")
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Failed to fetch expenses. Please try again.",
 		})
@@ -351,19 +398,19 @@ func (b *Bot) handleWeek(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 
 	total, _ := b.expenseRepo.GetTotalByUserIDAndDateRange(ctx, userID, startOfWeek, endOfWeek)
 	header := fmt.Sprintf("📆 <b>This Week's Expenses</b> (Total: $%s)", total.StringFixed(2))
-	b.sendExpenseList(ctx, tgBot, chatID, expenses, header)
+	b.sendExpenseListCore(ctx, tg, chatID, expenses, header)
 }
 
-// sendExpenseList formats and sends a list of expenses.
-func (b *Bot) sendExpenseList(
+// sendExpenseListCore formats and sends a list of expenses.
+func (b *Bot) sendExpenseListCore(
 	ctx context.Context,
-	tgBot *bot.Bot,
+	tg TelegramAPI,
 	chatID int64,
 	expenses []appmodels.Expense,
 	header string,
 ) {
 	if len(expenses) == 0 {
-		_, err := tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, err := tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
 			Text:      header + "\n\nNo expenses found.",
 			ParseMode: models.ParseModeHTML,
@@ -400,7 +447,7 @@ func (b *Bot) sendExpenseList(
 	}
 
 	logger.Log.Debug().Int64("chat_id", chatID).Int("count", len(expenses)).Msg("Sending expense list")
-	_, err := tgBot.SendMessage(ctx, &bot.SendMessageParams{
+	_, err := tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    chatID,
 		Text:      sb.String(),
 		ParseMode: models.ParseModeHTML,

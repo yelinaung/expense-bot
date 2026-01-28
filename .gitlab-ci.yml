@@ -152,7 +152,7 @@ test:
       COVERAGE_OUTPUT=$(go tool cover -func=coverage.out)
       echo "$COVERAGE_OUTPUT"
       COVERAGE=$(echo "$COVERAGE_OUTPUT" | grep total | awk '{print $3}' | sed 's/%//')
-      THRESHOLD=40
+      THRESHOLD=80
       echo "Coverage: ${COVERAGE}% (threshold: ${THRESHOLD}%)"
       if [ "$(echo "$COVERAGE < $THRESHOLD" | bc)" -eq 1 ]; then
         echo "Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%!"

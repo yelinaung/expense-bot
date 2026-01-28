@@ -59,7 +59,7 @@ ALWAYS RUN these `make` commands:
 - test-race
 - test-integration
 
-ENSURE that the test coverage stays at or above 40% (CI enforced). Target is 80%.
+ENSURE that the test coverage stays at or above 80% (CI enforced).
 
 ## Test Patterns
 
