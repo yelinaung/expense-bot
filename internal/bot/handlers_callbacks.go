@@ -15,6 +15,11 @@ import (
 
 // handleEditCallback handles edit sub-menu button presses.
 func (b *Bot) handleEditCallback(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleEditCallbackCore(ctx, tgBot, update)
+}
+
+// handleEditCallbackCore is the testable implementation of handleEditCallback.
+func (b *Bot) handleEditCallbackCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
 	if update.CallbackQuery == nil {
 		return
 	}
@@ -24,7 +29,7 @@ func (b *Bot) handleEditCallback(ctx context.Context, tgBot *bot.Bot, update *mo
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	messageID := update.CallbackQuery.Message.Message.ID
 
-	_, _ = tgBot.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+	_, _ = tg.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 		CallbackQueryID: update.CallbackQuery.ID,
 	})
 
@@ -46,17 +51,17 @@ func (b *Bot) handleEditCallback(ctx context.Context, tgBot *bot.Bot, update *mo
 
 	switch action {
 	case "amount":
-		b.promptEditAmount(ctx, tgBot, chatID, messageID, expense)
+		b.promptEditAmountCore(ctx, tg, chatID, messageID, expense)
 
 	case "category":
-		b.showCategorySelection(ctx, tgBot, chatID, messageID, expense)
+		b.showCategorySelectionCore(ctx, tg, chatID, messageID, expense)
 	}
 }
 
-// promptEditAmount prompts the user to enter a new amount.
-func (b *Bot) promptEditAmount(
+// promptEditAmountCore prompts the user to enter a new amount.
+func (b *Bot) promptEditAmountCore(
 	ctx context.Context,
-	tgBot *bot.Bot,
+	tg TelegramAPI,
 	chatID int64,
 	messageID int,
 	expense *appmodels.Expense,
@@ -85,7 +90,7 @@ Please type the new amount (e.g., <code>25.50</code>):`,
 		},
 	}
 
-	_, _ = tgBot.EditMessageText(ctx, &bot.EditMessageTextParams{
+	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      chatID,
 		MessageID:   messageID,
 		Text:        text,
@@ -96,6 +101,11 @@ Please type the new amount (e.g., <code>25.50</code>):`,
 
 // handlePendingEdit checks for and processes pending edit operations.
 func (b *Bot) handlePendingEdit(ctx context.Context, tgBot *bot.Bot, update *models.Update) bool {
+	return b.handlePendingEditCore(ctx, tgBot, update)
+}
+
+// handlePendingEditCore is the testable implementation of handlePendingEdit.
+func (b *Bot) handlePendingEditCore(ctx context.Context, tg TelegramAPI, update *models.Update) bool {
 	if update.Message == nil || update.Message.Text == "" {
 		return false
 	}
@@ -113,18 +123,18 @@ func (b *Bot) handlePendingEdit(ctx context.Context, tgBot *bot.Bot, update *mod
 
 	switch pending.EditType {
 	case "amount":
-		return b.processAmountEdit(ctx, tgBot, chatID, userID, pending, update.Message.Text)
+		return b.processAmountEditCore(ctx, tg, chatID, userID, pending, update.Message.Text)
 	case "category":
-		return b.processCategoryCreate(ctx, tgBot, chatID, userID, pending, update.Message.Text)
+		return b.processCategoryCreateCore(ctx, tg, chatID, userID, pending, update.Message.Text)
 	}
 
 	return false
 }
 
-// processAmountEdit processes user input for amount editing.
-func (b *Bot) processAmountEdit(
+// processAmountEditCore processes user input for amount editing.
+func (b *Bot) processAmountEditCore(
 	ctx context.Context,
-	tgBot *bot.Bot,
+	tg TelegramAPI,
 	chatID int64,
 	userID int64,
 	pending *pendingEdit,
@@ -142,7 +152,7 @@ func (b *Bot) processAmountEdit(
 
 	amount, err := parseAmount(input)
 	if err != nil {
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
 			Text:      "❌ Invalid amount. Please enter a valid number (e.g., 25.50).",
 			ParseMode: models.ParseModeHTML,
@@ -154,7 +164,7 @@ func (b *Bot) processAmountEdit(
 	expense, err := b.expenseRepo.GetByID(ctx, pending.ExpenseID)
 	if err != nil {
 		logger.Log.Error().Err(err).Int("expense_id", pending.ExpenseID).Msg("Expense not found for edit")
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Expense not found.",
 		})
@@ -170,7 +180,7 @@ func (b *Bot) processAmountEdit(
 	expense.Amount = amount
 	if err := b.expenseRepo.Update(ctx, expense); err != nil {
 		logger.Log.Error().Err(err).Int("expense_id", expense.ID).Msg("Failed to update amount")
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Failed to update amount. Please try again.",
 		})
@@ -207,7 +217,7 @@ Amount updated. Confirm to save.`,
 		categoryText)
 
 	// Edit the original message.
-	_, _ = tgBot.EditMessageText(ctx, &bot.EditMessageTextParams{
+	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      chatID,
 		MessageID:   pending.MessageID,
 		Text:        text,
@@ -220,6 +230,11 @@ Amount updated. Confirm to save.`,
 
 // handleCancelEditCallback handles cancel edit button presses.
 func (b *Bot) handleCancelEditCallback(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleCancelEditCallbackCore(ctx, tgBot, update)
+}
+
+// handleCancelEditCallbackCore is the testable implementation of handleCancelEditCallback.
+func (b *Bot) handleCancelEditCallbackCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
 	if update.CallbackQuery == nil {
 		return
 	}
@@ -229,7 +244,7 @@ func (b *Bot) handleCancelEditCallback(ctx context.Context, tgBot *bot.Bot, upda
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	messageID := update.CallbackQuery.Message.Message.ID
 
-	_, _ = tgBot.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+	_, _ = tg.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 		CallbackQueryID: update.CallbackQuery.ID,
 	})
 
@@ -254,13 +269,13 @@ func (b *Bot) handleCancelEditCallback(ctx context.Context, tgBot *bot.Bot, upda
 	}
 
 	// Return to edit menu.
-	b.handleEditReceipt(ctx, tgBot, chatID, messageID, expense)
+	b.handleEditReceiptCore(ctx, tg, chatID, messageID, expense)
 }
 
-// showCategorySelection shows category selection buttons.
-func (b *Bot) showCategorySelection(
+// showCategorySelectionCore shows category selection buttons.
+func (b *Bot) showCategorySelectionCore(
 	ctx context.Context,
-	tgBot *bot.Bot,
+	tg TelegramAPI,
 	chatID int64,
 	messageID int,
 	expense *appmodels.Expense,
@@ -305,7 +320,7 @@ Current: %s
 Choose a new category:`,
 		getCategoryName(expense))
 
-	_, _ = tgBot.EditMessageText(ctx, &bot.EditMessageTextParams{
+	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      chatID,
 		MessageID:   messageID,
 		Text:        text,
@@ -324,6 +339,11 @@ func getCategoryName(expense *appmodels.Expense) string {
 
 // handleSetCategoryCallback handles category selection.
 func (b *Bot) handleSetCategoryCallback(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleSetCategoryCallbackCore(ctx, tgBot, update)
+}
+
+// handleSetCategoryCallbackCore is the testable implementation of handleSetCategoryCallback.
+func (b *Bot) handleSetCategoryCallbackCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
 	if update.CallbackQuery == nil {
 		return
 	}
@@ -333,7 +353,7 @@ func (b *Bot) handleSetCategoryCallback(ctx context.Context, tgBot *bot.Bot, upd
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	messageID := update.CallbackQuery.Message.Message.ID
 
-	_, _ = tgBot.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+	_, _ = tg.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 		CallbackQueryID: update.CallbackQuery.ID,
 	})
 
@@ -388,7 +408,7 @@ Category updated. Confirm to save.`,
 		expense.Description,
 		category.Name)
 
-	_, _ = tgBot.EditMessageText(ctx, &bot.EditMessageTextParams{
+	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      chatID,
 		MessageID:   messageID,
 		Text:        text,
@@ -397,10 +417,10 @@ Category updated. Confirm to save.`,
 	})
 }
 
-// processCategoryCreate processes user input for creating a new category.
-func (b *Bot) processCategoryCreate(
+// processCategoryCreateCore processes user input for creating a new category.
+func (b *Bot) processCategoryCreateCore(
 	ctx context.Context,
-	tgBot *bot.Bot,
+	tg TelegramAPI,
 	chatID int64,
 	userID int64,
 	pending *pendingEdit,
@@ -412,7 +432,7 @@ func (b *Bot) processCategoryCreate(
 
 	categoryName := strings.TrimSpace(input)
 	if categoryName == "" {
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Category name cannot be empty.",
 		})
@@ -420,7 +440,7 @@ func (b *Bot) processCategoryCreate(
 	}
 
 	if len(categoryName) > 50 {
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Category name is too long (max 50 characters).",
 		})
@@ -430,7 +450,7 @@ func (b *Bot) processCategoryCreate(
 	expense, err := b.expenseRepo.GetByID(ctx, pending.ExpenseID)
 	if err != nil {
 		logger.Log.Error().Err(err).Int("expense_id", pending.ExpenseID).Msg("Expense not found")
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Expense not found.",
 		})
@@ -445,7 +465,7 @@ func (b *Bot) processCategoryCreate(
 	category, err := b.categoryRepo.Create(ctx, categoryName)
 	if err != nil {
 		logger.Log.Error().Err(err).Str("name", categoryName).Msg("Failed to create category")
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Failed to create category. It may already exist.",
 		})
@@ -459,7 +479,7 @@ func (b *Bot) processCategoryCreate(
 	expense.Category = category
 	if err := b.expenseRepo.Update(ctx, expense); err != nil {
 		logger.Log.Error().Err(err).Int("expense_id", expense.ID).Msg("Failed to update expense category")
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Category created but failed to assign it. Please select it from the list.",
 		})
@@ -485,7 +505,7 @@ New category created. Confirm to save.`,
 		expense.Description,
 		category.Name)
 
-	_, _ = tgBot.EditMessageText(ctx, &bot.EditMessageTextParams{
+	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      chatID,
 		MessageID:   pending.MessageID,
 		Text:        text,
@@ -498,6 +518,11 @@ New category created. Confirm to save.`,
 
 // handleCreateCategoryCallback handles the create new category button press.
 func (b *Bot) handleCreateCategoryCallback(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleCreateCategoryCallbackCore(ctx, tgBot, update)
+}
+
+// handleCreateCategoryCallbackCore is the testable implementation of handleCreateCategoryCallback.
+func (b *Bot) handleCreateCategoryCallbackCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
 	if update.CallbackQuery == nil {
 		return
 	}
@@ -507,7 +532,7 @@ func (b *Bot) handleCreateCategoryCallback(ctx context.Context, tgBot *bot.Bot, 
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	messageID := update.CallbackQuery.Message.Message.ID
 
-	_, _ = tgBot.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+	_, _ = tg.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 		CallbackQueryID: update.CallbackQuery.ID,
 	})
 
@@ -526,13 +551,13 @@ func (b *Bot) handleCreateCategoryCallback(ctx context.Context, tgBot *bot.Bot, 
 		return
 	}
 
-	b.promptCreateCategory(ctx, tgBot, chatID, messageID, expense)
+	b.promptCreateCategoryCore(ctx, tg, chatID, messageID, expense)
 }
 
-// promptCreateCategory prompts the user to enter a new category name.
-func (b *Bot) promptCreateCategory(
+// promptCreateCategoryCore prompts the user to enter a new category name.
+func (b *Bot) promptCreateCategoryCore(
 	ctx context.Context,
-	tgBot *bot.Bot,
+	tg TelegramAPI,
 	chatID int64,
 	messageID int,
 	expense *appmodels.Expense,
@@ -557,7 +582,7 @@ Please type the name for the new category (e.g., <code>Subscriptions</code>):`
 		},
 	}
 
-	_, _ = tgBot.EditMessageText(ctx, &bot.EditMessageTextParams{
+	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      chatID,
 		MessageID:   messageID,
 		Text:        text,

@@ -411,17 +411,6 @@ func (b *Bot) handleCancelReceiptCore(
 	})
 }
 
-// handleEditReceipt shows edit options for a draft expense.
-func (b *Bot) handleEditReceipt(
-	ctx context.Context,
-	tgBot *bot.Bot,
-	chatID int64,
-	messageID int,
-	expense *appmodels.Expense,
-) {
-	b.handleEditReceiptCore(ctx, tgBot, chatID, messageID, expense)
-}
-
 // handleEditReceiptCore shows edit options for a draft expense.
 func (b *Bot) handleEditReceiptCore(
 	ctx context.Context,

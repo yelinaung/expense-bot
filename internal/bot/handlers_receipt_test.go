@@ -93,15 +93,23 @@ func TestHandleReceiptCallbackCore(t *testing.T) {
 
 	t.Run("user mismatch returns early", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
+		otherUserID := userID + 100
+
+		err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+			ID:        otherUserID,
+			Username:  "otherreceiptuser",
+			FirstName: "Other",
+		})
+		require.NoError(t, err)
 
 		expense := &appmodels.Expense{
-			UserID:      userID + 1,
+			UserID:      otherUserID,
 			Amount:      mustParseDecimal("10.00"),
 			Currency:    "SGD",
 			Description: "Test",
 			Status:      appmodels.ExpenseStatusDraft,
 		}
-		err := b.expenseRepo.Create(ctx, expense)
+		err = b.expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
 
 		update := &models.Update{
