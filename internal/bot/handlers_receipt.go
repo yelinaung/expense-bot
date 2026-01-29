@@ -226,6 +226,11 @@ func (b *Bot) handlePhoto(ctx context.Context, tgBot *bot.Bot, update *models.Up
 
 // handleReceiptCallback handles receipt confirmation button presses.
 func (b *Bot) handleReceiptCallback(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleReceiptCallbackCore(ctx, tgBot, update)
+}
+
+// handleReceiptCallbackCore is the testable implementation of handleReceiptCallback.
+func (b *Bot) handleReceiptCallbackCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
 	if update.CallbackQuery == nil {
 		return
 	}
@@ -240,7 +245,7 @@ func (b *Bot) handleReceiptCallback(ctx context.Context, tgBot *bot.Bot, update 
 		Int64("user_id", userID).
 		Msg("Processing receipt callback")
 
-	_, _ = tgBot.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+	_, _ = tg.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 		CallbackQueryID: update.CallbackQuery.ID,
 	})
 
@@ -260,7 +265,7 @@ func (b *Bot) handleReceiptCallback(ctx context.Context, tgBot *bot.Bot, update 
 	expense, err := b.expenseRepo.GetByID(ctx, expenseID)
 	if err != nil {
 		logger.Log.Error().Err(err).Int("expense_id", expenseID).Msg("Expense not found")
-		_, _ = tgBot.EditMessageText(ctx, &bot.EditMessageTextParams{
+		_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 			ChatID:    chatID,
 			MessageID: messageID,
 			Text:      "❌ Expense not found.",
@@ -275,20 +280,20 @@ func (b *Bot) handleReceiptCallback(ctx context.Context, tgBot *bot.Bot, update 
 
 	switch action {
 	case "confirm":
-		b.handleConfirmReceipt(ctx, tgBot, chatID, messageID, expense)
+		b.handleConfirmReceiptCore(ctx, tg, chatID, messageID, expense)
 	case "cancel":
-		b.handleCancelReceipt(ctx, tgBot, chatID, messageID, expense)
+		b.handleCancelReceiptCore(ctx, tg, chatID, messageID, expense)
 	case "edit":
-		b.handleEditReceipt(ctx, tgBot, chatID, messageID, expense)
+		b.handleEditReceiptCore(ctx, tg, chatID, messageID, expense)
 	case "back":
-		b.handleBackToReceipt(ctx, tgBot, chatID, messageID, expense)
+		b.handleBackToReceiptCore(ctx, tg, chatID, messageID, expense)
 	}
 }
 
-// handleBackToReceipt returns to the main receipt confirmation view.
-func (b *Bot) handleBackToReceipt(
+// handleBackToReceiptCore returns to the main receipt confirmation view.
+func (b *Bot) handleBackToReceiptCore(
 	ctx context.Context,
-	tgBot *bot.Bot,
+	tg TelegramAPI,
 	chatID int64,
 	messageID int,
 	expense *appmodels.Expense,
@@ -314,7 +319,7 @@ func (b *Bot) handleBackToReceipt(
 
 	keyboard := buildReceiptConfirmationKeyboard(expense.ID)
 
-	_, _ = tgBot.EditMessageText(ctx, &bot.EditMessageTextParams{
+	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      chatID,
 		MessageID:   messageID,
 		Text:        text,
@@ -323,10 +328,10 @@ func (b *Bot) handleBackToReceipt(
 	})
 }
 
-// handleConfirmReceipt confirms a draft expense.
-func (b *Bot) handleConfirmReceipt(
+// handleConfirmReceiptCore confirms a draft expense.
+func (b *Bot) handleConfirmReceiptCore(
 	ctx context.Context,
-	tgBot *bot.Bot,
+	tg TelegramAPI,
 	chatID int64,
 	messageID int,
 	expense *appmodels.Expense,
@@ -334,7 +339,7 @@ func (b *Bot) handleConfirmReceipt(
 	expense.Status = appmodels.ExpenseStatusConfirmed
 	if err := b.expenseRepo.Update(ctx, expense); err != nil {
 		logger.Log.Error().Err(err).Int("expense_id", expense.ID).Msg("Failed to confirm expense")
-		_, _ = tgBot.EditMessageText(ctx, &bot.EditMessageTextParams{
+		_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 			ChatID:    chatID,
 			MessageID: messageID,
 			Text:      "❌ Failed to confirm expense. Please try again.",
@@ -369,7 +374,7 @@ Expense #%d has been saved.`,
 		Str("amount", expense.Amount.String()).
 		Msg("Expense confirmed via callback")
 
-	_, _ = tgBot.EditMessageText(ctx, &bot.EditMessageTextParams{
+	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:    chatID,
 		MessageID: messageID,
 		Text:      text,
@@ -377,17 +382,17 @@ Expense #%d has been saved.`,
 	})
 }
 
-// handleCancelReceipt cancels and deletes a draft expense.
-func (b *Bot) handleCancelReceipt(
+// handleCancelReceiptCore cancels and deletes a draft expense.
+func (b *Bot) handleCancelReceiptCore(
 	ctx context.Context,
-	tgBot *bot.Bot,
+	tg TelegramAPI,
 	chatID int64,
 	messageID int,
 	expense *appmodels.Expense,
 ) {
 	if err := b.expenseRepo.Delete(ctx, expense.ID); err != nil {
 		logger.Log.Error().Err(err).Int("expense_id", expense.ID).Msg("Failed to delete expense")
-		_, _ = tgBot.EditMessageText(ctx, &bot.EditMessageTextParams{
+		_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 			ChatID:    chatID,
 			MessageID: messageID,
 			Text:      "❌ Failed to cancel expense. Please try again.",
@@ -399,7 +404,7 @@ func (b *Bot) handleCancelReceipt(
 		Int("expense_id", expense.ID).
 		Msg("Expense cancelled via callback")
 
-	_, _ = tgBot.EditMessageText(ctx, &bot.EditMessageTextParams{
+	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:    chatID,
 		MessageID: messageID,
 		Text:      "🗑️ Receipt scan cancelled. The expense was not saved.",
@@ -410,6 +415,17 @@ func (b *Bot) handleCancelReceipt(
 func (b *Bot) handleEditReceipt(
 	ctx context.Context,
 	tgBot *bot.Bot,
+	chatID int64,
+	messageID int,
+	expense *appmodels.Expense,
+) {
+	b.handleEditReceiptCore(ctx, tgBot, chatID, messageID, expense)
+}
+
+// handleEditReceiptCore shows edit options for a draft expense.
+func (b *Bot) handleEditReceiptCore(
+	ctx context.Context,
+	tg TelegramAPI,
 	chatID int64,
 	messageID int,
 	expense *appmodels.Expense,
@@ -447,7 +463,7 @@ Select what to edit:`,
 		expense.Description,
 		categoryText)
 
-	_, _ = tgBot.EditMessageText(ctx, &bot.EditMessageTextParams{
+	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      chatID,
 		MessageID:   messageID,
 		Text:        text,
