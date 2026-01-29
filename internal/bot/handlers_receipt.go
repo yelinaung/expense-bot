@@ -362,11 +362,13 @@ func (b *Bot) handleConfirmReceiptCore(
 💰 Amount: $%s SGD
 🏪 Description: %s
 📁 Category: %s
+🗓️ Date: %s
 
 Expense #%d has been saved.`,
 		expense.Amount.StringFixed(2),
 		expense.Description,
 		categoryText,
+		expense.CreatedAt.Format("02 Jan 2006"),
 		expense.ID)
 
 	logger.Log.Info().

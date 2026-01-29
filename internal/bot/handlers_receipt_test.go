@@ -158,9 +158,15 @@ func TestHandleConfirmReceiptCore(t *testing.T) {
 		b.handleConfirmReceiptCore(ctx, mockBot, 12345, 100, expense)
 
 		require.Len(t, mockBot.EditedMessages, 1)
-		require.Contains(t, mockBot.EditedMessages[0].Text, "Expense Confirmed")
-		require.Contains(t, mockBot.EditedMessages[0].Text, "$25.50 SGD")
-		require.Contains(t, mockBot.EditedMessages[0].Text, "Test Receipt")
+		msg := mockBot.EditedMessages[0].Text
+		require.Contains(t, msg, "Expense Confirmed")
+		require.Contains(t, msg, "$25.50 SGD")
+		require.Contains(t, msg, "Test Receipt")
+
+		// Verify date is formatted as "DD Mon YYYY" not raw timestamp
+		require.Contains(t, msg, "🗓️ Date:")
+		require.Regexp(t, `🗓️ Date: \d{2} \w{3} \d{4}`, msg, "Date should be formatted as 'DD Mon YYYY'")
+		require.NotContains(t, msg, "+08", "Date should not contain timezone offset")
 
 		updated, err := b.expenseRepo.GetByID(ctx, expense.ID)
 		require.NoError(t, err)
