@@ -22,6 +22,8 @@ func main() {
 		logger.Log.Fatal().Err(err).Msg("Failed to load config")
 	}
 
+	logger.SetLevel(cfg.LogLevel)
+
 	pool, err := database.Connect(ctx, cfg.DatabaseURL)
 	if err != nil {
 		logger.Log.Fatal().Err(err).Msg("Failed to connect to database")
