@@ -30,6 +30,11 @@ func buildReceiptConfirmationKeyboard(expenseID int) *models.InlineKeyboardMarku
 
 // handlePhoto handles photo messages for receipt OCR.
 func (b *Bot) handlePhoto(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handlePhotoCore(ctx, tgBot, update)
+}
+
+// handlePhotoCore is the testable implementation of handlePhoto.
+func (b *Bot) handlePhotoCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
 	if update.Message == nil || len(update.Message.Photo) == 0 {
 		return
 	}
@@ -44,7 +49,7 @@ func (b *Bot) handlePhoto(ctx context.Context, tgBot *bot.Bot, update *models.Up
 		Msg("Received photo message")
 
 	if b.geminiClient == nil {
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
 			Text:      "📷 Receipt OCR is not configured. Please add expenses manually using /add or send text like <code>5.50 Coffee</code>",
 			ParseMode: models.ParseModeHTML,
@@ -62,18 +67,18 @@ func (b *Bot) handlePhoto(ctx context.Context, tgBot *bot.Bot, update *models.Up
 		Int("height", largestPhoto.Height).
 		Msg("Downloading photo")
 
-	_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+	_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: chatID,
 		Text:   "📷 Processing receipt...",
 	})
 
-	imageBytes, err := b.downloadPhoto(ctx, tgBot, largestPhoto.FileID)
+	imageBytes, err := b.downloadPhoto(ctx, tg, largestPhoto.FileID)
 	if err != nil {
 		logger.Log.Error().Err(err).
 			Int64("chat_id", chatID).
 			Int64("user_id", userID).
 			Msg("Failed to download photo")
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Failed to download photo. Please try again.",
 		})
@@ -95,19 +100,19 @@ func (b *Bot) handlePhoto(ctx context.Context, tgBot *bot.Bot, update *models.Up
 
 		switch {
 		case errors.Is(err, gemini.ErrParseTimeout):
-			_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    chatID,
 				Text:      "⏱️ Receipt processing timed out. Please try again or add manually: <code>/add &lt;amount&gt; &lt;description&gt;</code>",
 				ParseMode: models.ParseModeHTML,
 			})
 		case errors.Is(err, gemini.ErrNoData):
-			_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    chatID,
 				Text:      "❌ Could not read this receipt. Please add manually: <code>/add &lt;amount&gt; &lt;description&gt;</code>",
 				ParseMode: models.ParseModeHTML,
 			})
 		default:
-			_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    chatID,
 				Text:      "❌ Could not read this receipt. Please add manually: <code>/add &lt;amount&gt; &lt;description&gt;</code>",
 				ParseMode: models.ParseModeHTML,
@@ -158,7 +163,7 @@ func (b *Bot) handlePhoto(ctx context.Context, tgBot *bot.Bot, update *models.Up
 
 	if err := b.expenseRepo.Create(ctx, expense); err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to create draft expense")
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Failed to save expense. Please try again.",
 		})
@@ -205,7 +210,7 @@ func (b *Bot) handlePhoto(ctx context.Context, tgBot *bot.Bot, update *models.Up
 
 	keyboard := buildReceiptConfirmationKeyboard(expense.ID)
 
-	msg, err := tgBot.SendMessage(ctx, &bot.SendMessageParams{
+	msg, err := tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:      chatID,
 		Text:        text,
 		ParseMode:   models.ParseModeHTML,

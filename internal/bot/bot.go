@@ -319,15 +319,15 @@ func (b *Bot) defaultHandler(ctx context.Context, tgBot *bot.Bot, update *tgmode
 }
 
 // downloadPhoto downloads a photo from Telegram servers.
-func (b *Bot) downloadPhoto(ctx context.Context, tgBot *bot.Bot, fileID string) ([]byte, error) {
-	file, err := tgBot.GetFile(ctx, &bot.GetFileParams{
+func (b *Bot) downloadPhoto(ctx context.Context, tg TelegramAPI, fileID string) ([]byte, error) {
+	file, err := tg.GetFile(ctx, &bot.GetFileParams{
 		FileID: fileID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get file info: %w", err)
 	}
 
-	downloadURL := tgBot.FileDownloadLink(file)
+	downloadURL := tg.FileDownloadLink(file)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 	if err != nil {
