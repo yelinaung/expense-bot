@@ -18,5 +18,5 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /app
 COPY --from=builder /app/expense-bot .
 
-USER app
+USER ubuntu
 CMD ["./expense-bot"]
