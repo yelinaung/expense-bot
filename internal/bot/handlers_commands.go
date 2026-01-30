@@ -254,12 +254,45 @@ func (b *Bot) saveExpenseCore(
 		Description: parsed.Description,
 	}
 
+	// Try to match category from parsed input first
+	categoryMatched := false
 	if parsed.CategoryName != "" {
 		for _, cat := range categories {
 			if strings.EqualFold(cat.Name, parsed.CategoryName) {
 				expense.CategoryID = &cat.ID
 				expense.Category = &cat
+				categoryMatched = true
 				break
+			}
+		}
+	}
+
+	// If no category matched and Gemini is available, use AI to suggest category
+	if !categoryMatched && b.geminiClient != nil && parsed.Description != "" {
+		categoryNames := make([]string, len(categories))
+		for i, cat := range categories {
+			categoryNames[i] = cat.Name
+		}
+
+		suggestion, err := b.geminiClient.SuggestCategory(ctx, parsed.Description, categoryNames)
+		if err != nil {
+			logger.Log.Debug().Err(err).
+				Str("description", parsed.Description).
+				Msg("Failed to get AI category suggestion")
+		} else if suggestion != nil && suggestion.Confidence > 0.5 {
+			// Use AI suggestion if confidence is above 50%
+			for _, cat := range categories {
+				if strings.EqualFold(cat.Name, suggestion.Category) {
+					expense.CategoryID = &cat.ID
+					expense.Category = &cat
+					logger.Log.Info().
+						Str("description", parsed.Description).
+						Str("suggested_category", suggestion.Category).
+						Float64("confidence", suggestion.Confidence).
+						Str("reasoning", suggestion.Reasoning).
+						Msg("AI category suggestion applied")
+					break
+				}
 			}
 		}
 	}
