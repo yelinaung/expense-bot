@@ -13,10 +13,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o expense-bot .
 # Run stage
 FROM alpine:3
 
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates \
+    && addgroup -S appgroup \
+    && adduser -S appuser -G appgroup
 
 WORKDIR /app
 COPY --from=builder /app/expense-bot .
 
-USER ubuntu
+USER appuser
 CMD ["./expense-bot"]
