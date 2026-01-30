@@ -18,7 +18,11 @@ A Telegram bot for tracking personal expenses in SGD (Singapore Dollars) with re
 
 ```
 expense-bot/
-├── cmd/                    # Application entry point
+├── docs/                   # Documentation
+│   ├── examples/          # Sample files
+│   ├── PRIVACY.md         # Privacy policy
+│   ├── SCALABILITY.md     # Scaling guide
+│   └── ...                # Other docs
 ├── internal/
 │   ├── bot/               # Telegram bot handlers and logic
 │   │   ├── handlers_commands.go    # Command handlers (/start, /add, /list, etc.)
@@ -373,6 +377,16 @@ The bot uses structured logging with zerolog. All operations log:
 ## License
 
 See LICENSE file for details.
+
+## Documentation
+
+Additional documentation is available in the [`docs/`](./docs) directory:
+
+- **[Privacy Policy](./docs/PRIVACY.md)** - How receipt photos and user data are processed
+- **[Scalability Guide](./docs/SCALABILITY.md)** - Scaling strategies and multi-instance deployment
+- **[Development Agents](./docs/AGENTS.md)** - Claude Code AI agents used in development
+- **[Coverage Improvement Plan](./docs/COVERAGE_IMPROVEMENT_PLAN.md)** - Test coverage strategy
+- **[Phase 1 Progress](./docs/PHASE1_PROGRESS.md)** - Testing milestone achievements
 
 ## Support
 

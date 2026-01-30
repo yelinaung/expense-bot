@@ -12,7 +12,8 @@ expense-bot
 
 # Output of go coverage
 *.out
-coverage.html
+*.cover
+*.html
 
 # Go workspace
 go.work
