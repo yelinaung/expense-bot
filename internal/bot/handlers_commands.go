@@ -81,6 +81,7 @@ func (b *Bot) handleHelpCore(ctx context.Context, tg TelegramAPI, update *models
 • <code>/list</code> - Show recent expenses
 • <code>/today</code> - Show today's expenses
 • <code>/week</code> - Show this week's expenses
+• <code>/category &lt;name&gt;</code> - Filter expenses by category
 
 <b>Categories:</b>
 • <code>/categories</code> - List all categories
@@ -399,6 +400,83 @@ func (b *Bot) handleWeekCore(ctx context.Context, tg TelegramAPI, update *models
 	total, _ := b.expenseRepo.GetTotalByUserIDAndDateRange(ctx, userID, startOfWeek, endOfWeek)
 	header := fmt.Sprintf("📆 <b>This Week's Expenses</b> (Total: $%s)", total.StringFixed(2))
 	b.sendExpenseListCore(ctx, tg, chatID, expenses, header)
+}
+
+// handleCategory handles the /category command to filter expenses by category.
+func (b *Bot) handleCategory(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleCategoryCore(ctx, tgBot, update)
+}
+
+// handleCategoryCore is the testable implementation of handleCategory.
+func (b *Bot) handleCategoryCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
+	if update.Message == nil {
+		return
+	}
+
+	chatID := update.Message.Chat.ID
+	userID := update.Message.From.ID
+
+	// Extract category name from command
+	args := strings.TrimSpace(strings.TrimPrefix(update.Message.Text, "/category"))
+	if args == "" {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    chatID,
+			Text:      "❌ Please provide a category name.\n\nUsage: <code>/category Food - Dining Out</code>",
+			ParseMode: models.ParseModeHTML,
+		})
+		return
+	}
+
+	// Find matching category
+	categories, err := b.getCategoriesWithCache(ctx)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to fetch categories")
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to fetch categories. Please try again.",
+		})
+		return
+	}
+
+	var matchedCategory *appmodels.Category
+	for i := range categories {
+		if strings.EqualFold(categories[i].Name, args) {
+			matchedCategory = &categories[i]
+			break
+		}
+	}
+
+	if matchedCategory == nil {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    chatID,
+			Text:      fmt.Sprintf("❌ Category '%s' not found.\n\nUse /categories to see all available categories.", args),
+			ParseMode: models.ParseModeHTML,
+		})
+		return
+	}
+
+	// Fetch expenses for this category
+	expenses, err := b.expenseRepo.GetByUserIDAndCategory(ctx, userID, matchedCategory.ID, 20)
+	if err != nil {
+		logger.Log.Error().Err(err).Int("category_id", matchedCategory.ID).Msg("Failed to fetch expenses by category")
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to fetch expenses. Please try again.",
+		})
+		return
+	}
+
+	// Get total for this category
+	total, _ := b.expenseRepo.GetTotalByUserIDAndCategory(ctx, userID, matchedCategory.ID)
+	header := fmt.Sprintf("📁 <b>%s Expenses</b> (Total: $%s)", matchedCategory.Name, total.StringFixed(2))
+	b.sendExpenseListCore(ctx, tg, chatID, expenses, header)
+
+	logger.Log.Info().
+		Int64("user_id", userID).
+		Int("category_id", matchedCategory.ID).
+		Str("category_name", matchedCategory.Name).
+		Int("count", len(expenses)).
+		Msg("Category filter applied")
 }
 
 // sendExpenseListCore formats and sends a list of expenses.

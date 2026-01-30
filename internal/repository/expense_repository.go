@@ -103,6 +103,48 @@ func (r *ExpenseRepository) GetByUserIDAndDateRange(
 	return scanExpenses(rows)
 }
 
+// GetByUserIDAndCategory retrieves confirmed expenses for a user filtered by category.
+func (r *ExpenseRepository) GetByUserIDAndCategory(
+	ctx context.Context,
+	userID int64,
+	categoryID int,
+	limit int,
+) ([]models.Expense, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT e.id, e.user_id, e.amount, e.currency, e.description, e.category_id,
+		       e.receipt_file_id, e.status, e.created_at, e.updated_at,
+		       c.id, c.name, c.created_at
+		FROM expenses e
+		LEFT JOIN categories c ON e.category_id = c.id
+		WHERE e.user_id = $1 AND e.category_id = $2 AND e.status = 'confirmed'
+		ORDER BY e.created_at DESC
+		LIMIT $3
+	`, userID, categoryID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query expenses by category: %w", err)
+	}
+	defer rows.Close()
+
+	return scanExpenses(rows)
+}
+
+// GetTotalByUserIDAndCategory calculates total spending for confirmed expenses in a category.
+func (r *ExpenseRepository) GetTotalByUserIDAndCategory(
+	ctx context.Context,
+	userID int64,
+	categoryID int,
+) (decimal.Decimal, error) {
+	var total decimal.Decimal
+	err := r.pool.QueryRow(ctx, `
+		SELECT COALESCE(SUM(amount), 0) FROM expenses
+		WHERE user_id = $1 AND category_id = $2 AND status = 'confirmed'
+	`, userID, categoryID).Scan(&total)
+	if err != nil {
+		return decimal.Zero, fmt.Errorf("failed to get total by category: %w", err)
+	}
+	return total, nil
+}
+
 // Update modifies an existing expense.
 func (r *ExpenseRepository) Update(ctx context.Context, expense *models.Expense) error {
 	_, err := r.pool.Exec(ctx, `
