@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strconv"
@@ -82,6 +83,10 @@ func (b *Bot) handleHelpCore(ctx context.Context, tg TelegramAPI, update *models
 • <code>/today</code> - Show today's expenses
 • <code>/week</code> - Show this week's expenses
 • <code>/category &lt;name&gt;</code> - Filter expenses by category
+
+<b>Reports:</b>
+• <code>/report week</code> - Generate weekly CSV report
+• <code>/report month</code> - Generate monthly CSV report
 
 <b>Categories:</b>
 • <code>/categories</code> - List all categories
@@ -533,6 +538,121 @@ func (b *Bot) sendExpenseListCore(
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to send expense list")
 	}
+}
+
+// handleReport handles the /report command to generate CSV reports.
+func (b *Bot) handleReport(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleReportCore(ctx, tgBot, update)
+}
+
+// handleReportCore is the testable implementation of handleReport.
+func (b *Bot) handleReportCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
+	if update.Message == nil {
+		return
+	}
+
+	chatID := update.Message.Chat.ID
+	userID := update.Message.From.ID
+
+	args := strings.TrimSpace(strings.TrimPrefix(update.Message.Text, "/report"))
+	if args == "" {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    chatID,
+			Text:      "❌ Please specify report type.\n\nUsage: <code>/report week</code> or <code>/report month</code>",
+			ParseMode: models.ParseModeHTML,
+		})
+		return
+	}
+
+	var startDate, endDate time.Time
+	var period, title string
+
+	switch strings.ToLower(args) {
+	case periodWeek:
+		startDate, endDate = getWeekDateRange()
+		period = periodWeek
+		title = fmt.Sprintf("Weekly Expenses (%s to %s)",
+			startDate.Format("Jan 2"), endDate.Add(-24*time.Hour).Format("Jan 2, 2006"))
+	case periodMonth:
+		startDate, endDate = getMonthDateRange()
+		period = periodMonth
+		title = fmt.Sprintf("Monthly Expenses (%s)", startDate.Format("January 2006"))
+	default:
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    chatID,
+			Text:      "❌ Invalid report type. Use <code>week</code> or <code>month</code>.",
+			ParseMode: models.ParseModeHTML,
+		})
+		return
+	}
+
+	logger.Log.Info().
+		Int64("user_id", userID).
+		Str("period", period).
+		Time("start", startDate).
+		Time("end", endDate).
+		Msg("Generating expense report")
+
+	// Fetch expenses
+	expenses, err := b.expenseRepo.GetByUserIDAndDateRange(ctx, userID, startDate, endDate)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to fetch expenses for report")
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to generate report. Please try again.",
+		})
+		return
+	}
+
+	if len(expenses) == 0 {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    chatID,
+			Text:      fmt.Sprintf("📊 No expenses found for %s.", period),
+			ParseMode: models.ParseModeHTML,
+		})
+		return
+	}
+
+	// Generate CSV
+	csvData, err := GenerateExpensesCSV(expenses)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to generate CSV")
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to generate CSV report. Please try again.",
+		})
+		return
+	}
+
+	// Calculate total
+	total, _ := b.expenseRepo.GetTotalByUserIDAndDateRange(ctx, userID, startDate, endDate)
+
+	// Send CSV file
+	filename := generateReportFilename(period)
+	caption := fmt.Sprintf("📊 <b>%s</b>\n\nTotal Expenses: $%s SGD\nCount: %d",
+		title, total.StringFixed(2), len(expenses))
+
+	_, err = tg.SendDocument(ctx, &bot.SendDocumentParams{
+		ChatID:    chatID,
+		Document:  &models.InputFileUpload{Filename: filename, Data: bytes.NewReader(csvData)},
+		Caption:   caption,
+		ParseMode: models.ParseModeHTML,
+	})
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to send CSV document")
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to send report. Please try again.",
+		})
+		return
+	}
+
+	logger.Log.Info().
+		Int64("user_id", userID).
+		Str("period", period).
+		Int("expense_count", len(expenses)).
+		Str("total", total.String()).
+		Msg("Report generated successfully")
 }
 
 // handleEdit handles the /edit command to modify an expense.

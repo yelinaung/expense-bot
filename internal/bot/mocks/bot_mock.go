@@ -17,6 +17,7 @@ type TelegramAPI interface {
 	AnswerCallbackQuery(ctx context.Context, params *bot.AnswerCallbackQueryParams) (bool, error)
 	GetFile(ctx context.Context, params *bot.GetFileParams) (*models.File, error)
 	FileDownloadLink(f *models.File) string
+	SendDocument(ctx context.Context, params *bot.SendDocumentParams) (*models.Message, error)
 }
 
 // SentMessage captures a message sent via MockBot.
@@ -175,6 +176,31 @@ func (m *MockBot) FileDownloadLink(_ *models.File) string {
 	}
 
 	return "https://api.telegram.org/file/bot123/photos/test.jpg"
+}
+
+// SendDocument sends a document and records it.
+func (m *MockBot) SendDocument(_ context.Context, params *bot.SendDocumentParams) (*models.Message, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.SendMessageError != nil {
+		return nil, m.SendMessageError
+	}
+
+	// Create a mock message response
+	msg := &models.Message{
+		ID:   len(m.SentMessages) + 1,
+		Chat: models.Chat{ID: chatIDToInt64(params.ChatID)},
+		Document: &models.Document{
+			FileID: "mock_file_id",
+		},
+	}
+
+	if params.Caption != "" {
+		msg.Caption = params.Caption
+	}
+
+	return msg, nil
 }
 
 // Reset clears all recorded interactions.

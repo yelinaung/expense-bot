@@ -143,6 +143,8 @@ go run main.go
 | `/today` | Show today's expenses with total | `/today` |
 | `/week` | Show this week's expenses with total | `/week` |
 | `/category <name>` | Filter expenses by category | `/category Food - Dining Out` |
+| `/report week` | Generate weekly expense report (CSV) | `/report week` |
+| `/report month` | Generate monthly expense report (CSV) | `/report month` |
 | `/categories` | List all expense categories | `/categories` |
 | `/edit <id> <amount> <description> [category]` | Edit an expense | `/edit 42 6.00 Coffee Food - Dining Out` |
 | `/delete <id>` | Delete an expense | `/delete 42` |
