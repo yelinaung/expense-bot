@@ -27,12 +27,25 @@ include:
     policy: pull
 
 # === SECURITY STAGE ===
-# Both security scans run in parallel
+# All security scans run in parallel
 
 secret_detection:
   stage: security
   tags:
     - playground-bravo
+
+default:
+
+run_aikido_selfscanner:
+  tags:
+    - playground-bravo
+  image:
+    name: aikidosecurity/local-scanner:latest
+    entrypoint: [""]
+  script:
+  - aikido-local-scanner scan ./ --apikey $AIKIDO_LOCAL_SCANNER_TOKEN --repositoryname $CI_PROJECT_NAME --branchname main
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
 
 semgrep-sast:
   stage: security
