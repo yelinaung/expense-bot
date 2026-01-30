@@ -199,6 +199,7 @@ deploy:
     - echo "$DOKKU_HOST_KEY" >> ~/.ssh/known_hosts
   script:
     - git remote add dokku dokku@$DOKKU_HOST:expense-bot || true
-    - git push dokku HEAD:main --force
+    - git remote -v
+    - git push dokku HEAD:master --force
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
