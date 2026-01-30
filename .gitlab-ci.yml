@@ -180,8 +180,9 @@ test:
 
 deploy:
   stage: deploy
-  # OPTIMIZED: Use image with git pre-installed
-  image: alpine/git:latest
+  image:
+    name: alpine/git:latest
+    entrypoint: [""]
   tags:
     - playground-bravo
   needs:
