@@ -89,11 +89,11 @@ func TestHandleReportCore(t *testing.T) {
 
 		b.handleReportCore(ctx, mockBot, update)
 
-		require.Equal(t, 1, mockBot.SentMessageCount())
-		// In real implementation, this would send a document
-		// For now, we verify no error messages were sent
-		msg := mockBot.LastSentMessage()
-		require.NotContains(t, msg.Text, "❌")
+		require.Equal(t, 1, mockBot.SentDocumentCount())
+		doc := mockBot.LastSentDocument()
+		require.NotNil(t, doc)
+		require.Contains(t, doc.Filename, "expenses_week_")
+		require.Contains(t, doc.Caption, "Weekly Expenses")
 	})
 
 	t.Run("generates monthly report CSV", func(t *testing.T) {
@@ -102,9 +102,11 @@ func TestHandleReportCore(t *testing.T) {
 
 		b.handleReportCore(ctx, mockBot, update)
 
-		require.Equal(t, 1, mockBot.SentMessageCount())
-		msg := mockBot.LastSentMessage()
-		require.NotContains(t, msg.Text, "❌")
+		require.Equal(t, 1, mockBot.SentDocumentCount())
+		doc := mockBot.LastSentDocument()
+		require.NotNil(t, doc)
+		require.Contains(t, doc.Filename, "expenses_month_")
+		require.Contains(t, doc.Caption, "Monthly Expenses")
 	})
 
 	t.Run("returns error for invalid period", func(t *testing.T) {

@@ -43,6 +43,14 @@ type AnsweredCallback struct {
 	ShowAlert       bool
 }
 
+// SentDocument captures a document sent via MockBot.
+type SentDocument struct {
+	ChatID    any
+	Filename  string
+	Caption   string
+	ParseMode models.ParseMode
+}
+
 // Compile-time check that MockBot implements TelegramAPI.
 var _ TelegramAPI = (*MockBot)(nil)
 
@@ -53,6 +61,7 @@ type MockBot struct {
 	SentMessages      []SentMessage
 	EditedMessages    []EditedMessage
 	AnsweredCallbacks []AnsweredCallback
+	SentDocuments     []SentDocument
 
 	// SendMessageError allows simulating SendMessage failures.
 	SendMessageError error
@@ -60,6 +69,8 @@ type MockBot struct {
 	EditMessageError error
 	// GetFileError allows simulating GetFile failures.
 	GetFileError error
+	// SendDocumentError allows simulating SendDocument failures.
+	SendDocumentError error
 
 	// FileToReturn is returned by GetFile.
 	FileToReturn *models.File
@@ -76,6 +87,7 @@ func NewMockBot() *MockBot {
 		SentMessages:      make([]SentMessage, 0),
 		EditedMessages:    make([]EditedMessage, 0),
 		AnsweredCallbacks: make([]AnsweredCallback, 0),
+		SentDocuments:     make([]SentDocument, 0),
 		NextMessageID:     1000,
 	}
 }
@@ -183,24 +195,35 @@ func (m *MockBot) SendDocument(_ context.Context, params *bot.SendDocumentParams
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.SendMessageError != nil {
-		return nil, m.SendMessageError
+	if m.SendDocumentError != nil {
+		return nil, m.SendDocumentError
 	}
 
-	// Create a mock message response
-	msg := &models.Message{
-		ID:   len(m.SentMessages) + 1,
-		Chat: models.Chat{ID: chatIDToInt64(params.ChatID)},
+	// Extract filename from InputFileUpload if available
+	filename := ""
+	if upload, ok := params.Document.(*models.InputFileUpload); ok {
+		filename = upload.Filename
+	}
+
+	m.SentDocuments = append(m.SentDocuments, SentDocument{
+		ChatID:    params.ChatID,
+		Filename:  filename,
+		Caption:   params.Caption,
+		ParseMode: params.ParseMode,
+	})
+
+	msgID := m.NextMessageID
+	m.NextMessageID++
+
+	return &models.Message{
+		ID:      msgID,
+		Chat:    models.Chat{ID: chatIDToInt64(params.ChatID)},
+		Caption: params.Caption,
 		Document: &models.Document{
-			FileID: "mock_file_id",
+			FileID:   "mock_file_id",
+			FileName: filename,
 		},
-	}
-
-	if params.Caption != "" {
-		msg.Caption = params.Caption
-	}
-
-	return msg, nil
+	}, nil
 }
 
 // Reset clears all recorded interactions.
@@ -211,9 +234,11 @@ func (m *MockBot) Reset() {
 	m.SentMessages = make([]SentMessage, 0)
 	m.EditedMessages = make([]EditedMessage, 0)
 	m.AnsweredCallbacks = make([]AnsweredCallback, 0)
+	m.SentDocuments = make([]SentDocument, 0)
 	m.SendMessageError = nil
 	m.EditMessageError = nil
 	m.GetFileError = nil
+	m.SendDocumentError = nil
 }
 
 // LastSentMessage returns the most recently sent message, or nil if none.
@@ -243,6 +268,24 @@ func (m *MockBot) SentMessageCount() int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return len(m.SentMessages)
+}
+
+// SentDocumentCount returns the number of documents sent.
+func (m *MockBot) SentDocumentCount() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return len(m.SentDocuments)
+}
+
+// LastSentDocument returns the most recently sent document, or nil if none.
+func (m *MockBot) LastSentDocument() *SentDocument {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if len(m.SentDocuments) == 0 {
+		return nil
+	}
+	return &m.SentDocuments[len(m.SentDocuments)-1]
 }
 
 // chatIDToInt64 converts a ChatID to int64.
