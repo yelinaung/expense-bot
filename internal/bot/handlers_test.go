@@ -1182,7 +1182,7 @@ func TestHandleEdit(t *testing.T) {
 	t.Run("edits only amount, preserves description and category", func(t *testing.T) {
 		mockBot.Reset()
 
-		category, err := tb.categoryRepo.Create(ctx, "Test Edit Category")
+		category, err := tb.categoryRepo.Create(ctx, "Test Partial Edit Preserve Cat")
 		require.NoError(t, err)
 
 		expense := &models.Expense{
@@ -1207,7 +1207,7 @@ func TestHandleEdit(t *testing.T) {
 		require.Contains(t, msg.Text, "Expense Updated")
 		require.Contains(t, msg.Text, "$25.50 SGD")
 		require.Contains(t, msg.Text, "Original description")
-		require.Contains(t, msg.Text, "Test Edit Category")
+		require.Contains(t, msg.Text, "Test Partial Edit Preserve Cat")
 
 		// Verify in database that fields were preserved
 		updated, err := tb.expenseRepo.GetByID(ctx, expense.ID)
