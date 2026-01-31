@@ -31,11 +31,11 @@ func TestHandleChartCore(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Create categories
-	foodCategory, err := b.categoryRepo.Create(ctx, "Food - Dining Out")
+	// Create categories with unique names to avoid conflicts with seed data
+	foodCategory, err := b.categoryRepo.Create(ctx, "Test Chart Category Food")
 	require.NoError(t, err)
 
-	transportCategory, err := b.categoryRepo.Create(ctx, "Transport")
+	transportCategory, err := b.categoryRepo.Create(ctx, "Test Chart Category Transport")
 	require.NoError(t, err)
 
 	// Create expenses for this week
