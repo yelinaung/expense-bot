@@ -28,14 +28,30 @@ func GenerateExpenseChart(expenses []models.Expense, period string) ([]byte, err
 		values = append(values, total.InexactFloat64())
 	}
 
-	// Create pie chart using PieRender
-	p, err := charts.PieRender(
-		values,
-		charts.TitleOptionFunc(charts.TitleOption{
-			Text: fmt.Sprintf("Expense Breakdown - %s", period),
-		}),
-		charts.LegendLabelsOptionFunc(categoryNames),
-	)
+	opt := charts.NewPieChartOptionWithData(values)
+	opt.Title = charts.TitleOption{
+		Text:             fmt.Sprintf("Expense Breakdown %s\n\n", period),
+		Offset:           charts.OffsetCenter,
+		FontStyle:        charts.NewFontStyleWithSize(16),
+		SubtextFontStyle: charts.NewFontStyleWithSize(10),
+	}
+	opt.Padding = charts.NewBoxEqual(5)
+	opt.Legend = charts.LegendOption{
+		SeriesNames: categoryNames,
+		Vertical:    charts.Ptr(true),
+		Offset: charts.OffsetStr{
+			Left: "80%",
+			Top:  charts.PositionBottom,
+		},
+		FontStyle: charts.NewFontStyleWithSize(8),
+	}
+
+	p := charts.NewPainter(charts.PainterOptions{
+		OutputFormat: charts.ChartOutputPNG,
+		Width:        600,
+		Height:       400,
+	})
+	err := p.PieChart(opt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chart: %w", err)
 	}
