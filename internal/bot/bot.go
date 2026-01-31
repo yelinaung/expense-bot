@@ -167,7 +167,7 @@ func (b *Bot) whitelistMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 		username := extractUsername(update)
 		logUserAction(userID, username, update)
 
-		if !b.cfg.IsUserWhitelisted(userID) {
+		if !b.cfg.IsUserWhitelisted(userID, username) {
 			logger.Log.Warn().
 				Int64("user_id", userID).
 				Str("username", username).

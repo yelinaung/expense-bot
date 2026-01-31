@@ -12,11 +12,12 @@ import (
 
 // Config holds all configuration for the application.
 type Config struct {
-	TelegramBotToken   string
-	DatabaseURL        string
-	GeminiAPIKey       string
-	LogLevel           string
-	WhitelistedUserIDs []int64
+	TelegramBotToken     string
+	DatabaseURL          string
+	GeminiAPIKey         string
+	LogLevel             string
+	WhitelistedUserIDs   []int64
+	WhitelistedUsernames []string
 }
 
 // Load reads configuration from environment variables.
@@ -45,10 +46,39 @@ func Load() (*Config, error) {
 		}
 	}
 
+	whitelistUsernames := os.Getenv("WHITELISTED_USERNAMES")
+	if whitelistUsernames != "" {
+		for username := range strings.SplitSeq(whitelistUsernames, ",") {
+			username = strings.TrimSpace(username)
+			if username == "" {
+				continue
+			}
+			// Remove @ prefix if present
+			username = strings.TrimPrefix(username, "@")
+			cfg.WhitelistedUsernames = append(cfg.WhitelistedUsernames, username)
+		}
+	}
+
 	return cfg, nil
 }
 
-// IsUserWhitelisted checks if a Telegram user ID is in the whitelist.
-func (c *Config) IsUserWhitelisted(userID int64) bool {
-	return slices.Contains(c.WhitelistedUserIDs, userID)
+// IsUserWhitelisted checks if a Telegram user ID or username is in the whitelist.
+// Returns true if either the user ID or username is whitelisted.
+func (c *Config) IsUserWhitelisted(userID int64, username string) bool {
+	// Check user ID whitelist
+	if slices.Contains(c.WhitelistedUserIDs, userID) {
+		return true
+	}
+
+	// Check username whitelist (case-insensitive)
+	if username != "" {
+		username = strings.TrimPrefix(username, "@")
+		for _, whitelisted := range c.WhitelistedUsernames {
+			if strings.EqualFold(whitelisted, username) {
+				return true
+			}
+		}
+	}
+
+	return false
 }

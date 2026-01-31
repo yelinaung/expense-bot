@@ -97,6 +97,10 @@ DATABASE_URL=postgres://YOUR_DATABASE_URL
 # Get your user ID by messaging @userinfobot
 WHITELISTED_USER_IDS=123456789,987654321
 
+# Whitelisted Telegram Usernames (comma-separated, optional)
+# Alternative to user IDs, accepts with or without @ prefix
+WHITELISTED_USERNAMES=alice,bob,@charlie
+
 # Gemini API Key (optional - enables receipt OCR and auto-categorization)
 # Get from https://aistudio.google.com/app/apikey
 GEMINI_API_KEY=your_gemini_api_key_here
