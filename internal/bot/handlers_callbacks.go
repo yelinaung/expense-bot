@@ -590,3 +590,309 @@ Please type the name for the new category (e.g., <code>Subscriptions</code>):`
 		ReplyMarkup: keyboard,
 	})
 }
+
+// handleExpenseActionCallback handles inline edit/delete buttons on expense confirmations.
+func (b *Bot) handleExpenseActionCallback(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleExpenseActionCallbackCore(ctx, tgBot, update)
+}
+
+// handleExpenseActionCallbackCore is the testable implementation.
+func (b *Bot) handleExpenseActionCallbackCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
+	if update.CallbackQuery == nil {
+		return
+	}
+
+	data := update.CallbackQuery.Data
+	userID := update.CallbackQuery.From.ID
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	messageID := update.CallbackQuery.Message.Message.ID
+
+	logger.Log.Debug().
+		Str("callback_data", data).
+		Int64("user_id", userID).
+		Msg("Processing expense action callback")
+
+	_, _ = tg.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
+
+	parts := strings.Split(data, "_")
+	if len(parts) < 3 {
+		logger.Log.Error().Str("data", data).Msg("Invalid callback data format")
+		return
+	}
+
+	action := parts[0] + "_" + parts[1] // "edit_expense" or "delete_expense"
+	expenseID, err := strconv.Atoi(parts[2])
+	if err != nil {
+		logger.Log.Error().Err(err).Str("data", data).Msg("Failed to parse expense ID")
+		return
+	}
+
+	expense, err := b.expenseRepo.GetByID(ctx, expenseID)
+	if err != nil {
+		logger.Log.Error().Err(err).Int("expense_id", expenseID).Msg("Expense not found")
+		_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
+			ChatID:    chatID,
+			MessageID: messageID,
+			Text:      "❌ Expense not found.",
+		})
+		return
+	}
+
+	if expense.UserID != userID {
+		logger.Log.Warn().Int64("user_id", userID).Int("expense_id", expenseID).Msg("User mismatch")
+		_, _ = tg.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+			CallbackQueryID: update.CallbackQuery.ID,
+			Text:            "❌ You can only modify your own expenses.",
+			ShowAlert:       true,
+		})
+		return
+	}
+
+	switch action {
+	case "edit_expense":
+		b.handleInlineEditExpenseCore(ctx, tg, chatID, messageID, expense)
+	case "delete_expense":
+		b.handleInlineDeleteExpenseCore(ctx, tg, chatID, messageID, expense)
+	}
+}
+
+// handleInlineEditExpenseCore shows the edit options menu.
+func (b *Bot) handleInlineEditExpenseCore(
+	ctx context.Context,
+	tg TelegramAPI,
+	chatID int64,
+	messageID int,
+	expense *appmodels.Expense,
+) {
+	categoryText := categoryUncategorized
+	if expense.Category != nil {
+		categoryText = expense.Category.Name
+	}
+
+	text := fmt.Sprintf(`✏️ <b>Edit Expense #%d</b>
+
+Current Details:
+💰 Amount: $%s SGD
+📝 Description: %s
+📁 Category: %s
+
+What would you like to edit?`,
+		expense.ID,
+		expense.Amount.StringFixed(2),
+		expense.Description,
+		categoryText)
+
+	keyboard := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{Text: "💰 Amount", CallbackData: fmt.Sprintf("edit_amount_%d", expense.ID)},
+			},
+			{
+				{Text: "📝 Description", CallbackData: fmt.Sprintf("edit_desc_%d", expense.ID)},
+			},
+			{
+				{Text: "📁 Category", CallbackData: fmt.Sprintf("edit_cat_%d", expense.ID)},
+			},
+			{
+				{Text: "⬅️ Back", CallbackData: fmt.Sprintf("back_to_expense_%d", expense.ID)},
+			},
+		},
+	}
+
+	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:      chatID,
+		MessageID:   messageID,
+		Text:        text,
+		ParseMode:   models.ParseModeHTML,
+		ReplyMarkup: keyboard,
+	})
+}
+
+// handleInlineDeleteExpenseCore shows delete confirmation.
+func (b *Bot) handleInlineDeleteExpenseCore(
+	ctx context.Context,
+	tg TelegramAPI,
+	chatID int64,
+	messageID int,
+	expense *appmodels.Expense,
+) {
+	text := fmt.Sprintf(`🗑️ <b>Delete Expense?</b>
+
+Are you sure you want to delete this expense?
+
+💰 $%s SGD
+📝 %s
+🆔 #%d
+
+This action cannot be undone.`,
+		expense.Amount.StringFixed(2),
+		expense.Description,
+		expense.ID)
+
+	keyboard := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{Text: "✅ Yes, Delete", CallbackData: fmt.Sprintf("confirm_delete_%d", expense.ID)},
+			},
+			{
+				{Text: "❌ No, Keep It", CallbackData: fmt.Sprintf("back_to_expense_%d", expense.ID)},
+			},
+		},
+	}
+
+	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:      chatID,
+		MessageID:   messageID,
+		Text:        text,
+		ParseMode:   models.ParseModeHTML,
+		ReplyMarkup: keyboard,
+	})
+}
+
+// handleConfirmDeleteCallback handles deletion confirmation.
+func (b *Bot) handleConfirmDeleteCallback(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleConfirmDeleteCallbackCore(ctx, tgBot, update)
+}
+
+// handleConfirmDeleteCallbackCore is the testable implementation.
+func (b *Bot) handleConfirmDeleteCallbackCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
+	if update.CallbackQuery == nil {
+		return
+	}
+
+	data := update.CallbackQuery.Data
+	userID := update.CallbackQuery.From.ID
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	messageID := update.CallbackQuery.Message.Message.ID
+
+	_, _ = tg.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
+
+	parts := strings.Split(data, "_")
+	if len(parts) < 3 {
+		return
+	}
+
+	expenseID, err := strconv.Atoi(parts[2])
+	if err != nil {
+		return
+	}
+
+	expense, err := b.expenseRepo.GetByID(ctx, expenseID)
+	if err != nil || expense.UserID != userID {
+		_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
+			ChatID:    chatID,
+			MessageID: messageID,
+			Text:      "❌ Expense not found or unauthorized.",
+		})
+		return
+	}
+
+	if err := b.expenseRepo.Delete(ctx, expenseID); err != nil {
+		logger.Log.Error().Err(err).Int("expense_id", expenseID).Msg("Failed to delete expense")
+		_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
+			ChatID:    chatID,
+			MessageID: messageID,
+			Text:      "❌ Failed to delete expense. Please try again.",
+		})
+		return
+	}
+
+	logger.Log.Debug().
+		Int64("chat_id", chatID).
+		Int("expense_id", expenseID).
+		Msg("Expense deleted via inline button")
+
+	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:    chatID,
+		MessageID: messageID,
+		Text:      fmt.Sprintf("✅ Expense #%d deleted.", expenseID),
+	})
+}
+
+// handleBackToExpenseCallback handles "Back" button to return to original expense view.
+func (b *Bot) handleBackToExpenseCallback(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleBackToExpenseCallbackCore(ctx, tgBot, update)
+}
+
+// handleBackToExpenseCallbackCore is the testable implementation.
+func (b *Bot) handleBackToExpenseCallbackCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
+	if update.CallbackQuery == nil {
+		return
+	}
+
+	data := update.CallbackQuery.Data
+	userID := update.CallbackQuery.From.ID
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	messageID := update.CallbackQuery.Message.Message.ID
+
+	_, _ = tg.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
+
+	parts := strings.Split(data, "_")
+	if len(parts) < 4 {
+		return
+	}
+
+	expenseID, err := strconv.Atoi(parts[3])
+	if err != nil {
+		return
+	}
+
+	expense, err := b.expenseRepo.GetByID(ctx, expenseID)
+	if err != nil || expense.UserID != userID {
+		return
+	}
+
+	// Load category if needed
+	if expense.CategoryID != nil {
+		categories, _ := b.getCategoriesWithCache(ctx)
+		for i := range categories {
+			if categories[i].ID == *expense.CategoryID {
+				expense.Category = &categories[i]
+				break
+			}
+		}
+	}
+
+	categoryText := categoryUncategorized
+	if expense.Category != nil {
+		categoryText = expense.Category.Name
+	}
+
+	descText := ""
+	if expense.Description != "" {
+		descText = "\n📝 " + expense.Description
+	}
+
+	text := fmt.Sprintf(`✅ <b>Expense Added</b>
+
+💰 $%s SGD%s
+📁 %s
+🆔 #%d`,
+		expense.Amount.StringFixed(2),
+		descText,
+		categoryText,
+		expense.ID)
+
+	keyboard := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{Text: "✏️ Edit", CallbackData: fmt.Sprintf("edit_expense_%d", expense.ID)},
+				{Text: "🗑️ Delete", CallbackData: fmt.Sprintf("delete_expense_%d", expense.ID)},
+			},
+		},
+	}
+
+	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:      chatID,
+		MessageID:   messageID,
+		Text:        text,
+		ParseMode:   models.ParseModeHTML,
+		ReplyMarkup: keyboard,
+	})
+}

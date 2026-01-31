@@ -148,6 +148,12 @@ func (b *Bot) registerHandlers() {
 	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "set_category_", bot.MatchTypePrefix, b.handleSetCategoryCallback)
 	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "cancel_edit_", bot.MatchTypePrefix, b.handleCancelEditCallback)
 	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "create_category_", bot.MatchTypePrefix, b.handleCreateCategoryCallback)
+
+	// Callback query handlers for inline expense actions.
+	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "edit_expense_", bot.MatchTypePrefix, b.handleExpenseActionCallback)
+	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "delete_expense_", bot.MatchTypePrefix, b.handleExpenseActionCallback)
+	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "confirm_delete_", bot.MatchTypePrefix, b.handleConfirmDeleteCallback)
+	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "back_to_expense_", bot.MatchTypePrefix, b.handleBackToExpenseCallback)
 }
 
 // whitelistMiddleware checks if the user is whitelisted before processing.

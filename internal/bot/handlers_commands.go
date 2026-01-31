@@ -335,10 +335,21 @@ func (b *Bot) saveExpenseCore(
 		categoryText,
 		expense.ID)
 
+	// Add inline edit/delete buttons
+	keyboard := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{Text: "✏️ Edit", CallbackData: fmt.Sprintf("edit_expense_%d", expense.ID)},
+				{Text: "🗑️ Delete", CallbackData: fmt.Sprintf("delete_expense_%d", expense.ID)},
+			},
+		},
+	}
+
 	_, err := tg.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    chatID,
-		Text:      text,
-		ParseMode: models.ParseModeHTML,
+		ChatID:      chatID,
+		Text:        text,
+		ParseMode:   models.ParseModeHTML,
+		ReplyMarkup: keyboard,
 	})
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to send expense confirmation")
