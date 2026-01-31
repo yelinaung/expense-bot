@@ -757,6 +757,16 @@ func (b *Bot) handleEdit(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 	}
 
 	categories, _ := b.getCategoriesWithCache(ctx)
+
+	// Load the existing category if one is set
+	if expense.CategoryID != nil {
+		for i := range categories {
+			if categories[i].ID == *expense.CategoryID {
+				expense.Category = &categories[i]
+				break
+			}
+		}
+	}
 	categoryNames := make([]string, len(categories))
 	for i, cat := range categories {
 		categoryNames[i] = cat.Name
