@@ -202,7 +202,7 @@ func TestGenerateReportFilename(t *testing.T) {
 		filename := generateReportFilename("month")
 		require.Contains(t, filename, "expenses_")
 		require.Contains(t, filename, ".csv")
-		require.Regexp(t, `expenses_\d{4}-\d{2}\.csv`, filename)
+		require.Regexp(t, `expenses_month_\d{4}-\d{2}\.csv`, filename)
 	})
 
 	t.Run("generates default filename for unknown period", func(t *testing.T) {

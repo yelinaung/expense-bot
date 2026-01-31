@@ -82,7 +82,7 @@ func generateReportFilename(period string) string {
 		start, _ := getWeekDateRange()
 		return fmt.Sprintf("expenses_week_%s.csv", start.Format("2006-01-02"))
 	case periodMonth:
-		return fmt.Sprintf("expenses_%s.csv", now.Format("2006-01"))
+		return fmt.Sprintf("expenses_month_%s.csv", now.Format("2006-01"))
 	default:
 		return fmt.Sprintf("expenses_%s.csv", now.Format("2006-01-02"))
 	}
