@@ -1319,6 +1319,17 @@ func callHandleEdit(
 	}
 
 	categories, _ := categoryRepo.GetAll(ctx)
+
+	// Load the existing category if one is set
+	if expense.CategoryID != nil {
+		for i := range categories {
+			if categories[i].ID == *expense.CategoryID {
+				expense.Category = &categories[i]
+				break
+			}
+		}
+	}
+
 	categoryNames := make([]string, len(categories))
 	for i, cat := range categories {
 		categoryNames[i] = cat.Name
@@ -1334,9 +1345,15 @@ func callHandleEdit(
 		return
 	}
 
+	// Update amount (always required)
 	expense.Amount = parsed.Amount
-	expense.Description = parsed.Description
 
+	// Only update description if provided
+	if parsed.Description != "" {
+		expense.Description = parsed.Description
+	}
+
+	// Only update category if provided
 	if parsed.CategoryName != "" {
 		for _, cat := range categories {
 			if strings.EqualFold(cat.Name, parsed.CategoryName) {
