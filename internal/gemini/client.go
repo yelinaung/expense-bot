@@ -8,8 +8,8 @@ import (
 	"google.golang.org/genai"
 )
 
-// ModelName is the Gemini model to use for receipt OCR.
-const ModelName = "gemini-3-flash-preview"
+// ModelName is the Gemini model to use for receipt OCR and categorization.
+const ModelName = "gemini-2.5-flash"
 
 // ContentGenerator defines the interface for generating content via Gemini.
 // This abstraction enables testing without making actual API calls.

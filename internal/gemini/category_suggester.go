@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"gitlab.com/yelinaung/expense-bot/internal/logger"
 	"google.golang.org/genai"
 )
 
@@ -19,19 +20,28 @@ type CategorySuggestion struct {
 
 // SuggestCategory uses Gemini to suggest an appropriate category for an expense description.
 func (c *Client) SuggestCategory(ctx context.Context, description string, availableCategories []string) (*CategorySuggestion, error) {
+	logger.Log.Debug().
+		Str("description", description).
+		Int("category_count", len(availableCategories)).
+		Msg("SuggestCategory called")
+
 	if c.generator == nil {
+		logger.Log.Error().Msg("SuggestCategory: gemini client not initialized")
 		return nil, fmt.Errorf("gemini client not initialized")
 	}
 
 	if description == "" {
+		logger.Log.Warn().Msg("SuggestCategory: empty description provided")
 		return nil, fmt.Errorf("description is required")
 	}
 
 	if len(availableCategories) == 0 {
+		logger.Log.Warn().Msg("SuggestCategory: no categories available")
 		return nil, fmt.Errorf("no categories available")
 	}
 
 	prompt := buildCategorySuggestionPrompt(description, availableCategories)
+	logger.Log.Debug().Str("prompt", prompt).Msg("SuggestCategory: sending prompt to Gemini")
 
 	// Set timeout for API call
 	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
@@ -48,8 +58,13 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 
 	temp := float32(0.3)
 	config := &genai.GenerateContentConfig{
-		Temperature:      &temp, // Lower temperature for more consistent categorization
-		MaxOutputTokens:  int32(200),
+		Temperature:     &temp,      // Lower temperature for more consistent categorization
+		MaxOutputTokens: int32(500), // Increased to prevent truncation of reasoning text
+		SystemInstruction: &genai.Content{
+			Parts: []*genai.Part{
+				{Text: "You are a JSON API. You MUST respond with ONLY valid JSON, no preamble or explanation. Output a single JSON object."},
+			},
+		},
 		ResponseMIMEType: "application/json",
 		ResponseSchema: &genai.Schema{
 			Type: genai.TypeObject,
@@ -73,36 +88,60 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 
 	resp, err := c.generator.GenerateContent(timeoutCtx, ModelName, contents, config)
 	if err != nil {
+		logger.Log.Error().Err(err).
+			Str("description", description).
+			Msg("SuggestCategory: Gemini API call failed")
 		return nil, fmt.Errorf("gemini API call failed: %w", err)
 	}
 
-	if resp == nil || len(resp.Candidates) == 0 {
+	if resp == nil {
+		logger.Log.Warn().
+			Str("description", description).
+			Msg("SuggestCategory: nil response from Gemini")
 		return nil, fmt.Errorf("no response from Gemini")
 	}
 
-	candidate := resp.Candidates[0]
-	if candidate.Content == nil || len(candidate.Content.Parts) == 0 {
-		return nil, fmt.Errorf("empty response content")
-	}
+	// Use the built-in Text() method to get concatenated text from all parts
+	fullText := resp.Text()
 
-	// Extract JSON from response
-	var jsonText string
-	for _, part := range candidate.Content.Parts {
-		if part.Text != "" {
-			jsonText = part.Text
-			break
-		}
-	}
+	logger.Log.Debug().
+		Str("description", description).
+		Str("raw_response", fullText).
+		Msg("SuggestCategory: received Gemini response")
 
-	if jsonText == "" {
+	if fullText == "" {
+		logger.Log.Warn().
+			Str("description", description).
+			Msg("SuggestCategory: no text content in Gemini response")
 		return nil, fmt.Errorf("no text content in response")
+	}
+
+	// Extract JSON from response - Gemini sometimes includes preamble text
+	jsonText := extractJSON(fullText)
+	if jsonText == "" {
+		logger.Log.Warn().
+			Str("description", description).
+			Str("full_text", fullText).
+			Msg("SuggestCategory: no JSON found in Gemini response")
+		return nil, fmt.Errorf("no JSON found in response")
 	}
 
 	// Parse JSON response
 	var suggestion CategorySuggestion
 	if err := json.Unmarshal([]byte(jsonText), &suggestion); err != nil {
+		logger.Log.Error().Err(err).
+			Str("description", description).
+			Str("json_text", jsonText).
+			Msg("SuggestCategory: failed to parse JSON response")
 		return nil, fmt.Errorf("failed to parse JSON response: %w", err)
 	}
+
+	logger.Log.Debug().
+		Str("description", description).
+		Str("suggested_category", suggestion.Category).
+		Float64("confidence", suggestion.Confidence).
+		Str("reasoning", suggestion.Reasoning).
+		Msg("SuggestCategory: parsed Gemini suggestion")
 
 	// Validate that suggested category is in the available list
 	validCategory := false
@@ -115,8 +154,20 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 	}
 
 	if !validCategory {
+		logger.Log.Warn().
+			Str("description", description).
+			Str("suggested_category", suggestion.Category).
+			Strs("available_categories", availableCategories).
+			Msg("SuggestCategory: suggested category not in available list")
 		return nil, fmt.Errorf("suggested category '%s' not in available categories", suggestion.Category)
 	}
+
+	logger.Log.Info().
+		Str("description", description).
+		Str("category", suggestion.Category).
+		Float64("confidence", suggestion.Confidence).
+		Str("reasoning", suggestion.Reasoning).
+		Msg("SuggestCategory: successfully matched category")
 
 	return &suggestion, nil
 }
@@ -125,22 +176,42 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 func buildCategorySuggestionPrompt(description string, categories []string) string {
 	categoriesList := strings.Join(categories, "\n- ")
 
-	return fmt.Sprintf(`You are a helpful expense categorization assistant. Analyze the expense description and suggest the most appropriate category from the provided list.
+	return fmt.Sprintf(`Categorize this expense: "%s"
 
-Expense Description: "%s"
-
-Available Categories:
+Available categories:
 - %s
 
-Instructions:
-1. Choose the MOST appropriate category from the list above
-2. Provide a confidence score (0-1) indicating how certain you are
-3. Give a brief reasoning for your choice
-4. Consider common expense patterns (e.g., "coffee" → Food/Dining, "taxi" → Transportation)
-5. If the description is ambiguous, choose the most likely category and indicate lower confidence
+Rules:
+- Choose the MOST appropriate category from the list
+- "Food - Dining Out" for restaurant/takeout meals, "Food - Grocery" for ingredients
+- "Transportation" for taxi, uber, grab, bus, train
+- Higher confidence (0.8-1.0) for obvious categories, lower (0.5-0.7) for ambiguous ones
 
-Return your response as a JSON object with:
-- category: exact category name from the list
-- confidence: number between 0 and 1
-- reasoning: brief explanation (1-2 sentences)`, description, categoriesList)
+Return JSON only:
+{"category": "exact category name", "confidence": 0.0-1.0, "reasoning": "brief explanation"}`, description, categoriesList)
+}
+
+// extractJSON extracts a JSON object from text that may contain preamble.
+// Gemini sometimes returns responses like "Here is the JSON:\n{...}" even
+// when ResponseMIMEType is set to application/json.
+func extractJSON(text string) string {
+	text = strings.TrimSpace(text)
+
+	// If it already starts with {, assume it's valid JSON
+	if strings.HasPrefix(text, "{") {
+		return text
+	}
+
+	// Find the first { and last } to extract JSON object
+	start := strings.Index(text, "{")
+	if start == -1 {
+		return ""
+	}
+
+	end := strings.LastIndex(text, "}")
+	if end == -1 || end < start {
+		return ""
+	}
+
+	return text[start : end+1]
 }

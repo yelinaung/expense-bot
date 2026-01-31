@@ -134,7 +134,7 @@ func TestSuggestCategory(t *testing.T) {
 		suggestion, err := client.SuggestCategory(context.Background(), "coffee", categories)
 		require.Error(t, err)
 		require.Nil(t, suggestion)
-		require.Contains(t, err.Error(), "no response")
+		require.Contains(t, err.Error(), "no text content")
 	})
 }
 
@@ -157,9 +157,10 @@ func TestBuildCategorySuggestionPrompt(t *testing.T) {
 
 	t.Run("includes instructions", func(t *testing.T) {
 		prompt := buildCategorySuggestionPrompt("test", categories)
-		require.Contains(t, prompt, "categorization")
+		require.Contains(t, prompt, "Categorize")
 		require.Contains(t, prompt, "confidence")
 		require.Contains(t, prompt, "reasoning")
+		require.Contains(t, prompt, "JSON")
 	})
 }
 
