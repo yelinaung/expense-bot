@@ -138,6 +138,7 @@ func (b *Bot) registerHandlers() {
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/week", bot.MatchTypePrefix, b.handleWeek)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/category", bot.MatchTypePrefix, b.handleCategory)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/report", bot.MatchTypePrefix, b.handleReport)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/chart", bot.MatchTypePrefix, b.handleChart)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/edit", bot.MatchTypePrefix, b.handleEdit)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/delete", bot.MatchTypePrefix, b.handleDelete)
 

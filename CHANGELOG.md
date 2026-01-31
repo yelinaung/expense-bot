@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **Expense Breakdown Charts**: Generate visual pie charts showing expense distribution by category
+  - `/chart week` - Generate weekly expense breakdown chart
+  - `/chart month` - Generate monthly expense breakdown chart
+  - PNG format with category percentages and legends
+  - Includes total expenses, count, and period in caption
+  - Uses go-analyze/charts library for chart rendering
 - **AI Auto-Categorization**: Automatically categorize expenses using Gemini AI when no category is specified
   - Only applies suggestions with >50% confidence
   - Smart distinction between "Food - Dining Out" and "Food - Grocery"

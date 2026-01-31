@@ -87,6 +87,8 @@ func (b *Bot) handleHelpCore(ctx context.Context, tg TelegramAPI, update *models
 <b>Reports:</b>
 • <code>/report week</code> - Generate weekly CSV report
 • <code>/report month</code> - Generate monthly CSV report
+• <code>/chart week</code> - Generate weekly expense chart
+• <code>/chart month</code> - Generate monthly expense chart
 
 <b>Categories:</b>
 • <code>/categories</code> - List all categories

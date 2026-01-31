@@ -8,6 +8,7 @@ A Telegram bot for tracking personal expenses in SGD (Singapore Dollars) with AI
 - **AI Auto-Categorization**: Automatically categorizes expenses using Gemini AI (e.g., "vegetables" → "Food - Grocery")
 - **Structured Input**: Use commands like `/add 10.50 Lunch Food - Dining Out` for detailed entries
 - **Receipt OCR**: Upload receipt photos for automatic expense extraction using Gemini AI
+- **Visual Charts**: Generate pie charts showing expense breakdown by category
 - **CSV Report Generation**: Export weekly or monthly expense reports in CSV format
 - **Category Management**: Organize expenses with predefined or custom categories
 - **Expense Queries**: View expenses by time period (today, this week, recent)
@@ -147,6 +148,8 @@ go run main.go
 | `/category <name>` | Filter expenses by category | `/category Food - Dining Out` |
 | `/report week` | Generate weekly expense report (CSV) | `/report week` |
 | `/report month` | Generate monthly expense report (CSV) | `/report month` |
+| `/chart week` | Generate weekly expense pie chart | `/chart week` |
+| `/chart month` | Generate monthly expense pie chart | `/chart month` |
 | `/categories` | List all expense categories | `/categories` |
 | `/edit <id> <amount> <description> [category]` | Edit an expense | `/edit 42 6.00 Coffee Food - Dining Out` |
 | `/delete <id>` | Delete an expense | `/delete 42` |
@@ -195,6 +198,21 @@ Reports include:
 - Expense ID, Date, Amount, Currency, Description, Category
 - Total expenses and count in caption
 - Filename with date range (e.g., `expenses_month_2026-01.csv`)
+
+### Visual Expense Charts
+
+Generate pie charts showing expense breakdown by category:
+
+```
+/chart week   # Generate pie chart for current week (Monday-Sunday)
+/chart month  # Generate pie chart for current month
+```
+
+Charts include:
+- Visual breakdown of expenses by category
+- Percentage distribution for each category
+- Total expenses and count in caption
+- PNG image format for easy sharing
 
 ### AI Auto-Categorization
 
