@@ -208,6 +208,10 @@ Generate pie charts showing expense breakdown by category:
 /chart month  # Generate pie chart for current month
 ```
 
+**Example Output:**
+
+![Expense Breakdown Chart Example](graph.png)
+
 Charts include:
 - Visual breakdown of expenses by category
 - Percentage distribution for each category
