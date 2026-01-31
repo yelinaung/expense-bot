@@ -17,6 +17,13 @@ When you send a receipt photo:
 4. Only extracted data (amount, merchant, category) is saved to our database
 5. A Telegram file reference ID is stored to allow viewing the original receipt via Telegram
 
+### Auto-Categorization
+When you add an expense without a category:
+1. Expense description (e.g., "vegetables", "taxi") is sent to Google Gemini AI
+2. AI analyzes the description and suggests the most appropriate category
+3. Only the suggestion with confidence score is returned
+4. **No sensitive data** is included in these requests (only the text description)
+
 ## Third-Party Services
 
 ### Telegram
@@ -26,10 +33,11 @@ When you send a receipt photo:
 - We can retrieve your photos using Telegram's file ID
 
 ### Google Gemini AI
-- Receipt photos are sent to Google's Gemini API for text extraction
+- Receipt photos are sent to Google's Gemini API for text extraction (OCR)
+- Expense descriptions are sent to Google's Gemini API for automatic categorization
 - Google may retain data according to their [Gemini Privacy Notice](https://support.google.com/gemini/answer/13594961)
-- Photos may be used to improve AI models (check your Google account settings)
-- Processing typically takes 1-3 seconds
+- Data may be used to improve AI models (check your Google account settings)
+- Processing typically takes 1-3 seconds per request
 
 ## Data Storage
 
@@ -126,4 +134,4 @@ For privacy-related questions or data requests:
 - Open an issue on the GitHub repository
 - Contact the bot administrator via Telegram
 
-Last updated: 2026-01-29
+Last updated: 2026-01-31

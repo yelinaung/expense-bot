@@ -1,12 +1,14 @@
 # Expense Bot
 
-A Telegram bot for tracking personal expenses in SGD (Singapore Dollars) with receipt OCR capabilities using Google Gemini AI.
+A Telegram bot for tracking personal expenses in SGD (Singapore Dollars) with AI-powered receipt OCR and automatic categorization using Google Gemini AI.
 
 ## Features
 
 - **Quick Expense Tracking**: Add expenses with simple text messages like `5.50 Coffee`
+- **AI Auto-Categorization**: Automatically categorizes expenses using Gemini AI (e.g., "vegetables" → "Food - Grocery")
 - **Structured Input**: Use commands like `/add 10.50 Lunch Food - Dining Out` for detailed entries
 - **Receipt OCR**: Upload receipt photos for automatic expense extraction using Gemini AI
+- **CSV Report Generation**: Export weekly or monthly expense reports in CSV format
 - **Category Management**: Organize expenses with predefined or custom categories
 - **Expense Queries**: View expenses by time period (today, this week, recent)
 - **Expense Editing**: Modify or delete existing expenses
@@ -46,7 +48,7 @@ expense-bot/
 - **Language**: Go 1.25+
 - **Database**: PostgreSQL with pgx driver
 - **Bot Framework**: go-telegram/bot
-- **AI/OCR**: Google Gemini API
+- **AI/OCR**: Google Gemini API (gemini-2.5-flash model)
 - **Testing**: testify, table-driven tests, parallel execution
 - **CI/CD**: GitLab CI with linting, SAST, and coverage enforcement
 
@@ -55,7 +57,7 @@ expense-bot/
 - Go 1.25 or higher
 - PostgreSQL 18+
 - Telegram Bot Token (from [@BotFather](https://t.me/BotFather))
-- Google Gemini API Key (optional, for receipt OCR)
+- Google Gemini API Key (optional, for receipt OCR and auto-categorization)
 - Docker and Docker Compose (for testing)
 
 ## Installation
@@ -94,7 +96,7 @@ DATABASE_URL=postgres://YOUR_DATABASE_URL
 # Get your user ID by messaging @userinfobot
 WHITELISTED_USER_IDS=123456789,987654321
 
-# Gemini API Key (optional - enables receipt OCR)
+# Gemini API Key (optional - enables receipt OCR and auto-categorization)
 # Get from https://aistudio.google.com/app/apikey
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
@@ -157,9 +159,16 @@ Simply send a message in the format `<amount> <description> [category]`:
 5.50 Coffee
 10.00 Lunch Food - Dining Out
 25 Taxi Transportation
+5.9 vegetables
 ```
 
-The bot will intelligently match category names from your message.
+**Smart Category Matching:**
+1. **Manual Category**: If you specify a category (e.g., "Lunch Food - Dining Out"), the bot matches it intelligently
+2. **AI Auto-Categorization**: If no category is specified and Gemini API is configured, the bot automatically suggests the best category
+   - Example: "5.9 vegetables" → automatically categorized as "Food - Grocery"
+   - Example: "15 taxi" → automatically categorized as "Transportation"
+   - Only applies suggestions with >50% confidence
+3. **Uncategorized**: If neither manual nor AI categorization works, expense is saved as "Uncategorized"
 
 ### Receipt OCR
 
@@ -172,6 +181,41 @@ After extraction, you can:
 - ✅ Confirm - Save the expense
 - ✏️ Edit - Modify amount, description, or category
 - ❌ Cancel - Discard the draft
+
+### CSV Report Generation
+
+Export your expenses as CSV files for analysis in Excel, Google Sheets, or other tools:
+
+```
+/report week   # Generate report for current week (Monday-Sunday)
+/report month  # Generate report for current month
+```
+
+Reports include:
+- Expense ID, Date, Amount, Currency, Description, Category
+- Total expenses and count in caption
+- Filename with date range (e.g., `expenses_month_2026-01.csv`)
+
+### AI Auto-Categorization
+
+When you add an expense without specifying a category, the bot uses Gemini AI to automatically suggest the most appropriate category:
+
+**How it works:**
+1. Analyzes expense description (e.g., "vegetables", "taxi", "coffee")
+2. Compares against available categories
+3. Returns category with confidence score and reasoning
+4. Only applies if confidence >50%
+
+**Examples:**
+- `5.9 vegetables` → "Food - Grocery" (confidence: 100%)
+- `5 bee hoon` → "Food - Dining Out" (confidence: 95%)
+- `9 mixed rice` → "Food - Dining Out" (confidence: 95%)
+- `15 taxi` → "Transportation" (confidence: 98%)
+
+**Features:**
+- Smart distinction between "Food - Dining Out" (prepared meals) and "Food - Grocery" (ingredients)
+- Comprehensive logging for debugging
+- Fallback to uncategorized if AI fails or confidence is low
 
 ### Category Matching
 
@@ -268,7 +312,7 @@ The project uses:
 | `TELEGRAM_BOT_TOKEN` | Yes | Telegram bot API token | - |
 | `DATABASE_URL` | Yes | PostgreSQL connection string | - |
 | `WHITELISTED_USER_IDS` | Yes | Comma-separated Telegram user IDs | - |
-| `GEMINI_API_KEY` | No | Google Gemini API key for OCR | - |
+| `GEMINI_API_KEY` | No | Google Gemini API key for OCR and auto-categorization | - |
 
 ### Bot Configuration
 
@@ -323,6 +367,16 @@ The project uses:
 2. Check logs for Gemini API errors
 3. Ensure image is clear and receipt is visible
 4. Check Google AI Studio quota limits
+
+### Auto-categorization not working
+
+1. Verify `GEMINI_API_KEY` is configured
+2. Check logs for "SuggestCategory" debug messages
+3. Common issues:
+   - Response truncated: Check MaxOutputTokens (should be 500)
+   - Preamble responses: extractJSON() should handle this
+   - Low confidence: Only applies if confidence >50%
+4. Expenses will be saved as "Uncategorized" if AI fails
 
 ## Contributing
 
