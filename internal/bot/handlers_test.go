@@ -1179,6 +1179,45 @@ func TestHandleEdit(t *testing.T) {
 		require.Contains(t, msg.Text, "Updated description")
 	})
 
+	t.Run("edits only amount, preserves description and category", func(t *testing.T) {
+		mockBot.Reset()
+
+		category, err := tb.categoryRepo.Create(ctx, "Test Edit Category")
+		require.NoError(t, err)
+
+		expense := &models.Expense{
+			UserID:      user.ID,
+			Amount:      decimal.NewFromFloat(15.00),
+			Currency:    "SGD",
+			Description: "Original description",
+			CategoryID:  &category.ID,
+			Status:      models.ExpenseStatusConfirmed,
+		}
+		err = tb.expenseRepo.Create(ctx, expense)
+		require.NoError(t, err)
+
+		// Edit only the amount - description and category should be preserved
+		update := mocks.CommandUpdate(12345, user.ID, "/edit "+strconv.Itoa(expense.ID)+" 25.50")
+
+		callHandleEdit(ctx, mockBot, update, tb.expenseRepo, tb.categoryRepo, user.ID)
+
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		msg := mockBot.LastSentMessage()
+		require.NotNil(t, msg)
+		require.Contains(t, msg.Text, "Expense Updated")
+		require.Contains(t, msg.Text, "$25.50 SGD")
+		require.Contains(t, msg.Text, "Original description")
+		require.Contains(t, msg.Text, "Test Edit Category")
+
+		// Verify in database that fields were preserved
+		updated, err := tb.expenseRepo.GetByID(ctx, expense.ID)
+		require.NoError(t, err)
+		require.Equal(t, "25.50", updated.Amount.StringFixed(2))
+		require.Equal(t, "Original description", updated.Description)
+		require.NotNil(t, updated.CategoryID)
+		require.Equal(t, category.ID, *updated.CategoryID)
+	})
+
 	t.Run("shows error when editing another user's expense", func(t *testing.T) {
 		mockBot.Reset()
 

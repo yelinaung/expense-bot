@@ -772,9 +772,15 @@ func (b *Bot) handleEdit(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 		return
 	}
 
+	// Update amount (always required)
 	expense.Amount = parsed.Amount
-	expense.Description = parsed.Description
 
+	// Only update description if provided
+	if parsed.Description != "" {
+		expense.Description = parsed.Description
+	}
+
+	// Only update category if provided
 	if parsed.CategoryName != "" {
 		for _, cat := range categories {
 			if strings.EqualFold(cat.Name, parsed.CategoryName) {
