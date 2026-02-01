@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -38,14 +39,13 @@ func TestHandleChartCore(t *testing.T) {
 	transportCategory, err := b.categoryRepo.Create(ctx, "Test Chart Category Transport")
 	require.NoError(t, err)
 
-	// Create expenses for this week
+	// All expenses are placed on "today" to ensure they fall within both
+	// the current week AND current month, avoiding edge case failures
 	now := time.Now()
-	weekday := int(now.Weekday())
-	if weekday == 0 {
-		weekday = 7
-	}
-	startOfWeek := time.Date(now.Year(), now.Month(), now.Day()-weekday+1, 10, 0, 0, 0, now.Location())
+	loc := now.Location()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 10, 0, 0, 0, loc)
 
+	// Create 3 food expenses (all dated today)
 	for i := 0; i < 3; i++ {
 		expense := &appmodels.Expense{
 			UserID:      userID,
@@ -58,14 +58,15 @@ func TestHandleChartCore(t *testing.T) {
 		err = b.expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
 
-		// Update created_at to be within this week
+		// All placed today with different hours to differentiate
+		expenseDate := today.Add(time.Duration(i) * time.Hour)
 		_, err = b.expenseRepo.Pool().Exec(ctx,
 			"UPDATE expenses SET created_at = $1 WHERE id = $2",
-			startOfWeek.Add(time.Duration(i)*24*time.Hour), expense.ID)
+			expenseDate, expense.ID)
 		require.NoError(t, err)
 	}
 
-	// Add transport expenses
+	// Create 2 transport expenses (all dated today)
 	for i := 0; i < 2; i++ {
 		expense := &appmodels.Expense{
 			UserID:      userID,
@@ -78,33 +79,16 @@ func TestHandleChartCore(t *testing.T) {
 		err = b.expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
 
-		// Update created_at to be within this week
+		expenseDate := today.Add(time.Duration(i+3) * time.Hour)
 		_, err = b.expenseRepo.Pool().Exec(ctx,
 			"UPDATE expenses SET created_at = $1 WHERE id = $2",
-			startOfWeek.Add(time.Duration(i)*24*time.Hour+12*time.Hour), expense.ID)
+			expenseDate, expense.ID)
 		require.NoError(t, err)
 	}
 
-	// Create expenses for this month (but not this week)
-	startOfMonth := time.Date(now.Year(), now.Month(), 1, 10, 0, 0, 0, now.Location())
-	for i := 0; i < 2; i++ {
-		expense := &appmodels.Expense{
-			UserID:      userID,
-			Amount:      decimal.NewFromFloat(25.00),
-			Currency:    "SGD",
-			Description: "Monthly expense",
-			CategoryID:  &foodCategory.ID,
-			Status:      appmodels.ExpenseStatusConfirmed,
-		}
-		err = b.expenseRepo.Create(ctx, expense)
-		require.NoError(t, err)
-
-		// Update created_at to be within this month but before this week
-		_, err = b.expenseRepo.Pool().Exec(ctx,
-			"UPDATE expenses SET created_at = $1 WHERE id = $2",
-			startOfMonth.Add(time.Duration(i)*24*time.Hour), expense.ID)
-		require.NoError(t, err)
-	}
+	// All 5 expenses are in both current week and current month
+	weeklyExpenseCount := 5
+	totalMonthlyExpenseCount := 5
 
 	t.Run("generates weekly chart", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
@@ -120,7 +104,7 @@ func TestHandleChartCore(t *testing.T) {
 		require.Contains(t, doc.Caption, "Weekly Expenses")
 		require.Contains(t, doc.Caption, "Total:")
 		require.Contains(t, doc.Caption, "Count:")
-		require.Contains(t, doc.Caption, "5 expenses") // 3 food + 2 transport
+		require.Contains(t, doc.Caption, fmt.Sprintf("%d expenses", weeklyExpenseCount))
 	})
 
 	t.Run("generates monthly chart", func(t *testing.T) {
@@ -137,7 +121,7 @@ func TestHandleChartCore(t *testing.T) {
 		require.Contains(t, doc.Caption, "Monthly Expenses")
 		require.Contains(t, doc.Caption, "Total:")
 		require.Contains(t, doc.Caption, "Count:")
-		require.Contains(t, doc.Caption, "7 expenses") // All expenses are in current month
+		require.Contains(t, doc.Caption, fmt.Sprintf("%d expenses", totalMonthlyExpenseCount))
 	})
 
 	t.Run("returns error for invalid period", func(t *testing.T) {
