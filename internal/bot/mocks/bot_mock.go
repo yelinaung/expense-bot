@@ -270,6 +270,20 @@ func (m *MockBot) SentMessageCount() int {
 	return len(m.SentMessages)
 }
 
+// EditedMessageCount returns the number of messages edited.
+func (m *MockBot) EditedMessageCount() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return len(m.EditedMessages)
+}
+
+// AnsweredCallbackCount returns the number of callback queries answered.
+func (m *MockBot) AnsweredCallbackCount() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return len(m.AnsweredCallbacks)
+}
+
 // SentDocumentCount returns the number of documents sent.
 func (m *MockBot) SentDocumentCount() int {
 	m.mu.RLock()

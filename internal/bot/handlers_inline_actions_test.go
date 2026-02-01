@@ -72,7 +72,8 @@ func TestHandleExpenseActionCallbackCore(t *testing.T) {
 		b.handleExpenseActionCallbackCore(ctx, mockBot, update)
 
 		// Should have answered the callback and edited the message.
-		require.GreaterOrEqual(t, mockBot.SentMessageCount(), 1)
+		require.GreaterOrEqual(t, mockBot.AnsweredCallbackCount(), 1)
+		require.GreaterOrEqual(t, mockBot.EditedMessageCount(), 1)
 	})
 
 	t.Run("handles delete_expense action", func(t *testing.T) {
@@ -85,7 +86,8 @@ func TestHandleExpenseActionCallbackCore(t *testing.T) {
 		b.handleExpenseActionCallbackCore(ctx, mockBot, update)
 
 		// Should have answered the callback and edited the message with delete confirmation.
-		require.GreaterOrEqual(t, mockBot.SentMessageCount(), 1)
+		require.GreaterOrEqual(t, mockBot.AnsweredCallbackCount(), 1)
+		require.GreaterOrEqual(t, mockBot.EditedMessageCount(), 1)
 	})
 
 	t.Run("handles invalid callback data format", func(t *testing.T) {
@@ -97,8 +99,9 @@ func TestHandleExpenseActionCallbackCore(t *testing.T) {
 
 		b.handleExpenseActionCallbackCore(ctx, mockBot, update)
 
-		// Should answer callback but not send additional messages.
-		require.Equal(t, 1, mockBot.SentMessageCount())
+		// Should answer callback but not edit message (returns early).
+		require.Equal(t, 1, mockBot.AnsweredCallbackCount())
+		require.Equal(t, 0, mockBot.EditedMessageCount())
 	})
 
 	t.Run("handles non-existent expense", func(t *testing.T) {
@@ -110,8 +113,9 @@ func TestHandleExpenseActionCallbackCore(t *testing.T) {
 
 		b.handleExpenseActionCallbackCore(ctx, mockBot, update)
 
-		// Should have sent error message.
-		require.GreaterOrEqual(t, mockBot.SentMessageCount(), 1)
+		// Should have answered callback and edited message with error.
+		require.GreaterOrEqual(t, mockBot.AnsweredCallbackCount(), 1)
+		require.GreaterOrEqual(t, mockBot.EditedMessageCount(), 1)
 	})
 
 	t.Run("handles user mismatch", func(t *testing.T) {
@@ -124,8 +128,9 @@ func TestHandleExpenseActionCallbackCore(t *testing.T) {
 
 		b.handleExpenseActionCallbackCore(ctx, mockBot, update)
 
-		// Should have answered callback with error.
-		require.GreaterOrEqual(t, mockBot.SentMessageCount(), 1)
+		// Should have answered callback twice (initial answer + ShowAlert).
+		require.GreaterOrEqual(t, mockBot.AnsweredCallbackCount(), 2)
+		require.Equal(t, 0, mockBot.EditedMessageCount())
 	})
 }
 
@@ -185,8 +190,9 @@ func TestHandleConfirmDeleteCallbackCore(t *testing.T) {
 
 		b.handleConfirmDeleteCallbackCore(ctx, mockBot, update)
 
-		// Should have deleted the expense and sent confirmation.
-		require.GreaterOrEqual(t, mockBot.SentMessageCount(), 1)
+		// Should have answered callback and edited message with confirmation.
+		require.GreaterOrEqual(t, mockBot.AnsweredCallbackCount(), 1)
+		require.GreaterOrEqual(t, mockBot.EditedMessageCount(), 1)
 
 		// Verify expense was deleted.
 		_, err := expenseRepo.GetByID(ctx, expense.ID)
@@ -250,8 +256,9 @@ func TestHandleBackToExpenseCallbackCore(t *testing.T) {
 
 		b.handleBackToExpenseCallbackCore(ctx, mockBot, update)
 
-		// Should have edited message to show expense details again.
-		require.GreaterOrEqual(t, mockBot.SentMessageCount(), 1)
+		// Should have answered callback and edited message to show expense details again.
+		require.GreaterOrEqual(t, mockBot.AnsweredCallbackCount(), 1)
+		require.GreaterOrEqual(t, mockBot.EditedMessageCount(), 1)
 	})
 }
 
