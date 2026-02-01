@@ -34,18 +34,6 @@ secret_detection:
   tags:
     - playground-bravo
 
-aikido_scan:
-  stage: security
-  image:
-    name: aikidosecurity/local-scanner:latest
-    entrypoint: [""]
-  tags:
-    - playground-bravo
-  script:
-    - aikido-local-scanner scan ./ --apikey $AIKIDO_LOCAL_SCANNER_TOKEN --repositoryname $CI_PROJECT_NAME --branchname master
-  rules:
-    - if: $CI_COMMIT_BRANCH == "master"
-
 semgrep-sast:
   stage: security
   tags:
