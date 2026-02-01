@@ -7,14 +7,39 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// DefaultCurrency is the default currency for new users.
+const DefaultCurrency = "SGD"
+
+// SupportedCurrencies lists all supported currency codes.
+var SupportedCurrencies = map[string]string{
+	"SGD": "S$",
+	"USD": "$",
+	"EUR": "€",
+	"GBP": "£",
+	"JPY": "¥",
+	"CNY": "¥",
+	"MYR": "RM",
+	"THB": "฿",
+	"IDR": "Rp",
+	"PHP": "₱",
+	"VND": "₫",
+	"KRW": "₩",
+	"INR": "₹",
+	"AUD": "A$",
+	"NZD": "NZ$",
+	"HKD": "HK$",
+	"TWD": "NT$",
+}
+
 // User represents a Telegram user.
 type User struct {
-	ID        int64
-	Username  string
-	FirstName string
-	LastName  string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID              int64
+	Username        string
+	FirstName       string
+	LastName        string
+	DefaultCurrency string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 // Category represents an expense category.

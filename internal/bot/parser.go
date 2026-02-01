@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/shopspring/decimal"
+	"gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
 // errInvalidAmount is returned when the amount is zero or negative.
@@ -17,10 +18,35 @@ type ParsedExpense struct {
 	Amount       decimal.Decimal
 	Description  string
 	CategoryName string
+	Currency     string // Detected currency code (e.g., "USD", "SGD"), empty if not specified
 }
 
 // amountRegex matches amounts like "5", "5.50", "5,50".
 var amountRegex = regexp.MustCompile(`^(\d+(?:[.,]\d{1,2})?)`)
+
+// currencySymbolToCode maps currency symbols to currency codes.
+var currencySymbolToCode = map[string]string{
+	"$":  "USD", // Default $ to USD; user can override with explicit code
+	"€":  "EUR",
+	"£":  "GBP",
+	"¥":  "JPY",
+	"฿":  "THB",
+	"₱":  "PHP",
+	"₫":  "VND",
+	"₩":  "KRW",
+	"₹":  "INR",
+	"S$": "SGD",
+	"A$": "AUD",
+	"RM": "MYR",
+	"Rp": "IDR",
+}
+
+// currencyPrefixRegex matches currency symbols or codes at the start.
+// Matches: $, €, £, ¥, S$, A$, RM, Rp, or 3-letter codes like USD, SGD.
+var currencyPrefixRegex = regexp.MustCompile(`^(S\$|A\$|HK\$|NZ\$|NT\$|RM|Rp|[$€£¥฿₱₫₩₹]|[A-Z]{3})\s*`)
+
+// currencySuffixRegex matches 3-letter currency codes at the end (e.g., "50 USD").
+var currencySuffixRegex = regexp.MustCompile(`\s+([A-Z]{3})$`)
 
 // parseAmount parses a string into a decimal amount.
 func parseAmount(input string) (decimal.Decimal, error) {
@@ -39,12 +65,29 @@ func parseAmount(input string) (decimal.Decimal, error) {
 	return amount, nil
 }
 
-// ParseExpenseInput parses free-text expense input like "5.50 Coffee" or "10 Lunch Food - Dining Out".
+// ParseExpenseInput parses free-text expense input like "5.50 Coffee", "$10 Lunch", or "50 USD Coffee".
 // Returns nil if the input cannot be parsed as an expense.
 func ParseExpenseInput(input string) *ParsedExpense {
 	input = strings.TrimSpace(input)
 	if input == "" {
 		return nil
+	}
+
+	var detectedCurrency string
+
+	// Check for currency prefix (e.g., "$5.50", "SGD 10", "S$5")
+	if prefixMatch := currencyPrefixRegex.FindStringSubmatch(input); len(prefixMatch) > 1 {
+		symbol := prefixMatch[1]
+		// Convert symbol to code if it's a symbol
+		if code, ok := currencySymbolToCode[symbol]; ok {
+			detectedCurrency = code
+		} else if _, ok := models.SupportedCurrencies[symbol]; ok {
+			// It's already a valid currency code
+			detectedCurrency = symbol
+		}
+		if detectedCurrency != "" {
+			input = strings.TrimSpace(input[len(prefixMatch[0]):])
+		}
 	}
 
 	match := amountRegex.FindString(input)
@@ -63,16 +106,32 @@ func ParseExpenseInput(input string) *ParsedExpense {
 	}
 
 	rest := strings.TrimSpace(input[len(match):])
+
+	// Check for currency suffix in description (e.g., "Coffee USD")
+	if detectedCurrency == "" && rest != "" {
+		upperRest := strings.ToUpper(rest)
+		if suffixMatch := currencySuffixRegex.FindStringSubmatch(upperRest); len(suffixMatch) > 1 {
+			code := suffixMatch[1]
+			if _, ok := models.SupportedCurrencies[code]; ok {
+				detectedCurrency = code
+				// Remove the currency code from description
+				rest = strings.TrimSpace(rest[:len(rest)-len(suffixMatch[0])])
+			}
+		}
+	}
+
 	if rest == "" {
 		return &ParsedExpense{
 			Amount:      amount,
 			Description: "",
+			Currency:    detectedCurrency,
 		}
 	}
 
 	return &ParsedExpense{
 		Amount:      amount,
 		Description: extractDescription(rest),
+		Currency:    detectedCurrency,
 	}
 }
 

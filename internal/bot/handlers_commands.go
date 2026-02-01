@@ -77,6 +77,7 @@ func (b *Bot) handleHelpCore(ctx context.Context, tg TelegramAPI, update *models
 <b>Expense Tracking:</b>
 • <code>/add &lt;amount&gt; &lt;description&gt; [category]</code> - Add an expense
 • Just send a message like <code>5.50 Coffee</code> to quickly add
+• Use currency: <code>$10 Lunch</code>, <code>€5 Coffee</code>, <code>50 THB Taxi</code>
 
 <b>Viewing Expenses:</b>
 • <code>/list</code> - Show recent expenses
@@ -92,6 +93,10 @@ func (b *Bot) handleHelpCore(ctx context.Context, tg TelegramAPI, update *models
 
 <b>Categories:</b>
 • <code>/categories</code> - List all categories
+
+<b>Currency:</b>
+• <code>/currency</code> - Show your default currency
+• <code>/setcurrency USD</code> - Set default currency
 
 <b>Other:</b>
 • <code>/help</code> - Show this help message`
@@ -249,10 +254,21 @@ func (b *Bot) saveExpenseCore(
 	parsed *ParsedExpense,
 	categories []appmodels.Category,
 ) {
+	// Determine currency: use parsed currency, fall back to user default
+	currency := parsed.Currency
+	if currency == "" {
+		var err error
+		currency, err = b.userRepo.GetDefaultCurrency(ctx, userID)
+		if err != nil {
+			logger.Log.Debug().Err(err).Int64("user_id", userID).Msg("Failed to get default currency, using SGD")
+			currency = appmodels.DefaultCurrency
+		}
+	}
+
 	expense := &appmodels.Expense{
 		UserID:      userID,
 		Amount:      parsed.Amount,
-		Currency:    "SGD",
+		Currency:    currency,
 		Description: parsed.Description,
 	}
 
@@ -325,12 +341,19 @@ func (b *Bot) saveExpenseCore(
 		descText = fmt.Sprintf("\n📝 %s", expense.Description)
 	}
 
+	currencySymbol := appmodels.SupportedCurrencies[expense.Currency]
+	if currencySymbol == "" {
+		currencySymbol = expense.Currency
+	}
+
 	text := fmt.Sprintf(`✅ <b>Expense Added</b>
 
-💰 $%s SGD%s
+💰 %s%s %s%s
 📁 %s
 🆔 #%d`,
+		currencySymbol,
 		expense.Amount.StringFixed(2),
+		expense.Currency,
 		descText,
 		categoryText,
 		expense.ID)
@@ -565,10 +588,17 @@ func (b *Bot) sendExpenseListCore(
 			descText = " - " + exp.Description
 		}
 
+		currencySymbol := appmodels.SupportedCurrencies[exp.Currency]
+		if currencySymbol == "" {
+			currencySymbol = exp.Currency
+		}
+
 		sb.WriteString(fmt.Sprintf(
-			"#%d $%s%s%s\n<i>%s</i>\n\n",
+			"#%d %s%s %s%s%s\n<i>%s</i>\n\n",
 			exp.ID,
+			currencySymbol,
 			exp.Amount.StringFixed(2),
+			exp.Currency,
 			descText,
 			categoryText,
 			exp.CreatedAt.Format("Jan 2 15:04"),

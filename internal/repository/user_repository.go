@@ -39,11 +39,37 @@ func (r *UserRepository) UpsertUser(ctx context.Context, user *models.User) erro
 func (r *UserRepository) GetUserByID(ctx context.Context, id int64) (*models.User, error) {
 	var user models.User
 	err := r.pool.QueryRow(ctx, `
-		SELECT id, username, first_name, last_name, created_at, updated_at
+		SELECT id, username, first_name, last_name, default_currency, created_at, updated_at
 		FROM users WHERE id = $1
-	`, id).Scan(&user.ID, &user.Username, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt)
+	`, id).Scan(&user.ID, &user.Username, &user.FirstName, &user.LastName, &user.DefaultCurrency, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 	return &user, nil
+}
+
+// UpdateDefaultCurrency updates a user's default currency.
+func (r *UserRepository) UpdateDefaultCurrency(ctx context.Context, userID int64, currency string) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE users SET default_currency = $2, updated_at = NOW() WHERE id = $1
+	`, userID, currency)
+	if err != nil {
+		return fmt.Errorf("failed to update default currency: %w", err)
+	}
+	return nil
+}
+
+// GetDefaultCurrency returns a user's default currency, or SGD if not set.
+func (r *UserRepository) GetDefaultCurrency(ctx context.Context, userID int64) (string, error) {
+	var currency string
+	err := r.pool.QueryRow(ctx, `
+		SELECT default_currency FROM users WHERE id = $1
+	`, userID).Scan(&currency)
+	if err != nil {
+		return models.DefaultCurrency, fmt.Errorf("failed to get default currency: %w", err)
+	}
+	if currency == "" {
+		return models.DefaultCurrency, nil
+	}
+	return currency, nil
 }

@@ -1,10 +1,11 @@
 # Expense Bot
 
-A Telegram bot for tracking personal expenses in SGD (Singapore Dollars) with AI-powered receipt OCR and automatic categorization using Google Gemini AI.
+A Telegram bot for tracking personal expenses with multi-currency support, AI-powered receipt OCR, and automatic categorization using Google Gemini AI.
 
 ## Features
 
-- **Quick Expense Tracking**: Add expenses with simple text messages like `5.50 Coffee`
+- **Multi-Currency Support**: Track expenses in 17 currencies (USD, EUR, GBP, SGD, JPY, and more)
+- **Quick Expense Tracking**: Add expenses with simple text messages like `5.50 Coffee` or `$10 Lunch`
 - **AI Auto-Categorization**: Automatically categorizes expenses using Gemini AI (e.g., "vegetables" → "Food - Grocery")
 - **Structured Input**: Use commands like `/add 10.50 Lunch Food - Dining Out` for detailed entries
 - **Receipt OCR**: Upload receipt photos for automatic expense extraction using Gemini AI
@@ -12,8 +13,8 @@ A Telegram bot for tracking personal expenses in SGD (Singapore Dollars) with AI
 - **CSV Report Generation**: Export weekly or monthly expense reports in CSV format
 - **Category Management**: Organize expenses with predefined or custom categories
 - **Expense Queries**: View expenses by time period (today, this week, recent)
-- **Expense Editing**: Modify or delete existing expenses
-- **User Whitelisting**: Control who can access your bot
+- **Expense Editing**: Modify or delete existing expenses with inline buttons
+- **User Whitelisting**: Control who can access your bot (by user ID or username)
 - **Draft Management**: Automatic cleanup of unconfirmed draft expenses
 - **Category Caching**: Performance-optimized category lookups
 
@@ -157,16 +158,46 @@ go run main.go
 | `/categories` | List all expense categories | `/categories` |
 | `/edit <id> <amount> <description> [category]` | Edit an expense | `/edit 42 6.00 Coffee Food - Dining Out` |
 | `/delete <id>` | Delete an expense | `/delete 42` |
+| `/currency` | Show your default currency | `/currency` |
+| `/setcurrency <code>` | Set your default currency | `/setcurrency USD` |
+
+### Multi-Currency Support
+
+Track expenses in 17 different currencies with flexible input formats:
+
+**Supported Currencies:**
+- USD ($), EUR (€), GBP (£), SGD (S$), JPY (¥), CNY (¥)
+- MYR (RM), THB (฿), IDR (Rp), PHP (₱), VND (₫), KRW (₩)
+- INR (₹), AUD (A$), NZD (NZ$), HKD (HK$), TWD (NT$)
+
+**Setting Your Default Currency:**
+```
+/setcurrency USD     # Set default to US Dollars
+/currency            # View current default
+```
+
+**Using Currency in Expenses:**
+```
+$10 Coffee           # USD with symbol
+€5.50 Lunch          # EUR with symbol
+S$15 Taxi            # SGD with symbol
+50 Dinner THB        # Thai Baht with suffix code
+SGD 25 Groceries     # SGD with prefix code
+10.50 Tea            # Uses your default currency
+```
+
+The bot automatically detects currency from symbols (€, $, £, etc.) or 3-letter codes (USD, EUR, SGD). If no currency is specified, it uses your default currency (SGD by default).
 
 ### Quick Expense Entry
 
 Simply send a message in the format `<amount> <description> [category]`:
 
 ```
-5.50 Coffee
-10.00 Lunch Food - Dining Out
-25 Taxi Transportation
-5.9 vegetables
+5.50 Coffee                    # Uses your default currency
+$10 Lunch                      # USD
+€25 Dinner Food - Dining Out   # EUR with category
+50 THB Taxi                    # Thai Baht
+5.9 vegetables                 # Auto-categorized as "Food - Grocery"
 ```
 
 **Smart Category Matching:**
