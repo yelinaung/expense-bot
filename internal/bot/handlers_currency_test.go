@@ -14,16 +14,12 @@ import (
 )
 
 func TestHandleSetCurrencyCore(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	userRepo := repository.NewUserRepository(pool)
-	categoryRepo := repository.NewCategoryRepository(pool)
-	expenseRepo := repository.NewExpenseRepository(pool)
+	userRepo := repository.NewUserRepository(tx)
+	categoryRepo := repository.NewCategoryRepository(tx)
+	expenseRepo := repository.NewExpenseRepository(tx)
 	mockBot := mocks.NewMockBot()
 
 	b := &Bot{
@@ -33,7 +29,7 @@ func TestHandleSetCurrencyCore(t *testing.T) {
 	}
 
 	user := &models.User{ID: 12345, Username: "currencyuser", FirstName: "Currency", LastName: "User"}
-	err = userRepo.UpsertUser(ctx, user)
+	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
 	t.Run("sets valid currency", func(t *testing.T) {
@@ -131,16 +127,12 @@ func TestHandleSetCurrencyCore(t *testing.T) {
 }
 
 func TestHandleShowCurrencyCore(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	userRepo := repository.NewUserRepository(pool)
-	categoryRepo := repository.NewCategoryRepository(pool)
-	expenseRepo := repository.NewExpenseRepository(pool)
+	userRepo := repository.NewUserRepository(tx)
+	categoryRepo := repository.NewCategoryRepository(tx)
+	expenseRepo := repository.NewExpenseRepository(tx)
 	mockBot := mocks.NewMockBot()
 
 	b := &Bot{
@@ -150,7 +142,7 @@ func TestHandleShowCurrencyCore(t *testing.T) {
 	}
 
 	user := &models.User{ID: 54321, Username: "showuser", FirstName: "Show", LastName: "User"}
-	err = userRepo.UpsertUser(ctx, user)
+	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
 	t.Run("shows default currency SGD for new user", func(t *testing.T) {
@@ -228,16 +220,12 @@ func TestBuildCurrencyListMessage(t *testing.T) {
 func TestCurrencyHandlerWrappers(t *testing.T) {
 	t.Parallel()
 
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	userRepo := repository.NewUserRepository(pool)
-	categoryRepo := repository.NewCategoryRepository(pool)
-	expenseRepo := repository.NewExpenseRepository(pool)
+	userRepo := repository.NewUserRepository(tx)
+	categoryRepo := repository.NewCategoryRepository(tx)
+	expenseRepo := repository.NewExpenseRepository(tx)
 
 	b := &Bot{
 		userRepo:     userRepo,

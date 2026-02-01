@@ -11,8 +11,8 @@ import (
 
 	"github.com/go-telegram/bot"
 	tgmodels "github.com/go-telegram/bot/models"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"gitlab.com/yelinaung/expense-bot/internal/config"
+	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/gemini"
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
@@ -45,12 +45,12 @@ type Bot struct {
 }
 
 // New creates a new Bot instance.
-func New(cfg *config.Config, pool *pgxpool.Pool) (*Bot, error) {
+func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 	b := &Bot{
 		cfg:          cfg,
-		userRepo:     repository.NewUserRepository(pool),
-		categoryRepo: repository.NewCategoryRepository(pool),
-		expenseRepo:  repository.NewExpenseRepository(pool),
+		userRepo:     repository.NewUserRepository(db),
+		categoryRepo: repository.NewCategoryRepository(db),
+		expenseRepo:  repository.NewExpenseRepository(db),
 		pendingEdits: make(map[int64]*pendingEdit),
 	}
 

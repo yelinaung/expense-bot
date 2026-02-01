@@ -178,12 +178,8 @@ func TestLogUserAction(t *testing.T) {
 
 // TestWhitelistMiddleware tests the whitelist middleware behavior.
 func TestWhitelistMiddleware(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
-
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
 
 	t.Run("allows whitelisted user", func(t *testing.T) {
 		cfg := &config.Config{
@@ -191,9 +187,9 @@ func TestWhitelistMiddleware(t *testing.T) {
 		}
 		b := &Bot{
 			cfg:          cfg,
-			userRepo:     repository.NewUserRepository(pool),
-			categoryRepo: repository.NewCategoryRepository(pool),
-			expenseRepo:  repository.NewExpenseRepository(pool),
+			userRepo:     repository.NewUserRepository(tx),
+			categoryRepo: repository.NewCategoryRepository(tx),
+			expenseRepo:  repository.NewExpenseRepository(tx),
 			pendingEdits: make(map[int64]*pendingEdit),
 		}
 
@@ -217,9 +213,9 @@ func TestWhitelistMiddleware(t *testing.T) {
 		}
 		b := &Bot{
 			cfg:          cfg,
-			userRepo:     repository.NewUserRepository(pool),
-			categoryRepo: repository.NewCategoryRepository(pool),
-			expenseRepo:  repository.NewExpenseRepository(pool),
+			userRepo:     repository.NewUserRepository(tx),
+			categoryRepo: repository.NewCategoryRepository(tx),
+			expenseRepo:  repository.NewExpenseRepository(tx),
 			pendingEdits: make(map[int64]*pendingEdit),
 		}
 
@@ -246,7 +242,7 @@ func TestWhitelistMiddleware(t *testing.T) {
 		}
 		b := &Bot{
 			cfg:          cfg,
-			userRepo:     repository.NewUserRepository(pool),
+			userRepo:     repository.NewUserRepository(tx),
 			pendingEdits: make(map[int64]*pendingEdit),
 		}
 
@@ -269,7 +265,7 @@ func TestWhitelistMiddleware(t *testing.T) {
 		}
 		b := &Bot{
 			cfg:          cfg,
-			userRepo:     repository.NewUserRepository(pool),
+			userRepo:     repository.NewUserRepository(tx),
 			pendingEdits: make(map[int64]*pendingEdit),
 		}
 
@@ -317,14 +313,10 @@ func (w *middlewareBotWrapper) runMiddleware(
 
 // TestEnsureUserRegistered tests user registration from various update types.
 func TestEnsureUserRegistered(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	userRepo := repository.NewUserRepository(pool)
+	userRepo := repository.NewUserRepository(tx)
 	b := &Bot{
 		userRepo:     userRepo,
 		pendingEdits: make(map[int64]*pendingEdit),

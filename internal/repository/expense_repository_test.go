@@ -14,16 +14,12 @@ import (
 func setupExpenseTest(t *testing.T) (*ExpenseRepository, *UserRepository, *CategoryRepository, context.Context) {
 	t.Helper()
 
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	return NewExpenseRepository(pool),
-		NewUserRepository(pool),
-		NewCategoryRepository(pool),
+	return NewExpenseRepository(tx),
+		NewUserRepository(tx),
+		NewCategoryRepository(tx),
 		ctx
 }
 
@@ -271,8 +267,6 @@ func TestExpenseRepository_DeleteExpiredDrafts(t *testing.T) {
 	})
 
 	t.Run("does not delete recent drafts", func(t *testing.T) {
-		database.CleanupTables(t, expenseRepo.pool)
-
 		user := &models.User{ID: 889, Username: "user9", FirstName: "Test", LastName: "User"}
 		err := userRepo.UpsertUser(ctx, user)
 		require.NoError(t, err)
@@ -297,8 +291,6 @@ func TestExpenseRepository_DeleteExpiredDrafts(t *testing.T) {
 	})
 
 	t.Run("returns zero when no expired drafts", func(t *testing.T) {
-		database.CleanupTables(t, expenseRepo.pool)
-
 		count, err := expenseRepo.DeleteExpiredDrafts(ctx, 10*time.Minute)
 		require.NoError(t, err)
 		require.Equal(t, 0, count)

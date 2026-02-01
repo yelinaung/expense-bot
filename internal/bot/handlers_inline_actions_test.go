@@ -16,16 +16,12 @@ import (
 )
 
 func TestHandleExpenseActionCallbackCore(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	userRepo := repository.NewUserRepository(pool)
-	categoryRepo := repository.NewCategoryRepository(pool)
-	expenseRepo := repository.NewExpenseRepository(pool)
+	userRepo := repository.NewUserRepository(tx)
+	categoryRepo := repository.NewCategoryRepository(tx)
+	expenseRepo := repository.NewExpenseRepository(tx)
 	mockBot := mocks.NewMockBot()
 
 	b := &Bot{
@@ -35,7 +31,7 @@ func TestHandleExpenseActionCallbackCore(t *testing.T) {
 	}
 
 	user := &models.User{ID: 12345, Username: "inlineuser", FirstName: "Inline", LastName: "User"}
-	err = userRepo.UpsertUser(ctx, user)
+	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
 	category, err := categoryRepo.Create(ctx, "Food")
@@ -135,16 +131,12 @@ func TestHandleExpenseActionCallbackCore(t *testing.T) {
 }
 
 func TestHandleConfirmDeleteCallbackCore(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	userRepo := repository.NewUserRepository(pool)
-	categoryRepo := repository.NewCategoryRepository(pool)
-	expenseRepo := repository.NewExpenseRepository(pool)
+	userRepo := repository.NewUserRepository(tx)
+	categoryRepo := repository.NewCategoryRepository(tx)
+	expenseRepo := repository.NewExpenseRepository(tx)
 	mockBot := mocks.NewMockBot()
 
 	b := &Bot{
@@ -154,7 +146,7 @@ func TestHandleConfirmDeleteCallbackCore(t *testing.T) {
 	}
 
 	user := &models.User{ID: 12345, Username: "deleteuser", FirstName: "Delete", LastName: "User"}
-	err = userRepo.UpsertUser(ctx, user)
+	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
 	category, err := categoryRepo.Create(ctx, "Food")
@@ -201,16 +193,12 @@ func TestHandleConfirmDeleteCallbackCore(t *testing.T) {
 }
 
 func TestHandleBackToExpenseCallbackCore(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	userRepo := repository.NewUserRepository(pool)
-	categoryRepo := repository.NewCategoryRepository(pool)
-	expenseRepo := repository.NewExpenseRepository(pool)
+	userRepo := repository.NewUserRepository(tx)
+	categoryRepo := repository.NewCategoryRepository(tx)
+	expenseRepo := repository.NewExpenseRepository(tx)
 	mockBot := mocks.NewMockBot()
 
 	b := &Bot{
@@ -220,7 +208,7 @@ func TestHandleBackToExpenseCallbackCore(t *testing.T) {
 	}
 
 	user := &models.User{ID: 12345, Username: "backuser", FirstName: "Back", LastName: "User"}
-	err = userRepo.UpsertUser(ctx, user)
+	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
 	category, err := categoryRepo.Create(ctx, "Food")
@@ -266,16 +254,12 @@ func TestHandleBackToExpenseCallbackCore(t *testing.T) {
 func TestInlineActionWrappers(t *testing.T) {
 	t.Parallel()
 
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	userRepo := repository.NewUserRepository(pool)
-	categoryRepo := repository.NewCategoryRepository(pool)
-	expenseRepo := repository.NewExpenseRepository(pool)
+	userRepo := repository.NewUserRepository(tx)
+	categoryRepo := repository.NewCategoryRepository(tx)
+	expenseRepo := repository.NewExpenseRepository(tx)
 
 	b := &Bot{
 		userRepo:     userRepo,

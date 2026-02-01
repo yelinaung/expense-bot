@@ -17,23 +17,16 @@ import (
 
 // TestHandleFreeTextExpense tests free-text expense parsing and creation.
 func TestHandleFreeTextExpense(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	err = database.SeedCategories(ctx, pool)
-	require.NoError(t, err)
-
-	userRepo := repository.NewUserRepository(pool)
-	categoryRepo := repository.NewCategoryRepository(pool)
-	expenseRepo := repository.NewExpenseRepository(pool)
+	userRepo := repository.NewUserRepository(tx)
+	categoryRepo := repository.NewCategoryRepository(tx)
+	expenseRepo := repository.NewExpenseRepository(tx)
 	mockBot := mocks.NewMockBot()
 
 	user := &models.User{ID: 88888, Username: "freetextuser", FirstName: "FreeText", LastName: "User"}
-	err = userRepo.UpsertUser(ctx, user)
+	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
 	t.Run("parses valid free-text expense", func(t *testing.T) {

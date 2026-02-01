@@ -4,23 +4,23 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
 // UserRepository handles user database operations.
 type UserRepository struct {
-	pool *pgxpool.Pool
+	db database.PGXDB
 }
 
 // NewUserRepository creates a new UserRepository.
-func NewUserRepository(pool *pgxpool.Pool) *UserRepository {
-	return &UserRepository{pool: pool}
+func NewUserRepository(db database.PGXDB) *UserRepository {
+	return &UserRepository{db: db}
 }
 
 // UpsertUser creates or updates a user.
 func (r *UserRepository) UpsertUser(ctx context.Context, user *models.User) error {
-	_, err := r.pool.Exec(ctx, `
+	_, err := r.db.Exec(ctx, `
 		INSERT INTO users (id, username, first_name, last_name, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, NOW(), NOW())
 		ON CONFLICT (id) DO UPDATE SET
@@ -38,7 +38,7 @@ func (r *UserRepository) UpsertUser(ctx context.Context, user *models.User) erro
 // GetUserByID retrieves a user by their Telegram ID.
 func (r *UserRepository) GetUserByID(ctx context.Context, id int64) (*models.User, error) {
 	var user models.User
-	err := r.pool.QueryRow(ctx, `
+	err := r.db.QueryRow(ctx, `
 		SELECT id, username, first_name, last_name, default_currency, created_at, updated_at
 		FROM users WHERE id = $1
 	`, id).Scan(&user.ID, &user.Username, &user.FirstName, &user.LastName, &user.DefaultCurrency, &user.CreatedAt, &user.UpdatedAt)
@@ -50,7 +50,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id int64) (*models.Use
 
 // UpdateDefaultCurrency updates a user's default currency.
 func (r *UserRepository) UpdateDefaultCurrency(ctx context.Context, userID int64, currency string) error {
-	_, err := r.pool.Exec(ctx, `
+	_, err := r.db.Exec(ctx, `
 		UPDATE users SET default_currency = $2, updated_at = NOW() WHERE id = $1
 	`, userID, currency)
 	if err != nil {
@@ -62,7 +62,7 @@ func (r *UserRepository) UpdateDefaultCurrency(ctx context.Context, userID int64
 // GetDefaultCurrency returns a user's default currency, or SGD if not set.
 func (r *UserRepository) GetDefaultCurrency(ctx context.Context, userID int64) (string, error) {
 	var currency string
-	err := r.pool.QueryRow(ctx, `
+	err := r.db.QueryRow(ctx, `
 		SELECT default_currency FROM users WHERE id = $1
 	`, userID).Scan(&currency)
 	if err != nil {

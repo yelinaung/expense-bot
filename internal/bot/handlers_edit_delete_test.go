@@ -18,23 +18,16 @@ import (
 
 // TestHandleEdit tests the /edit command handler.
 func TestHandleEdit(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	err = database.SeedCategories(ctx, pool)
-	require.NoError(t, err)
-
-	userRepo := repository.NewUserRepository(pool)
-	categoryRepo := repository.NewCategoryRepository(pool)
-	expenseRepo := repository.NewExpenseRepository(pool)
+	userRepo := repository.NewUserRepository(tx)
+	categoryRepo := repository.NewCategoryRepository(tx)
+	expenseRepo := repository.NewExpenseRepository(tx)
 	mockBot := mocks.NewMockBot()
 
 	user := &models.User{ID: 44444, Username: "edituser", FirstName: "Edit", LastName: "User"}
-	err = userRepo.UpsertUser(ctx, user)
+	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
 	t.Run("shows usage when no arguments", func(t *testing.T) {
@@ -309,22 +302,15 @@ func callHandleEdit(
 
 // TestHandleDelete tests the /delete command handler.
 func TestHandleDelete(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	err = database.SeedCategories(ctx, pool)
-	require.NoError(t, err)
-
-	userRepo := repository.NewUserRepository(pool)
-	expenseRepo := repository.NewExpenseRepository(pool)
+	userRepo := repository.NewUserRepository(tx)
+	expenseRepo := repository.NewExpenseRepository(tx)
 	mockBot := mocks.NewMockBot()
 
 	user := &models.User{ID: 66666, Username: "deleteuser", FirstName: "Delete", LastName: "User"}
-	err = userRepo.UpsertUser(ctx, user)
+	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
 	t.Run("shows usage when no arguments", func(t *testing.T) {
@@ -428,16 +414,12 @@ func TestHandleDelete(t *testing.T) {
 func TestEditDeleteHandlerWrappers(t *testing.T) {
 	t.Parallel()
 
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	userRepo := repository.NewUserRepository(pool)
-	categoryRepo := repository.NewCategoryRepository(pool)
-	expenseRepo := repository.NewExpenseRepository(pool)
+	userRepo := repository.NewUserRepository(tx)
+	categoryRepo := repository.NewCategoryRepository(tx)
+	expenseRepo := repository.NewExpenseRepository(tx)
 
 	b := &Bot{
 		userRepo:     userRepo,

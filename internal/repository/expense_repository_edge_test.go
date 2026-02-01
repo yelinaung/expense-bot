@@ -13,19 +13,15 @@ import (
 
 // TestExpenseRepository_CreateEdgeCases tests edge cases for expense creation.
 func TestExpenseRepository_CreateEdgeCases(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
 	// Run migrations
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-
 	// Cleanup
-	database.CleanupTables(t, pool)
 
 	// Create test user for foreign key constraint
-	userRepo := NewUserRepository(pool)
-	err = userRepo.UpsertUser(ctx, &models.User{
+	userRepo := NewUserRepository(tx)
+	err := userRepo.UpsertUser(ctx, &models.User{
 		ID:        123,
 		Username:  "testuser",
 		FirstName: "Test",
@@ -33,7 +29,7 @@ func TestExpenseRepository_CreateEdgeCases(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	repo := NewExpenseRepository(pool)
+	repo := NewExpenseRepository(tx)
 
 	t.Run("create with very large amount", func(t *testing.T) {
 		expense := &models.Expense{
@@ -138,16 +134,12 @@ func TestExpenseRepository_CreateEdgeCases(t *testing.T) {
 
 // TestExpenseRepository_UpdateEdgeCases tests edge cases for expense updates.
 func TestExpenseRepository_UpdateEdgeCases(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
 	// Create test user
-	userRepo := NewUserRepository(pool)
-	err = userRepo.UpsertUser(ctx, &models.User{
+	userRepo := NewUserRepository(tx)
+	err := userRepo.UpsertUser(ctx, &models.User{
 		ID:        123,
 		Username:  "testuser",
 		FirstName: "Test",
@@ -155,7 +147,7 @@ func TestExpenseRepository_UpdateEdgeCases(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	repo := NewExpenseRepository(pool)
+	repo := NewExpenseRepository(tx)
 
 	t.Run("update non-existent expense", func(t *testing.T) {
 		expense := &models.Expense{
@@ -221,16 +213,12 @@ func TestExpenseRepository_UpdateEdgeCases(t *testing.T) {
 
 // TestExpenseRepository_DeleteEdgeCases tests edge cases for expense deletion.
 func TestExpenseRepository_DeleteEdgeCases(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
 	// Create test user
-	userRepo := NewUserRepository(pool)
-	err = userRepo.UpsertUser(ctx, &models.User{
+	userRepo := NewUserRepository(tx)
+	err := userRepo.UpsertUser(ctx, &models.User{
 		ID:        123,
 		Username:  "testuser",
 		FirstName: "Test",
@@ -238,7 +226,7 @@ func TestExpenseRepository_DeleteEdgeCases(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	repo := NewExpenseRepository(pool)
+	repo := NewExpenseRepository(tx)
 
 	t.Run("delete non-existent expense", func(t *testing.T) {
 		// Delete doesn't check rows affected, so it succeeds silently
@@ -269,14 +257,10 @@ func TestExpenseRepository_DeleteEdgeCases(t *testing.T) {
 
 // TestExpenseRepository_GetByIDEdgeCases tests edge cases for GetByID.
 func TestExpenseRepository_GetByIDEdgeCases(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	repo := NewExpenseRepository(pool)
+	repo := NewExpenseRepository(tx)
 
 	t.Run("get with invalid ID", func(t *testing.T) {
 		expense, err := repo.GetByID(ctx, 99999)
@@ -299,16 +283,12 @@ func TestExpenseRepository_GetByIDEdgeCases(t *testing.T) {
 
 // TestExpenseRepository_GetByUserIDAndDateRangeEdgeCases tests date range edge cases.
 func TestExpenseRepository_GetByUserIDAndDateRangeEdgeCases(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
 	// Create test user
-	userRepo := NewUserRepository(pool)
-	err = userRepo.UpsertUser(ctx, &models.User{
+	userRepo := NewUserRepository(tx)
+	err := userRepo.UpsertUser(ctx, &models.User{
 		ID:        123,
 		Username:  "testuser",
 		FirstName: "Test",
@@ -316,7 +296,7 @@ func TestExpenseRepository_GetByUserIDAndDateRangeEdgeCases(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	repo := NewExpenseRepository(pool)
+	repo := NewExpenseRepository(tx)
 
 	now := time.Now()
 
@@ -371,16 +351,12 @@ func TestExpenseRepository_GetByUserIDAndDateRangeEdgeCases(t *testing.T) {
 
 // TestExpenseRepository_DeleteExpiredDraftsEdgeCases tests draft cleanup edge cases.
 func TestExpenseRepository_DeleteExpiredDraftsEdgeCases(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
 	// Create test user
-	userRepo := NewUserRepository(pool)
-	err = userRepo.UpsertUser(ctx, &models.User{
+	userRepo := NewUserRepository(tx)
+	err := userRepo.UpsertUser(ctx, &models.User{
 		ID:        123,
 		Username:  "testuser",
 		FirstName: "Test",
@@ -388,7 +364,7 @@ func TestExpenseRepository_DeleteExpiredDraftsEdgeCases(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	repo := NewExpenseRepository(pool)
+	repo := NewExpenseRepository(tx)
 
 	t.Run("no drafts to delete", func(t *testing.T) {
 		count, err := repo.DeleteExpiredDrafts(ctx, 10*time.Minute)

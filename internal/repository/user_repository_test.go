@@ -10,14 +10,10 @@ import (
 )
 
 func TestUserRepository_UpsertUser(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	repo := NewUserRepository(pool)
+	repo := NewUserRepository(tx)
 
 	t.Run("creates new user", func(t *testing.T) {
 		user := &models.User{
@@ -56,14 +52,10 @@ func TestUserRepository_UpsertUser(t *testing.T) {
 }
 
 func TestUserRepository_GetUserByID(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	repo := NewUserRepository(pool)
+	repo := NewUserRepository(tx)
 
 	t.Run("returns error for non-existent user", func(t *testing.T) {
 		_, err := repo.GetUserByID(ctx, 99999)
@@ -72,14 +64,10 @@ func TestUserRepository_GetUserByID(t *testing.T) {
 }
 
 func TestUserRepository_UpsertUser_WithEmptyFields(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	repo := NewUserRepository(pool)
+	repo := NewUserRepository(tx)
 
 	// Create user with minimal fields.
 	user := &models.User{
@@ -89,7 +77,7 @@ func TestUserRepository_UpsertUser_WithEmptyFields(t *testing.T) {
 		LastName:  "",
 	}
 
-	err = repo.UpsertUser(ctx, user)
+	err := repo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
 	fetched, err := repo.GetUserByID(ctx, 54321)
@@ -100,14 +88,10 @@ func TestUserRepository_UpsertUser_WithEmptyFields(t *testing.T) {
 }
 
 func TestUserRepository_UpsertUser_UpdateToEmpty(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	repo := NewUserRepository(pool)
+	repo := NewUserRepository(tx)
 
 	// Create user with values.
 	user := &models.User{
@@ -116,7 +100,7 @@ func TestUserRepository_UpsertUser_UpdateToEmpty(t *testing.T) {
 		FirstName: "Original",
 		LastName:  "User",
 	}
-	err = repo.UpsertUser(ctx, user)
+	err := repo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
 	// Update to empty values.
@@ -134,14 +118,10 @@ func TestUserRepository_UpsertUser_UpdateToEmpty(t *testing.T) {
 }
 
 func TestUserRepository_UpdateDefaultCurrency(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	repo := NewUserRepository(pool)
+	repo := NewUserRepository(tx)
 
 	// Create a user.
 	user := &models.User{
@@ -150,7 +130,7 @@ func TestUserRepository_UpdateDefaultCurrency(t *testing.T) {
 		FirstName: "Currency",
 		LastName:  "User",
 	}
-	err = repo.UpsertUser(ctx, user)
+	err := repo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
 	t.Run("updates currency successfully", func(t *testing.T) {
@@ -179,14 +159,10 @@ func TestUserRepository_UpdateDefaultCurrency(t *testing.T) {
 }
 
 func TestUserRepository_GetDefaultCurrency(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	repo := NewUserRepository(pool)
+	repo := NewUserRepository(tx)
 
 	t.Run("returns SGD for new user", func(t *testing.T) {
 		user := &models.User{

@@ -5,24 +5,24 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
+	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
 // ExpenseRepository handles expense database operations.
 type ExpenseRepository struct {
-	pool *pgxpool.Pool
+	db database.PGXDB
 }
 
 // NewExpenseRepository creates a new ExpenseRepository.
-func NewExpenseRepository(pool *pgxpool.Pool) *ExpenseRepository {
-	return &ExpenseRepository{pool: pool}
+func NewExpenseRepository(db database.PGXDB) *ExpenseRepository {
+	return &ExpenseRepository{db: db}
 }
 
 // Pool returns the underlying database pool. Used for testing.
-func (r *ExpenseRepository) Pool() *pgxpool.Pool {
-	return r.pool
+func (r *ExpenseRepository) Pool() database.PGXDB {
+	return r.db
 }
 
 // Create adds a new expense.
@@ -31,7 +31,7 @@ func (r *ExpenseRepository) Create(ctx context.Context, expense *models.Expense)
 	if expense.Status == "" {
 		expense.Status = models.ExpenseStatusConfirmed
 	}
-	err := r.pool.QueryRow(ctx, `
+	err := r.db.QueryRow(ctx, `
 		INSERT INTO expenses (user_id, amount, currency, description, category_id, receipt_file_id, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, updated_at
@@ -48,7 +48,7 @@ func (r *ExpenseRepository) Create(ctx context.Context, expense *models.Expense)
 func (r *ExpenseRepository) GetByID(ctx context.Context, id int) (*models.Expense, error) {
 	var exp models.Expense
 	var categoryID *int
-	err := r.pool.QueryRow(ctx, `
+	err := r.db.QueryRow(ctx, `
 		SELECT id, user_id, amount, currency, description, category_id, receipt_file_id, status, created_at, updated_at
 		FROM expenses WHERE id = $1
 	`, id).Scan(&exp.ID, &exp.UserID, &exp.Amount, &exp.Currency, &exp.Description,
@@ -62,7 +62,7 @@ func (r *ExpenseRepository) GetByID(ctx context.Context, id int) (*models.Expens
 
 // GetByUserID retrieves all confirmed expenses for a user.
 func (r *ExpenseRepository) GetByUserID(ctx context.Context, userID int64, limit int) ([]models.Expense, error) {
-	rows, err := r.pool.Query(ctx, `
+	rows, err := r.db.Query(ctx, `
 		SELECT e.id, e.user_id, e.amount, e.currency, e.description, e.category_id,
 		       e.receipt_file_id, e.status, e.created_at, e.updated_at,
 		       c.id, c.name, c.created_at
@@ -86,7 +86,7 @@ func (r *ExpenseRepository) GetByUserIDAndDateRange(
 	userID int64,
 	startDate, endDate time.Time,
 ) ([]models.Expense, error) {
-	rows, err := r.pool.Query(ctx, `
+	rows, err := r.db.Query(ctx, `
 		SELECT e.id, e.user_id, e.amount, e.currency, e.description, e.category_id,
 		       e.receipt_file_id, e.status, e.created_at, e.updated_at,
 		       c.id, c.name, c.created_at
@@ -110,7 +110,7 @@ func (r *ExpenseRepository) GetByUserIDAndCategory(
 	categoryID int,
 	limit int,
 ) ([]models.Expense, error) {
-	rows, err := r.pool.Query(ctx, `
+	rows, err := r.db.Query(ctx, `
 		SELECT e.id, e.user_id, e.amount, e.currency, e.description, e.category_id,
 		       e.receipt_file_id, e.status, e.created_at, e.updated_at,
 		       c.id, c.name, c.created_at
@@ -135,7 +135,7 @@ func (r *ExpenseRepository) GetTotalByUserIDAndCategory(
 	categoryID int,
 ) (decimal.Decimal, error) {
 	var total decimal.Decimal
-	err := r.pool.QueryRow(ctx, `
+	err := r.db.QueryRow(ctx, `
 		SELECT COALESCE(SUM(amount), 0) FROM expenses
 		WHERE user_id = $1 AND category_id = $2 AND status = 'confirmed'
 	`, userID, categoryID).Scan(&total)
@@ -147,7 +147,7 @@ func (r *ExpenseRepository) GetTotalByUserIDAndCategory(
 
 // Update modifies an existing expense.
 func (r *ExpenseRepository) Update(ctx context.Context, expense *models.Expense) error {
-	_, err := r.pool.Exec(ctx, `
+	_, err := r.db.Exec(ctx, `
 		UPDATE expenses SET
 			amount = $2,
 			currency = $3,
@@ -167,7 +167,7 @@ func (r *ExpenseRepository) Update(ctx context.Context, expense *models.Expense)
 
 // Delete removes an expense by ID.
 func (r *ExpenseRepository) Delete(ctx context.Context, id int) error {
-	_, err := r.pool.Exec(ctx, `DELETE FROM expenses WHERE id = $1`, id)
+	_, err := r.db.Exec(ctx, `DELETE FROM expenses WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete expense: %w", err)
 	}
@@ -178,7 +178,7 @@ func (r *ExpenseRepository) Delete(ctx context.Context, id int) error {
 // Returns the number of deleted rows.
 func (r *ExpenseRepository) DeleteExpiredDrafts(ctx context.Context, olderThan time.Duration) (int, error) {
 	cutoff := time.Now().Add(-olderThan)
-	result, err := r.pool.Exec(ctx, `
+	result, err := r.db.Exec(ctx, `
 		DELETE FROM expenses
 		WHERE status = $1 AND created_at < $2
 	`, models.ExpenseStatusDraft, cutoff)
@@ -195,7 +195,7 @@ func (r *ExpenseRepository) GetTotalByUserIDAndDateRange(
 	startDate, endDate time.Time,
 ) (decimal.Decimal, error) {
 	var total decimal.Decimal
-	err := r.pool.QueryRow(ctx, `
+	err := r.db.QueryRow(ctx, `
 		SELECT COALESCE(SUM(amount), 0) FROM expenses
 		WHERE user_id = $1 AND created_at >= $2 AND created_at < $3 AND status = 'confirmed'
 	`, userID, startDate, endDate).Scan(&total)

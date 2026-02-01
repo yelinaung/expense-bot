@@ -13,23 +13,16 @@ import (
 )
 
 // setupHandlerErrorTest creates a test environment for handler error scenarios.
-func setupHandlerErrorTest(t *testing.T) (*Bot, context.Context) {
+func setupHandlerErrorTest(t *testing.T) (*Bot, context.Context, database.PGXDB) {
 	t.Helper()
 
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	err = database.SeedCategories(ctx, pool)
-	require.NoError(t, err)
-
 	// Create bot instance
-	expenseRepo := repository.NewExpenseRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
-	categoryRepo := repository.NewCategoryRepository(pool)
+	expenseRepo := repository.NewExpenseRepository(tx)
+	userRepo := repository.NewUserRepository(tx)
+	categoryRepo := repository.NewCategoryRepository(tx)
 
 	testBot := &Bot{
 		expenseRepo:  expenseRepo,
@@ -38,12 +31,12 @@ func setupHandlerErrorTest(t *testing.T) (*Bot, context.Context) {
 		geminiClient: nil, // No Gemini client for error tests
 	}
 
-	return testBot, ctx
+	return testBot, ctx, tx
 }
 
 // TestSaveExpense_Errors tests error scenarios in saveExpense function.
 func TestSaveExpense_Errors(t *testing.T) {
-	testBot, ctx := setupHandlerErrorTest(t)
+	testBot, ctx, _ := setupHandlerErrorTest(t)
 
 	// Create test user
 	err := testBot.userRepo.UpsertUser(ctx, &models.User{
@@ -157,11 +150,12 @@ func TestSaveExpense_Errors(t *testing.T) {
 
 // TestGetCategoriesWithCache_Errors tests error scenarios for category caching.
 func TestGetCategoriesWithCache_Errors(t *testing.T) {
-	testBot, ctx := setupHandlerErrorTest(t)
+	testBot, ctx, tx := setupHandlerErrorTest(t)
 
 	t.Run("empty categories returns empty slice", func(t *testing.T) {
-		// Clean categories
-		database.CleanupTables(t, testBot.expenseRepo.Pool())
+		// Delete all categories within this transaction
+		_, err := tx.Exec(ctx, "DELETE FROM categories")
+		require.NoError(t, err)
 
 		// Clear cache
 		testBot.invalidateCategoryCache()
@@ -172,11 +166,7 @@ func TestGetCategoriesWithCache_Errors(t *testing.T) {
 	})
 
 	t.Run("cache returns same data on subsequent calls", func(t *testing.T) {
-		// Seed categories
-		err := database.SeedCategories(ctx, testBot.expenseRepo.Pool())
-		require.NoError(t, err)
-
-		// Clear cache
+		// Categories are already seeded in TestPool, just clear cache
 		testBot.invalidateCategoryCache()
 
 		// First call - cache miss
@@ -193,7 +183,7 @@ func TestGetCategoriesWithCache_Errors(t *testing.T) {
 
 // TestExpenseRepositoryErrors tests error scenarios in expense repository operations.
 func TestExpenseRepositoryErrors(t *testing.T) {
-	testBot, ctx := setupHandlerErrorTest(t)
+	testBot, ctx, _ := setupHandlerErrorTest(t)
 
 	// Create test user
 	err := testBot.userRepo.UpsertUser(ctx, &models.User{
@@ -289,10 +279,7 @@ func TestExpenseRepositoryErrors(t *testing.T) {
 	})
 
 	t.Run("delete expired drafts preserves confirmed expenses", func(t *testing.T) {
-		// Clean up first
-		database.CleanupTables(t, testBot.expenseRepo.Pool())
-
-		// Re-create user
+		// Create test user
 		err := testBot.userRepo.UpsertUser(ctx, &models.User{
 			ID:        12345,
 			Username:  "testuser",
@@ -327,7 +314,7 @@ func TestExpenseRepositoryErrors(t *testing.T) {
 
 // TestCategoryRepositoryErrors tests error scenarios in category repository operations.
 func TestCategoryRepositoryErrors(t *testing.T) {
-	testBot, ctx := setupHandlerErrorTest(t)
+	testBot, ctx, _ := setupHandlerErrorTest(t)
 
 	t.Run("get non-existent category returns error", func(t *testing.T) {
 		category, err := testBot.categoryRepo.GetByID(ctx, 99999)
@@ -391,7 +378,7 @@ func TestCategoryRepositoryErrors(t *testing.T) {
 
 // TestUserRepositoryErrors tests error scenarios in user repository operations.
 func TestUserRepositoryErrors(t *testing.T) {
-	testBot, ctx := setupHandlerErrorTest(t)
+	testBot, ctx, _ := setupHandlerErrorTest(t)
 
 	t.Run("get non-existent user returns error", func(t *testing.T) {
 		user, err := testBot.userRepo.GetUserByID(ctx, 99999)

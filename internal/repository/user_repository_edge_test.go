@@ -11,14 +11,10 @@ import (
 
 // TestUserRepository_UpsertUserEdgeCases tests edge cases for user upsert.
 func TestUserRepository_UpsertUserEdgeCases(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	repo := NewUserRepository(pool)
+	repo := NewUserRepository(tx)
 
 	t.Run("upsert with very long username", func(t *testing.T) {
 		longUsername := string(make([]byte, 500))
@@ -229,14 +225,10 @@ func TestUserRepository_UpsertUserEdgeCases(t *testing.T) {
 
 // TestUserRepository_GetUserByIDEdgeCases tests edge cases for GetUserByID.
 func TestUserRepository_GetUserByIDEdgeCases(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	repo := NewUserRepository(pool)
+	repo := NewUserRepository(tx)
 
 	t.Run("get non-existent user", func(t *testing.T) {
 		user, err := repo.GetUserByID(ctx, 99999)

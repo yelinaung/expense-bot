@@ -5,23 +5,23 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
 // CategoryRepository handles category database operations.
 type CategoryRepository struct {
-	pool *pgxpool.Pool
+	db database.PGXDB
 }
 
 // NewCategoryRepository creates a new CategoryRepository.
-func NewCategoryRepository(pool *pgxpool.Pool) *CategoryRepository {
-	return &CategoryRepository{pool: pool}
+func NewCategoryRepository(db database.PGXDB) *CategoryRepository {
+	return &CategoryRepository{db: db}
 }
 
 // GetAll retrieves all categories.
 func (r *CategoryRepository) GetAll(ctx context.Context) ([]models.Category, error) {
-	rows, err := r.pool.Query(ctx, `
+	rows, err := r.db.Query(ctx, `
 		SELECT id, name, created_at FROM categories ORDER BY name
 	`)
 	if err != nil {
@@ -47,7 +47,7 @@ func (r *CategoryRepository) GetAll(ctx context.Context) ([]models.Category, err
 // GetByID retrieves a category by ID.
 func (r *CategoryRepository) GetByID(ctx context.Context, id int) (*models.Category, error) {
 	var cat models.Category
-	err := r.pool.QueryRow(ctx, `
+	err := r.db.QueryRow(ctx, `
 		SELECT id, name, created_at FROM categories WHERE id = $1
 	`, id).Scan(&cat.ID, &cat.Name, &cat.CreatedAt)
 	if err != nil {
@@ -59,7 +59,7 @@ func (r *CategoryRepository) GetByID(ctx context.Context, id int) (*models.Categ
 // GetByName retrieves a category by name (case-insensitive).
 func (r *CategoryRepository) GetByName(ctx context.Context, name string) (*models.Category, error) {
 	var cat models.Category
-	err := r.pool.QueryRow(ctx, `
+	err := r.db.QueryRow(ctx, `
 		SELECT id, name, created_at FROM categories WHERE LOWER(name) = LOWER($1)
 	`, name).Scan(&cat.ID, &cat.Name, &cat.CreatedAt)
 	if err != nil {
@@ -71,7 +71,7 @@ func (r *CategoryRepository) GetByName(ctx context.Context, name string) (*model
 // Create adds a new category.
 func (r *CategoryRepository) Create(ctx context.Context, name string) (*models.Category, error) {
 	var cat models.Category
-	err := r.pool.QueryRow(ctx, `
+	err := r.db.QueryRow(ctx, `
 		INSERT INTO categories (name) VALUES ($1)
 		RETURNING id, name, created_at
 	`, name).Scan(&cat.ID, &cat.Name, &cat.CreatedAt)
@@ -83,7 +83,7 @@ func (r *CategoryRepository) Create(ctx context.Context, name string) (*models.C
 
 // Update modifies an existing category name.
 func (r *CategoryRepository) Update(ctx context.Context, id int, name string) error {
-	_, err := r.pool.Exec(ctx, `
+	_, err := r.db.Exec(ctx, `
 		UPDATE categories SET name = $2 WHERE id = $1
 	`, id, name)
 	if err != nil {
@@ -94,7 +94,7 @@ func (r *CategoryRepository) Update(ctx context.Context, id int, name string) er
 
 // Delete removes a category by ID.
 func (r *CategoryRepository) Delete(ctx context.Context, id int) error {
-	_, err := r.pool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, id)
+	_, err := r.db.Exec(ctx, `DELETE FROM categories WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete category: %w", err)
 	}

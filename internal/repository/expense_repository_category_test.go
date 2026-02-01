@@ -14,10 +14,10 @@ import (
 func TestExpenseRepository_GetByUserIDAndCategory(t *testing.T) {
 	t.Parallel()
 
-	pool := database.TestDB(t)
-	repo := NewExpenseRepository(pool)
-	catRepo := NewCategoryRepository(pool)
-	userRepo := NewUserRepository(pool)
+	tx := database.TestTx(t)
+	repo := NewExpenseRepository(tx)
+	catRepo := NewCategoryRepository(tx)
+	userRepo := NewUserRepository(tx)
 	ctx := context.Background()
 
 	// Create test user
@@ -117,10 +117,10 @@ func TestExpenseRepository_GetByUserIDAndCategory(t *testing.T) {
 func TestExpenseRepository_GetTotalByUserIDAndCategory(t *testing.T) {
 	t.Parallel()
 
-	pool := database.TestDB(t)
-	repo := NewExpenseRepository(pool)
-	catRepo := NewCategoryRepository(pool)
-	userRepo := NewUserRepository(pool)
+	tx := database.TestTx(t)
+	repo := NewExpenseRepository(tx)
+	catRepo := NewCategoryRepository(tx)
+	userRepo := NewUserRepository(tx)
 	ctx := context.Background()
 
 	// Create test user
@@ -192,10 +192,10 @@ func TestExpenseRepository_GetTotalByUserIDAndCategory(t *testing.T) {
 func TestExpenseRepository_CategoryFilterEdgeCases(t *testing.T) {
 	t.Parallel()
 
-	pool := database.TestDB(t)
-	repo := NewExpenseRepository(pool)
-	catRepo := NewCategoryRepository(pool)
-	userRepo := NewUserRepository(pool)
+	tx := database.TestTx(t)
+	repo := NewExpenseRepository(tx)
+	catRepo := NewCategoryRepository(tx)
+	userRepo := NewUserRepository(tx)
 	ctx := context.Background()
 
 	// Create test user

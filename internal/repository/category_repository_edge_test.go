@@ -11,14 +11,10 @@ import (
 
 // TestCategoryRepository_CreateEdgeCases tests edge cases for category creation.
 func TestCategoryRepository_CreateEdgeCases(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	repo := NewCategoryRepository(pool)
+	repo := NewCategoryRepository(tx)
 
 	t.Run("create duplicate category", func(t *testing.T) {
 		// Create first category
@@ -77,14 +73,10 @@ func TestCategoryRepository_CreateEdgeCases(t *testing.T) {
 
 // TestCategoryRepository_GetByIDEdgeCases tests edge cases for GetByID.
 func TestCategoryRepository_GetByIDEdgeCases(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	repo := NewCategoryRepository(pool)
+	repo := NewCategoryRepository(tx)
 
 	t.Run("get non-existent category", func(t *testing.T) {
 		cat, err := repo.GetByID(ctx, 99999)
@@ -107,14 +99,10 @@ func TestCategoryRepository_GetByIDEdgeCases(t *testing.T) {
 
 // TestCategoryRepository_GetByNameEdgeCases tests edge cases for GetByName.
 func TestCategoryRepository_GetByNameEdgeCases(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	repo := NewCategoryRepository(pool)
+	repo := NewCategoryRepository(tx)
 
 	// Create test category
 	created, err := repo.Create(ctx, "TestCategory")
@@ -150,14 +138,10 @@ func TestCategoryRepository_GetByNameEdgeCases(t *testing.T) {
 
 // TestCategoryRepository_UpdateEdgeCases tests edge cases for category updates.
 func TestCategoryRepository_UpdateEdgeCases(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	repo := NewCategoryRepository(pool)
+	repo := NewCategoryRepository(tx)
 
 	t.Run("update non-existent category", func(t *testing.T) {
 		// Update doesn't check rows affected, so it succeeds silently
@@ -202,14 +186,10 @@ func TestCategoryRepository_UpdateEdgeCases(t *testing.T) {
 
 // TestCategoryRepository_DeleteEdgeCases tests edge cases for category deletion.
 func TestCategoryRepository_DeleteEdgeCases(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	repo := NewCategoryRepository(pool)
+	repo := NewCategoryRepository(tx)
 
 	t.Run("delete non-existent category", func(t *testing.T) {
 		// Delete doesn't check rows affected, so it succeeds silently
@@ -245,14 +225,10 @@ func TestCategoryRepository_DeleteEdgeCases(t *testing.T) {
 
 // TestCategoryRepository_GetAllEdgeCases tests edge cases for GetAll.
 func TestCategoryRepository_GetAllEdgeCases(t *testing.T) {
-	pool := database.TestDB(t)
+	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	err := database.RunMigrations(ctx, pool)
-	require.NoError(t, err)
-	database.CleanupTables(t, pool)
-
-	repo := NewCategoryRepository(pool)
+	repo := NewCategoryRepository(tx)
 
 	t.Run("get all when empty", func(t *testing.T) {
 		categories, err := repo.GetAll(ctx)
