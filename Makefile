@@ -18,7 +18,7 @@ test-race:
 test-db-up:
 	docker compose -f docker-compose.test.yml up -d
 	@echo "Waiting for PostgreSQL to be ready..."
-	@sleep 3
+	@sleep 5
 
 test-db-down:
 	docker compose -f docker-compose.test.yml down -v

@@ -1,44 +1,24 @@
 package bot
 
 import (
-	"context"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
 	"gitlab.com/yelinaung/expense-bot/internal/config"
 	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
 )
 
-// TestDB is a convenience wrapper around database.TestDB for bot tests.
-func TestDB(t *testing.T) *pgxpool.Pool {
+// TestDB is a convenience wrapper around database.TestTx for bot tests.
+func TestDB(t *testing.T) database.PGXDB {
 	t.Helper()
-	pool := database.TestDB(t)
-
-	// Run migrations
-	ctx := context.Background()
-	if err := database.RunMigrations(ctx, pool); err != nil {
-		t.Fatalf("failed to run migrations: %v", err)
-	}
-
-	// Seed categories
-	if err := database.SeedCategories(ctx, pool); err != nil {
-		t.Fatalf("failed to seed categories: %v", err)
-	}
-
-	// Cleanup after test
-	t.Cleanup(func() {
-		database.CleanupTables(t, pool)
-	})
-
-	return pool
+	return database.TestTx(t)
 }
 
 // setupTestBot creates a Bot instance for testing with database.
 //
 //nolint:unused // Used in test files
-func setupTestBot(t *testing.T, pool *pgxpool.Pool) *Bot {
+func setupTestBot(t *testing.T, db database.PGXDB) *Bot {
 	t.Helper()
 
 	cfg := &config.Config{
@@ -50,9 +30,9 @@ func setupTestBot(t *testing.T, pool *pgxpool.Pool) *Bot {
 
 	b := &Bot{
 		cfg:          cfg,
-		userRepo:     repository.NewUserRepository(pool),
-		categoryRepo: repository.NewCategoryRepository(pool),
-		expenseRepo:  repository.NewExpenseRepository(pool),
+		userRepo:     repository.NewUserRepository(db),
+		categoryRepo: repository.NewCategoryRepository(db),
+		expenseRepo:  repository.NewExpenseRepository(db),
 		geminiClient: nil, // No Gemini client for cache tests
 		pendingEdits: make(map[int64]*pendingEdit),
 	}

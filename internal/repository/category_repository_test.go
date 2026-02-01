@@ -26,10 +26,10 @@ func TestCategoryRepository_CRUD(t *testing.T) {
 	})
 
 	t.Run("gets category by name case-insensitive", func(t *testing.T) {
-		cat, err := repo.Create(ctx, "Food - Dining Out")
+		cat, err := repo.Create(ctx, "Unique Test Category Name")
 		require.NoError(t, err)
 
-		fetched, err := repo.GetByName(ctx, "food - dining out")
+		fetched, err := repo.GetByName(ctx, "unique test category name")
 		require.NoError(t, err)
 		require.Equal(t, cat.ID, fetched.ID)
 	})
@@ -58,14 +58,19 @@ func TestCategoryRepository_CRUD(t *testing.T) {
 	})
 
 	t.Run("gets all categories", func(t *testing.T) {
-		_, err := repo.Create(ctx, "Category A")
+		// Get initial count (includes seeded categories)
+		initialCats, err := repo.GetAll(ctx)
+		require.NoError(t, err)
+		initialCount := len(initialCats)
+
+		_, err = repo.Create(ctx, "Category A")
 		require.NoError(t, err)
 		_, err = repo.Create(ctx, "Category B")
 		require.NoError(t, err)
 
 		cats, err := repo.GetAll(ctx)
 		require.NoError(t, err)
-		require.Len(t, cats, 2)
+		require.Len(t, cats, initialCount+2)
 	})
 }
 
@@ -116,6 +121,10 @@ func TestCategoryRepository_GetAll_Empty(t *testing.T) {
 	ctx := context.Background()
 
 	repo := NewCategoryRepository(tx)
+
+	// Delete all categories to test empty state
+	_, err := tx.Exec(ctx, "DELETE FROM categories")
+	require.NoError(t, err)
 
 	cats, err := repo.GetAll(ctx)
 	require.NoError(t, err)

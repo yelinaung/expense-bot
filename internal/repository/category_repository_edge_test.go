@@ -11,25 +11,27 @@ import (
 
 // TestCategoryRepository_CreateEdgeCases tests edge cases for category creation.
 func TestCategoryRepository_CreateEdgeCases(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	repo := NewCategoryRepository(tx)
-
 	t.Run("create duplicate category", func(t *testing.T) {
-		// Create first category
-		cat1, err := repo.Create(ctx, "Food")
+		tx := database.TestTx(t)
+		repo := NewCategoryRepository(tx)
+		// Create first category with unique name
+		cat1, err := repo.Create(ctx, "Unique Duplicate Test Category")
 		require.NoError(t, err)
 		require.NotNil(t, cat1)
 
 		// Try to create duplicate
-		cat2, err := repo.Create(ctx, "Food")
+		cat2, err := repo.Create(ctx, "Unique Duplicate Test Category")
 		require.Error(t, err)
 		require.Nil(t, cat2)
 		require.Contains(t, err.Error(), "failed to create category")
 	})
 
 	t.Run("create with empty name", func(t *testing.T) {
+		tx := database.TestTx(t)
+		repo := NewCategoryRepository(tx)
+
 		cat, err := repo.Create(ctx, "")
 		require.NoError(t, err) // Empty string is technically allowed
 		require.NotNil(t, cat)
@@ -37,6 +39,9 @@ func TestCategoryRepository_CreateEdgeCases(t *testing.T) {
 	})
 
 	t.Run("create with very long name", func(t *testing.T) {
+		tx := database.TestTx(t)
+		repo := NewCategoryRepository(tx)
+
 		longName := string(make([]byte, 500))
 		for i := range longName {
 			longName = longName[:i] + "x" + longName[i+1:]
@@ -49,6 +54,9 @@ func TestCategoryRepository_CreateEdgeCases(t *testing.T) {
 	})
 
 	t.Run("create with special characters", func(t *testing.T) {
+		tx := database.TestTx(t)
+		repo := NewCategoryRepository(tx)
+
 		specialName := "Food & Drink ☕🍔 (café)"
 
 		cat, err := repo.Create(ctx, specialName)
@@ -58,6 +66,9 @@ func TestCategoryRepository_CreateEdgeCases(t *testing.T) {
 	})
 
 	t.Run("create with leading/trailing spaces", func(t *testing.T) {
+		tx := database.TestTx(t)
+		repo := NewCategoryRepository(tx)
+
 		cat, err := repo.Create(ctx, "  Spaced  ")
 		require.NoError(t, err)
 		require.NotNil(t, cat)
@@ -65,6 +76,9 @@ func TestCategoryRepository_CreateEdgeCases(t *testing.T) {
 	})
 
 	t.Run("create with newlines", func(t *testing.T) {
+		tx := database.TestTx(t)
+		repo := NewCategoryRepository(tx)
+
 		cat, err := repo.Create(ctx, "Line1\nLine2")
 		require.NoError(t, err)
 		require.NotNil(t, cat)
@@ -138,18 +152,21 @@ func TestCategoryRepository_GetByNameEdgeCases(t *testing.T) {
 
 // TestCategoryRepository_UpdateEdgeCases tests edge cases for category updates.
 func TestCategoryRepository_UpdateEdgeCases(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	repo := NewCategoryRepository(tx)
-
 	t.Run("update non-existent category", func(t *testing.T) {
+		tx := database.TestTx(t)
+		repo := NewCategoryRepository(tx)
+
 		// Update doesn't check rows affected, so it succeeds silently
 		err := repo.Update(ctx, 99999, "NewName")
 		require.NoError(t, err) // No error, just no rows affected
 	})
 
 	t.Run("update to duplicate name", func(t *testing.T) {
+		tx := database.TestTx(t)
+		repo := NewCategoryRepository(tx)
+
 		// Create two categories
 		cat1, err := repo.Create(ctx, "Category1")
 		require.NoError(t, err)
@@ -162,6 +179,9 @@ func TestCategoryRepository_UpdateEdgeCases(t *testing.T) {
 	})
 
 	t.Run("update to empty name", func(t *testing.T) {
+		tx := database.TestTx(t)
+		repo := NewCategoryRepository(tx)
+
 		cat, err := repo.Create(ctx, "ToBeEmptied")
 		require.NoError(t, err)
 
@@ -175,6 +195,9 @@ func TestCategoryRepository_UpdateEdgeCases(t *testing.T) {
 	})
 
 	t.Run("update to same name", func(t *testing.T) {
+		tx := database.TestTx(t)
+		repo := NewCategoryRepository(tx)
+
 		cat, err := repo.Create(ctx, "SameName")
 		require.NoError(t, err)
 
@@ -225,18 +248,25 @@ func TestCategoryRepository_DeleteEdgeCases(t *testing.T) {
 
 // TestCategoryRepository_GetAllEdgeCases tests edge cases for GetAll.
 func TestCategoryRepository_GetAllEdgeCases(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
 
-	repo := NewCategoryRepository(tx)
-
 	t.Run("get all when empty", func(t *testing.T) {
+		tx := database.TestTx(t)
+		repo := NewCategoryRepository(tx)
+
+		// Delete all categories to test empty state
+		_, err := tx.Exec(ctx, "DELETE FROM categories")
+		require.NoError(t, err)
+
 		categories, err := repo.GetAll(ctx)
 		require.NoError(t, err)
 		require.Empty(t, categories) // Should return empty slice, not error
 	})
 
 	t.Run("get all with many categories", func(t *testing.T) {
+		tx := database.TestTx(t)
+		repo := NewCategoryRepository(tx)
+
 		// Create 100 categories
 		for i := 0; i < 100; i++ {
 			_, err := repo.Create(ctx, fmt.Sprintf("Category%d", i))
