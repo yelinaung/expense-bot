@@ -108,7 +108,8 @@ ENSURE that the test coverage stays at or above 50% (CI enforced).
 
 ## Committing
 
-- ALWAYS run tests before pushing
+- ALWAYS run both unit and integraton tests before pushing
+    - Especially, the fail tests with `make test-integration 2&>1 | grep -w 'FAIL:'`
 - ALWAYS use semantic commits (`fix:`, `feat:`, `chore:`, `refactor:`, `docs:`, `sec:`, etc).
 - ALWAYS run pre-commits before pushing
 - Try to keep commits to one line, not including your attribution. Only use

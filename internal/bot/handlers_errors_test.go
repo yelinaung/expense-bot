@@ -36,18 +36,8 @@ func setupHandlerErrorTest(t *testing.T) (*Bot, context.Context, database.PGXDB)
 
 // TestSaveExpense_Errors tests error scenarios in saveExpense function.
 func TestSaveExpense_Errors(t *testing.T) {
-	testBot, ctx, _ := setupHandlerErrorTest(t)
-
-	// Create test user
-	err := testBot.userRepo.UpsertUser(ctx, &models.User{
-		ID:        12345,
-		Username:  "testuser",
-		FirstName: "Test",
-		LastName:  "User",
-	})
-	require.NoError(t, err)
-
 	t.Run("save expense with invalid user ID fails", func(t *testing.T) {
+		testBot, ctx, _ := setupHandlerErrorTest(t)
 		// Try to save expense for non-existent user
 		parsed := &ParsedExpense{
 			Amount:       decimal.NewFromFloat(10.00),
@@ -71,6 +61,17 @@ func TestSaveExpense_Errors(t *testing.T) {
 	})
 
 	t.Run("save expense with very large amount succeeds", func(t *testing.T) {
+		testBot, ctx, _ := setupHandlerErrorTest(t)
+
+		// Create test user
+		err := testBot.userRepo.UpsertUser(ctx, &models.User{
+			ID:        12345,
+			Username:  "testuser",
+			FirstName: "Test",
+			LastName:  "User",
+		})
+		require.NoError(t, err)
+
 		parsed := &ParsedExpense{
 			Amount:       decimal.NewFromFloat(999999999.99),
 			Description:  "Very large expense",
@@ -85,7 +86,7 @@ func TestSaveExpense_Errors(t *testing.T) {
 			Status:      models.ExpenseStatusConfirmed,
 		}
 
-		err := testBot.expenseRepo.Create(ctx, expense)
+		err = testBot.expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
 		require.NotZero(t, expense.ID)
 
@@ -96,6 +97,17 @@ func TestSaveExpense_Errors(t *testing.T) {
 	})
 
 	t.Run("save expense with empty description succeeds", func(t *testing.T) {
+		testBot, ctx, _ := setupHandlerErrorTest(t)
+
+		// Create test user
+		err := testBot.userRepo.UpsertUser(ctx, &models.User{
+			ID:        12345,
+			Username:  "testuser",
+			FirstName: "Test",
+			LastName:  "User",
+		})
+		require.NoError(t, err)
+
 		parsed := &ParsedExpense{
 			Amount:       decimal.NewFromFloat(5.50),
 			Description:  "", // Empty description
@@ -110,12 +122,23 @@ func TestSaveExpense_Errors(t *testing.T) {
 			Status:      models.ExpenseStatusConfirmed,
 		}
 
-		err := testBot.expenseRepo.Create(ctx, expense)
+		err = testBot.expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
 		require.NotZero(t, expense.ID)
 	})
 
 	t.Run("save expense with category", func(t *testing.T) {
+		testBot, ctx, _ := setupHandlerErrorTest(t)
+
+		// Create test user
+		err := testBot.userRepo.UpsertUser(ctx, &models.User{
+			ID:        12345,
+			Username:  "testuser",
+			FirstName: "Test",
+			LastName:  "User",
+		})
+		require.NoError(t, err)
+
 		categories, err := testBot.getCategoriesWithCache(ctx)
 		require.NoError(t, err)
 		require.NotEmpty(t, categories)
@@ -150,9 +173,9 @@ func TestSaveExpense_Errors(t *testing.T) {
 
 // TestGetCategoriesWithCache_Errors tests error scenarios for category caching.
 func TestGetCategoriesWithCache_Errors(t *testing.T) {
-	testBot, ctx, tx := setupHandlerErrorTest(t)
-
 	t.Run("empty categories returns empty slice", func(t *testing.T) {
+		testBot, ctx, tx := setupHandlerErrorTest(t)
+
 		// Delete all categories within this transaction
 		_, err := tx.Exec(ctx, "DELETE FROM categories")
 		require.NoError(t, err)
@@ -166,7 +189,9 @@ func TestGetCategoriesWithCache_Errors(t *testing.T) {
 	})
 
 	t.Run("cache returns same data on subsequent calls", func(t *testing.T) {
-		// Categories are already seeded in TestPool, just clear cache
+		testBot, ctx, _ := setupHandlerErrorTest(t)
+
+		// Clear cache to force fresh fetch
 		testBot.invalidateCategoryCache()
 
 		// First call - cache miss
@@ -314,27 +339,33 @@ func TestExpenseRepositoryErrors(t *testing.T) {
 
 // TestCategoryRepositoryErrors tests error scenarios in category repository operations.
 func TestCategoryRepositoryErrors(t *testing.T) {
-	testBot, ctx, _ := setupHandlerErrorTest(t)
-
 	t.Run("get non-existent category returns error", func(t *testing.T) {
+		testBot, ctx, _ := setupHandlerErrorTest(t)
+
 		category, err := testBot.categoryRepo.GetByID(ctx, 99999)
 		require.Error(t, err)
 		require.Nil(t, category)
 	})
 
 	t.Run("get category by non-existent name returns error", func(t *testing.T) {
+		testBot, ctx, _ := setupHandlerErrorTest(t)
+
 		category, err := testBot.categoryRepo.GetByName(ctx, "NonExistentCategory")
 		require.Error(t, err)
 		require.Nil(t, category)
 	})
 
 	t.Run("get category by empty name returns error", func(t *testing.T) {
+		testBot, ctx, _ := setupHandlerErrorTest(t)
+
 		category, err := testBot.categoryRepo.GetByName(ctx, "")
 		require.Error(t, err)
 		require.Nil(t, category)
 	})
 
 	t.Run("create duplicate category fails", func(t *testing.T) {
+		testBot, ctx, _ := setupHandlerErrorTest(t)
+
 		// Get existing category
 		categories, err := testBot.categoryRepo.GetAll(ctx)
 		require.NoError(t, err)
@@ -347,18 +378,24 @@ func TestCategoryRepositoryErrors(t *testing.T) {
 	})
 
 	t.Run("update non-existent category succeeds silently", func(t *testing.T) {
+		testBot, ctx, _ := setupHandlerErrorTest(t)
+
 		// Update doesn't check rows affected
 		err := testBot.categoryRepo.Update(ctx, 99999, "NewName")
 		require.NoError(t, err)
 	})
 
 	t.Run("delete non-existent category succeeds silently", func(t *testing.T) {
+		testBot, ctx, _ := setupHandlerErrorTest(t)
+
 		// Delete doesn't check rows affected
 		err := testBot.categoryRepo.Delete(ctx, 99999)
 		require.NoError(t, err)
 	})
 
 	t.Run("category name is case insensitive", func(t *testing.T) {
+		testBot, ctx, _ := setupHandlerErrorTest(t)
+
 		// Get existing category
 		categories, err := testBot.categoryRepo.GetAll(ctx)
 		require.NoError(t, err)

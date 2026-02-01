@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
@@ -219,6 +218,9 @@ func TestExpenseRepository_CategoryFilterEdgeCases(t *testing.T) {
 
 	t.Run("orders by created_at DESC", func(t *testing.T) {
 		// Create expenses with slight time delay
+		// Note: Within a transaction, NOW() returns the same value
+		// So we check ordering by ID instead (which is SERIAL and auto-incrementing)
+		var ids []int
 		for i := 1; i <= 3; i++ {
 			expense := &models.Expense{
 				UserID:      userID,
@@ -230,15 +232,17 @@ func TestExpenseRepository_CategoryFilterEdgeCases(t *testing.T) {
 			}
 			err := repo.Create(ctx, expense)
 			require.NoError(t, err)
-			time.Sleep(10 * time.Millisecond) // Ensure different timestamps
+			ids = append(ids, expense.ID)
 		}
 
 		expenses, err := repo.GetByUserIDAndCategory(ctx, userID, category.ID, 10)
 		require.NoError(t, err)
 		require.Len(t, expenses, 3)
 
-		// Should be in reverse order (newest first)
-		require.True(t, expenses[0].CreatedAt.After(expenses[1].CreatedAt))
-		require.True(t, expenses[1].CreatedAt.After(expenses[2].CreatedAt))
+		// Should be in reverse order by ID (newest first, since IDs are sequential)
+		// Since created_at is the same in a transaction, ordering is by ID DESC as fallback
+		require.Equal(t, ids[2], expenses[0].ID, "newest expense should be first")
+		require.Equal(t, ids[1], expenses[1].ID, "middle expense should be second")
+		require.Equal(t, ids[0], expenses[2].ID, "oldest expense should be last")
 	})
 }
