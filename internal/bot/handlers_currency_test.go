@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/go-telegram/bot"
 	tgmodels "github.com/go-telegram/bot/models"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/bot/mocks"
@@ -216,4 +217,46 @@ func TestBuildCurrencyListMessage(t *testing.T) {
 	require.Contains(t, message, "$10 Coffee")
 	require.Contains(t, message, "€5.50 Lunch")
 	require.Contains(t, message, "THB")
+}
+
+// TestCurrencyHandlerWrappers provides coverage for thin command wrapper functions.
+// These wrappers exist only to match the telegram bot library's expected handler signature
+// and delegate to Core functions which are thoroughly tested above.
+//
+// We test wrappers by calling them with updates that cause early returns in Core functions,
+// avoiding the need for a real *bot.Bot instance.
+func TestCurrencyHandlerWrappers(t *testing.T) {
+	t.Parallel()
+
+	pool := database.TestDB(t)
+	ctx := context.Background()
+
+	err := database.RunMigrations(ctx, pool)
+	require.NoError(t, err)
+	database.CleanupTables(t, pool)
+
+	userRepo := repository.NewUserRepository(pool)
+	categoryRepo := repository.NewCategoryRepository(pool)
+	expenseRepo := repository.NewExpenseRepository(pool)
+
+	b := &Bot{
+		userRepo:     userRepo,
+		categoryRepo: categoryRepo,
+		expenseRepo:  expenseRepo,
+	}
+
+	// nil *bot.Bot - wrappers pass it through but Core returns early before using it.
+	var tgBot *bot.Bot
+
+	t.Run("handleSetCurrency wrapper", func(t *testing.T) {
+		t.Parallel()
+		// Update with nil Message causes early return in handleSetCurrencyCore.
+		b.handleSetCurrency(ctx, tgBot, &tgmodels.Update{})
+	})
+
+	t.Run("handleShowCurrency wrapper", func(t *testing.T) {
+		t.Parallel()
+		// Update with nil Message causes early return in handleShowCurrencyCore.
+		b.handleShowCurrency(ctx, tgBot, &tgmodels.Update{})
+	})
 }

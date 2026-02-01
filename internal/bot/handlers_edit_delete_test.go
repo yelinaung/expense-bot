@@ -419,6 +419,48 @@ func TestHandleDelete(t *testing.T) {
 	})
 }
 
+// TestEditDeleteHandlerWrappers provides coverage for thin command wrapper functions.
+// These wrappers exist only to match the telegram bot library's expected handler signature
+// and delegate to Core functions or helper logic which is thoroughly tested above.
+//
+// We test wrappers by calling them with updates that cause early returns,
+// avoiding the need for a real *bot.Bot instance.
+func TestEditDeleteHandlerWrappers(t *testing.T) {
+	t.Parallel()
+
+	pool := database.TestDB(t)
+	ctx := context.Background()
+
+	err := database.RunMigrations(ctx, pool)
+	require.NoError(t, err)
+	database.CleanupTables(t, pool)
+
+	userRepo := repository.NewUserRepository(pool)
+	categoryRepo := repository.NewCategoryRepository(pool)
+	expenseRepo := repository.NewExpenseRepository(pool)
+
+	b := &Bot{
+		userRepo:     userRepo,
+		categoryRepo: categoryRepo,
+		expenseRepo:  expenseRepo,
+	}
+
+	// nil *bot.Bot - wrappers pass it through but return early before using it.
+	var tgBot *bot.Bot
+
+	t.Run("handleEdit wrapper", func(t *testing.T) {
+		t.Parallel()
+		// Update with nil Message causes early return in handleEdit.
+		b.handleEdit(ctx, tgBot, &tgmodels.Update{})
+	})
+
+	t.Run("handleDelete wrapper", func(t *testing.T) {
+		t.Parallel()
+		// Update with nil Message causes early return in handleDelete.
+		b.handleDelete(ctx, tgBot, &tgmodels.Update{})
+	})
+}
+
 // callHandleDelete simulates the handleDelete logic with mock.
 func callHandleDelete(
 	ctx context.Context,
