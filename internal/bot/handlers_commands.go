@@ -260,7 +260,7 @@ func (b *Bot) saveExpenseCore(
 		var err error
 		currency, err = b.userRepo.GetDefaultCurrency(ctx, userID)
 		if err != nil {
-			logger.Log.Debug().Err(err).Int64("user_id", userID).Msg("Failed to get default currency, using SGD")
+			logger.Log.Debug().Err(err).Str("user_hash", logger.HashUserID(userID)).Msg("Failed to get default currency, using SGD")
 			currency = appmodels.DefaultCurrency
 		}
 	}
@@ -295,7 +295,7 @@ func (b *Bot) saveExpenseCore(
 		suggestion, err := b.geminiClient.SuggestCategory(ctx, parsed.Description, categoryNames)
 		if err != nil {
 			logger.Log.Debug().Err(err).
-				Str("description", parsed.Description).
+				Str("description", logger.SanitizeDescription(parsed.Description)).
 				Msg("Failed to get AI category suggestion")
 		} else if suggestion != nil && suggestion.Confidence > 0.5 {
 			// Use AI suggestion if confidence is above 50%
@@ -304,7 +304,7 @@ func (b *Bot) saveExpenseCore(
 					expense.CategoryID = &cat.ID
 					expense.Category = &cat
 					logger.Log.Info().
-						Str("description", parsed.Description).
+						Str("description", logger.SanitizeDescription(parsed.Description)).
 						Str("suggested_category", suggestion.Category).
 						Float64("confidence", suggestion.Confidence).
 						Str("reasoning", suggestion.Reasoning).

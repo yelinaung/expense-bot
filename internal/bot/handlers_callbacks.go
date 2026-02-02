@@ -172,7 +172,7 @@ func (b *Bot) processAmountEditCore(
 	}
 
 	if expense.UserID != userID {
-		logger.Log.Warn().Int64("user_id", userID).Int("expense_id", pending.ExpenseID).Msg("User mismatch on edit")
+		logger.Log.Warn().Str("user_hash", logger.HashUserID(userID)).Int("expense_id", pending.ExpenseID).Msg("User mismatch on edit")
 		return true
 	}
 
@@ -458,7 +458,7 @@ func (b *Bot) processCategoryCreateCore(
 	}
 
 	if expense.UserID != userID {
-		logger.Log.Warn().Int64("user_id", userID).Int("expense_id", pending.ExpenseID).Msg("User mismatch")
+		logger.Log.Warn().Str("user_hash", logger.HashUserID(userID)).Int("expense_id", pending.ExpenseID).Msg("User mismatch")
 		return true
 	}
 
@@ -641,7 +641,7 @@ func (b *Bot) handleExpenseActionCallbackCore(ctx context.Context, tg TelegramAP
 	}
 
 	if expense.UserID != userID {
-		logger.Log.Warn().Int64("user_id", userID).Int("expense_id", expenseID).Msg("User mismatch")
+		logger.Log.Warn().Str("user_hash", logger.HashUserID(userID)).Int("expense_id", expenseID).Msg("User mismatch")
 		_, _ = tg.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 			CallbackQueryID: update.CallbackQuery.ID,
 			Text:            "❌ You can only modify your own expenses.",
