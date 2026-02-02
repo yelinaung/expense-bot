@@ -162,7 +162,7 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 		return nil, fmt.Errorf("suggested category '%s' not in available categories", suggestion.Category)
 	}
 
-	logger.Log.Info().
+	logger.Log.Debug().
 		Str("description", description).
 		Str("category", suggestion.Category).
 		Float64("confidence", suggestion.Confidence).

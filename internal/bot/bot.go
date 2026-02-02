@@ -195,11 +195,12 @@ func (b *Bot) whitelistMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 }
 
 // logUserAction logs the user's input/action.
+// Set log_level=debug for it to show up.
 func logUserAction(userID int64, username string, update *tgmodels.Update) {
 	switch {
 	case update.Message != nil:
 		msg := update.Message
-		event := logger.Log.Info().
+		event := logger.Log.Debug().
 			Int64("user_id", userID).
 			Str("username", username).
 			Int64("chat_id", msg.Chat.ID)
@@ -217,14 +218,14 @@ func logUserAction(userID int64, username string, update *tgmodels.Update) {
 		event.Msg("User input")
 
 	case update.CallbackQuery != nil:
-		logger.Log.Info().
+		logger.Log.Debug().
 			Int64("user_id", userID).
 			Str("username", username).
 			Str("data", update.CallbackQuery.Data).
 			Msg("Callback query")
 
 	case update.EditedMessage != nil:
-		logger.Log.Info().
+		logger.Log.Debug().
 			Int64("user_id", userID).
 			Str("username", username).
 			Str("text", update.EditedMessage.Text).
