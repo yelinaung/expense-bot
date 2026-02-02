@@ -216,19 +216,14 @@ Return JSON only:
 func extractJSON(text string) string {
 	text = strings.TrimSpace(text)
 
-	// If it already starts with {, assume it's valid JSON
-	if strings.HasPrefix(text, "{") {
-		return text
-	}
-
-	// Find the first { and last } to extract JSON object
+	// Find the first { and last } to extract JSON object.
 	start := strings.Index(text, "{")
 	if start == -1 {
 		return ""
 	}
 
 	end := strings.LastIndex(text, "}")
-	if end == -1 || end < start {
+	if end == -1 || end <= start {
 		return ""
 	}
 
@@ -251,8 +246,9 @@ func sanitizeDescription(description string) string {
 	description = strings.Join(strings.Fields(description), " ")
 
 	// Limit length to prevent prompt stuffing attacks.
+	// Trim after truncation to avoid trailing whitespace from mid-word cuts.
 	if len(description) > MaxDescriptionLength {
-		description = description[:MaxDescriptionLength]
+		description = strings.TrimSpace(description[:MaxDescriptionLength])
 	}
 
 	return description
@@ -264,10 +260,10 @@ func sanitizeReasoning(reasoning string) string {
 	// Normalize whitespace: handles newlines, tabs, and collapses multiple spaces.
 	reasoning = strings.Join(strings.Fields(reasoning), " ")
 
-	// Limit length.
+	// Limit length and trim any trailing whitespace from truncation.
 	const maxReasoningLength = 500
 	if len(reasoning) > maxReasoningLength {
-		reasoning = reasoning[:maxReasoningLength]
+		reasoning = strings.TrimSpace(reasoning[:maxReasoningLength])
 	}
 
 	return reasoning
