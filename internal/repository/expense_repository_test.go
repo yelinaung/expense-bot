@@ -30,7 +30,7 @@ func TestExpenseRepository_Create(t *testing.T) {
 	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
-	cat, err := categoryRepo.Create(ctx, "Food - Dining Out")
+	cat, err := categoryRepo.Create(ctx, "Test Expense Category")
 	require.NoError(t, err)
 
 	t.Run("creates expense with category", func(t *testing.T) {
@@ -100,7 +100,7 @@ func TestExpenseRepository_GetByUserID(t *testing.T) {
 	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
-	cat, err := categoryRepo.Create(ctx, "Transportation")
+	cat, err := categoryRepo.Create(ctx, "Test GetByUserID Category")
 	require.NoError(t, err)
 
 	for i := range 5 {
@@ -120,7 +120,7 @@ func TestExpenseRepository_GetByUserID(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, expenses, 3)
 		require.NotNil(t, expenses[0].Category)
-		require.Equal(t, "Transportation", expenses[0].Category.Name)
+		require.Equal(t, "Test GetByUserID Category", expenses[0].Category.Name)
 	})
 
 	t.Run("returns empty for user with no expenses", func(t *testing.T) {

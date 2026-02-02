@@ -267,6 +267,11 @@ func TestCategoryRepository_GetAllEdgeCases(t *testing.T) {
 		tx := database.TestTx(t)
 		repo := NewCategoryRepository(tx)
 
+		// Get initial count (includes seeded categories)
+		initialCats, err := repo.GetAll(ctx)
+		require.NoError(t, err)
+		initialCount := len(initialCats)
+
 		// Create 100 categories
 		for i := 0; i < 100; i++ {
 			_, err := repo.Create(ctx, fmt.Sprintf("Category%d", i))
@@ -275,6 +280,6 @@ func TestCategoryRepository_GetAllEdgeCases(t *testing.T) {
 
 		categories, err := repo.GetAll(ctx)
 		require.NoError(t, err)
-		require.Len(t, categories, 100)
+		require.Len(t, categories, initialCount+100)
 	})
 }

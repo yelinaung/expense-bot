@@ -69,7 +69,7 @@ func (r *ExpenseRepository) GetByUserID(ctx context.Context, userID int64, limit
 		FROM expenses e
 		LEFT JOIN categories c ON e.category_id = c.id
 		WHERE e.user_id = $1 AND e.status = 'confirmed'
-		ORDER BY e.created_at DESC
+		ORDER BY e.created_at DESC, e.id DESC
 		LIMIT $2
 	`, userID, limit)
 	if err != nil {
@@ -93,7 +93,7 @@ func (r *ExpenseRepository) GetByUserIDAndDateRange(
 		FROM expenses e
 		LEFT JOIN categories c ON e.category_id = c.id
 		WHERE e.user_id = $1 AND e.created_at >= $2 AND e.created_at < $3 AND e.status = 'confirmed'
-		ORDER BY e.created_at DESC
+		ORDER BY e.created_at DESC, e.id DESC
 	`, userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query expenses by date range: %w", err)
@@ -117,7 +117,7 @@ func (r *ExpenseRepository) GetByUserIDAndCategory(
 		FROM expenses e
 		LEFT JOIN categories c ON e.category_id = c.id
 		WHERE e.user_id = $1 AND e.category_id = $2 AND e.status = 'confirmed'
-		ORDER BY e.created_at DESC
+		ORDER BY e.created_at DESC, e.id DESC
 		LIMIT $3
 	`, userID, categoryID, limit)
 	if err != nil {
