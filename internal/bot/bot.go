@@ -91,6 +91,15 @@ const (
 
 // Start begins polling for updates.
 func (b *Bot) Start(ctx context.Context) {
+	// Clear any existing webhook/polling sessions to avoid conflicts.
+	// This helps when restarting or during rolling deploys.
+	_, err := b.bot.DeleteWebhook(ctx, &bot.DeleteWebhookParams{
+		DropPendingUpdates: false,
+	})
+	if err != nil {
+		logger.Log.Warn().Err(err).Msg("Failed to clear webhook (may be expected)")
+	}
+
 	b.cleanupExpiredDrafts(ctx)
 
 	go b.startDraftCleanupLoop(ctx)
