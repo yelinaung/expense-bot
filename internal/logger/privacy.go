@@ -10,13 +10,26 @@ import (
 
 var hashSalt string
 
-func init() {
-	// Load salt from environment or generate a default one
-	// In production, set LOG_HASH_SALT environment variable
+// MinHashSaltLength is the minimum required length for LOG_HASH_SALT.
+const MinHashSaltLength = 32
+
+// InitHashSalt initializes the hash salt from environment.
+// This should be called during application startup after config validation.
+// Panics if LOG_HASH_SALT is missing or too short.
+func InitHashSalt() {
 	hashSalt = os.Getenv("LOG_HASH_SALT")
 	if hashSalt == "" {
-		hashSalt = "default-salt-change-in-production"
+		panic("LOG_HASH_SALT environment variable is required (generate with: openssl rand -hex 32)")
 	}
+	if len(hashSalt) < MinHashSaltLength {
+		panic(fmt.Sprintf("LOG_HASH_SALT must be at least %d characters for adequate entropy", MinHashSaltLength))
+	}
+}
+
+// InitHashSaltForTesting sets a test salt for unit tests only.
+// This should never be used in production code.
+func InitHashSaltForTesting(salt string) {
+	hashSalt = salt
 }
 
 // HashUserID creates a privacy-preserving hash of a user ID.

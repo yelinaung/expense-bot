@@ -7,10 +7,10 @@ import (
 )
 
 func TestLoad(t *testing.T) {
-	t.Run("loads telegram token from env", func(t *testing.T) {
+	t.Run("loads all config from env", func(t *testing.T) {
 		t.Setenv("TELEGRAM_BOT_TOKEN", "test-token-123")
 		t.Setenv("DATABASE_URL", "postgres://localhost/test")
-		t.Setenv("WHITELISTED_USER_IDS", "")
+		t.Setenv("WHITELISTED_USER_IDS", "123")
 
 		cfg, err := Load()
 		require.NoError(t, err)
@@ -48,16 +48,6 @@ func TestLoad(t *testing.T) {
 		require.Equal(t, []int64{123, 456}, cfg.WhitelistedUserIDs)
 	})
 
-	t.Run("handles empty whitelist", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
-		t.Setenv("WHITELISTED_USER_IDS", "")
-
-		cfg, err := Load()
-		require.NoError(t, err)
-		require.Empty(t, cfg.WhitelistedUserIDs)
-	})
-
 	t.Run("skips empty entries from trailing commas", func(t *testing.T) {
 		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
 		t.Setenv("DATABASE_URL", "postgres://localhost/test")
@@ -72,7 +62,7 @@ func TestLoad(t *testing.T) {
 		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
 		t.Setenv("DATABASE_URL", "postgres://localhost/test")
 		t.Setenv("GEMINI_API_KEY", "test-gemini-key")
-		t.Setenv("WHITELISTED_USER_IDS", "")
+		t.Setenv("WHITELISTED_USER_IDS", "123")
 
 		cfg, err := Load()
 		require.NoError(t, err)
@@ -109,16 +99,6 @@ func TestLoad(t *testing.T) {
 		require.Equal(t, []string{"alice", "bob", "charlie"}, cfg.WhitelistedUsernames)
 	})
 
-	t.Run("handles empty username whitelist", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
-		t.Setenv("WHITELISTED_USERNAMES", "")
-
-		cfg, err := Load()
-		require.NoError(t, err)
-		require.Empty(t, cfg.WhitelistedUsernames)
-	})
-
 	t.Run("loads both user IDs and usernames", func(t *testing.T) {
 		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
 		t.Setenv("DATABASE_URL", "postgres://localhost/test")
@@ -129,6 +109,75 @@ func TestLoad(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, []int64{123, 456}, cfg.WhitelistedUserIDs)
 		require.Equal(t, []string{"alice", "bob"}, cfg.WhitelistedUsernames)
+	})
+}
+
+func TestLoad_Validation(t *testing.T) {
+	t.Run("fails when TELEGRAM_BOT_TOKEN is missing", func(t *testing.T) {
+		t.Setenv("TELEGRAM_BOT_TOKEN", "")
+		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("WHITELISTED_USER_IDS", "123")
+
+		_, err := Load()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "TELEGRAM_BOT_TOKEN is required")
+	})
+
+	t.Run("fails when DATABASE_URL is missing", func(t *testing.T) {
+		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
+		t.Setenv("DATABASE_URL", "")
+		t.Setenv("WHITELISTED_USER_IDS", "123")
+
+		_, err := Load()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "DATABASE_URL is required")
+	})
+
+	t.Run("fails when no whitelisted users", func(t *testing.T) {
+		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
+		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("WHITELISTED_USER_IDS", "")
+		t.Setenv("WHITELISTED_USERNAMES", "")
+
+		_, err := Load()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "at least one whitelisted user")
+	})
+
+	t.Run("fails with multiple validation errors", func(t *testing.T) {
+		t.Setenv("TELEGRAM_BOT_TOKEN", "")
+		t.Setenv("DATABASE_URL", "")
+		t.Setenv("WHITELISTED_USER_IDS", "")
+
+		_, err := Load()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "TELEGRAM_BOT_TOKEN is required")
+		require.Contains(t, err.Error(), "DATABASE_URL is required")
+		require.Contains(t, err.Error(), "at least one whitelisted user")
+	})
+
+	t.Run("succeeds with username whitelist only", func(t *testing.T) {
+		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
+		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("WHITELISTED_USER_IDS", "")
+		t.Setenv("WHITELISTED_USERNAMES", "alice")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Empty(t, cfg.WhitelistedUserIDs)
+		require.Equal(t, []string{"alice"}, cfg.WhitelistedUsernames)
+	})
+
+	t.Run("succeeds with user ID whitelist only", func(t *testing.T) {
+		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
+		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("WHITELISTED_USER_IDS", "123")
+		t.Setenv("WHITELISTED_USERNAMES", "")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Equal(t, []int64{123}, cfg.WhitelistedUserIDs)
+		require.Empty(t, cfg.WhitelistedUsernames)
 	})
 }
 

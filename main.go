@@ -23,6 +23,7 @@ func main() {
 	}
 
 	logger.SetLevel(cfg.LogLevel)
+	logger.InitHashSalt()
 
 	pool, err := database.Connect(ctx, cfg.DatabaseURL)
 	if err != nil {

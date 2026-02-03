@@ -7,6 +7,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestMain(m *testing.M) {
+	// Initialize hash salt for all tests in this package.
+	InitHashSaltForTesting("test-salt-for-unit-tests-minimum-32-chars")
+	os.Exit(m.Run())
+}
+
 func TestHashUserID(t *testing.T) {
 	t.Run("produces consistent hash for same user ID", func(t *testing.T) {
 		hash1 := HashUserID(12345)
@@ -98,21 +104,51 @@ func TestSanitizeText(t *testing.T) {
 	})
 }
 
-func TestHashSaltFromEnvironment(t *testing.T) {
-	t.Run("uses environment variable if set", func(t *testing.T) {
-		// Save and restore
+func TestInitHashSalt(t *testing.T) {
+	t.Run("panics when LOG_HASH_SALT is missing", func(t *testing.T) {
 		originalSalt := hashSalt
 		defer func() { hashSalt = originalSalt }()
 
-		// Simulate environment variable
-		os.Setenv("LOG_HASH_SALT", "test-salt-from-env")
-		defer os.Unsetenv("LOG_HASH_SALT")
+		t.Setenv("LOG_HASH_SALT", "")
 
-		// Reinitialize
-		hashSalt = os.Getenv("LOG_HASH_SALT")
+		require.Panics(t, func() {
+			InitHashSalt()
+		})
+	})
 
-		hash := HashUserID(12345)
-		require.NotEmpty(t, hash)
-		require.Len(t, hash, 8)
+	t.Run("panics when LOG_HASH_SALT is too short", func(t *testing.T) {
+		originalSalt := hashSalt
+		defer func() { hashSalt = originalSalt }()
+
+		t.Setenv("LOG_HASH_SALT", "short")
+
+		require.Panics(t, func() {
+			InitHashSalt()
+		})
+	})
+
+	t.Run("succeeds with valid LOG_HASH_SALT", func(t *testing.T) {
+		originalSalt := hashSalt
+		defer func() { hashSalt = originalSalt }()
+
+		validSalt := "this-is-a-valid-salt-with-at-least-32-characters"
+		t.Setenv("LOG_HASH_SALT", validSalt)
+
+		require.NotPanics(t, func() {
+			InitHashSalt()
+		})
+		require.Equal(t, validSalt, hashSalt)
+	})
+}
+
+func TestInitHashSaltForTesting(t *testing.T) {
+	t.Run("sets hash salt directly", func(t *testing.T) {
+		originalSalt := hashSalt
+		defer func() { hashSalt = originalSalt }()
+
+		testSalt := "test-salt"
+		InitHashSaltForTesting(testSalt)
+
+		require.Equal(t, testSalt, hashSalt)
 	})
 }

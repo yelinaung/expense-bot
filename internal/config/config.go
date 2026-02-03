@@ -2,6 +2,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"slices"
 	"strconv"
@@ -59,7 +60,35 @@ func Load() (*Config, error) {
 		}
 	}
 
+	// Validate required configuration.
+	if err := cfg.validate(); err != nil {
+		return nil, err
+	}
+
 	return cfg, nil
+}
+
+// validate checks that all required configuration is present.
+func (c *Config) validate() error {
+	var errs []string
+
+	if c.TelegramBotToken == "" {
+		errs = append(errs, "TELEGRAM_BOT_TOKEN is required")
+	}
+
+	if c.DatabaseURL == "" {
+		errs = append(errs, "DATABASE_URL is required")
+	}
+
+	if len(c.WhitelistedUserIDs) == 0 && len(c.WhitelistedUsernames) == 0 {
+		errs = append(errs, "at least one whitelisted user (WHITELISTED_USER_IDS or WHITELISTED_USERNAMES) is required")
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("configuration validation failed:\n  - %s", strings.Join(errs, "\n  - "))
+	}
+
+	return nil
 }
 
 // IsUserWhitelisted checks if a Telegram user ID or username is in the whitelist.
