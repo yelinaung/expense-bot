@@ -541,7 +541,7 @@ func init() {
 TELEGRAM_BOT_TOKEN=your_bot_token_here
 
 # REQUIRED: PostgreSQL Database Connection
-DATABASE_URL=postgres://user:password@localhost:5432/expense_bot?sslmode=disable
+DATABASE_URL=postgres://YOUR_DATABASE_URL
 
 # REQUIRED: At least one whitelisted user (comma-separated)
 WHITELISTED_USER_IDS=123456789,987654321
