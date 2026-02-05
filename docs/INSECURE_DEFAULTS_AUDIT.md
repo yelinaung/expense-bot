@@ -577,7 +577,6 @@ openssl rand -hex 32
 ```
 
 The bot will crash at startup if these are missing.
-```
 
 ---
 
