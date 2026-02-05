@@ -1,5 +1,7 @@
 # Expense Bot
 
+> **Disclaimer**: This application was developed primarily by AI coding agents (Claude/Amp) as an experimental project. While functional, **quality is not guaranteed**. If you choose to use or deploy this bot, please do so with caution, review the code yourself, and understand that it may contain bugs or security issues. Use at your own risk.
+
 A Telegram bot for tracking personal expenses with multi-currency support, AI-powered receipt OCR, and automatic categorization using Google Gemini AI.
 
 ## Features
