@@ -857,7 +857,6 @@ pg_dump -h localhost -U user expense_bot | gzip > backup_$(date +%Y%m%d).sql.gz
 
 ## Last Test Date
 - [Date]: [Result]
-```
 
 **Priority**: **HIGH** (Critical for data protection)
 
