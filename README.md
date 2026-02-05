@@ -370,8 +370,18 @@ The project uses:
 |----------|----------|-------------|---------|
 | `TELEGRAM_BOT_TOKEN` | Yes | Telegram bot API token | - |
 | `DATABASE_URL` | Yes | PostgreSQL connection string | - |
-| `WHITELISTED_USER_IDS` | Yes | Comma-separated Telegram user IDs | - |
+| `WHITELISTED_USER_IDS` | Yes* | Comma-separated Telegram user IDs | - |
+| `WHITELISTED_USERNAMES` | Yes* | Comma-separated Telegram usernames | - |
+| `LOG_HASH_SALT` | Yes | Random string for privacy-preserving logging (min 32 chars) | - |
 | `GEMINI_API_KEY` | No | Google Gemini API key for OCR and auto-categorization | - |
+| `LOG_LEVEL` | No | Log level (debug, info, warn, error) | info |
+
+*At least one of `WHITELISTED_USER_IDS` or `WHITELISTED_USERNAMES` is required.
+
+Generate `LOG_HASH_SALT`:
+```bash
+openssl rand -hex 32
+```
 
 ### Bot Configuration
 
@@ -476,11 +486,58 @@ The project uses:
 
 ## Security
 
-- SQL injection prevention via parameterized queries
-- User whitelisting for access control
-- Secrets detection in CI pipeline
-- SAST scanning enabled
-- No sensitive data in logs
+This application has undergone security hardening. See the [Security Documentation](#security-documentation) for detailed assessments.
+
+### Security Measures Implemented
+
+**Input Validation & Sanitization:**
+- SQL injection prevention via parameterized queries (pgx)
+- Prompt injection mitigations for AI/LLM inputs (see [PROMPT_INJECTION_SECURITY_ASSESSMENT.md](./docs/PROMPT_INJECTION_SECURITY_ASSESSMENT.md))
+- Input sanitization for expense descriptions (quote escaping, newline removal, length limits)
+- Fuzz testing for parsing and sanitization functions (see [FUZZ_TESTING_PLAN.md](./docs/FUZZ_TESTING_PLAN.md))
+
+**Authentication & Access Control:**
+- User whitelisting by Telegram user ID or username
+- Startup validation requires at least one whitelisted user
+- All requests rejected by default (fail-closed)
+
+**Configuration Security:**
+- Required environment variables validated at startup (fail-fast)
+- No insecure defaults (see [INSECURE_DEFAULTS_AUDIT.md](./docs/INSECURE_DEFAULTS_AUDIT.md))
+- `LOG_HASH_SALT` required (minimum 32 characters) for privacy-preserving logging
+
+**Privacy-Preserving Logging:**
+- User IDs hashed in logs (SHA256-based, salted)
+- Expense descriptions redacted in logs
+- No PII stored in application logs (see [PRIVACY_LOGGING.md](./docs/PRIVACY_LOGGING.md))
+
+**CI/CD Security:**
+- SAST scanning enabled in GitLab CI
+- Secrets detection in pipeline
+- Dependency vulnerability scanning
+- Code coverage enforcement (40% minimum)
+
+**LLM/AI Security:**
+- Gemini API response schema validation (enum constraints)
+- Confidence score validation (0.0-1.0 range)
+- Output sanitization for AI-generated content
+
+### Security Documentation
+
+| Document | Description |
+|----------|-------------|
+| [PROMPT_INJECTION_SECURITY_ASSESSMENT.md](./docs/PROMPT_INJECTION_SECURITY_ASSESSMENT.md) | AI prompt injection vulnerability analysis and mitigations |
+| [INSECURE_DEFAULTS_AUDIT.md](./docs/INSECURE_DEFAULTS_AUDIT.md) | Audit of fail-open vulnerabilities and insecure defaults |
+| [FUZZ_TESTING_PLAN.md](./docs/FUZZ_TESTING_PLAN.md) | Fuzz testing strategy for parsing functions |
+| [PRIVACY_LOGGING.md](./docs/PRIVACY_LOGGING.md) | Privacy-preserving logging guidelines |
+| [PRIVACY.md](./docs/PRIVACY.md) | Privacy policy for receipt photos and user data |
+| [MVSP_ASSESSMENT.md](./docs/MVSP_ASSESSMENT.md) | Minimum Viable Secure Product assessment |
+
+### Known Limitations
+
+- No external penetration testing performed
+- Designed for personal/small group use, not enterprise
+- No formal vulnerability disclosure policy (contributions welcome)
 
 ## Monitoring
 
