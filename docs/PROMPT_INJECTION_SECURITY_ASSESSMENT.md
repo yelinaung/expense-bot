@@ -437,7 +437,10 @@ func TestSuggestCategory_PromptInjection(t *testing.T) {
 - Boundary conditions (exact 200/500 chars, one over)
 - Empty strings and very long inputs
 
-**All tests pass:** `go test ./internal/gemini/... -v` ✅
+**All tests pass:** 
+
+```
+`go test ./internal/gemini/... -v` ✅
         })
     }
 }
