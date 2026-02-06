@@ -50,12 +50,8 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.6
-        env:
-          GOTOOLCHAIN: auto
+      - name: Run lint
+        run: make lint
 
   fmt-check:
     name: Format Check
@@ -74,9 +70,10 @@ jobs:
 
       - name: Check formatting
         run: |
-          if [ -n "$(gofumpt -l .)" ]; then
+          make fmt
+          if [ -n "$(git diff --name-only)" ]; then
             echo "Files not formatted with gofumpt:"
-            gofumpt -l .
+            git diff --name-only
             exit 1
           fi
 
@@ -111,8 +108,7 @@ jobs:
       - name: Run tests with coverage
         env:
           TEST_DATABASE_URL: postgres://test:test@localhost:5432/expense_bot_test?sslmode=disable
-        run: |
-          go test -v -coverprofile=coverage.out -covermode=atomic -p 1 ./...
+        run: make test-coverage
 
       - name: Check coverage threshold
         run: |
@@ -145,7 +141,7 @@ jobs:
           cache: true
 
       - name: Run race detector
-        run: CGO_ENABLED=1 go test -v -race ./...
+        run: make test-race
 
   # === DEPENDENCY SECURITY ===
   govulncheck:
