@@ -45,8 +45,3 @@ formatters:
     - goimports
   exclusions:
     generated: lax
-
-linters-settings:
-  staticcheck:
-    checks:
-      - "all"  # includes ST1000 style checks
