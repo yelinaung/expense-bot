@@ -1,6 +1,6 @@
 module gitlab.com/yelinaung/expense-bot
 
-go 1.25.5
+go 1.25.7
 
 require (
 	github.com/go-analyze/charts v0.5.24
