@@ -287,7 +287,7 @@ func (b *Bot) showCategorySelectionCore(
 	}
 
 	var rows [][]models.InlineKeyboardButton
-	var currentRow []models.InlineKeyboardButton
+	currentRow := make([]models.InlineKeyboardButton, 0, 2)
 
 	for _, cat := range categories {
 		btn := models.InlineKeyboardButton{

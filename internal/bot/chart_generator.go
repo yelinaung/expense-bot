@@ -20,8 +20,8 @@ func GenerateExpenseChart(expenses []models.Expense, period string) ([]byte, err
 	categoryTotals := aggregateByCategory(expenses)
 
 	// Convert to chart values and names
-	var values []float64
-	var categoryNames []string
+	values := make([]float64, 0, len(categoryTotals))
+	categoryNames := make([]string, 0, len(categoryTotals))
 
 	for categoryName, total := range categoryTotals {
 		categoryNames = append(categoryNames, categoryName)
