@@ -7,7 +7,7 @@ test:
 	go test -v ./...
 
 test-coverage:
-	@go test -v -coverprofile=coverage.out -covermode=atomic ./... 2>&1 | grep -v "no such tool"
+	@go test -v -coverprofile=coverage.out -covermode=atomic -p 1 ./... 2>&1 | grep -v "no such tool"
 	@go tool cover -func=coverage.out
 	@echo ""
 	@echo "To view HTML report, run: make coverage-html"
