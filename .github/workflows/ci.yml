@@ -13,7 +13,7 @@ jobs:
   # === SECURITY STAGE ===
   secret-detection:
     name: Secret Detection
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, playground-ubuntu]
     steps:
       - uses: actions/checkout@v6
         with:
@@ -26,7 +26,7 @@ jobs:
 
   sast:
     name: SAST (Semgrep)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, playground-ubuntu]
     permissions:
       security-events: write
     steps:
@@ -40,7 +40,7 @@ jobs:
   # === QUALITY STAGE ===
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, playground-ubuntu]
     steps:
       - uses: actions/checkout@v6
 
@@ -59,7 +59,7 @@ jobs:
 
   fmt-check:
     name: Format Check
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, playground-ubuntu]
     steps:
       - uses: actions/checkout@v6
 
@@ -84,7 +84,7 @@ jobs:
   # === TEST STAGE ===
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, playground-ubuntu]
     needs: [secret-detection, lint]
     env:
       POSTGRES_USER: test
@@ -137,7 +137,7 @@ jobs:
 
   test-race:
     name: Race Detection
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, playground-ubuntu]
     needs: [lint]
     steps:
       - uses: actions/checkout@v6
@@ -154,7 +154,7 @@ jobs:
   # === DEPENDENCY SECURITY ===
   govulncheck:
     name: Vulnerability Check
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, playground-ubuntu]
     steps:
       - uses: actions/checkout@v6
 
