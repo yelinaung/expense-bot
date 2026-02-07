@@ -91,22 +91,27 @@ jobs:
       POSTGRES_USER: test
       POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD || 'test' }}
       POSTGRES_DB: expense_bot_test
-    services:
-      postgres:
-        image: postgres:18-alpine
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD || 'test' }}
-          POSTGRES_DB: expense_bot_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U test -d expense_bot_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+      POSTGRES_PORT: 5432
     steps:
       - uses: actions/checkout@v6
+
+      - name: Start PostgreSQL
+        run: |
+          docker rm -f test-postgres 2>/dev/null || true
+          docker run -d --name test-postgres \
+            --network host \
+            -e POSTGRES_USER=${{ env.POSTGRES_USER }} \
+            -e POSTGRES_PASSWORD=${{ env.POSTGRES_PASSWORD }} \
+            -e POSTGRES_DB=${{ env.POSTGRES_DB }} \
+            postgres:18-alpine
+          echo "Waiting for PostgreSQL..."
+          for i in $(seq 1 30); do
+            if docker exec test-postgres pg_isready -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }} > /dev/null 2>&1; then
+              echo "PostgreSQL is ready"
+              break
+            fi
+            sleep 1
+          done
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -116,7 +121,7 @@ jobs:
 
       - name: Run tests with coverage
         env:
-          TEST_DATABASE_URL: postgres://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@localhost:5432/${{ env.POSTGRES_DB }}?sslmode=disable
+          TEST_DATABASE_URL: postgres://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@localhost:${{ env.POSTGRES_PORT }}/${{ env.POSTGRES_DB }}?sslmode=disable
         run: make test-coverage
 
       - name: Check coverage threshold
@@ -135,6 +140,10 @@ jobs:
         with:
           files: ./coverage.out
           fail_ci_if_error: false
+
+      - name: Stop PostgreSQL
+        if: always()
+        run: docker rm -f test-postgres 2>/dev/null || true
 
   test-race:
     name: Race Detection
