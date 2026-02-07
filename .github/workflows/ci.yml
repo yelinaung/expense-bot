@@ -140,20 +140,8 @@ jobs:
     name: Race Detection
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
     needs: [lint]
-    services:
-      postgres:
-        image: postgres:18-alpine
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD || 'test' }}
-          POSTGRES_DB: expense_bot_test
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd "pg_isready -U test -d expense_bot_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    env:
+      TEST_DATABASE_URL: ""
     steps:
       - uses: actions/checkout@v6
 
@@ -164,8 +152,6 @@ jobs:
           cache: true
 
       - name: Run race detector
-        env:
-          TEST_DATABASE_URL: postgres://test:${{ secrets.TEST_DB_PASSWORD || 'test' }}@localhost:5433/expense_bot_test?sslmode=disable
         run: make test-race
 
   # === DEPENDENCY SECURITY ===
