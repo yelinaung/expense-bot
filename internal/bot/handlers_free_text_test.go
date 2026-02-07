@@ -159,7 +159,7 @@ func callHandleFreeTextExpense(
 		descText = "\n📝 " + expense.Description
 	}
 
-	msgText := "✅ <b>Expense Added</b>\n\n💰 $" + expense.Amount.StringFixed(2) + " SGD" + descText + "\n📁 " + categoryText + "\n🆔 #" + strconv.Itoa(expense.ID)
+	msgText := "✅ <b>Expense Added</b>\n\n💰 $" + expense.Amount.StringFixed(2) + " SGD" + descText + "\n📁 " + categoryText + "\n🆔 #" + strconv.FormatInt(expense.UserExpenseNumber, 10)
 
 	_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    chatID,

@@ -374,7 +374,7 @@ Expense #%d has been saved.`,
 		expense.Description,
 		categoryText,
 		expense.CreatedAt.Format("02 Jan 2006"),
-		expense.ID)
+		expense.UserExpenseNumber)
 
 	logger.Log.Info().
 		Int("expense_id", expense.ID).

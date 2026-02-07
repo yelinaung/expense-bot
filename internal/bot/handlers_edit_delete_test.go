@@ -81,7 +81,7 @@ func TestHandleEdit(t *testing.T) {
 		err := expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
 
-		update := mocks.CommandUpdate(12345, user.ID, "/edit "+strconv.Itoa(expense.ID)+" 20.00 Updated description")
+		update := mocks.CommandUpdate(12345, user.ID, "/edit "+strconv.FormatInt(expense.UserExpenseNumber, 10)+" 20.00 Updated description")
 
 		callHandleEdit(ctx, mockBot, update, expenseRepo, categoryRepo, user.ID)
 
@@ -111,7 +111,7 @@ func TestHandleEdit(t *testing.T) {
 		require.NoError(t, err)
 
 		// Edit only the amount - description and category should be preserved
-		update := mocks.CommandUpdate(12345, user.ID, "/edit "+strconv.Itoa(expense.ID)+" 25.50")
+		update := mocks.CommandUpdate(12345, user.ID, "/edit "+strconv.FormatInt(expense.UserExpenseNumber, 10)+" 25.50")
 
 		callHandleEdit(ctx, mockBot, update, expenseRepo, categoryRepo, user.ID)
 
@@ -149,14 +149,14 @@ func TestHandleEdit(t *testing.T) {
 		err = expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
 
-		update := mocks.CommandUpdate(12345, user.ID, "/edit "+strconv.Itoa(expense.ID)+" 100.00 Trying to edit")
+		update := mocks.CommandUpdate(12345, user.ID, "/edit "+strconv.FormatInt(expense.UserExpenseNumber, 10)+" 100.00 Trying to edit")
 
 		callHandleEdit(ctx, mockBot, update, expenseRepo, categoryRepo, user.ID)
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.NotNil(t, msg)
-		require.Contains(t, msg.Text, "only edit your own")
+		require.Contains(t, msg.Text, "not found")
 	})
 }
 
@@ -196,7 +196,7 @@ func callHandleEdit(
 	}
 
 	parts := strings.SplitN(args, " ", 2)
-	expenseID, err := strconv.Atoi(parts[0])
+	expenseNum, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
 		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
@@ -206,11 +206,11 @@ func callHandleEdit(
 		return
 	}
 
-	expense, err := expenseRepo.GetByID(ctx, expenseID)
+	expense, err := expenseRepo.GetByUserAndNumber(ctx, userID, expenseNum)
 	if err != nil {
 		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Expense #" + strconv.Itoa(expenseID) + " not found.",
+			Text:   "❌ Expense #" + strconv.FormatInt(expenseNum, 10) + " not found.",
 		})
 		return
 	}
@@ -291,7 +291,7 @@ func callHandleEdit(
 		categoryText = expense.Category.Name
 	}
 
-	text := "✅ <b>Expense Updated</b>\n\n🆔 #" + strconv.Itoa(expense.ID) + "\n💰 $" + expense.Amount.StringFixed(2) + " SGD\n📝 " + expense.Description + "\n📁 " + categoryText
+	text := "✅ <b>Expense Updated</b>\n\n🆔 #" + strconv.FormatInt(expense.UserExpenseNumber, 10) + "\n💰 $" + expense.Amount.StringFixed(2) + " SGD\n📝 " + expense.Description + "\n📁 " + categoryText
 
 	_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    chatID,
@@ -364,7 +364,7 @@ func TestHandleDelete(t *testing.T) {
 		err := expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
 
-		update := mocks.CommandUpdate(12345, user.ID, "/delete "+strconv.Itoa(expense.ID))
+		update := mocks.CommandUpdate(12345, user.ID, "/delete "+strconv.FormatInt(expense.UserExpenseNumber, 10))
 
 		callHandleDelete(ctx, mockBot, update, expenseRepo, user.ID)
 
@@ -394,14 +394,14 @@ func TestHandleDelete(t *testing.T) {
 		err = expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
 
-		update := mocks.CommandUpdate(12345, user.ID, "/delete "+strconv.Itoa(expense.ID))
+		update := mocks.CommandUpdate(12345, user.ID, "/delete "+strconv.FormatInt(expense.UserExpenseNumber, 10))
 
 		callHandleDelete(ctx, mockBot, update, expenseRepo, user.ID)
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.NotNil(t, msg)
-		require.Contains(t, msg.Text, "only delete your own")
+		require.Contains(t, msg.Text, "not found")
 	})
 }
 
@@ -477,7 +477,7 @@ func callHandleDelete(
 		return
 	}
 
-	expenseID, err := strconv.Atoi(args)
+	expenseNum, err := strconv.ParseInt(args, 10, 64)
 	if err != nil {
 		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
@@ -487,11 +487,11 @@ func callHandleDelete(
 		return
 	}
 
-	expense, err := expenseRepo.GetByID(ctx, expenseID)
+	expense, err := expenseRepo.GetByUserAndNumber(ctx, userID, expenseNum)
 	if err != nil {
 		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Expense #" + strconv.Itoa(expenseID) + " not found.",
+			Text:   "❌ Expense #" + strconv.FormatInt(expenseNum, 10) + " not found.",
 		})
 		return
 	}
@@ -504,7 +504,7 @@ func callHandleDelete(
 		return
 	}
 
-	if err := expenseRepo.Delete(ctx, expenseID); err != nil {
+	if err := expenseRepo.Delete(ctx, expense.ID); err != nil {
 		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Failed to delete expense. Please try again.",
@@ -514,7 +514,7 @@ func callHandleDelete(
 
 	_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    chatID,
-		Text:      "✅ <b>Expense Deleted</b>\n\n🆔 #" + strconv.Itoa(expenseID),
+		Text:      "✅ <b>Expense Deleted</b>\n\n🆔 #" + strconv.FormatInt(expenseNum, 10),
 		ParseMode: tgmodels.ParseModeHTML,
 	})
 }

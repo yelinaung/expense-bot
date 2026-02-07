@@ -45,6 +45,62 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		`CREATE INDEX IF NOT EXISTS idx_expenses_status ON expenses(status)`,
 
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS default_currency TEXT NOT NULL DEFAULT 'SGD'`,
+
+		`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS user_expense_number BIGINT`,
+
+		`CREATE TABLE IF NOT EXISTS user_expense_counters (
+			user_id BIGINT PRIMARY KEY REFERENCES users(id),
+			next_number BIGINT NOT NULL DEFAULT 1
+		)`,
+
+		`WITH numbered AS (
+			SELECT id,
+			       row_number() OVER (PARTITION BY user_id ORDER BY created_at, id) AS rn
+			FROM expenses
+			WHERE user_expense_number IS NULL
+		)
+		UPDATE expenses e
+		SET user_expense_number = n.rn
+		FROM numbered n
+		WHERE e.id = n.id`,
+
+		`INSERT INTO user_expense_counters (user_id, next_number)
+		SELECT user_id, COALESCE(MAX(user_expense_number), 0) + 1
+		FROM expenses
+		GROUP BY user_id
+		ON CONFLICT (user_id)
+		DO UPDATE SET next_number = GREATEST(user_expense_counters.next_number, EXCLUDED.next_number)`,
+
+		`CREATE OR REPLACE FUNCTION set_user_expense_number()
+		RETURNS TRIGGER
+		LANGUAGE plpgsql
+		AS $$
+		DECLARE v BIGINT;
+		BEGIN
+			IF NEW.user_expense_number IS NOT NULL THEN
+				RETURN NEW;
+			END IF;
+
+			INSERT INTO user_expense_counters (user_id, next_number)
+			VALUES (NEW.user_id, 2)
+			ON CONFLICT (user_id)
+			DO UPDATE SET next_number = user_expense_counters.next_number + 1
+			RETURNING next_number - 1 INTO v;
+
+			NEW.user_expense_number := v;
+			RETURN NEW;
+		END;
+		$$`,
+
+		`DROP TRIGGER IF EXISTS trg_set_user_expense_number ON expenses`,
+
+		`CREATE TRIGGER trg_set_user_expense_number
+		BEFORE INSERT ON expenses
+		FOR EACH ROW
+		EXECUTE FUNCTION set_user_expense_number()`,
+
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_expenses_user_number
+		ON expenses(user_id, user_expense_number)`,
 	}
 
 	for i, migration := range migrations {

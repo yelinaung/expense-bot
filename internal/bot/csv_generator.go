@@ -33,7 +33,7 @@ func GenerateExpensesCSV(expenses []models.Expense) ([]byte, error) {
 		}
 
 		row := []string{
-			fmt.Sprintf("%d", expense.ID),
+			fmt.Sprintf("%d", expense.UserExpenseNumber),
 			expense.CreatedAt.Format("2006-01-02 15:04:05"),
 			expense.Amount.StringFixed(2),
 			expense.Currency,

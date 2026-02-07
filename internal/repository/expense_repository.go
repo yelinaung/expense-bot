@@ -34,10 +34,10 @@ func (r *ExpenseRepository) Create(ctx context.Context, expense *models.Expense)
 	err := r.db.QueryRow(ctx, `
 		INSERT INTO expenses (user_id, amount, currency, description, category_id, receipt_file_id, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, created_at, updated_at
+		RETURNING id, user_expense_number, created_at, updated_at
 	`, expense.UserID, expense.Amount, expense.Currency, expense.Description,
 		expense.CategoryID, expense.ReceiptFileID, expense.Status,
-	).Scan(&expense.ID, &expense.CreatedAt, &expense.UpdatedAt)
+	).Scan(&expense.ID, &expense.UserExpenseNumber, &expense.CreatedAt, &expense.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to create expense: %w", err)
 	}
@@ -49,9 +49,9 @@ func (r *ExpenseRepository) GetByID(ctx context.Context, id int) (*models.Expens
 	var exp models.Expense
 	var categoryID *int
 	err := r.db.QueryRow(ctx, `
-		SELECT id, user_id, amount, currency, description, category_id, receipt_file_id, status, created_at, updated_at
+		SELECT id, user_expense_number, user_id, amount, currency, description, category_id, receipt_file_id, status, created_at, updated_at
 		FROM expenses WHERE id = $1
-	`, id).Scan(&exp.ID, &exp.UserID, &exp.Amount, &exp.Currency, &exp.Description,
+	`, id).Scan(&exp.ID, &exp.UserExpenseNumber, &exp.UserID, &exp.Amount, &exp.Currency, &exp.Description,
 		&categoryID, &exp.ReceiptFileID, &exp.Status, &exp.CreatedAt, &exp.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get expense: %w", err)
@@ -60,10 +60,26 @@ func (r *ExpenseRepository) GetByID(ctx context.Context, id int) (*models.Expens
 	return &exp, nil
 }
 
+// GetByUserAndNumber retrieves an expense by user ID and per-user expense number.
+func (r *ExpenseRepository) GetByUserAndNumber(ctx context.Context, userID int64, number int64) (*models.Expense, error) {
+	var exp models.Expense
+	var categoryID *int
+	err := r.db.QueryRow(ctx, `
+		SELECT id, user_expense_number, user_id, amount, currency, description, category_id, receipt_file_id, status, created_at, updated_at
+		FROM expenses WHERE user_id = $1 AND user_expense_number = $2
+	`, userID, number).Scan(&exp.ID, &exp.UserExpenseNumber, &exp.UserID, &exp.Amount, &exp.Currency, &exp.Description,
+		&categoryID, &exp.ReceiptFileID, &exp.Status, &exp.CreatedAt, &exp.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get expense by user number: %w", err)
+	}
+	exp.CategoryID = categoryID
+	return &exp, nil
+}
+
 // GetByUserID retrieves all confirmed expenses for a user.
 func (r *ExpenseRepository) GetByUserID(ctx context.Context, userID int64, limit int) ([]models.Expense, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT e.id, e.user_id, e.amount, e.currency, e.description, e.category_id,
+		SELECT e.id, e.user_expense_number, e.user_id, e.amount, e.currency, e.description, e.category_id,
 		       e.receipt_file_id, e.status, e.created_at, e.updated_at,
 		       c.id, c.name, c.created_at
 		FROM expenses e
@@ -87,7 +103,7 @@ func (r *ExpenseRepository) GetByUserIDAndDateRange(
 	startDate, endDate time.Time,
 ) ([]models.Expense, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT e.id, e.user_id, e.amount, e.currency, e.description, e.category_id,
+		SELECT e.id, e.user_expense_number, e.user_id, e.amount, e.currency, e.description, e.category_id,
 		       e.receipt_file_id, e.status, e.created_at, e.updated_at,
 		       c.id, c.name, c.created_at
 		FROM expenses e
@@ -111,7 +127,7 @@ func (r *ExpenseRepository) GetByUserIDAndCategory(
 	limit int,
 ) ([]models.Expense, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT e.id, e.user_id, e.amount, e.currency, e.description, e.category_id,
+		SELECT e.id, e.user_expense_number, e.user_id, e.amount, e.currency, e.description, e.category_id,
 		       e.receipt_file_id, e.status, e.created_at, e.updated_at,
 		       c.id, c.name, c.created_at
 		FROM expenses e
@@ -220,7 +236,7 @@ func scanExpenses(rows interface {
 		var catCreatedAt *time.Time
 
 		if err := rows.Scan(
-			&exp.ID, &exp.UserID, &exp.Amount, &exp.Currency, &exp.Description,
+			&exp.ID, &exp.UserExpenseNumber, &exp.UserID, &exp.Amount, &exp.Currency, &exp.Description,
 			&categoryID, &exp.ReceiptFileID, &exp.Status, &exp.CreatedAt, &exp.UpdatedAt,
 			&catID, &catName, &catCreatedAt,
 		); err != nil {

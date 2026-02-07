@@ -679,7 +679,7 @@ Current Details:
 📁 Category: %s
 
 What would you like to edit?`,
-		expense.ID,
+		expense.UserExpenseNumber,
 		expense.Amount.StringFixed(2),
 		expense.Description,
 		categoryText)
@@ -729,7 +729,7 @@ Are you sure you want to delete this expense?
 This action cannot be undone.`,
 		expense.Amount.StringFixed(2),
 		expense.Description,
-		expense.ID)
+		expense.UserExpenseNumber)
 
 	keyboard := &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{
@@ -809,7 +809,7 @@ func (b *Bot) handleConfirmDeleteCallbackCore(ctx context.Context, tg TelegramAP
 	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:    chatID,
 		MessageID: messageID,
-		Text:      fmt.Sprintf("✅ Expense #%d deleted.", expenseID),
+		Text:      fmt.Sprintf("✅ Expense #%d deleted.", expense.UserExpenseNumber),
 	})
 }
 
@@ -877,7 +877,7 @@ func (b *Bot) handleBackToExpenseCallbackCore(ctx context.Context, tg TelegramAP
 		expense.Amount.StringFixed(2),
 		descText,
 		categoryText,
-		expense.ID)
+		expense.UserExpenseNumber)
 
 	keyboard := &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{

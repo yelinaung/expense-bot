@@ -57,15 +57,16 @@ const (
 
 // Expense represents a single expense entry.
 type Expense struct {
-	ID            int
-	UserID        int64
-	Amount        decimal.Decimal
-	Currency      string
-	Description   string
-	CategoryID    *int
-	Category      *Category
-	ReceiptFileID string
-	Status        string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID                int
+	UserExpenseNumber int64
+	UserID            int64
+	Amount            decimal.Decimal
+	Currency          string
+	Description       string
+	CategoryID        *int
+	Category          *Category
+	ReceiptFileID     string
+	Status            string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }

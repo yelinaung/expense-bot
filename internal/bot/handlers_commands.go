@@ -356,7 +356,7 @@ func (b *Bot) saveExpenseCore(
 		expense.Currency,
 		descText,
 		categoryText,
-		expense.ID)
+		expense.UserExpenseNumber)
 
 	// Add inline edit/delete buttons
 	keyboard := &models.InlineKeyboardMarkup{
@@ -595,7 +595,7 @@ func (b *Bot) sendExpenseListCore(
 
 		sb.WriteString(fmt.Sprintf(
 			"#%d %s%s %s%s%s\n<i>%s</i>\n\n",
-			exp.ID,
+			exp.UserExpenseNumber,
 			currencySymbol,
 			exp.Amount.StringFixed(2),
 			exp.Currency,
@@ -761,7 +761,7 @@ func (b *Bot) handleEdit(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 	}
 
 	parts := strings.SplitN(args, " ", 2)
-	expenseID, err := strconv.Atoi(parts[0])
+	expenseNum, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
 		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
@@ -771,11 +771,11 @@ func (b *Bot) handleEdit(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 		return
 	}
 
-	expense, err := b.expenseRepo.GetByID(ctx, expenseID)
+	expense, err := b.expenseRepo.GetByUserAndNumber(ctx, userID, expenseNum)
 	if err != nil {
 		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   fmt.Sprintf("❌ Expense #%d not found.", expenseID),
+			Text:   fmt.Sprintf("❌ Expense #%d not found.", expenseNum),
 		})
 		return
 	}
@@ -843,7 +843,7 @@ func (b *Bot) handleEdit(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 	}
 
 	if err := b.expenseRepo.Update(ctx, expense); err != nil {
-		logger.Log.Error().Err(err).Int("expense_id", expenseID).Msg("Failed to update expense")
+		logger.Log.Error().Err(err).Int64("expense_num", expenseNum).Msg("Failed to update expense")
 		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Failed to update expense. Please try again.",
@@ -853,7 +853,7 @@ func (b *Bot) handleEdit(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 
 	logger.Log.Debug().
 		Int64("chat_id", chatID).
-		Int("expense_id", expenseID).
+		Int64("expense_num", expenseNum).
 		Msg("Expense updated")
 
 	categoryText := categoryUncategorized
@@ -867,7 +867,7 @@ func (b *Bot) handleEdit(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 💰 $%s SGD
 📝 %s
 📁 %s`,
-		expense.ID,
+		expense.UserExpenseNumber,
 		expense.Amount.StringFixed(2),
 		expense.Description,
 		categoryText)
@@ -911,7 +911,7 @@ func (b *Bot) handleDelete(ctx context.Context, tgBot *bot.Bot, update *models.U
 		return
 	}
 
-	expenseID, err := strconv.Atoi(args)
+	expenseNum, err := strconv.ParseInt(args, 10, 64)
 	if err != nil {
 		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
@@ -921,11 +921,11 @@ func (b *Bot) handleDelete(ctx context.Context, tgBot *bot.Bot, update *models.U
 		return
 	}
 
-	expense, err := b.expenseRepo.GetByID(ctx, expenseID)
+	expense, err := b.expenseRepo.GetByUserAndNumber(ctx, userID, expenseNum)
 	if err != nil {
 		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   fmt.Sprintf("❌ Expense #%d not found.", expenseID),
+			Text:   fmt.Sprintf("❌ Expense #%d not found.", expenseNum),
 		})
 		return
 	}
@@ -938,8 +938,8 @@ func (b *Bot) handleDelete(ctx context.Context, tgBot *bot.Bot, update *models.U
 		return
 	}
 
-	if err := b.expenseRepo.Delete(ctx, expenseID); err != nil {
-		logger.Log.Error().Err(err).Int("expense_id", expenseID).Msg("Failed to delete expense")
+	if err := b.expenseRepo.Delete(ctx, expense.ID); err != nil {
+		logger.Log.Error().Err(err).Int64("expense_num", expenseNum).Msg("Failed to delete expense")
 		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Failed to delete expense. Please try again.",
@@ -949,10 +949,10 @@ func (b *Bot) handleDelete(ctx context.Context, tgBot *bot.Bot, update *models.U
 
 	logger.Log.Debug().
 		Int64("chat_id", chatID).
-		Int("expense_id", expenseID).
+		Int64("expense_num", expenseNum).
 		Msg("Expense deleted")
 
-	text := fmt.Sprintf("✅ Expense #%d deleted.", expenseID)
+	text := fmt.Sprintf("✅ Expense #%d deleted.", expenseNum)
 	_, err = tgBot.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: chatID,
 		Text:   text,

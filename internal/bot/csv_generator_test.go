@@ -17,20 +17,22 @@ func TestGenerateExpensesCSV(t *testing.T) {
 	t.Run("generates CSV with header and rows", func(t *testing.T) {
 		expenses := []models.Expense{
 			{
-				ID:          1,
-				Amount:      decimal.NewFromFloat(10.50),
-				Currency:    "SGD",
-				Description: "Coffee",
-				CreatedAt:   time.Date(2026, 1, 15, 10, 30, 0, 0, time.UTC),
-				Category:    &models.Category{Name: "Food"},
+				ID:                1,
+				UserExpenseNumber: 1,
+				Amount:            decimal.NewFromFloat(10.50),
+				Currency:          "SGD",
+				Description:       "Coffee",
+				CreatedAt:         time.Date(2026, 1, 15, 10, 30, 0, 0, time.UTC),
+				Category:          &models.Category{Name: "Food"},
 			},
 			{
-				ID:          2,
-				Amount:      decimal.NewFromFloat(25.00),
-				Currency:    "SGD",
-				Description: "Taxi",
-				CreatedAt:   time.Date(2026, 1, 16, 14, 15, 0, 0, time.UTC),
-				Category:    &models.Category{Name: "Transportation"},
+				ID:                2,
+				UserExpenseNumber: 2,
+				Amount:            decimal.NewFromFloat(25.00),
+				Currency:          "SGD",
+				Description:       "Taxi",
+				CreatedAt:         time.Date(2026, 1, 16, 14, 15, 0, 0, time.UTC),
+				Category:          &models.Category{Name: "Transportation"},
 			},
 		}
 
