@@ -32,11 +32,11 @@ func (r *ExpenseRepository) Create(ctx context.Context, expense *models.Expense)
 		expense.Status = models.ExpenseStatusConfirmed
 	}
 	err := r.db.QueryRow(ctx, `
-		INSERT INTO expenses (user_id, amount, currency, description, category_id, receipt_file_id, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO expenses (user_id, amount, currency, description, merchant, category_id, receipt_file_id, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, user_expense_number, created_at, updated_at
 	`, expense.UserID, expense.Amount, expense.Currency, expense.Description,
-		expense.CategoryID, expense.ReceiptFileID, expense.Status,
+		expense.Merchant, expense.CategoryID, expense.ReceiptFileID, expense.Status,
 	).Scan(&expense.ID, &expense.UserExpenseNumber, &expense.CreatedAt, &expense.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to create expense: %w", err)
@@ -49,10 +49,10 @@ func (r *ExpenseRepository) GetByID(ctx context.Context, id int) (*models.Expens
 	var exp models.Expense
 	var categoryID *int
 	err := r.db.QueryRow(ctx, `
-		SELECT id, user_expense_number, user_id, amount, currency, description, category_id, receipt_file_id, status, created_at, updated_at
+		SELECT id, user_expense_number, user_id, amount, currency, description, merchant, category_id, receipt_file_id, status, created_at, updated_at
 		FROM expenses WHERE id = $1
 	`, id).Scan(&exp.ID, &exp.UserExpenseNumber, &exp.UserID, &exp.Amount, &exp.Currency, &exp.Description,
-		&categoryID, &exp.ReceiptFileID, &exp.Status, &exp.CreatedAt, &exp.UpdatedAt)
+		&exp.Merchant, &categoryID, &exp.ReceiptFileID, &exp.Status, &exp.CreatedAt, &exp.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get expense: %w", err)
 	}
@@ -65,10 +65,10 @@ func (r *ExpenseRepository) GetByUserAndNumber(ctx context.Context, userID int64
 	var exp models.Expense
 	var categoryID *int
 	err := r.db.QueryRow(ctx, `
-		SELECT id, user_expense_number, user_id, amount, currency, description, category_id, receipt_file_id, status, created_at, updated_at
+		SELECT id, user_expense_number, user_id, amount, currency, description, merchant, category_id, receipt_file_id, status, created_at, updated_at
 		FROM expenses WHERE user_id = $1 AND user_expense_number = $2
 	`, userID, number).Scan(&exp.ID, &exp.UserExpenseNumber, &exp.UserID, &exp.Amount, &exp.Currency, &exp.Description,
-		&categoryID, &exp.ReceiptFileID, &exp.Status, &exp.CreatedAt, &exp.UpdatedAt)
+		&exp.Merchant, &categoryID, &exp.ReceiptFileID, &exp.Status, &exp.CreatedAt, &exp.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get expense by user number: %w", err)
 	}
@@ -79,7 +79,7 @@ func (r *ExpenseRepository) GetByUserAndNumber(ctx context.Context, userID int64
 // GetByUserID retrieves all confirmed expenses for a user.
 func (r *ExpenseRepository) GetByUserID(ctx context.Context, userID int64, limit int) ([]models.Expense, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT e.id, e.user_expense_number, e.user_id, e.amount, e.currency, e.description, e.category_id,
+		SELECT e.id, e.user_expense_number, e.user_id, e.amount, e.currency, e.description, e.merchant, e.category_id,
 		       e.receipt_file_id, e.status, e.created_at, e.updated_at,
 		       c.id, c.name, c.created_at
 		FROM expenses e
@@ -103,7 +103,7 @@ func (r *ExpenseRepository) GetByUserIDAndDateRange(
 	startDate, endDate time.Time,
 ) ([]models.Expense, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT e.id, e.user_expense_number, e.user_id, e.amount, e.currency, e.description, e.category_id,
+		SELECT e.id, e.user_expense_number, e.user_id, e.amount, e.currency, e.description, e.merchant, e.category_id,
 		       e.receipt_file_id, e.status, e.created_at, e.updated_at,
 		       c.id, c.name, c.created_at
 		FROM expenses e
@@ -127,7 +127,7 @@ func (r *ExpenseRepository) GetByUserIDAndCategory(
 	limit int,
 ) ([]models.Expense, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT e.id, e.user_expense_number, e.user_id, e.amount, e.currency, e.description, e.category_id,
+		SELECT e.id, e.user_expense_number, e.user_id, e.amount, e.currency, e.description, e.merchant, e.category_id,
 		       e.receipt_file_id, e.status, e.created_at, e.updated_at,
 		       c.id, c.name, c.created_at
 		FROM expenses e
@@ -168,13 +168,14 @@ func (r *ExpenseRepository) Update(ctx context.Context, expense *models.Expense)
 			amount = $2,
 			currency = $3,
 			description = $4,
-			category_id = $5,
-			receipt_file_id = $6,
-			status = $7,
+			merchant = $5,
+			category_id = $6,
+			receipt_file_id = $7,
+			status = $8,
 			updated_at = NOW()
 		WHERE id = $1
 	`, expense.ID, expense.Amount, expense.Currency, expense.Description,
-		expense.CategoryID, expense.ReceiptFileID, expense.Status)
+		expense.Merchant, expense.CategoryID, expense.ReceiptFileID, expense.Status)
 	if err != nil {
 		return fmt.Errorf("failed to update expense: %w", err)
 	}
@@ -237,7 +238,7 @@ func scanExpenses(rows interface {
 
 		if err := rows.Scan(
 			&exp.ID, &exp.UserExpenseNumber, &exp.UserID, &exp.Amount, &exp.Currency, &exp.Description,
-			&categoryID, &exp.ReceiptFileID, &exp.Status, &exp.CreatedAt, &exp.UpdatedAt,
+			&exp.Merchant, &categoryID, &exp.ReceiptFileID, &exp.Status, &exp.CreatedAt, &exp.UpdatedAt,
 			&catID, &catName, &catCreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan expense: %w", err)

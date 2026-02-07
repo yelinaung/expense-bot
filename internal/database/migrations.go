@@ -101,6 +101,8 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_expenses_user_number
 		ON expenses(user_id, user_expense_number)`,
+
+		`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS merchant TEXT NOT NULL DEFAULT ''`,
 	}
 
 	for i, migration := range migrations {

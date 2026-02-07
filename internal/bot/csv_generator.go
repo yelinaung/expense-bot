@@ -20,7 +20,7 @@ func GenerateExpensesCSV(expenses []models.Expense) ([]byte, error) {
 	writer := csv.NewWriter(&buf)
 
 	// Write header
-	header := []string{"ID", "Date", "Amount", "Currency", "Description", "Category"}
+	header := []string{"ID", "Date", "Amount", "Currency", "Description", "Merchant", "Category"}
 	if err := writer.Write(header); err != nil {
 		return nil, fmt.Errorf("failed to write CSV header: %w", err)
 	}
@@ -38,6 +38,7 @@ func GenerateExpensesCSV(expenses []models.Expense) ([]byte, error) {
 			expense.Amount.StringFixed(2),
 			expense.Currency,
 			expense.Description,
+			expense.Merchant,
 			categoryName,
 		}
 

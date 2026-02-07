@@ -48,7 +48,7 @@ func TestGenerateExpensesCSV(t *testing.T) {
 
 		// Verify header
 		header := records[0]
-		require.Equal(t, []string{"ID", "Date", "Amount", "Currency", "Description", "Category"}, header)
+		require.Equal(t, []string{"ID", "Date", "Amount", "Currency", "Description", "Merchant", "Category"}, header)
 
 		// Verify first row
 		row1 := records[1]
@@ -57,7 +57,8 @@ func TestGenerateExpensesCSV(t *testing.T) {
 		require.Equal(t, "10.50", row1[2])
 		require.Equal(t, "SGD", row1[3])
 		require.Equal(t, "Coffee", row1[4])
-		require.Equal(t, "Food", row1[5])
+		require.Equal(t, "", row1[5]) // Merchant
+		require.Equal(t, "Food", row1[6])
 
 		// Verify second row
 		row2 := records[2]
@@ -66,7 +67,8 @@ func TestGenerateExpensesCSV(t *testing.T) {
 		require.Equal(t, "25.00", row2[2])
 		require.Equal(t, "SGD", row2[3])
 		require.Equal(t, "Taxi", row2[4])
-		require.Equal(t, "Transportation", row2[5])
+		require.Equal(t, "", row2[5]) // Merchant
+		require.Equal(t, "Transportation", row2[6])
 	})
 
 	t.Run("handles uncategorized expenses", func(t *testing.T) {
@@ -87,7 +89,7 @@ func TestGenerateExpensesCSV(t *testing.T) {
 		reader := csv.NewReader(strings.NewReader(string(csvData)))
 		records, err := reader.ReadAll()
 		require.NoError(t, err)
-		require.Equal(t, "Uncategorized", records[1][5])
+		require.Equal(t, "Uncategorized", records[1][6])
 	})
 
 	t.Run("handles empty expense list", func(t *testing.T) {

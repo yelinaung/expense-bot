@@ -270,6 +270,7 @@ func (b *Bot) saveExpenseCore(
 		Amount:      parsed.Amount,
 		Currency:    currency,
 		Description: parsed.Description,
+		Merchant:    parsed.Description,
 	}
 
 	// Try to match category from parsed input first
@@ -584,7 +585,9 @@ func (b *Bot) sendExpenseListCore(
 		}
 
 		descText := ""
-		if exp.Description != "" {
+		if exp.Merchant != "" {
+			descText = " - " + exp.Merchant
+		} else if exp.Description != "" {
 			descText = " - " + exp.Description
 		}
 
@@ -826,9 +829,10 @@ func (b *Bot) handleEdit(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 	// Update amount (always required)
 	expense.Amount = parsed.Amount
 
-	// Only update description if provided
+	// Only update description and merchant if provided
 	if parsed.Description != "" {
 		expense.Description = parsed.Description
+		expense.Merchant = parsed.Description
 	}
 
 	// Only update category if provided

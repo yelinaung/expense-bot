@@ -63,6 +63,7 @@ type Expense struct {
 	Amount            decimal.Decimal
 	Currency          string
 	Description       string
+	Merchant          string
 	CategoryID        *int
 	Category          *Category
 	ReceiptFileID     string

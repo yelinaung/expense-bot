@@ -150,6 +150,7 @@ func TestHandleConfirmReceiptCore(t *testing.T) {
 			Amount:      mustParseDecimal("25.50"),
 			Currency:    "SGD",
 			Description: "Test Receipt",
+			Merchant:    "Test Receipt",
 			Status:      appmodels.ExpenseStatusDraft,
 		}
 		err := b.expenseRepo.Create(ctx, expense)

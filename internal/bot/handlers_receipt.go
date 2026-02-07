@@ -145,16 +145,17 @@ func (b *Bot) handlePhotoCore(ctx context.Context, tg TelegramAPI, update *model
 	}
 
 	// Use sensible defaults for partial data.
-	description := receiptData.Merchant
-	if description == "" {
-		description = "Unknown merchant"
+	merchant := receiptData.Merchant
+	if merchant == "" {
+		merchant = "Unknown merchant"
 	}
 
 	expense := &appmodels.Expense{
 		UserID:        userID,
 		Amount:        receiptData.Amount,
 		Currency:      "SGD",
-		Description:   description,
+		Description:   merchant,
+		Merchant:      merchant,
 		CategoryID:    categoryID,
 		Category:      category,
 		ReceiptFileID: largestPhoto.FileID,
@@ -192,7 +193,7 @@ func (b *Bot) handlePhotoCore(ctx context.Context, tg TelegramAPI, update *model
 
 <i>Some data could not be extracted. Please edit or confirm.</i>`,
 			expense.Amount.StringFixed(2),
-			expense.Description,
+			expense.Merchant,
 			dateText,
 			categoryText)
 	} else {
@@ -203,7 +204,7 @@ func (b *Bot) handlePhotoCore(ctx context.Context, tg TelegramAPI, update *model
 📅 Date: %s
 📁 Category: %s`,
 			expense.Amount.StringFixed(2),
-			expense.Description,
+			expense.Merchant,
 			dateText,
 			categoryText)
 	}
@@ -319,7 +320,7 @@ func (b *Bot) handleBackToReceiptCore(
 🏪 Merchant: %s
 📁 Category: %s`,
 		expense.Amount.StringFixed(2),
-		expense.Description,
+		expense.Merchant,
 		categoryText)
 
 	keyboard := buildReceiptConfirmationKeyboard(expense.ID)
@@ -365,13 +366,13 @@ func (b *Bot) handleConfirmReceiptCore(
 	text := fmt.Sprintf(`✅ <b>Expense Confirmed!</b>
 
 💰 Amount: $%s SGD
-🏪 Description: %s
+🏪 Merchant: %s
 📁 Category: %s
 🗓️ Date: %s
 
 Expense #%d has been saved.`,
 		expense.Amount.StringFixed(2),
-		expense.Description,
+		expense.Merchant,
 		categoryText,
 		expense.CreatedAt.Format("02 Jan 2006"),
 		expense.UserExpenseNumber)
@@ -430,6 +431,9 @@ func (b *Bot) handleEditReceiptCore(
 		InlineKeyboard: [][]models.InlineKeyboardButton{
 			{
 				{Text: "💰 Edit Amount", CallbackData: fmt.Sprintf("edit_amount_%d", expense.ID)},
+				{Text: "🏪 Edit Merchant", CallbackData: fmt.Sprintf("edit_merchant_%d", expense.ID)},
+			},
+			{
 				{Text: "📁 Edit Category", CallbackData: fmt.Sprintf("edit_category_%d", expense.ID)},
 			},
 			{
@@ -451,12 +455,12 @@ func (b *Bot) handleEditReceiptCore(
 	text := fmt.Sprintf(`✏️ <b>Edit Expense</b>
 
 💰 Amount: $%s SGD
-🏪 Description: %s
+🏪 Merchant: %s
 📁 Category: %s
 
 Select what to edit:`,
 		expense.Amount.StringFixed(2),
-		expense.Description,
+		expense.Merchant,
 		categoryText)
 
 	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{

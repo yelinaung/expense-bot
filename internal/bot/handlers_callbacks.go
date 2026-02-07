@@ -53,6 +53,9 @@ func (b *Bot) handleEditCallbackCore(ctx context.Context, tg TelegramAPI, update
 	case "amount":
 		b.promptEditAmountCore(ctx, tg, chatID, messageID, expense)
 
+	case "merchant":
+		b.promptEditMerchantCore(ctx, tg, chatID, messageID, expense)
+
 	case "category":
 		b.showCategorySelectionCore(ctx, tg, chatID, messageID, expense)
 	}
@@ -99,6 +102,46 @@ Please type the new amount (e.g., <code>25.50</code>):`,
 	})
 }
 
+// promptEditMerchantCore prompts the user to enter a new merchant name.
+func (b *Bot) promptEditMerchantCore(
+	ctx context.Context,
+	tg TelegramAPI,
+	chatID int64,
+	messageID int,
+	expense *appmodels.Expense,
+) {
+	b.pendingEditsMu.Lock()
+	b.pendingEdits[chatID] = &pendingEdit{
+		ExpenseID: expense.ID,
+		EditType:  "merchant",
+		MessageID: messageID,
+	}
+	b.pendingEditsMu.Unlock()
+
+	text := fmt.Sprintf(`🏪 <b>Edit Merchant</b>
+
+Current merchant: %s
+
+Please type the new merchant name:`,
+		expense.Merchant)
+
+	keyboard := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{Text: "⬅️ Cancel", CallbackData: fmt.Sprintf("cancel_edit_%d", expense.ID)},
+			},
+		},
+	}
+
+	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:      chatID,
+		MessageID:   messageID,
+		Text:        text,
+		ParseMode:   models.ParseModeHTML,
+		ReplyMarkup: keyboard,
+	})
+}
+
 // handlePendingEdit checks for and processes pending edit operations.
 func (b *Bot) handlePendingEdit(ctx context.Context, tgBot *bot.Bot, update *models.Update) bool {
 	return b.handlePendingEditCore(ctx, tgBot, update)
@@ -124,6 +167,8 @@ func (b *Bot) handlePendingEditCore(ctx context.Context, tg TelegramAPI, update 
 	switch pending.EditType {
 	case "amount":
 		return b.processAmountEditCore(ctx, tg, chatID, userID, pending, update.Message.Text)
+	case "merchant":
+		return b.processMerchantEditCore(ctx, tg, chatID, userID, pending, update.Message.Text)
 	case "category":
 		return b.processCategoryCreateCore(ctx, tg, chatID, userID, pending, update.Message.Text)
 	}
@@ -213,10 +258,97 @@ func (b *Bot) processAmountEditCore(
 
 Amount updated. Confirm to save.`,
 		expense.Amount.StringFixed(2),
-		expense.Description,
+		expense.Merchant,
 		categoryText)
 
 	// Edit the original message.
+	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:      chatID,
+		MessageID:   pending.MessageID,
+		Text:        text,
+		ParseMode:   models.ParseModeHTML,
+		ReplyMarkup: keyboard,
+	})
+
+	return true
+}
+
+// processMerchantEditCore processes user input for merchant editing.
+func (b *Bot) processMerchantEditCore(
+	ctx context.Context,
+	tg TelegramAPI,
+	chatID int64,
+	userID int64,
+	pending *pendingEdit,
+	input string,
+) bool {
+	b.pendingEditsMu.Lock()
+	delete(b.pendingEdits, chatID)
+	b.pendingEditsMu.Unlock()
+
+	merchant := strings.TrimSpace(input)
+	if merchant == "" {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Merchant name cannot be empty.",
+		})
+		return true
+	}
+
+	expense, err := b.expenseRepo.GetByID(ctx, pending.ExpenseID)
+	if err != nil {
+		logger.Log.Error().Err(err).Int("expense_id", pending.ExpenseID).Msg("Expense not found for edit")
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Expense not found.",
+		})
+		return true
+	}
+
+	if expense.UserID != userID {
+		logger.Log.Warn().Str("user_hash", logger.HashUserID(userID)).Int("expense_id", pending.ExpenseID).Msg("User mismatch on edit")
+		return true
+	}
+
+	expense.Merchant = merchant
+	expense.Description = merchant
+	if err := b.expenseRepo.Update(ctx, expense); err != nil {
+		logger.Log.Error().Err(err).Int("expense_id", expense.ID).Msg("Failed to update merchant")
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to update merchant. Please try again.",
+		})
+		return true
+	}
+
+	logger.Log.Info().
+		Int("expense_id", expense.ID).
+		Str("new_merchant", merchant).
+		Msg("Merchant updated via pending edit")
+
+	categoryText := categoryUncategorized
+	if expense.Category != nil {
+		categoryText = expense.Category.Name
+	} else if expense.CategoryID != nil {
+		cat, err := b.categoryRepo.GetByID(ctx, *expense.CategoryID)
+		if err == nil {
+			categoryText = cat.Name
+		}
+	}
+
+	keyboard := buildReceiptConfirmationKeyboard(expense.ID)
+
+	text := fmt.Sprintf(`📸 <b>Merchant Updated!</b>
+
+💰 Amount: $%s SGD
+🏪 Merchant: %s
+📁 Category: %s
+
+Merchant updated. Confirm to save.`,
+		expense.Amount.StringFixed(2),
+		expense.Merchant,
+		categoryText)
+
 	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      chatID,
 		MessageID:   pending.MessageID,
@@ -405,7 +537,7 @@ func (b *Bot) handleSetCategoryCallbackCore(ctx context.Context, tg TelegramAPI,
 
 Category updated. Confirm to save.`,
 		expense.Amount.StringFixed(2),
-		expense.Description,
+		expense.Merchant,
 		category.Name)
 
 	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
@@ -502,7 +634,7 @@ func (b *Bot) processCategoryCreateCore(
 
 New category created. Confirm to save.`,
 		expense.Amount.StringFixed(2),
-		expense.Description,
+		expense.Merchant,
 		category.Name)
 
 	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
