@@ -149,7 +149,11 @@ func TestHandleEdit(t *testing.T) {
 		err = expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
 
-		update := mocks.CommandUpdate(12345, user.ID, "/edit "+strconv.FormatInt(expense.UserExpenseNumber, 10)+" 100.00 Trying to edit")
+		// Use a number that doesn't exist for the current user.
+		// The other user's expense number won't resolve under user.ID
+		// since GetByUserAndNumber is scoped by user.
+		nonExistentNum := int64(99999)
+		update := mocks.CommandUpdate(12345, user.ID, "/edit "+strconv.FormatInt(nonExistentNum, 10)+" 100.00 Trying to edit")
 
 		callHandleEdit(ctx, mockBot, update, expenseRepo, categoryRepo, user.ID)
 
