@@ -22,6 +22,7 @@ jobs:
       - name: TruffleHog Secret Scan
         uses: trufflesecurity/trufflehog@main
         with:
+          path: ./
           extra_args: --only-verified
 
   sast:
