@@ -51,6 +51,7 @@ check_secrets:
   needs:
     - job: secret_detection
       artifacts: true
+      optional: true
   script:
     - |
       if [ ! -f "gl-secret-detection-report.json" ]; then
@@ -75,6 +76,7 @@ check_sast:
   needs:
     - job: semgrep-sast
       artifacts: true
+      optional: true
   script:
     - |
       if [ ! -f "gl-sast-report.json" ]; then
