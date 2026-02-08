@@ -9,7 +9,6 @@ import (
 	"github.com/go-telegram/bot/models"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/bot/mocks"
-	"gitlab.com/yelinaung/expense-bot/internal/gemini"
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
@@ -154,7 +153,7 @@ func TestHandleAddCategoryCoreValidation(t *testing.T) {
 
 	t.Run("rejects category name that is too long", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		longName := strings.Repeat("a", gemini.MaxCategoryNameLength+1)
+		longName := strings.Repeat("a", appmodels.MaxCategoryNameLength+1)
 		update := mocks.CommandUpdate(chatID, userID, "/addcategory "+longName)
 
 		b.handleAddCategoryCore(ctx, mockBot, update)
@@ -166,7 +165,7 @@ func TestHandleAddCategoryCoreValidation(t *testing.T) {
 
 	t.Run("accepts category name at max length", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		maxName := strings.Repeat("b", gemini.MaxCategoryNameLength)
+		maxName := strings.Repeat("b", appmodels.MaxCategoryNameLength)
 		update := mocks.CommandUpdate(chatID, userID, "/addcategory "+maxName)
 
 		b.handleAddCategoryCore(ctx, mockBot, update)

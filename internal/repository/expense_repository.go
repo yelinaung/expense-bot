@@ -222,6 +222,32 @@ func (r *ExpenseRepository) GetTotalByUserIDAndDateRange(
 	return total, nil
 }
 
+// CountByCategory counts the number of expenses referencing a category.
+func (r *ExpenseRepository) CountByCategory(ctx context.Context, categoryID int) (int, error) {
+	var count int
+	err := r.db.QueryRow(ctx, `
+		SELECT COUNT(*) FROM expenses WHERE category_id = $1
+	`, categoryID).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count expenses by category: %w", err)
+	}
+	return count, nil
+}
+
+// NullifyCategoryOnExpenses sets category_id to NULL for all expenses
+// referencing the given category. This must be called before deleting
+// a category to avoid FK constraint violations.
+func (r *ExpenseRepository) NullifyCategoryOnExpenses(ctx context.Context, categoryID int) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE expenses SET category_id = NULL, updated_at = NOW()
+		WHERE category_id = $1
+	`, categoryID)
+	if err != nil {
+		return fmt.Errorf("failed to nullify category on expenses: %w", err)
+	}
+	return nil
+}
+
 // scanExpenses is a helper to scan expense rows with category joins.
 func scanExpenses(rows interface {
 	Next() bool

@@ -11,10 +11,25 @@ import (
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	"gitlab.com/yelinaung/expense-bot/internal/gemini"
+	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
+	"gitlab.com/yelinaung/expense-bot/internal/repository"
 )
+
+// extractCommandArgs strips the /command prefix (and optional @botname suffix)
+// from a message and returns the remaining trimmed arguments.
+func extractCommandArgs(text, command string) string {
+	args := strings.TrimSpace(strings.TrimPrefix(text, command))
+	if strings.HasPrefix(args, "@") {
+		if spaceIdx := strings.Index(args, " "); spaceIdx != -1 {
+			args = strings.TrimSpace(args[spaceIdx:])
+		} else {
+			args = ""
+		}
+	}
+	return args
+}
 
 // formatGreeting returns a greeting suffix with the user's name.
 func formatGreeting(firstName string) string {
@@ -103,6 +118,8 @@ func (b *Bot) handleHelpCore(ctx context.Context, tg TelegramAPI, update *models
 <b>Categories:</b>
 • <code>/categories</code> - List all categories
 • <code>/addcategory &lt;name&gt;</code> - Create a new category
+• <code>/renamecategory Old -&gt; New</code> - Rename a category
+• <code>/deletecategory &lt;name&gt;</code> - Delete a category
 
 <b>Currency:</b>
 • <code>/currency</code> - Show your default currency
@@ -180,14 +197,7 @@ func (b *Bot) handleAddCategoryCore(ctx context.Context, tg TelegramAPI, update 
 
 	chatID := update.Message.Chat.ID
 
-	args := strings.TrimSpace(strings.TrimPrefix(update.Message.Text, "/addcategory"))
-	if idx := strings.Index(args, "@"); idx == 0 {
-		if spaceIdx := strings.Index(args, " "); spaceIdx != -1 {
-			args = strings.TrimSpace(args[spaceIdx:])
-		} else {
-			args = ""
-		}
-	}
+	args := extractCommandArgs(update.Message.Text, "/addcategory")
 
 	if args == "" {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
@@ -197,8 +207,6 @@ func (b *Bot) handleAddCategoryCore(ctx context.Context, tg TelegramAPI, update 
 		})
 		return
 	}
-
-	args = strings.TrimSpace(args)
 
 	// Reject category names containing control characters.
 	for _, r := range args {
@@ -212,10 +220,10 @@ func (b *Bot) handleAddCategoryCore(ctx context.Context, tg TelegramAPI, update 
 	}
 
 	// Reject category names that are too long.
-	if len(args) > gemini.MaxCategoryNameLength {
+	if len(args) > appmodels.MaxCategoryNameLength {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   fmt.Sprintf("❌ Category name is too long (max %d characters).", gemini.MaxCategoryNameLength),
+			Text:   fmt.Sprintf("❌ Category name is too long (max %d characters).", appmodels.MaxCategoryNameLength),
 		})
 		return
 	}
@@ -241,6 +249,227 @@ func (b *Bot) handleAddCategoryCore(ctx context.Context, tg TelegramAPI, update 
 	})
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to send /addcategory response")
+	}
+}
+
+// handleRenameCategory handles the /renamecategory command.
+func (b *Bot) handleRenameCategory(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleRenameCategoryCore(ctx, tgBot, update)
+}
+
+// handleRenameCategoryCore is the testable implementation of handleRenameCategory.
+func (b *Bot) handleRenameCategoryCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
+	if update.Message == nil {
+		return
+	}
+
+	chatID := update.Message.Chat.ID
+
+	args := extractCommandArgs(update.Message.Text, "/renamecategory")
+
+	// Parse "Old Name -> New Name" syntax.
+	parts := strings.SplitN(args, "->", 2)
+	if len(parts) != 2 {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    chatID,
+			Text:      "❌ Please use the format:\n<code>/renamecategory Old Name -&gt; New Name</code>",
+			ParseMode: models.ParseModeHTML,
+		})
+		return
+	}
+
+	oldName := strings.TrimSpace(parts[0])
+	newName := strings.TrimSpace(parts[1])
+
+	if oldName == "" || newName == "" {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    chatID,
+			Text:      "❌ Both old and new category names are required.\n\nUsage: <code>/renamecategory Old Name -&gt; New Name</code>",
+			ParseMode: models.ParseModeHTML,
+		})
+		return
+	}
+
+	// Validate new name: reject control characters.
+	for _, r := range newName {
+		if unicode.IsControl(r) {
+			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID: chatID,
+				Text:   "❌ Category name cannot contain control characters (newlines, tabs, etc.).",
+			})
+			return
+		}
+	}
+
+	// Validate new name: reject too long.
+	if len(newName) > appmodels.MaxCategoryNameLength {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   fmt.Sprintf("❌ New category name is too long (max %d characters).", appmodels.MaxCategoryNameLength),
+		})
+		return
+	}
+
+	// Find existing category by old name.
+	cat, err := b.categoryRepo.GetByName(ctx, oldName)
+	if err != nil {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   fmt.Sprintf("❌ Category '%s' not found.\n\nUse /categories to see all categories.", oldName),
+		})
+		return
+	}
+
+	// Check if new name already exists.
+	existing, err := b.categoryRepo.GetByName(ctx, newName)
+	if err == nil && existing.ID != cat.ID {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   fmt.Sprintf("❌ Category '%s' already exists.", existing.Name),
+		})
+		return
+	}
+
+	if err := b.categoryRepo.Update(ctx, cat.ID, newName); err != nil {
+		logger.Log.Error().Err(err).Str("old_name", oldName).Str("new_name", newName).Msg("Failed to rename category")
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to rename category. Please try again.",
+		})
+		return
+	}
+
+	b.invalidateCategoryCache()
+
+	logger.Log.Info().Int("category_id", cat.ID).Str("old_name", oldName).Str("new_name", newName).Msg("Category renamed")
+
+	_, err = tg.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:    chatID,
+		Text:      fmt.Sprintf("✅ Category '<b>%s</b>' renamed to '<b>%s</b>'.", oldName, newName),
+		ParseMode: models.ParseModeHTML,
+	})
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to send /renamecategory response")
+	}
+}
+
+// deleteCategoryWithExpenses nullifies expenses and deletes the category atomically.
+// When the underlying db supports transactions it wraps both operations in a tx;
+// otherwise it falls back to sequential calls (e.g. inside test transactions).
+func (b *Bot) deleteCategoryWithExpenses(ctx context.Context, categoryID int, expenseCount int) error {
+	beginner, ok := b.db.(database.TxBeginner)
+	if !ok {
+		return b.deleteCategorySequential(ctx, categoryID, expenseCount)
+	}
+
+	tx, err := beginner.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	txExpRepo := repository.NewExpenseRepository(tx)
+	txCatRepo := repository.NewCategoryRepository(tx)
+
+	if expenseCount > 0 {
+		if err := txExpRepo.NullifyCategoryOnExpenses(ctx, categoryID); err != nil {
+			return fmt.Errorf("nullify expenses: %w", err)
+		}
+	}
+	if err := txCatRepo.Delete(ctx, categoryID); err != nil {
+		return fmt.Errorf("delete category: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit tx: %w", err)
+	}
+	return nil
+}
+
+// deleteCategorySequential performs nullify+delete without a transaction.
+func (b *Bot) deleteCategorySequential(ctx context.Context, categoryID int, expenseCount int) error {
+	if expenseCount > 0 {
+		if err := b.expenseRepo.NullifyCategoryOnExpenses(ctx, categoryID); err != nil {
+			return fmt.Errorf("nullify expenses: %w", err)
+		}
+	}
+	if err := b.categoryRepo.Delete(ctx, categoryID); err != nil {
+		return fmt.Errorf("delete category: %w", err)
+	}
+	return nil
+}
+
+// handleDeleteCategory handles the /deletecategory command.
+func (b *Bot) handleDeleteCategory(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleDeleteCategoryCore(ctx, tgBot, update)
+}
+
+// handleDeleteCategoryCore is the testable implementation of handleDeleteCategory.
+func (b *Bot) handleDeleteCategoryCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
+	if update.Message == nil {
+		return
+	}
+
+	chatID := update.Message.Chat.ID
+
+	args := extractCommandArgs(update.Message.Text, "/deletecategory")
+
+	if args == "" {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    chatID,
+			Text:      "❌ Please provide a category name.\n\nUsage: <code>/deletecategory Food - Dining Out</code>",
+			ParseMode: models.ParseModeHTML,
+		})
+		return
+	}
+
+	// Find the category.
+	cat, err := b.categoryRepo.GetByName(ctx, args)
+	if err != nil {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   fmt.Sprintf("❌ Category '%s' not found.\n\nUse /categories to see all categories.", args),
+		})
+		return
+	}
+
+	// Count affected expenses.
+	count, err := b.expenseRepo.CountByCategory(ctx, cat.ID)
+	if err != nil {
+		logger.Log.Error().Err(err).Int("category_id", cat.ID).Msg("Failed to count expenses by category")
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to delete category. Please try again.",
+		})
+		return
+	}
+
+	// Nullify category on affected expenses and delete inside a transaction
+	// so both succeed or both roll back.
+	if err := b.deleteCategoryWithExpenses(ctx, cat.ID, count); err != nil {
+		logger.Log.Error().Err(err).Int("category_id", cat.ID).Msg("Failed to delete category")
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to delete category. Please try again.",
+		})
+		return
+	}
+
+	b.invalidateCategoryCache()
+
+	logger.Log.Info().Int("category_id", cat.ID).Str("name", cat.Name).Int("affected_expenses", count).Msg("Category deleted")
+
+	text := fmt.Sprintf("✅ Category '<b>%s</b>' deleted.", cat.Name)
+	if count > 0 {
+		text += fmt.Sprintf("\n\n%d expense(s) have been uncategorized.", count)
+	}
+
+	_, err = tg.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:    chatID,
+		Text:      text,
+		ParseMode: models.ParseModeHTML,
+	})
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to send /deletecategory response")
 	}
 }
 
@@ -830,16 +1059,7 @@ func (b *Bot) handleEdit(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 	chatID := update.Message.Chat.ID
 	userID := update.Message.From.ID
 
-	args := strings.TrimPrefix(update.Message.Text, "/edit")
-	args = strings.TrimSpace(args)
-
-	if idx := strings.Index(args, "@"); idx == 0 {
-		if spaceIdx := strings.Index(args, " "); spaceIdx != -1 {
-			args = strings.TrimSpace(args[spaceIdx:])
-		} else {
-			args = ""
-		}
-	}
+	args := extractCommandArgs(update.Message.Text, "/edit")
 
 	if args == "" {
 		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
@@ -990,16 +1210,7 @@ func (b *Bot) handleDelete(ctx context.Context, tgBot *bot.Bot, update *models.U
 	chatID := update.Message.Chat.ID
 	userID := update.Message.From.ID
 
-	args := strings.TrimPrefix(update.Message.Text, "/delete")
-	args = strings.TrimSpace(args)
-
-	if idx := strings.Index(args, "@"); idx == 0 {
-		if spaceIdx := strings.Index(args, " "); spaceIdx != -1 {
-			args = strings.TrimSpace(args[spaceIdx:])
-		} else {
-			args = ""
-		}
-	}
+	args := extractCommandArgs(update.Message.Text, "/delete")
 
 	if args == "" {
 		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{

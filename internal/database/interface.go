@@ -17,8 +17,14 @@ type PGXDB interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
+// TxBeginner can start a database transaction. Implemented by pgxpool.Pool.
+type TxBeginner interface {
+	Begin(ctx context.Context) (pgx.Tx, error)
+}
+
 // Ensure types implement the interface at compile time.
 var (
-	_ PGXDB = (*pgxpool.Pool)(nil)
-	_ PGXDB = (pgx.Tx)(nil)
+	_ PGXDB      = (*pgxpool.Pool)(nil)
+	_ PGXDB      = (pgx.Tx)(nil)
+	_ TxBeginner = (*pgxpool.Pool)(nil)
 )

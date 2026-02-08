@@ -27,17 +27,7 @@ func (b *Bot) handleSetCurrencyCore(ctx context.Context, tg TelegramAPI, update 
 	chatID := update.Message.Chat.ID
 	userID := update.Message.From.ID
 
-	args := strings.TrimPrefix(update.Message.Text, "/setcurrency")
-	args = strings.TrimSpace(args)
-
-	// Handle @botname suffix
-	if idx := strings.Index(args, "@"); idx == 0 {
-		if spaceIdx := strings.Index(args, " "); spaceIdx != -1 {
-			args = strings.TrimSpace(args[spaceIdx:])
-		} else {
-			args = ""
-		}
-	}
+	args := extractCommandArgs(update.Message.Text, "/setcurrency")
 
 	if args == "" {
 		// Show usage and list of supported currencies

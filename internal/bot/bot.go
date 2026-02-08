@@ -30,6 +30,7 @@ type pendingEdit struct {
 type Bot struct {
 	bot          *bot.Bot
 	cfg          *config.Config
+	db           database.PGXDB
 	userRepo     *repository.UserRepository
 	categoryRepo *repository.CategoryRepository
 	expenseRepo  *repository.ExpenseRepository
@@ -48,6 +49,7 @@ type Bot struct {
 func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 	b := &Bot{
 		cfg:          cfg,
+		db:           db,
 		userRepo:     repository.NewUserRepository(db),
 		categoryRepo: repository.NewCategoryRepository(db),
 		expenseRepo:  repository.NewExpenseRepository(db),
@@ -149,6 +151,8 @@ func (b *Bot) registerHandlers() {
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/report", bot.MatchTypePrefix, b.handleReport)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/chart", bot.MatchTypePrefix, b.handleChart)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/addcategory", bot.MatchTypePrefix, b.handleAddCategory)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/renamecategory", bot.MatchTypePrefix, b.handleRenameCategory)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/deletecategory", bot.MatchTypePrefix, b.handleDeleteCategory)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/edit", bot.MatchTypePrefix, b.handleEdit)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/delete", bot.MatchTypePrefix, b.handleDelete)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/setcurrency", bot.MatchTypePrefix, b.handleSetCurrency)

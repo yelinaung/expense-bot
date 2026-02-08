@@ -10,6 +10,9 @@ import (
 // DefaultCurrency is the default currency for new users.
 const DefaultCurrency = "SGD"
 
+// MaxCategoryNameLength is the maximum allowed length for category names.
+const MaxCategoryNameLength = 50
+
 // SupportedCurrencies lists all supported currency codes.
 var SupportedCurrencies = map[string]string{
 	"SGD": "S$",

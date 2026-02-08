@@ -10,14 +10,16 @@ import (
 	"time"
 
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
+	"gitlab.com/yelinaung/expense-bot/internal/models"
 	"google.golang.org/genai"
 )
 
 // MaxDescriptionLength is the maximum allowed length for expense descriptions.
 const MaxDescriptionLength = 200
 
-// MaxCategoryNameLength is the maximum allowed length for category names.
-const MaxCategoryNameLength = 50
+// MaxCategoryNameLength is kept for backward compatibility.
+// The canonical constant is models.MaxCategoryNameLength.
+var MaxCategoryNameLength = models.MaxCategoryNameLength
 
 // CategorySuggestion represents a suggested category for an expense description.
 type CategorySuggestion struct {
@@ -262,7 +264,7 @@ func SanitizeForPrompt(input string, maxLength int) string {
 // It applies the same rules as SanitizeForPrompt but with a shorter length limit
 // appropriate for category names.
 func SanitizeCategoryName(name string) string {
-	return SanitizeForPrompt(name, MaxCategoryNameLength)
+	return SanitizeForPrompt(name, models.MaxCategoryNameLength)
 }
 
 // sanitizeDescription sanitizes user input to prevent prompt injection attacks.

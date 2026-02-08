@@ -30,6 +30,7 @@ func setupTestBot(t *testing.T, db database.PGXDB) *Bot {
 
 	b := &Bot{
 		cfg:          cfg,
+		db:           db,
 		userRepo:     repository.NewUserRepository(db),
 		categoryRepo: repository.NewCategoryRepository(db),
 		expenseRepo:  repository.NewExpenseRepository(db),
