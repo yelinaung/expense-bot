@@ -99,7 +99,7 @@ jobs:
         run: |
           docker rm -f test-postgres 2>/dev/null || true
           docker run -d --name test-postgres \
-            --network host \
+            --network container:$(hostname) \
             -e POSTGRES_USER=${{ env.POSTGRES_USER }} \
             -e POSTGRES_PASSWORD=${{ env.POSTGRES_PASSWORD }} \
             -e POSTGRES_DB=${{ env.POSTGRES_DB }} \
