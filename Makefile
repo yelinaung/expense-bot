@@ -49,12 +49,4 @@ clean:
 	rm -rf dist/
 
 release:
-	@if [ -z "$(TAG)" ]; then echo "Usage: make release TAG=v0.3.0"; exit 1; fi
-	@echo "Building release $(TAG)..."
-	@mkdir -p dist
-	GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/expense-bot-linux-amd64 .
-	GOOS=linux GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o dist/expense-bot-linux-arm64 .
-	GOOS=darwin GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/expense-bot-darwin-amd64 .
-	GOOS=darwin GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o dist/expense-bot-darwin-arm64 .
-	@cd dist && sha256sum expense-bot-* > checksums.txt
-	@echo "Release binaries in dist/"
+	goreleaser release --snapshot --clean
