@@ -202,6 +202,11 @@ func TestHandleHelpCore(t *testing.T) {
 		require.Contains(t, msg.Text, "/today")
 		require.Contains(t, msg.Text, "/week")
 		require.Contains(t, msg.Text, "/categories")
+		require.Contains(t, msg.Text, "/edit")
+		require.Contains(t, msg.Text, "/delete")
+		require.Contains(t, msg.Text, "/addcategory")
+		require.Contains(t, msg.Text, "/currency")
+		require.Contains(t, msg.Text, "/setcurrency")
 	})
 }
 

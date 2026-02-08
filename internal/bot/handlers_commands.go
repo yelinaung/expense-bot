@@ -41,11 +41,12 @@ func (b *Bot) handleStartCore(ctx context.Context, tg TelegramAPI, update *model
 
 	text := fmt.Sprintf(`👋 Welcome%s!
 
-I'm your personal expense tracker bot. I help you track your daily expenses in SGD.
+I'm your personal expense tracker bot. I help you track your daily expenses.
 
 <b>Quick Start:</b>
 • Send an expense like: <code>5.50 Coffee</code>
 • Or use structured format: <code>/add 5.50 Coffee Food - Dining Out</code>
+• Upload a receipt photo to extract expenses automatically
 
 Use /help to see all available commands.`,
 		formatGreeting(firstName))
@@ -78,6 +79,11 @@ func (b *Bot) handleHelpCore(ctx context.Context, tg TelegramAPI, update *models
 • <code>/add &lt;amount&gt; &lt;description&gt; [category]</code> - Add an expense
 • Just send a message like <code>5.50 Coffee</code> to quickly add
 • Use currency: <code>$10 Lunch</code>, <code>€5 Coffee</code>, <code>50 THB Taxi</code>
+• Send a receipt photo to extract expenses automatically
+
+<b>Managing Expenses:</b>
+• <code>/edit &lt;id&gt; &lt;amount&gt; &lt;description&gt; [category]</code> - Edit an expense
+• <code>/delete &lt;id&gt;</code> - Delete an expense
 
 <b>Viewing Expenses:</b>
 • <code>/list</code> - Show recent expenses
@@ -97,7 +103,7 @@ func (b *Bot) handleHelpCore(ctx context.Context, tg TelegramAPI, update *models
 
 <b>Currency:</b>
 • <code>/currency</code> - Show your default currency
-• <code>/setcurrency USD</code> - Set default currency
+• <code>/setcurrency &lt;code&gt;</code> - Set default currency (e.g., USD, EUR, THB)
 
 <b>Other:</b>
 • <code>/help</code> - Show this help message`
