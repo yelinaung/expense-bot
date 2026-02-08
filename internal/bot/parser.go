@@ -24,6 +24,9 @@ type ParsedExpense struct {
 // amountRegex matches amounts like "5", "5.50", "5,50".
 var amountRegex = regexp.MustCompile(`^(\d+(?:[.,]\d{1,2})?)`)
 
+// bracketCategoryRegex matches a trailing [Category Name] in the input.
+var bracketCategoryRegex = regexp.MustCompile(`\s*\[([^\]]+)\]\s*$`)
+
 // currencySymbolToCode maps currency symbols to currency codes.
 var currencySymbolToCode = map[string]string{
 	"$":  "USD", // Default $ to USD; user can override with explicit code
@@ -107,14 +110,27 @@ func ParseExpenseInput(input string) *ParsedExpense {
 
 	rest := strings.TrimSpace(input[len(match):])
 
-	// Check for currency suffix in description (e.g., "Coffee USD")
+	// Check for currency code immediately after amount (e.g., "189.00 SGD - OG Albert").
+	if rest != "" {
+		fields := strings.Fields(rest)
+		if len(fields) > 0 {
+			code := strings.ToUpper(fields[0])
+			if _, ok := models.SupportedCurrencies[code]; ok {
+				detectedCurrency = code
+				rest = strings.TrimSpace(strings.TrimPrefix(rest, fields[0]))
+				rest = strings.TrimPrefix(rest, "-")
+				rest = strings.TrimSpace(rest)
+			}
+		}
+	}
+
+	// Check for currency suffix in description (e.g., "Coffee USD").
 	if detectedCurrency == "" && rest != "" {
 		upperRest := strings.ToUpper(rest)
 		if suffixMatch := currencySuffixRegex.FindStringSubmatch(upperRest); len(suffixMatch) > 1 {
 			code := suffixMatch[1]
 			if _, ok := models.SupportedCurrencies[code]; ok {
 				detectedCurrency = code
-				// Remove the currency code from description
 				rest = strings.TrimSpace(rest[:len(rest)-len(suffixMatch[0])])
 			}
 		}
@@ -161,7 +177,7 @@ func ParseAddCommand(input string) *ParsedExpense {
 }
 
 // ParseAddCommandWithCategories parses /add with category matching.
-// It tries to match the longest category name from the end of the input.
+// It tries bracket syntax first, then longest suffix match.
 func ParseAddCommandWithCategories(input string, categoryNames []string) *ParsedExpense {
 	parsed := ParseAddCommand(input)
 	if parsed == nil {
@@ -172,25 +188,7 @@ func ParseAddCommandWithCategories(input string, categoryNames []string) *Parsed
 		return parsed
 	}
 
-	descLower := strings.ToLower(parsed.Description)
-	var matchedCategory string
-	var matchedLen int
-
-	for _, catName := range categoryNames {
-		catLower := strings.ToLower(catName)
-		if strings.HasSuffix(descLower, catLower) {
-			if len(catName) > matchedLen {
-				matchedCategory = catName
-				matchedLen = len(catName)
-			}
-		}
-	}
-
-	if matchedCategory != "" {
-		descWithoutCat := strings.TrimSpace(parsed.Description[:len(parsed.Description)-matchedLen])
-		parsed.Description = descWithoutCat
-		parsed.CategoryName = matchedCategory
-	}
+	matchBracketCategory(parsed, categoryNames)
 
 	return parsed
 }
@@ -206,6 +204,25 @@ func ParseExpenseInputWithCategories(input string, categoryNames []string) *Pars
 		return parsed
 	}
 
+	matchBracketCategory(parsed, categoryNames)
+
+	return parsed
+}
+
+// matchBracketCategory extracts a [Category] from the description, falling
+// back to longest-suffix matching against known category names.
+func matchBracketCategory(parsed *ParsedExpense, categoryNames []string) {
+	if bracketMatch := bracketCategoryRegex.FindStringSubmatch(parsed.Description); len(bracketMatch) > 1 {
+		bracketName := bracketMatch[1]
+		for _, catName := range categoryNames {
+			if strings.EqualFold(catName, bracketName) {
+				parsed.Description = strings.TrimSpace(parsed.Description[:len(parsed.Description)-len(bracketMatch[0])])
+				parsed.CategoryName = catName
+				return
+			}
+		}
+	}
+
 	descLower := strings.ToLower(parsed.Description)
 	var matchedCategory string
 	var matchedLen int
@@ -221,10 +238,7 @@ func ParseExpenseInputWithCategories(input string, categoryNames []string) *Pars
 	}
 
 	if matchedCategory != "" {
-		descWithoutCat := strings.TrimSpace(parsed.Description[:len(parsed.Description)-matchedLen])
-		parsed.Description = descWithoutCat
+		parsed.Description = strings.TrimSpace(parsed.Description[:len(parsed.Description)-matchedLen])
 		parsed.CategoryName = matchedCategory
 	}
-
-	return parsed
 }

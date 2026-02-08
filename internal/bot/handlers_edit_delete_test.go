@@ -89,7 +89,7 @@ func TestHandleEdit(t *testing.T) {
 		msg := mockBot.LastSentMessage()
 		require.NotNil(t, msg)
 		require.Contains(t, msg.Text, "Expense Updated")
-		require.Contains(t, msg.Text, "$20.00 SGD")
+		require.Contains(t, msg.Text, "S$20.00 SGD")
 		require.Contains(t, msg.Text, "Updated description")
 	})
 
@@ -119,7 +119,7 @@ func TestHandleEdit(t *testing.T) {
 		msg := mockBot.LastSentMessage()
 		require.NotNil(t, msg)
 		require.Contains(t, msg.Text, "Expense Updated")
-		require.Contains(t, msg.Text, "$25.50 SGD")
+		require.Contains(t, msg.Text, "S$25.50 SGD")
 		require.Contains(t, msg.Text, "Original description")
 		require.Contains(t, msg.Text, "Test Partial Edit Preserve Cat")
 
@@ -263,15 +263,16 @@ func callHandleEdit(
 		return
 	}
 
-	// Update amount (always required)
 	expense.Amount = parsed.Amount
 
-	// Only update description if provided
+	if parsed.Currency != "" {
+		expense.Currency = parsed.Currency
+	}
+
 	if parsed.Description != "" {
 		expense.Description = parsed.Description
 	}
 
-	// Only update category if provided
 	if parsed.CategoryName != "" {
 		for _, cat := range categories {
 			if strings.EqualFold(cat.Name, parsed.CategoryName) {
@@ -295,7 +296,16 @@ func callHandleEdit(
 		categoryText = expense.Category.Name
 	}
 
-	text := "✅ <b>Expense Updated</b>\n\n🆔 #" + strconv.FormatInt(expense.UserExpenseNumber, 10) + "\n💰 $" + expense.Amount.StringFixed(2) + " SGD\n📝 " + expense.Description + "\n📁 " + categoryText
+	currency := expense.Currency
+	if currency == "" {
+		currency = "SGD"
+	}
+	currencySymbol := models.SupportedCurrencies[currency]
+	if currencySymbol == "" {
+		currencySymbol = currency
+	}
+
+	text := "✅ <b>Expense Updated</b>\n\n🆔 #" + strconv.FormatInt(expense.UserExpenseNumber, 10) + "\n💰 " + currencySymbol + expense.Amount.StringFixed(2) + " " + currency + "\n📝 " + expense.Description + "\n📁 " + categoryText
 
 	_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    chatID,

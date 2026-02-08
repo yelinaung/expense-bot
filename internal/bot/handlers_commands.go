@@ -888,16 +888,17 @@ func (b *Bot) handleEdit(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 		return
 	}
 
-	// Update amount (always required)
 	expense.Amount = parsed.Amount
 
-	// Only update description and merchant if provided
+	if parsed.Currency != "" {
+		expense.Currency = parsed.Currency
+	}
+
 	if parsed.Description != "" {
 		expense.Description = parsed.Description
 		expense.Merchant = parsed.Description
 	}
 
-	// Only update category if provided
 	if parsed.CategoryName != "" {
 		for _, cat := range categories {
 			if strings.EqualFold(cat.Name, parsed.CategoryName) {
@@ -927,14 +928,21 @@ func (b *Bot) handleEdit(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 		categoryText = expense.Category.Name
 	}
 
+	currencySymbol := appmodels.SupportedCurrencies[expense.Currency]
+	if currencySymbol == "" {
+		currencySymbol = expense.Currency
+	}
+
 	text := fmt.Sprintf(`✅ <b>Expense Updated</b>
 
 🆔 #%d
-💰 $%s SGD
+💰 %s%s %s
 📝 %s
 📁 %s`,
 		expense.UserExpenseNumber,
+		currencySymbol,
 		expense.Amount.StringFixed(2),
+		expense.Currency,
 		expense.Description,
 		categoryText)
 

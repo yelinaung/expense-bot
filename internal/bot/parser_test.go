@@ -394,15 +394,17 @@ func TestParseExpenseInputWithCategories(t *testing.T) {
 	categories := []string{
 		"Food - Dining Out",
 		"Transportation",
+		"Travel & Vacation",
 	}
 
 	tests := []struct {
-		name        string
-		input       string
-		wantNil     bool
-		wantAmt     string
-		wantDesc    string
-		wantCatName string
+		name         string
+		input        string
+		wantNil      bool
+		wantAmt      string
+		wantDesc     string
+		wantCatName  string
+		wantCurrency string
 	}{
 		{
 			name:        "free text with category",
@@ -417,6 +419,42 @@ func TestParseExpenseInputWithCategories(t *testing.T) {
 			wantAmt:     "5.50",
 			wantDesc:    "Coffee",
 			wantCatName: "",
+		},
+		{
+			name:        "bracket category syntax",
+			input:       "189.00 OG Albert [Travel & Vacation]",
+			wantAmt:     "189.00",
+			wantDesc:    "OG Albert",
+			wantCatName: "Travel & Vacation",
+		},
+		{
+			name:         "currency prefix with bracket category",
+			input:        "S$189.00 SGD - OG Albert [Travel & Vacation]",
+			wantAmt:      "189.00",
+			wantDesc:     "OG Albert",
+			wantCatName:  "Travel & Vacation",
+			wantCurrency: "SGD",
+		},
+		{
+			name:         "currency code after amount stripped from description",
+			input:        "189.00 SGD OG Albert",
+			wantAmt:      "189.00",
+			wantDesc:     "OG Albert",
+			wantCurrency: "SGD",
+		},
+		{
+			name:        "bracket category case insensitive",
+			input:       "10.00 Lunch [food - dining out]",
+			wantAmt:     "10.00",
+			wantDesc:    "Lunch",
+			wantCatName: "Food - Dining Out",
+		},
+		{
+			name:        "bracket with unknown category falls back to suffix",
+			input:       "10.00 Lunch [Unknown Cat] Food - Dining Out",
+			wantAmt:     "10.00",
+			wantDesc:    "Lunch [Unknown Cat]",
+			wantCatName: "Food - Dining Out",
 		},
 	}
 
@@ -434,6 +472,9 @@ func TestParseExpenseInputWithCategories(t *testing.T) {
 			require.Equal(t, tt.wantAmt, result.Amount.StringFixed(2))
 			require.Equal(t, tt.wantDesc, result.Description)
 			require.Equal(t, tt.wantCatName, result.CategoryName)
+			if tt.wantCurrency != "" {
+				require.Equal(t, tt.wantCurrency, result.Currency)
+			}
 		})
 	}
 }
