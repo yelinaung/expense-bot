@@ -93,6 +93,7 @@ func (b *Bot) handleHelpCore(ctx context.Context, tg TelegramAPI, update *models
 
 <b>Categories:</b>
 • <code>/categories</code> - List all categories
+• <code>/addcategory &lt;name&gt;</code> - Create a new category
 
 <b>Currency:</b>
 • <code>/currency</code> - Show your default currency
@@ -154,6 +155,61 @@ func (b *Bot) handleCategoriesCore(ctx context.Context, tg TelegramAPI, update *
 	})
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to send /categories response")
+	}
+}
+
+// handleAddCategory handles the /addcategory command to create a new category.
+func (b *Bot) handleAddCategory(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleAddCategoryCore(ctx, tgBot, update)
+}
+
+// handleAddCategoryCore is the testable implementation of handleAddCategory.
+func (b *Bot) handleAddCategoryCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
+	if update.Message == nil {
+		return
+	}
+
+	chatID := update.Message.Chat.ID
+
+	args := strings.TrimSpace(strings.TrimPrefix(update.Message.Text, "/addcategory"))
+	if idx := strings.Index(args, "@"); idx == 0 {
+		if spaceIdx := strings.Index(args, " "); spaceIdx != -1 {
+			args = strings.TrimSpace(args[spaceIdx:])
+		} else {
+			args = ""
+		}
+	}
+
+	if args == "" {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    chatID,
+			Text:      "❌ Please provide a category name.\n\nUsage: <code>/addcategory Food - Dining Out</code>",
+			ParseMode: models.ParseModeHTML,
+		})
+		return
+	}
+
+	cat, err := b.categoryRepo.Create(ctx, args)
+	if err != nil {
+		logger.Log.Error().Err(err).Str("name", args).Msg("Failed to create category")
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   fmt.Sprintf("❌ Failed to create category '%s'. It may already exist.", args),
+		})
+		return
+	}
+
+	b.invalidateCategoryCache()
+
+	logger.Log.Info().Int("category_id", cat.ID).Str("name", cat.Name).Msg("Category created")
+
+	_, err = tg.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:    chatID,
+		Text:      fmt.Sprintf("✅ Category '<b>%s</b>' created.", cat.Name),
+		ParseMode: models.ParseModeHTML,
+	})
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to send /addcategory response")
 	}
 }
 

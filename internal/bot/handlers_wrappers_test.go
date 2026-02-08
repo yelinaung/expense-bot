@@ -54,6 +54,11 @@ func TestCommandHandlerWrappers(t *testing.T) {
 		b.handleCategories(ctx, tgBot, &models.Update{})
 	})
 
+	t.Run("handleAddCategory wrapper", func(t *testing.T) {
+		t.Parallel()
+		b.handleAddCategory(ctx, tgBot, &models.Update{})
+	})
+
 	t.Run("handleAdd wrapper", func(t *testing.T) {
 		t.Parallel()
 		// Update with nil Message causes early return in handleAddCore
