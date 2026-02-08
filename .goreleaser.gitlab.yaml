@@ -1,0 +1,41 @@
+version: 2
+
+builds:
+  - binary: expense-bot
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+
+archives:
+  - formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  use: gitlab
+  filters:
+    exclude:
+      - "^docs:"
+      - "^doc:"
+      - "^ci:"
+      - "^chore\\(deps\\):"
+      - "^Merge"
+
+release:
+  gitlab:
+    owner: yelinaung
+    name: expense-bot
+  header: |
+    ## What's Changed
+
+    See [CHANGELOG.md](https://gitlab.com/yelinaung/expense-bot/-/blob/master/CHANGELOG.md) for full details.
