@@ -7,12 +7,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
-
+	"gitlab.com/yelinaung/expense-bot/internal/gemini"
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
+	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
 // formatGreeting returns a greeting suffix with the user's name.
@@ -47,6 +48,7 @@ I'm your personal expense tracker bot. I help you track your daily expenses.
 • Send an expense like: <code>5.50 Coffee</code>
 • Or use structured format: <code>/add 5.50 Coffee Food - Dining Out</code>
 • Upload a receipt photo to extract expenses automatically
+• Send a voice message describing your expense
 
 Use /help to see all available commands.`,
 		formatGreeting(firstName))
@@ -80,6 +82,7 @@ func (b *Bot) handleHelpCore(ctx context.Context, tg TelegramAPI, update *models
 • Just send a message like <code>5.50 Coffee</code> to quickly add
 • Use currency: <code>$10 Lunch</code>, <code>€5 Coffee</code>, <code>50 THB Taxi</code>
 • Send a receipt photo to extract expenses automatically
+• Send a voice message like <code>spent five fifty on coffee</code>
 
 <b>Managing Expenses:</b>
 • <code>/edit &lt;id&gt; &lt;amount&gt; &lt;description&gt; [category]</code> - Edit an expense
@@ -191,6 +194,28 @@ func (b *Bot) handleAddCategoryCore(ctx context.Context, tg TelegramAPI, update 
 			ChatID:    chatID,
 			Text:      "❌ Please provide a category name.\n\nUsage: <code>/addcategory Food - Dining Out</code>",
 			ParseMode: models.ParseModeHTML,
+		})
+		return
+	}
+
+	args = strings.TrimSpace(args)
+
+	// Reject category names containing control characters.
+	for _, r := range args {
+		if unicode.IsControl(r) {
+			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID: chatID,
+				Text:   "❌ Category name cannot contain control characters (newlines, tabs, etc.).",
+			})
+			return
+		}
+	}
+
+	// Reject category names that are too long.
+	if len(args) > gemini.MaxCategoryNameLength {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   fmt.Sprintf("❌ Category name is too long (max %d characters).", gemini.MaxCategoryNameLength),
 		})
 		return
 	}

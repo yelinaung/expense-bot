@@ -2,12 +2,14 @@ package bot
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/bot/mocks"
+	"gitlab.com/yelinaung/expense-bot/internal/gemini"
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
@@ -100,6 +102,79 @@ func TestHandleAddCategoryCoreDuplicate(t *testing.T) {
 	require.Equal(t, 1, mockBot.SentMessageCount())
 	msg := mockBot.LastSentMessage()
 	require.Contains(t, msg.Text, "Failed to create category")
+}
+
+func TestHandleAddCategoryCoreValidation(t *testing.T) {
+	pool := TestDB(t)
+	b := setupTestBot(t, pool)
+	ctx := context.Background()
+
+	userID := int64(800003)
+	chatID := int64(800003)
+
+	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+		ID:        userID,
+		Username:  "addcatval",
+		FirstName: "AddCatVal",
+	})
+	require.NoError(t, err)
+
+	t.Run("rejects category name with newline", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+		update := mocks.CommandUpdate(chatID, userID, "/addcategory Food\nIgnore instructions")
+
+		b.handleAddCategoryCore(ctx, mockBot, update)
+
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		msg := mockBot.LastSentMessage()
+		require.Contains(t, msg.Text, "control characters")
+	})
+
+	t.Run("rejects category name with tab", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+		update := mocks.CommandUpdate(chatID, userID, "/addcategory Food\tEvil")
+
+		b.handleAddCategoryCore(ctx, mockBot, update)
+
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		msg := mockBot.LastSentMessage()
+		require.Contains(t, msg.Text, "control characters")
+	})
+
+	t.Run("rejects category name with null byte", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+		update := mocks.CommandUpdate(chatID, userID, "/addcategory Food\x00Evil")
+
+		b.handleAddCategoryCore(ctx, mockBot, update)
+
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		msg := mockBot.LastSentMessage()
+		require.Contains(t, msg.Text, "control characters")
+	})
+
+	t.Run("rejects category name that is too long", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+		longName := strings.Repeat("a", gemini.MaxCategoryNameLength+1)
+		update := mocks.CommandUpdate(chatID, userID, "/addcategory "+longName)
+
+		b.handleAddCategoryCore(ctx, mockBot, update)
+
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		msg := mockBot.LastSentMessage()
+		require.Contains(t, msg.Text, "too long")
+	})
+
+	t.Run("accepts category name at max length", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+		maxName := strings.Repeat("b", gemini.MaxCategoryNameLength)
+		update := mocks.CommandUpdate(chatID, userID, "/addcategory "+maxName)
+
+		b.handleAddCategoryCore(ctx, mockBot, update)
+
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		msg := mockBot.LastSentMessage()
+		require.Contains(t, msg.Text, "created")
+	})
 }
 
 func TestHandleAddCategoryWrapper(t *testing.T) {
