@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.0] - 2026-02-08 - Voice Messages & Prompt Injection Mitigation
+
+### Added
+- **Voice Message Expense Tracking**: Send a voice message describing your expense (e.g., "spent five fifty on coffee") and Gemini extracts amount, description, currency, and category
+- **Shared Sanitization Functions**: Exported `SanitizeForPrompt` and `SanitizeCategoryName` for reuse across parsers
+- **Fuzz Testing**: Fuzz test for `SanitizeCategoryName`
+
+### Security
+- **Prompt Injection Mitigation**: Sanitize user-created category names before embedding in Gemini prompts
+- **Category Name Validation**: `/addcategory` now rejects names with control characters and enforces a 50-character limit
+- **Response Field Sanitization**: Sanitize Gemini response fields (merchant, description, category) before storage and display
+- **Defensive Prompt Text**: Prompts now instruct Gemini that category lists are data, not instructions
+
 ## [v0.3.0] - 2026-02-08
 
 ### Added
