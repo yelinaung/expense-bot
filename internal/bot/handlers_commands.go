@@ -356,46 +356,45 @@ func (b *Bot) handleRenameCategoryCore(ctx context.Context, tg TelegramAPI, upda
 // deleteCategoryWithExpenses nullifies expenses and deletes the category atomically.
 // When the underlying db supports transactions it wraps both operations in a tx;
 // otherwise it falls back to sequential calls (e.g. inside test transactions).
-func (b *Bot) deleteCategoryWithExpenses(ctx context.Context, categoryID int, expenseCount int) error {
+// Returns the number of expenses that were uncategorized.
+func (b *Bot) deleteCategoryWithExpenses(ctx context.Context, categoryID int) (int64, error) {
 	beginner, ok := b.db.(database.TxBeginner)
 	if !ok {
-		return b.deleteCategorySequential(ctx, categoryID, expenseCount)
+		return b.deleteCategorySequential(ctx, categoryID)
 	}
 
 	tx, err := beginner.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("begin tx: %w", err)
+		return 0, fmt.Errorf("begin tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	txExpRepo := repository.NewExpenseRepository(tx)
 	txCatRepo := repository.NewCategoryRepository(tx)
 
-	if expenseCount > 0 {
-		if err := txExpRepo.NullifyCategoryOnExpenses(ctx, categoryID); err != nil {
-			return fmt.Errorf("nullify expenses: %w", err)
-		}
+	affected, err := txExpRepo.NullifyCategoryOnExpenses(ctx, categoryID)
+	if err != nil {
+		return 0, fmt.Errorf("nullify expenses: %w", err)
 	}
 	if err := txCatRepo.Delete(ctx, categoryID); err != nil {
-		return fmt.Errorf("delete category: %w", err)
+		return 0, fmt.Errorf("delete category: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit tx: %w", err)
+		return 0, fmt.Errorf("commit tx: %w", err)
 	}
-	return nil
+	return affected, nil
 }
 
 // deleteCategorySequential performs nullify+delete without a transaction.
-func (b *Bot) deleteCategorySequential(ctx context.Context, categoryID int, expenseCount int) error {
-	if expenseCount > 0 {
-		if err := b.expenseRepo.NullifyCategoryOnExpenses(ctx, categoryID); err != nil {
-			return fmt.Errorf("nullify expenses: %w", err)
-		}
+func (b *Bot) deleteCategorySequential(ctx context.Context, categoryID int) (int64, error) {
+	affected, err := b.expenseRepo.NullifyCategoryOnExpenses(ctx, categoryID)
+	if err != nil {
+		return 0, fmt.Errorf("nullify expenses: %w", err)
 	}
 	if err := b.categoryRepo.Delete(ctx, categoryID); err != nil {
-		return fmt.Errorf("delete category: %w", err)
+		return 0, fmt.Errorf("delete category: %w", err)
 	}
-	return nil
+	return affected, nil
 }
 
 // handleDeleteCategory handles the /deletecategory command.
@@ -432,20 +431,10 @@ func (b *Bot) handleDeleteCategoryCore(ctx context.Context, tg TelegramAPI, upda
 		return
 	}
 
-	// Count affected expenses.
-	count, err := b.expenseRepo.CountByCategory(ctx, cat.ID)
-	if err != nil {
-		logger.Log.Error().Err(err).Int("category_id", cat.ID).Msg("Failed to count expenses by category")
-		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
-			Text:   "❌ Failed to delete category. Please try again.",
-		})
-		return
-	}
-
 	// Nullify category on affected expenses and delete inside a transaction
 	// so both succeed or both roll back.
-	if err := b.deleteCategoryWithExpenses(ctx, cat.ID, count); err != nil {
+	affected, err := b.deleteCategoryWithExpenses(ctx, cat.ID)
+	if err != nil {
 		logger.Log.Error().Err(err).Int("category_id", cat.ID).Msg("Failed to delete category")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
@@ -456,11 +445,11 @@ func (b *Bot) handleDeleteCategoryCore(ctx context.Context, tg TelegramAPI, upda
 
 	b.invalidateCategoryCache()
 
-	logger.Log.Info().Int("category_id", cat.ID).Str("name", cat.Name).Int("affected_expenses", count).Msg("Category deleted")
+	logger.Log.Info().Int("category_id", cat.ID).Str("name", cat.Name).Int64("affected_expenses", affected).Msg("Category deleted")
 
 	text := fmt.Sprintf("✅ Category '<b>%s</b>' deleted.", cat.Name)
-	if count > 0 {
-		text += fmt.Sprintf("\n\n%d expense(s) have been uncategorized.", count)
+	if affected > 0 {
+		text += fmt.Sprintf("\n\n%d expense(s) have been uncategorized.", affected)
 	}
 
 	_, err = tg.SendMessage(ctx, &bot.SendMessageParams{
