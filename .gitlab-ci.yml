@@ -198,7 +198,7 @@ deploy:
     - git remote add dokku dokku@$DOKKU_HOST:expense-bot || true
     - git push dokku HEAD:refs/heads/master --force
   rules:
-    - if: $CI_COMMIT_BRANCH == "master"
+    - if: $CI_COMMIT_TAG =~ /^v.*/
 
 # === RELEASE STAGE ===
 
