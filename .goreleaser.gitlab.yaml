@@ -21,6 +21,9 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
+gitlab_urls:
+  use_package_registry: true
+
 changelog:
   use: gitlab
   filters:
