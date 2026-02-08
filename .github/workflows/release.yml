@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  GO_VERSION: "1.25.7"
+
+jobs:
+  release:
+    name: Build & Release
+    runs-on: [self-hosted, Linux, X64, playground-ubuntu]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Build binaries
+        run: |
+          VERSION=${GITHUB_REF_NAME}
+          COMMIT=$(git rev-parse --short HEAD)
+          DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          LDFLAGS="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}"
+
+          mkdir -p dist
+
+          GOOS=linux  GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o dist/expense-bot-linux-amd64 .
+          GOOS=linux  GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o dist/expense-bot-linux-arm64 .
+          GOOS=darwin GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o dist/expense-bot-darwin-amd64 .
+          GOOS=darwin GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o dist/expense-bot-darwin-arm64 .
+
+          cd dist && sha256sum expense-bot-* > checksums.txt
+
+      - name: Extract changelog
+        id: changelog
+        run: |
+          TAG=${GITHUB_REF_NAME}
+          # Extract the section for this version from CHANGELOG.md
+          NOTES=$(awk "/^## \[${TAG}\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md)
+          echo "notes<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$NOTES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body: ${{ steps.changelog.outputs.notes }}
+          files: dist/*
+          generate_release_notes: false

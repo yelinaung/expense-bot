@@ -1,7 +1,12 @@
-.PHONY: build test test-coverage test-integration lint fmt clean test-db-up test-db-down
+.PHONY: build test test-coverage test-integration lint fmt clean test-db-up test-db-down release
+
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
+DATE    ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+LDFLAGS  = -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
 
 build:
-	go build -o bin/expense-bot .
+	go build -ldflags "$(LDFLAGS)" -o bin/expense-bot .
 
 test:
 	go test -v ./...
@@ -41,3 +46,15 @@ fmt:
 
 clean:
 	rm -f bin/expense-bot coverage.out coverage.html
+	rm -rf dist/
+
+release:
+	@if [ -z "$(TAG)" ]; then echo "Usage: make release TAG=v0.3.0"; exit 1; fi
+	@echo "Building release $(TAG)..."
+	@mkdir -p dist
+	GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/expense-bot-linux-amd64 .
+	GOOS=linux GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o dist/expense-bot-linux-arm64 .
+	GOOS=darwin GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/expense-bot-darwin-amd64 .
+	GOOS=darwin GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o dist/expense-bot-darwin-arm64 .
+	@cd dist && sha256sum expense-bot-* > checksums.txt
+	@echo "Release binaries in dist/"
