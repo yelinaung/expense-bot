@@ -16,6 +16,9 @@ import (
 // MaxDescriptionLength is the maximum allowed length for expense descriptions.
 const MaxDescriptionLength = 200
 
+// MaxCategoryNameLength is the maximum allowed length for category names.
+const MaxCategoryNameLength = 50
+
 // CategorySuggestion represents a suggested category for an expense description.
 type CategorySuggestion struct {
 	Category   string  `json:"category"`
@@ -230,28 +233,42 @@ func extractJSON(text string) string {
 	return text[start : end+1]
 }
 
-// sanitizeDescription sanitizes user input to prevent prompt injection attacks.
-// It removes or escapes characters that could break prompt structure.
-func sanitizeDescription(description string) string {
+// SanitizeForPrompt sanitizes user input to prevent prompt injection attacks.
+// It removes or escapes characters that could break prompt structure,
+// and truncates to the given maxLength.
+func SanitizeForPrompt(input string, maxLength int) string {
 	// Remove or escape quotes that could break prompt structure.
-	description = strings.ReplaceAll(description, `"`, `'`)
-	description = strings.ReplaceAll(description, "`", "'")
+	input = strings.ReplaceAll(input, `"`, `'`)
+	input = strings.ReplaceAll(input, "`", "'")
 
 	// Remove null bytes and other control characters.
-	description = strings.ReplaceAll(description, "\x00", "")
+	input = strings.ReplaceAll(input, "\x00", "")
 
 	// Normalize whitespace: splits on any whitespace (spaces, tabs, newlines)
 	// and rejoins with single spaces. This handles newline injection and
 	// collapses multiple spaces in one efficient operation.
-	description = strings.Join(strings.Fields(description), " ")
+	input = strings.Join(strings.Fields(input), " ")
 
 	// Limit length to prevent prompt stuffing attacks.
 	// Trim after truncation to avoid trailing whitespace from mid-word cuts.
-	if len(description) > MaxDescriptionLength {
-		description = strings.TrimSpace(description[:MaxDescriptionLength])
+	if len(input) > maxLength {
+		input = strings.TrimSpace(input[:maxLength])
 	}
 
-	return description
+	return input
+}
+
+// SanitizeCategoryName sanitizes a category name for safe embedding in prompts.
+// It applies the same rules as SanitizeForPrompt but with a shorter length limit
+// appropriate for category names.
+func SanitizeCategoryName(name string) string {
+	return SanitizeForPrompt(name, MaxCategoryNameLength)
+}
+
+// sanitizeDescription sanitizes user input to prevent prompt injection attacks.
+// It removes or escapes characters that could break prompt structure.
+func sanitizeDescription(description string) string {
+	return SanitizeForPrompt(description, MaxDescriptionLength)
 }
 
 // sanitizeReasoning sanitizes the reasoning field from LLM response.

@@ -12,6 +12,7 @@
     - Run `golangci-lint run` and fix the issues
 - **Format**: `task fmt` (gofumpt -w .)
 - **Dev**: `task dev` (runs with profiling enabled)
+- `grep` is an alias to `rg`.
 
 ## Code Style Guidelines
 

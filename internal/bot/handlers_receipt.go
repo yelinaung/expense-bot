@@ -72,7 +72,7 @@ func (b *Bot) handlePhotoCore(ctx context.Context, tg TelegramAPI, update *model
 		Text:   "📷 Processing receipt...",
 	})
 
-	imageBytes, err := b.downloadPhoto(ctx, tg, largestPhoto.FileID)
+	imageBytes, err := b.downloadFile(ctx, tg, largestPhoto.FileID)
 	if err != nil {
 		logger.Log.Error().Err(err).
 			Int64("chat_id", chatID).

@@ -224,6 +224,9 @@ func logUserAction(userID int64, username string, update *tgmodels.Update) {
 		if msg.Document != nil {
 			event = event.Str("type", "document").Str("filename", msg.Document.FileName)
 		}
+		if msg.Voice != nil {
+			event = event.Str("type", "voice").Int("duration", msg.Voice.Duration)
+		}
 
 		event.Msg("User input")
 
@@ -316,6 +319,11 @@ func (b *Bot) defaultHandler(ctx context.Context, tgBot *bot.Bot, update *tgmode
 		Str("text", update.Message.Text).
 		Msg("Default handler triggered")
 
+	if update.Message.Voice != nil {
+		b.handleVoice(ctx, tgBot, update)
+		return
+	}
+
 	if len(update.Message.Photo) > 0 {
 		b.handlePhoto(ctx, tgBot, update)
 		return
@@ -340,8 +348,8 @@ func (b *Bot) defaultHandler(ctx context.Context, tgBot *bot.Bot, update *tgmode
 	}
 }
 
-// downloadPhoto downloads a photo from Telegram servers.
-func (b *Bot) downloadPhoto(ctx context.Context, tg TelegramAPI, fileID string) ([]byte, error) {
+// downloadFile downloads a file from Telegram servers.
+func (b *Bot) downloadFile(ctx context.Context, tg TelegramAPI, fileID string) ([]byte, error) {
 	file, err := tg.GetFile(ctx, &bot.GetFileParams{
 		FileID: fileID,
 	})

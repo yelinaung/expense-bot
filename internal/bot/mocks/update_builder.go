@@ -125,6 +125,20 @@ func (b *UpdateBuilder) WithDocument(fileID, fileName, mimeType string) *UpdateB
 	return b
 }
 
+// WithVoice adds a voice message to the update.
+func (b *UpdateBuilder) WithVoice(fileID string, duration int) *UpdateBuilder {
+	if b.update.Message == nil {
+		b.WithMessage(0, 0, "")
+	}
+	b.update.Message.Voice = &models.Voice{
+		FileID:       fileID,
+		FileUniqueID: fileID + "_unique",
+		Duration:     duration,
+		MimeType:     "audio/ogg",
+	}
+	return b
+}
+
 // WithEditedMessage sets an edited message on the update.
 func (b *UpdateBuilder) WithEditedMessage(chatID, userID int64, text string) *UpdateBuilder {
 	b.update.EditedMessage = &models.Message{
@@ -185,5 +199,13 @@ func PhotoUpdate(chatID, userID int64, fileID string) *models.Update {
 	return NewUpdateBuilder().
 		WithMessage(chatID, userID, "").
 		WithPhoto(fileID).
+		Build()
+}
+
+// VoiceUpdate creates a voice message update.
+func VoiceUpdate(chatID, userID int64, fileID string, duration int) *models.Update {
+	return NewUpdateBuilder().
+		WithMessage(chatID, userID, "").
+		WithVoice(fileID, duration).
 		Build()
 }
