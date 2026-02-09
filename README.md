@@ -19,6 +19,9 @@ A Telegram bot for tracking personal expenses with multi-currency support, AI-po
 - **Expense Queries**: View expenses by time period (today, this week, recent)
 - **Expense Editing**: Modify or delete existing expenses with inline buttons
 - **User Whitelisting**: Control who can access your bot (by user ID or username)
+- **Expense Tags**: Label expenses with hashtags like `#work`, `#travel` for flexible cross-category organization
+- **Category Rename/Delete**: Rename categories with `/renamecategory Old -> New` and delete with `/deletecategory`
+- **GitLab Releases**: Automated cross-platform releases via GoReleaser on both GitHub and GitLab
 - **Draft Management**: Automatic cleanup of unconfirmed draft expenses
 - **Category Caching**: Performance-optimized category lookups
 
@@ -36,6 +39,7 @@ expense-bot/
 │   │   ├── handlers_commands.go    # Command handlers (/start, /add, /list, etc.)
 │   │   ├── handlers_receipt.go     # Receipt/photo processing
 │   │   ├── handlers_callbacks.go   # Callback query handlers
+│   │   ├── handlers_tags.go         # Tag management commands
 │   │   ├── parser.go              # Expense input parsing
 │   │   └── category_matcher.go    # Smart category matching
 │   ├── config/            # Configuration management
@@ -56,7 +60,7 @@ expense-bot/
 - **Bot Framework**: go-telegram/bot
 - **AI/OCR**: Google Gemini API (gemini-2.5-flash model)
 - **Testing**: testify, table-driven tests, parallel execution
-- **CI/CD**: GitLab CI with linting, SAST, and coverage enforcement
+- **CI/CD**: GitLab CI + GitHub Actions with linting, SAST, coverage enforcement, and GoReleaser
 
 ## Prerequisites
 
@@ -164,6 +168,12 @@ go run main.go
 | `/delete <id>` | Delete an expense | `/delete 42` |
 | `/currency` | Show your default currency | `/currency` |
 | `/setcurrency <code>` | Set your default currency | `/setcurrency USD` |
+| `/addcategory <name>` | Create a new category | `/addcategory Food - Dining Out` |
+| `/renamecategory Old -> New` | Rename a category | `/renamecategory Dining -> Food - Dining Out` |
+| `/deletecategory <name>` | Delete a category (expenses become uncategorized) | `/deletecategory Old Category` |
+| `/tag <id> <tag1> [tag2] ...` | Add tags to an expense | `/tag 1 work meeting` |
+| `/untag <id> <tag>` | Remove a tag from an expense | `/untag 1 work` |
+| `/tags [name]` | List all tags or filter expenses by tag | `/tags work` |
 
 ### Multi-Currency Support
 
@@ -202,6 +212,8 @@ $10 Lunch                      # USD
 €25 Dinner Food - Dining Out   # EUR with category
 50 THB Taxi                    # Thai Baht
 5.9 vegetables                 # Auto-categorized as "Food - Grocery"
+5.50 Coffee #work              # With inline tag
+10 Lunch #team #client         # Multiple tags
 ```
 
 **Smart Category Matching:**
@@ -354,7 +366,7 @@ The project uses:
 - **golangci-lint** - 28 linters enabled for code quality
 - **gofumpt** - Stricter formatting than gofmt
 - **Pre-commit hooks** - Automatic formatting, linting, and testing
-- **GitLab CI** - Automated testing, SAST, and coverage enforcement (40% minimum)
+- **GitLab CI + GitHub Actions** - Automated testing, SAST, and coverage enforcement (50% minimum)
 
 ### Project Standards
 
@@ -390,7 +402,6 @@ openssl rand -hex 32
 - **Draft Expiration**: 10 minutes (auto-cleanup)
 - **Draft Cleanup Interval**: 5 minutes
 - **Category Cache TTL**: 5 minutes
-- **Currency**: SGD (hardcoded)
 
 ## Database Schema
 
@@ -416,6 +427,16 @@ openssl rand -hex 32
 - `created_at`, `updated_at` - Timestamps
 
 **Indexes**: user_id, created_at, category_id, status
+
+### Tags Table
+- `id` (SERIAL, PK) - Tag ID
+- `name` (TEXT, UNIQUE) - Tag name (lowercase, letter-start, max 30 chars)
+- `created_at` - Timestamp
+
+### Expense Tags Table (Junction)
+- `expense_id` (INT, FK) - References expenses (CASCADE)
+- `tag_id` (INT, FK) - References tags (CASCADE)
+- Primary key: (expense_id, tag_id)
 
 ## Troubleshooting
 
@@ -470,7 +491,7 @@ openssl rand -hex 32
 - Fix bugs: Use `/commit` with clear description
 - Add features: Create feature branch, test thoroughly
 - Follow existing code patterns
-- Maintain test coverage above 40%
+- Maintain test coverage above 50%
 
 ### Testing Requirements
 
@@ -517,7 +538,7 @@ This application has undergone security hardening. See the [Security Documentati
 - SAST scanning enabled in GitLab CI
 - Secrets detection in pipeline
 - Dependency vulnerability scanning
-- Code coverage enforcement (40% minimum)
+- Code coverage enforcement (50% minimum)
 
 **LLM/AI Security:**
 - Gemini API response schema validation (enum constraints)

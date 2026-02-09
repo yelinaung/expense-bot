@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.5.0] - 2026-02-09 - Tags, Category Management & GitLab Releases
+
+### Added
+- **Expense Tags**: Label expenses with `#hashtags` for flexible cross-category organization
+  - Inline tags: `5.50 Coffee #work #meeting`
+  - `/tag <id> <tag1> [tag2] ...` - Add tags to an existing expense
+  - `/untag <id> <tag>` - Remove a tag from an expense
+  - `/tags [name]` - List all tags or filter expenses by tag
+  - Tag names must start with a letter, max 30 characters, up to 10 per command
+  - Tags displayed in expense lists and reports
+- **Category Rename**: `/renamecategory Old -> New` command to rename categories
+- **Category Delete**: `/deletecategory <name>` command with atomic transaction (expenses become uncategorized)
+- **GitLab Releases**: GoReleaser integration for GitLab CI with cross-compiled binaries
+- **Fuzz Tests**: New fuzz tests for tag extraction, HTML escaping, command args parsing, receipt response parsing, and tag name validation
+
+### Changed
+- **golangci-lint**: Aligned version to v2.8 across local, GitHub Actions, and GitLab CI
+- **Coverage Threshold**: Increased from 40% to 50%
+
+### Fixed
+- **Atomic Category Deletion**: Wrap nullify+delete in a database transaction to prevent partial updates
+- **Race Condition**: `NullifyCategoryOnExpenses` now returns rows-affected count instead of pre-fetching
+- **Command Parsing**: Extracted `extractCommandArgs` helper to eliminate duplicated bot-mention stripping logic
+- **Receipt Parser**: Reject negative amounts from LLM responses (found via fuzz testing)
+- **CI Pipeline**: Security jobs now run on tag pipelines; deploy only triggers on master branch
+
+### Refactored
+- Moved `MaxCategoryNameLength` from `gemini` package to `models` package as a domain constraint
+
 ## [v0.4.0] - 2026-02-08 - Voice Messages & Prompt Injection Mitigation
 
 ### Added
