@@ -11,6 +11,18 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
 )
 
+// extractAdminArgs extracts command arguments while preserving @username args.
+// Unlike extractCommandArgs, it only strips the command word (and any bot mention
+// attached to it), preserving @username as an argument rather than stripping it.
+func extractAdminArgs(text string) string {
+	// Split on first space to separate command from args.
+	parts := strings.SplitN(text, " ", 2)
+	if len(parts) < 2 {
+		return ""
+	}
+	return strings.TrimSpace(parts[1])
+}
+
 // handleApprove handles the /approve command to approve a user.
 func (b *Bot) handleApprove(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
 	b.handleApproveCore(ctx, tgBot, update)
@@ -34,7 +46,7 @@ func (b *Bot) handleApproveCore(ctx context.Context, tg TelegramAPI, update *mod
 		return
 	}
 
-	args := extractCommandArgs(update.Message.Text, "/approve")
+	args := extractAdminArgs(update.Message.Text)
 	if args == "" {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
@@ -102,7 +114,7 @@ func (b *Bot) handleRevokeCore(ctx context.Context, tg TelegramAPI, update *mode
 		return
 	}
 
-	args := extractCommandArgs(update.Message.Text, "/revoke")
+	args := extractAdminArgs(update.Message.Text)
 	if args == "" {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,

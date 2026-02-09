@@ -286,7 +286,8 @@ func TestWhitelistMiddleware(t *testing.T) {
 			nextCalled = true
 		}
 
-		update := mocks.MessageUpdate(999, 88888, "test message")
+		// Use callback query update to avoid nil bot SendMessage call.
+		update := mocks.CallbackQueryUpdate(999, 88888, 1, "test_data")
 
 		middleware := b.whitelistMiddleware(next)
 		middleware(ctx, nil, update)
