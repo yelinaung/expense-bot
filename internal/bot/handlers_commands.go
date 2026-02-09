@@ -127,10 +127,10 @@ func (b *Bot) handleHelpCore(ctx context.Context, tg TelegramAPI, update *models
 
 <b>Tags:</b>
 • Add tags inline: <code>5.50 Coffee #work #meeting</code>
-• <code>/tag &lt;id&gt; &lt;tag&gt;</code> - Add tag to expense
-• <code>/untag &lt;id&gt; &lt;tag&gt;</code> - Remove tag from expense
+• <code>/tag &lt;id&gt; #tag1 [#tag2] ...</code> - Add tags to expense
+• <code>/untag &lt;id&gt; #tag</code> - Remove tag from expense
 • <code>/tags</code> - List all tags
-• <code>/tags &lt;name&gt;</code> - Filter expenses by tag
+• <code>/tags #name</code> - Filter expenses by tag
 
 <b>Other:</b>
 • <code>/help</code> - Show this help message`

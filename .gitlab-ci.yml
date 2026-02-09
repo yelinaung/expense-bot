@@ -58,7 +58,6 @@ check_secrets:
     - job: secret_detection
       artifacts: true
   script:
-    - echo "$DOKKU_SSH_PRIVATE_KEY_B64" | base64 -d | head -1
     - |
       if [ ! -f "gl-secret-detection-report.json" ]; then
         echo "Secret detection report not found!"
@@ -201,8 +200,8 @@ deploy:
     - git fetch --unshallow || true
     - git remote add dokku dokku@$DOKKU_HOST:expense-bot || true
     - git push dokku HEAD:refs/heads/master --force
-  # rules:
-  #   - if: $CI_COMMIT_TAG =~ /^v.*/
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v.*/
 
 # === RELEASE STAGE ===
 

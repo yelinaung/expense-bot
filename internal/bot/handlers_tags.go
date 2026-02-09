@@ -51,7 +51,7 @@ func (b *Bot) handleTagCore(ctx context.Context, tg TelegramAPI, update *models.
 	if args == "" {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      "❌ Usage: <code>/tag &lt;id&gt; &lt;tag1&gt; [tag2] ...</code>",
+			Text:      "❌ Usage: <code>/tag &lt;id&gt; #tag1 [#tag2] ...</code>",
 			ParseMode: models.ParseModeHTML,
 		})
 		return
@@ -61,7 +61,7 @@ func (b *Bot) handleTagCore(ctx context.Context, tg TelegramAPI, update *models.
 	if len(parts) < 2 {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      "❌ Usage: <code>/tag &lt;id&gt; &lt;tag1&gt; [tag2] ...</code>",
+			Text:      "❌ Usage: <code>/tag &lt;id&gt; #tag1 [#tag2] ...</code>",
 			ParseMode: models.ParseModeHTML,
 		})
 		return
@@ -71,7 +71,7 @@ func (b *Bot) handleTagCore(ctx context.Context, tg TelegramAPI, update *models.
 	if err != nil {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      "❌ Invalid expense ID. Use: <code>/tag &lt;id&gt; &lt;tag1&gt; [tag2] ...</code>",
+			Text:      "❌ Invalid expense ID. Use: <code>/tag &lt;id&gt; #tag1 [#tag2] ...</code>",
 			ParseMode: models.ParseModeHTML,
 		})
 		return
@@ -194,7 +194,7 @@ func (b *Bot) handleUntagCore(ctx context.Context, tg TelegramAPI, update *model
 	if args == "" {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      "❌ Usage: <code>/untag &lt;id&gt; &lt;tag&gt;</code>",
+			Text:      "❌ Usage: <code>/untag &lt;id&gt; #tag</code>",
 			ParseMode: models.ParseModeHTML,
 		})
 		return
@@ -204,7 +204,7 @@ func (b *Bot) handleUntagCore(ctx context.Context, tg TelegramAPI, update *model
 	if len(parts) < 2 {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      "❌ Usage: <code>/untag &lt;id&gt; &lt;tag&gt;</code>",
+			Text:      "❌ Usage: <code>/untag &lt;id&gt; #tag</code>",
 			ParseMode: models.ParseModeHTML,
 		})
 		return
@@ -214,7 +214,7 @@ func (b *Bot) handleUntagCore(ctx context.Context, tg TelegramAPI, update *model
 	if err != nil {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      "❌ Invalid expense ID. Use: <code>/untag &lt;id&gt; &lt;tag&gt;</code>",
+			Text:      "❌ Invalid expense ID. Use: <code>/untag &lt;id&gt; #tag</code>",
 			ParseMode: models.ParseModeHTML,
 		})
 		return

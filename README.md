@@ -13,6 +13,7 @@ A Telegram bot for tracking personal expenses with multi-currency support, AI-po
 - **AI Auto-Categorization**: Automatically categorizes expenses using Gemini AI (e.g., "vegetables" → "Food - Grocery")
 - **Structured Input**: Use commands like `/add 10.50 Lunch Food - Dining Out` for detailed entries
 - **Receipt OCR**: Upload receipt photos for automatic expense extraction using Gemini AI
+- **Voice Expense Input**: Send voice messages like "spent five fifty on coffee" for hands-free expense entry via Gemini AI
 - **Visual Charts**: Generate pie charts showing expense breakdown by category
 - **CSV Report Generation**: Export weekly or monthly expense reports in CSV format
 - **Category Management**: Organize expenses with predefined or custom categories
@@ -171,9 +172,9 @@ go run main.go
 | `/addcategory <name>` | Create a new category | `/addcategory Food - Dining Out` |
 | `/renamecategory Old -> New` | Rename a category | `/renamecategory Dining -> Food - Dining Out` |
 | `/deletecategory <name>` | Delete a category (expenses become uncategorized) | `/deletecategory Old Category` |
-| `/tag <id> <tag1> [tag2] ...` | Add tags to an expense | `/tag 1 work meeting` |
-| `/untag <id> <tag>` | Remove a tag from an expense | `/untag 1 work` |
-| `/tags [name]` | List all tags or filter expenses by tag | `/tags work` |
+| `/tag <id> #tag1 [#tag2] ...` | Add tags to an expense | `/tag 1 #work #meeting` |
+| `/untag <id> #tag` | Remove a tag from an expense | `/untag 1 #work` |
+| `/tags [#name]` | List all tags or filter expenses by tag | `/tags #work` |
 
 ### Multi-Currency Support
 
@@ -235,6 +236,18 @@ After extraction, you can:
 - ✅ Confirm - Save the expense
 - ✏️ Edit - Modify amount, description, or category
 - ❌ Cancel - Discard the draft
+
+### Voice Expense Input
+
+Send a voice message describing your expense to add it hands-free:
+
+```
+"spent five fifty on coffee"
+"ten dollars for lunch"
+"twenty bucks taxi to airport"
+```
+
+The bot uses Gemini AI to extract the amount, description, currency, and suggested category from your voice. Requires `GEMINI_API_KEY` to be configured.
 
 ### CSV Report Generation
 
