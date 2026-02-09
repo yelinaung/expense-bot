@@ -103,8 +103,8 @@ func (b *Bot) handleTagCore(ctx context.Context, tg TelegramAPI, update *models.
 		return
 	}
 
-	var tagIDs []int
-	var addedNames []string
+	tagIDs := make([]int, 0, len(tagNames))
+	addedNames := make([]string, 0, len(tagNames))
 	for _, name := range tagNames {
 		name = strings.ToLower(strings.TrimPrefix(name, "#"))
 		if name == "" {
