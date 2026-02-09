@@ -58,6 +58,7 @@ check_secrets:
     - job: secret_detection
       artifacts: true
   script:
+    - echo "$DOKKU_SSH_PRIVATE_KEY_B64" | base64 -d | head -1
     - |
       if [ ! -f "gl-secret-detection-report.json" ]; then
         echo "Secret detection report not found!"
