@@ -29,14 +29,15 @@ func setupTestBot(t *testing.T, db database.PGXDB) *Bot {
 	}
 
 	b := &Bot{
-		cfg:          cfg,
-		db:           db,
-		userRepo:     repository.NewUserRepository(db),
-		categoryRepo: repository.NewCategoryRepository(db),
-		expenseRepo:  repository.NewExpenseRepository(db),
-		tagRepo:      repository.NewTagRepository(db),
-		geminiClient: nil, // No Gemini client for cache tests
-		pendingEdits: make(map[int64]*pendingEdit),
+		cfg:              cfg,
+		db:               db,
+		userRepo:         repository.NewUserRepository(db),
+		categoryRepo:     repository.NewCategoryRepository(db),
+		expenseRepo:      repository.NewExpenseRepository(db),
+		tagRepo:          repository.NewTagRepository(db),
+		approvedUserRepo: repository.NewApprovedUserRepository(db),
+		geminiClient:     nil, // No Gemini client for cache tests
+		pendingEdits:     make(map[int64]*pendingEdit),
 	}
 
 	return b

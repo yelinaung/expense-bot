@@ -28,14 +28,15 @@ type pendingEdit struct {
 
 // Bot wraps the Telegram bot with application dependencies.
 type Bot struct {
-	bot          *bot.Bot
-	cfg          *config.Config
-	db           database.PGXDB
-	userRepo     *repository.UserRepository
-	categoryRepo *repository.CategoryRepository
-	expenseRepo  *repository.ExpenseRepository
-	tagRepo      *repository.TagRepository
-	geminiClient *gemini.Client
+	bot              *bot.Bot
+	cfg              *config.Config
+	db               database.PGXDB
+	userRepo         *repository.UserRepository
+	categoryRepo     *repository.CategoryRepository
+	expenseRepo      *repository.ExpenseRepository
+	tagRepo          *repository.TagRepository
+	approvedUserRepo *repository.ApprovedUserRepository
+	geminiClient     *gemini.Client
 
 	pendingEdits   map[int64]*pendingEdit // key is chatID
 	pendingEditsMu sync.RWMutex
@@ -49,13 +50,14 @@ type Bot struct {
 // New creates a new Bot instance.
 func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 	b := &Bot{
-		cfg:          cfg,
-		db:           db,
-		userRepo:     repository.NewUserRepository(db),
-		categoryRepo: repository.NewCategoryRepository(db),
-		expenseRepo:  repository.NewExpenseRepository(db),
-		tagRepo:      repository.NewTagRepository(db),
-		pendingEdits: make(map[int64]*pendingEdit),
+		cfg:              cfg,
+		db:               db,
+		userRepo:         repository.NewUserRepository(db),
+		categoryRepo:     repository.NewCategoryRepository(db),
+		expenseRepo:      repository.NewExpenseRepository(db),
+		tagRepo:          repository.NewTagRepository(db),
+		approvedUserRepo: repository.NewApprovedUserRepository(db),
+		pendingEdits:     make(map[int64]*pendingEdit),
 	}
 
 	if cfg.GeminiAPIKey != "" {
@@ -162,6 +164,9 @@ func (b *Bot) registerHandlers() {
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/untag", bot.MatchTypePrefix, b.handleUntag)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/tags", bot.MatchTypePrefix, b.handleTags)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/tag", bot.MatchTypePrefix, b.handleTag)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/approve", bot.MatchTypePrefix, b.handleApprove)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/revoke", bot.MatchTypePrefix, b.handleRevoke)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/users", bot.MatchTypePrefix, b.handleUsers)
 
 	// Callback query handlers for receipt confirmation flow.
 	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "receipt_", bot.MatchTypePrefix, b.handleReceiptCallback)
@@ -177,6 +182,31 @@ func (b *Bot) registerHandlers() {
 	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "back_to_expense_", bot.MatchTypePrefix, b.handleBackToExpenseCallback)
 }
 
+// isAuthorized checks if a user is a superadmin or a DB-approved user.
+// Returns false on DB errors (fail closed).
+func (b *Bot) isAuthorized(ctx context.Context, userID int64, username string) bool {
+	if b.cfg.IsSuperAdmin(userID, username) {
+		return true
+	}
+
+	approved, needsBackfill, err := b.approvedUserRepo.IsApproved(ctx, userID, username)
+	if err != nil {
+		logger.Log.Error().Err(err).
+			Int64("user_id", userID).
+			Msg("Failed to check approved status, denying access")
+		return false
+	}
+	if needsBackfill {
+		// Backfill user_id for username-only approved users (fire-and-forget).
+		go func() {
+			if err := b.approvedUserRepo.UpdateUserID(context.Background(), username, userID); err != nil {
+				logger.Log.Debug().Err(err).Str("username", username).Msg("Failed to backfill user ID")
+			}
+		}()
+	}
+	return approved
+}
+
 // whitelistMiddleware checks if the user is whitelisted before processing.
 func (b *Bot) whitelistMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 	return func(ctx context.Context, tgBot *bot.Bot, update *tgmodels.Update) {
@@ -188,7 +218,7 @@ func (b *Bot) whitelistMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 		username := extractUsername(update)
 		logUserAction(userID, username, update)
 
-		if !b.cfg.IsUserWhitelisted(userID, username) {
+		if !b.isAuthorized(ctx, userID, username) {
 			logger.Log.Warn().
 				Int64("user_id", userID).
 				Str("username", username).

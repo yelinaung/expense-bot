@@ -68,6 +68,15 @@ type Tag struct {
 	CreatedAt time.Time
 }
 
+// ApprovedUser represents a dynamically approved bot user.
+type ApprovedUser struct {
+	ID         int
+	UserID     int64
+	Username   string
+	ApprovedBy int64
+	CreatedAt  time.Time
+}
+
 // Expense represents a single expense entry.
 type Expense struct {
 	ID                int

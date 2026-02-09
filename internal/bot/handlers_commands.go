@@ -132,6 +132,11 @@ func (b *Bot) handleHelpCore(ctx context.Context, tg TelegramAPI, update *models
 • <code>/tags</code> - List all tags
 • <code>/tags #name</code> - Filter expenses by tag
 
+<b>Admin:</b>
+• <code>/approve &lt;user_id&gt;</code> or <code>/approve @username</code> - Approve a user
+• <code>/revoke &lt;user_id&gt;</code> or <code>/revoke @username</code> - Revoke a user
+• <code>/users</code> - List all authorized users
+
 <b>Other:</b>
 • <code>/help</code> - Show this help message`
 

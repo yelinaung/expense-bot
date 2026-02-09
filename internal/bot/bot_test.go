@@ -186,11 +186,12 @@ func TestWhitelistMiddleware(t *testing.T) {
 			WhitelistedUserIDs: []int64{12345},
 		}
 		b := &Bot{
-			cfg:          cfg,
-			userRepo:     repository.NewUserRepository(tx),
-			categoryRepo: repository.NewCategoryRepository(tx),
-			expenseRepo:  repository.NewExpenseRepository(tx),
-			pendingEdits: make(map[int64]*pendingEdit),
+			cfg:              cfg,
+			userRepo:         repository.NewUserRepository(tx),
+			categoryRepo:     repository.NewCategoryRepository(tx),
+			expenseRepo:      repository.NewExpenseRepository(tx),
+			approvedUserRepo: repository.NewApprovedUserRepository(tx),
+			pendingEdits:     make(map[int64]*pendingEdit),
 		}
 
 		nextCalled := false
@@ -212,11 +213,12 @@ func TestWhitelistMiddleware(t *testing.T) {
 			WhitelistedUserIDs: []int64{12345},
 		}
 		b := &Bot{
-			cfg:          cfg,
-			userRepo:     repository.NewUserRepository(tx),
-			categoryRepo: repository.NewCategoryRepository(tx),
-			expenseRepo:  repository.NewExpenseRepository(tx),
-			pendingEdits: make(map[int64]*pendingEdit),
+			cfg:              cfg,
+			userRepo:         repository.NewUserRepository(tx),
+			categoryRepo:     repository.NewCategoryRepository(tx),
+			expenseRepo:      repository.NewExpenseRepository(tx),
+			approvedUserRepo: repository.NewApprovedUserRepository(tx),
+			pendingEdits:     make(map[int64]*pendingEdit),
 		}
 
 		nextCalled := false
@@ -236,14 +238,71 @@ func TestWhitelistMiddleware(t *testing.T) {
 		require.Contains(t, msg.Text, "not authorized")
 	})
 
+	t.Run("allows DB-approved user", func(t *testing.T) {
+		cfg := &config.Config{
+			WhitelistedUserIDs: []int64{12345},
+		}
+		approvedRepo := repository.NewApprovedUserRepository(tx)
+		err := approvedRepo.Approve(ctx, 77777, "", 12345)
+		require.NoError(t, err)
+
+		b := &Bot{
+			cfg:              cfg,
+			userRepo:         repository.NewUserRepository(tx),
+			categoryRepo:     repository.NewCategoryRepository(tx),
+			expenseRepo:      repository.NewExpenseRepository(tx),
+			approvedUserRepo: approvedRepo,
+			pendingEdits:     make(map[int64]*pendingEdit),
+		}
+
+		nextCalled := false
+		next := func(_ context.Context, _ *bot.Bot, _ *tgmodels.Update) {
+			nextCalled = true
+		}
+
+		update := mocks.MessageUpdate(999, 77777, "test message")
+
+		middleware := b.whitelistMiddleware(next)
+		middleware(ctx, nil, update)
+
+		require.True(t, nextCalled, "next handler should be called for DB-approved user")
+	})
+
+	t.Run("blocks non-approved non-superadmin user", func(t *testing.T) {
+		cfg := &config.Config{
+			WhitelistedUserIDs: []int64{12345},
+		}
+		b := &Bot{
+			cfg:              cfg,
+			userRepo:         repository.NewUserRepository(tx),
+			categoryRepo:     repository.NewCategoryRepository(tx),
+			expenseRepo:      repository.NewExpenseRepository(tx),
+			approvedUserRepo: repository.NewApprovedUserRepository(tx),
+			pendingEdits:     make(map[int64]*pendingEdit),
+		}
+
+		nextCalled := false
+		next := func(_ context.Context, _ *bot.Bot, _ *tgmodels.Update) {
+			nextCalled = true
+		}
+
+		update := mocks.MessageUpdate(999, 88888, "test message")
+
+		middleware := b.whitelistMiddleware(next)
+		middleware(ctx, nil, update)
+
+		require.False(t, nextCalled, "next handler should NOT be called for non-approved user")
+	})
+
 	t.Run("returns early when userID is zero", func(t *testing.T) {
 		cfg := &config.Config{
 			WhitelistedUserIDs: []int64{12345},
 		}
 		b := &Bot{
-			cfg:          cfg,
-			userRepo:     repository.NewUserRepository(tx),
-			pendingEdits: make(map[int64]*pendingEdit),
+			cfg:              cfg,
+			userRepo:         repository.NewUserRepository(tx),
+			approvedUserRepo: repository.NewApprovedUserRepository(tx),
+			pendingEdits:     make(map[int64]*pendingEdit),
 		}
 
 		nextCalled := false
@@ -264,9 +323,10 @@ func TestWhitelistMiddleware(t *testing.T) {
 			WhitelistedUserIDs: []int64{12345},
 		}
 		b := &Bot{
-			cfg:          cfg,
-			userRepo:     repository.NewUserRepository(tx),
-			pendingEdits: make(map[int64]*pendingEdit),
+			cfg:              cfg,
+			userRepo:         repository.NewUserRepository(tx),
+			approvedUserRepo: repository.NewApprovedUserRepository(tx),
+			pendingEdits:     make(map[int64]*pendingEdit),
 		}
 
 		nextCalled := false

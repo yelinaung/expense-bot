@@ -117,6 +117,20 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		)`,
 
 		`CREATE INDEX IF NOT EXISTS idx_expense_tags_tag_id ON expense_tags(tag_id)`,
+
+		`CREATE TABLE IF NOT EXISTS approved_users (
+			id SERIAL PRIMARY KEY,
+			user_id BIGINT NOT NULL DEFAULT 0,
+			username TEXT NOT NULL DEFAULT '',
+			approved_by BIGINT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`,
+
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_approved_users_user_id
+			ON approved_users(user_id) WHERE user_id != 0`,
+
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_approved_users_username
+			ON approved_users(LOWER(username)) WHERE username != ''`,
 	}
 
 	for i, migration := range migrations {

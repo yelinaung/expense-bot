@@ -91,6 +91,11 @@ func (c *Config) validate() error {
 	return nil
 }
 
+// IsSuperAdmin checks if a user is a superadmin (defined via environment variables).
+func (c *Config) IsSuperAdmin(userID int64, username string) bool {
+	return c.IsUserWhitelisted(userID, username)
+}
+
 // IsUserWhitelisted checks if a Telegram user ID or username is in the whitelist.
 // Returns true if either the user ID or username is whitelisted.
 func (c *Config) IsUserWhitelisted(userID int64, username string) bool {
