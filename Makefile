@@ -39,6 +39,7 @@ coverage-html: test-coverage
 	@echo "Coverage report generated: coverage.html"
 
 lint:
+	go vet ./...
 	golangci-lint run ./...
 
 fmt:

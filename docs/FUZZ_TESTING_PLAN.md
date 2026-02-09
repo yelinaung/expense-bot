@@ -15,10 +15,12 @@ This document outlines the fuzz testing strategy for the expense-bot codebase. F
 
 | Function | File | Risk | Rationale |
 |----------|------|------|-----------|
-| `parseAmount` | `internal/bot/parser.go:52` | **HIGH** | Handles decimal parsing with comma/dot conversion; financial data |
-| `ParseExpenseInput` | `internal/bot/parser.go:70` | **HIGH** | Complex regex + currency detection + user input |
+| `parseAmount` | `internal/bot/parser.go:98` | **HIGH** | Handles decimal parsing with comma/dot conversion; financial data |
+| `ParseExpenseInput` | `internal/bot/parser.go:116` | **HIGH** | Complex regex + currency detection + tag extraction + user input |
 | `extractJSON` | `internal/gemini/category_suggester.go:215` | **HIGH** | Extracts JSON from untrusted LLM output |
 | `sanitizeDescription` | `internal/gemini/category_suggester.go:238` | **HIGH** | Security-critical prompt injection defense |
+| `extractTags` | `internal/bot/parser.go:60` | **HIGH** | Parses `#tag` tokens from user input; deduplication, lowercasing, word boundary splitting |
+| `escapeHTML` | `internal/bot/handlers_tags.go:28` | **HIGH** | Security-critical — output rendered in Telegram HTML messages |
 
 ---
 
@@ -28,7 +30,9 @@ This document outlines the fuzz testing strategy for the expense-bot codebase. F
 |----------|------|------|-----------|
 | `parseReceiptResponse` | `internal/gemini/receipt_parser.go:160` | **MEDIUM** | JSON parsing + markdown stripping from LLM |
 | `sanitizeReasoning` | `internal/gemini/category_suggester.go:261` | **MEDIUM** | Output sanitization |
-| `ParseAddCommandWithCategories` | `internal/bot/parser.go:165` | **MEDIUM** | String suffix matching with categories |
+| `ParseAddCommandWithCategories` | `internal/bot/parser.go:232` | **MEDIUM** | String suffix matching with categories |
+| `extractCommandArgs` | `internal/bot/handlers_commands.go:22` | **MEDIUM** | `@botname` stripping with index-based slicing; used by all command handlers |
+| `isValidTagName` | `internal/bot/handlers_tags.go:23` | **MEDIUM** | Validation gate for all tag input; must reject control chars and overlong names |
 
 ---
 
@@ -63,11 +67,15 @@ This document outlines the fuzz testing strategy for the expense-bot codebase. F
 **Seed Corpus**:
 - `"5.50 Coffee"`, `"$10 Lunch"`, `"50 USD Coffee"`
 - `"S$5.50 Taxi"`, `"€100"`, `"¥1000 Ramen"`
+- With tags: `"5.50 Coffee #work"`, `"10 Lunch #team #client"`, `"5 #a #a"` (dedup)
+- Tag edge cases: `"5.50 #123"` (numeric start, rejected), `"5.50 Coffee#nospace"` (not a tag)
 - Edge cases: `""`, `"Coffee"`, `"$"`, `"-5 Invalid"`
 
 **Invariants**:
 - If result is non-nil, amount must be positive
 - Currency (if set) must be in `models.SupportedCurrencies`
+- Tags (if set) must each match `^[a-z]\w{0,29}$` (lowercase, letter-start)
+- Tags must be deduplicated (no repeated entries)
 - Must not panic on any input
 
 ### 3. FuzzExtractJSON
@@ -128,6 +136,73 @@ This document outlines the fuzz testing strategy for the expense-bot codebase. F
 - Result length must be ≤ 500
 - Must not panic on any input
 
+### 7. FuzzExtractTags
+
+**Target**: `internal/bot/parser.go:extractTags`
+
+**Seed Corpus**:
+- Single tag: `"Coffee #work"`
+- Multiple tags: `"Coffee #work #meeting"`, `"Lunch #team #client #project"`
+- Deduplication: `"Coffee #work #work"`, `"#a #A"` (case-insensitive dedup)
+- No tags: `"Coffee"`, `""`, `"no hash here"`
+- Tag only: `"#work"`, `"#a"`
+- Invalid tags: `"Coffee #123"` (digit start), `"#"` (empty), `"Coffee#nospace"` (no space)
+- Underscores: `"Lunch #client_meeting"`, `"#a_b_c"`
+- Long: `"Coffee #abcdefghijklmnopqrstuvwxyz1234"` (31 chars, exceeds 30)
+
+**Invariants**:
+- Tags must be lowercase
+- Tags must be deduplicated (`len(tags) == len(unique(tags))`)
+- Each tag must match `^[a-z]\w{0,29}$`
+- Cleaned text must not contain any of the extracted `#tag` tokens as standalone words
+- Must not panic on any input
+
+### 8. FuzzExtractCommandArgs
+
+**Target**: `internal/bot/handlers_commands.go:extractCommandArgs`
+
+**Seed Corpus**:
+- `"/cmd arg"`, `"/cmd@bot arg"`, `"/cmd@bot"`, `"/cmd"`, `""`
+- Multi-word: `"/cmd@bot_name My Category Name"`
+- Extra spaces: `"/cmd   arg  "`, `"/cmd@bot   "`,
+- Rename syntax: `"/renamecategory Old -> New"`
+- Edge cases: `"/cmd@"`, `"/cmd@ arg"`, `"/cmd @not_a_mention"`
+
+**Invariants**:
+- Result must not start with the command prefix
+- Result must be trimmed (no leading/trailing spaces)
+- Must not panic on any input
+
+### 9. FuzzIsValidTagName
+
+**Target**: `internal/bot/handlers_tags.go:isValidTagName`
+
+**Seed Corpus**:
+- Valid: `"work"`, `"a"`, `"client_meeting"`, `"q2budget"`, `"A"`
+- Invalid: `"123"`, `""`, `"a b"`, `"-tag"`, `"tag!"`, strings > 30 chars
+- Control chars: `"tag\x00"`, `"tag\n"`, `"tag\t"`
+- Unicode: `"café"`, `"タグ"`, `"work️"` (with emoji)
+
+**Invariants**:
+- If true: `len(name) <= MaxTagNameLength` and name matches `^[a-zA-Z]\w{0,29}$`
+- If false: name does not match the regex or exceeds length
+- Must not panic on any input
+
+### 10. FuzzEscapeHTML
+
+**Target**: `internal/bot/handlers_tags.go:escapeHTML`
+
+**Seed Corpus**:
+- Normal: `"hello"`, `"work"`, `""`, `"café"`
+- HTML: `"<script>alert(1)</script>"`, `"<b>bold</b>"`, `"a&b"`, `"a > b"`, `"a < b"`
+- Nested: `"&amp;"`, `"&lt;script&gt;"`, `"&&&&"`
+- Edge cases: `"<"`, `">"`, `"&"`, `"<<<>>>"`, long strings
+
+**Invariants**:
+- Result must not contain unescaped `<` or `>` characters
+- Result must not contain bare `&` that is not part of `&amp;`, `&lt;`, or `&gt;`
+- Must not panic on any input
+
 ---
 
 ## Running Fuzz Tests
@@ -178,6 +253,9 @@ Fuzz test crashes are stored in `testdata/fuzz/<FuzzTestName>/` directories. Whe
 - Malformed JSON extraction edge cases
 - Buffer/length boundary issues
 - Panic conditions in error paths
+- Tag extraction edge cases (e.g., `#` at word boundaries, mixed valid/invalid tokens)
+- HTML escape bypasses (unescaped `<`, `>`, `&` in Telegram messages)
+- Command argument parsing edge cases with `@` mentions and empty inputs
 
 ---
 
@@ -186,13 +264,17 @@ Fuzz test crashes are stored in `testdata/fuzz/<FuzzTestName>/` directories. Whe
 - [x] Document fuzz testing plan
 - [x] Implement Priority 1 fuzz tests
   - [x] `FuzzParseAmount` - `internal/bot/parser_fuzz_test.go`
-  - [x] `FuzzParseExpenseInput` - `internal/bot/parser_fuzz_test.go`
+  - [x] `FuzzParseExpenseInput` - `internal/bot/parser_fuzz_test.go` (updated: now validates tag invariants)
   - [x] `FuzzExtractJSON` - `internal/gemini/category_suggester_fuzz_test.go`
   - [x] `FuzzSanitizeDescription` - `internal/gemini/category_suggester_fuzz_test.go`
+  - [x] `FuzzExtractTags` - `internal/bot/parser_fuzz_test.go`
+  - [x] `FuzzEscapeHTML` - `internal/bot/handlers_tags_fuzz_test.go`
 - [x] Implement Priority 2 fuzz tests
   - [x] `FuzzSanitizeReasoning` - `internal/gemini/category_suggester_fuzz_test.go`
   - [x] `FuzzParseAddCommandWithCategories` - `internal/bot/parser_fuzz_test.go` (as `FuzzParseExpenseInputWithCategories`)
-  - [ ] `FuzzParseReceiptResponse` - requires export or separate test file
+  - [x] `FuzzParseReceiptResponse` - `internal/gemini/receipt_parser_fuzz_test.go`
+  - [x] `FuzzExtractCommandArgs` - `internal/bot/parser_fuzz_test.go`
+  - [x] `FuzzIsValidTagName` - `internal/bot/handlers_tags_fuzz_test.go`
 - [x] Additional fuzz tests
   - [x] `FuzzParseAddCommand` - `internal/bot/parser_fuzz_test.go`
   - [x] `FuzzHashDescription` - `internal/gemini/category_suggester_fuzz_test.go`
@@ -208,6 +290,10 @@ Fuzz test crashes are stored in `testdata/fuzz/<FuzzTestName>/` directories. Whe
 ### 2. `sanitizeReasoning` / `sanitizeDescription` - Trailing Whitespace After Truncation
 **Issue**: Truncating at max length could leave trailing whitespace if cut happened mid-word.
 **Fix**: Added `strings.TrimSpace()` after truncation.
+
+### 3. `parseReceiptResponse` - Negative Amount Accepted
+**Issue**: Parsing `{"amount": "-5.00"}` returned a negative amount without error.
+**Fix**: Added `amount.IsNegative()` check after parsing, returning an error for negative amounts.
 
 ---
 

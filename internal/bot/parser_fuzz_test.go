@@ -1,6 +1,8 @@
 package bot
 
 import (
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/shopspring/decimal"
@@ -91,6 +93,17 @@ func FuzzParseExpenseInput(f *testing.F) {
 	f.Add("5.50 Coffee\x00null")
 	f.Add("5.50 \"quoted\"")
 
+	// With tags.
+	f.Add("5.50 Coffee #work")
+	f.Add("10 Lunch #team #client")
+	f.Add("5 #a #a") // Dedup.
+
+	// Tag edge cases.
+	f.Add("5.50 #123")           // Numeric start, rejected.
+	f.Add("5.50 Coffee#nospace") // Not a tag.
+
+	tagPattern := regexp.MustCompile(`^[a-z]\w{0,29}$`)
+
 	f.Fuzz(func(t *testing.T, input string) {
 		result := ParseExpenseInput(input)
 
@@ -105,6 +118,22 @@ func FuzzParseExpenseInput(f *testing.F) {
 				if _, ok := models.SupportedCurrencies[result.Currency]; !ok {
 					t.Errorf("ParseExpenseInput(%q) returned invalid currency: %s", input, result.Currency)
 				}
+			}
+
+			// Invariant 3: Tags (if set) must each match ^[a-z]\w{0,29}$ (lowercase, letter-start).
+			for _, tag := range result.Tags {
+				if !tagPattern.MatchString(tag) {
+					t.Errorf("ParseExpenseInput(%q) returned invalid tag: %q", input, tag)
+				}
+			}
+
+			// Invariant 4: Tags must be deduplicated.
+			seen := make(map[string]bool)
+			for _, tag := range result.Tags {
+				if seen[tag] {
+					t.Errorf("ParseExpenseInput(%q) returned duplicate tag: %q", input, tag)
+				}
+				seen[tag] = true
 			}
 		}
 	})
@@ -141,6 +170,122 @@ func FuzzParseAddCommand(f *testing.F) {
 					t.Errorf("ParseAddCommand(%q) returned invalid currency: %s", input, result.Currency)
 				}
 			}
+		}
+	})
+}
+
+func FuzzExtractTags(f *testing.F) {
+	// Single tag.
+	f.Add("Coffee #work")
+
+	// Multiple tags.
+	f.Add("Coffee #work #meeting")
+	f.Add("Lunch #team #client #project")
+
+	// Deduplication.
+	f.Add("Coffee #work #work")
+	f.Add("#a #A") // Case-insensitive dedup.
+
+	// No tags.
+	f.Add("Coffee")
+	f.Add("")
+	f.Add("no hash here")
+
+	// Tag only.
+	f.Add("#work")
+	f.Add("#a")
+
+	// Invalid tags.
+	f.Add("Coffee #123") // Digit start.
+	f.Add("#")           // Empty.
+	f.Add("Coffee#nospace")
+
+	// Underscores.
+	f.Add("Lunch #client_meeting")
+	f.Add("#a_b_c")
+
+	// Long tag (31 chars, exceeds 30).
+	f.Add("Coffee #abcdefghijklmnopqrstuvwxyz1234")
+
+	// Unicode and special.
+	f.Add("5.50 #café")
+	f.Add("#タグ")
+	f.Add("#work\x00null")
+
+	tagPattern := regexp.MustCompile(`^[a-z]\w{0,29}$`)
+
+	f.Fuzz(func(t *testing.T, input string) {
+		tags, cleaned := extractTags(input)
+
+		for _, tag := range tags {
+			// Invariant 1: Tags must be lowercase.
+			if tag != strings.ToLower(tag) {
+				t.Errorf("extractTags(%q) returned non-lowercase tag: %q", input, tag)
+			}
+
+			// Invariant 2: Each tag must match the valid pattern.
+			if !tagPattern.MatchString(tag) {
+				t.Errorf("extractTags(%q) returned invalid tag: %q", input, tag)
+			}
+		}
+
+		// Invariant 3: Tags must be deduplicated.
+		seen := make(map[string]bool)
+		for _, tag := range tags {
+			if seen[tag] {
+				t.Errorf("extractTags(%q) returned duplicate tag: %q", input, tag)
+			}
+			seen[tag] = true
+		}
+
+		// Invariant 4: Cleaned text must not contain any extracted #tag tokens as standalone words.
+		for _, tag := range tags {
+			for _, word := range strings.Fields(cleaned) {
+				if strings.EqualFold(word, "#"+tag) {
+					t.Errorf("extractTags(%q) cleaned text still contains #%s: %q", input, tag, cleaned)
+				}
+			}
+		}
+
+		_ = cleaned // Must not panic.
+	})
+}
+
+func FuzzExtractCommandArgs(f *testing.F) {
+	// Standard commands.
+	f.Add("/cmd arg", "/cmd")
+	f.Add("/cmd@bot arg", "/cmd")
+	f.Add("/cmd@bot", "/cmd")
+	f.Add("/cmd", "/cmd")
+	f.Add("", "/cmd")
+
+	// Multi-word.
+	f.Add("/cmd@bot_name My Category Name", "/cmd")
+
+	// Extra spaces.
+	f.Add("/cmd   arg  ", "/cmd")
+	f.Add("/cmd@bot   ", "/cmd")
+
+	// Rename syntax.
+	f.Add("/renamecategory Old -> New", "/renamecategory")
+
+	// Edge cases.
+	f.Add("/cmd@", "/cmd")
+	f.Add("/cmd@ arg", "/cmd")
+	f.Add("/cmd @not_a_mention", "/cmd")
+
+	// Tag commands.
+	f.Add("/tag 1 work", "/tag")
+	f.Add("/tag@bot 1 work meeting", "/tag")
+	f.Add("/untag 1 work", "/untag")
+	f.Add("/tags work", "/tags")
+
+	f.Fuzz(func(t *testing.T, text, command string) {
+		result := extractCommandArgs(text, command)
+
+		// Invariant 1: Result must be trimmed (no leading/trailing spaces).
+		if result != strings.TrimSpace(result) {
+			t.Errorf("extractCommandArgs(%q, %q) result not trimmed: %q", text, command, result)
 		}
 	})
 }

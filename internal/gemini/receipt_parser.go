@@ -186,6 +186,9 @@ func parseReceiptResponse(response string) (*ReceiptData, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse amount %q: %w", rr.Amount, err)
 		}
+		if amount.IsNegative() {
+			return nil, fmt.Errorf("negative amount %q in receipt response", rr.Amount)
+		}
 		data.Amount = amount
 	}
 
