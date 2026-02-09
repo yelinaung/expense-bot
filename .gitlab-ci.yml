@@ -190,7 +190,10 @@ deploy:
     # OPTIMIZED: Only install openssh-client (git already included)
     - apk add --no-cache openssh-client
     - eval $(ssh-agent -s)
-    - echo "$DOKKU_SSH_PRIVATE_KEY_B64" | base64 -d | tr -d '\r' | ssh-add -
+    - echo "$DOKKU_SSH_PRIVATE_KEY_B64" | base64 -d > /tmp/deploy_key
+    - chmod 600 /tmp/deploy_key
+    - ssh-add /tmp/deploy_key
+    - rm /tmp/deploy_key
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
     - echo "$DOKKU_HOST_KEY" >> ~/.ssh/known_hosts
@@ -198,8 +201,8 @@ deploy:
     - git fetch --unshallow || true
     - git remote add dokku dokku@$DOKKU_HOST:expense-bot || true
     - git push dokku HEAD:refs/heads/master --force
-  rules:
-    - if: $CI_COMMIT_TAG =~ /^v.*/
+  # rules:
+  #   - if: $CI_COMMIT_TAG =~ /^v.*/
 
 # === RELEASE STAGE ===
 
