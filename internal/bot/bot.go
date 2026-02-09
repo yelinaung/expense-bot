@@ -34,6 +34,7 @@ type Bot struct {
 	userRepo     *repository.UserRepository
 	categoryRepo *repository.CategoryRepository
 	expenseRepo  *repository.ExpenseRepository
+	tagRepo      *repository.TagRepository
 	geminiClient *gemini.Client
 
 	pendingEdits   map[int64]*pendingEdit // key is chatID
@@ -53,6 +54,7 @@ func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 		userRepo:     repository.NewUserRepository(db),
 		categoryRepo: repository.NewCategoryRepository(db),
 		expenseRepo:  repository.NewExpenseRepository(db),
+		tagRepo:      repository.NewTagRepository(db),
 		pendingEdits: make(map[int64]*pendingEdit),
 	}
 
@@ -157,6 +159,9 @@ func (b *Bot) registerHandlers() {
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/delete", bot.MatchTypePrefix, b.handleDelete)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/setcurrency", bot.MatchTypePrefix, b.handleSetCurrency)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/currency", bot.MatchTypePrefix, b.handleShowCurrency)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/untag", bot.MatchTypePrefix, b.handleUntag)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/tags", bot.MatchTypePrefix, b.handleTags)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/tag", bot.MatchTypePrefix, b.handleTag)
 
 	// Callback query handlers for receipt confirmation flow.
 	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "receipt_", bot.MatchTypePrefix, b.handleReceiptCallback)

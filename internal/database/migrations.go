@@ -103,6 +103,20 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		ON expenses(user_id, user_expense_number)`,
 
 		`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS merchant TEXT NOT NULL DEFAULT ''`,
+
+		`CREATE TABLE IF NOT EXISTS tags (
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL UNIQUE,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`,
+
+		`CREATE TABLE IF NOT EXISTS expense_tags (
+			expense_id INTEGER NOT NULL REFERENCES expenses(id) ON DELETE CASCADE,
+			tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+			PRIMARY KEY (expense_id, tag_id)
+		)`,
+
+		`CREATE INDEX IF NOT EXISTS idx_expense_tags_tag_id ON expense_tags(tag_id)`,
 	}
 
 	for i, migration := range migrations {

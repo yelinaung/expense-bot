@@ -58,6 +58,16 @@ const (
 	ExpenseStatusConfirmed = "confirmed"
 )
 
+// MaxTagNameLength is the maximum allowed length for tag names.
+const MaxTagNameLength = 30
+
+// Tag represents an expense tag/label.
+type Tag struct {
+	ID        int
+	Name      string
+	CreatedAt time.Time
+}
+
 // Expense represents a single expense entry.
 type Expense struct {
 	ID                int
@@ -69,6 +79,7 @@ type Expense struct {
 	Merchant          string
 	CategoryID        *int
 	Category          *Category
+	Tags              []Tag
 	ReceiptFileID     string
 	Status            string
 	CreatedAt         time.Time

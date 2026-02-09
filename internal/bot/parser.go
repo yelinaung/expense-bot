@@ -19,6 +19,7 @@ type ParsedExpense struct {
 	Description  string
 	CategoryName string
 	Currency     string // Detected currency code (e.g., "USD", "SGD"), empty if not specified
+	Tags         []string
 }
 
 // amountRegex matches amounts like "5", "5.50", "5,50".
@@ -50,6 +51,48 @@ var currencyPrefixRegex = regexp.MustCompile(`^(S\$|A\$|HK\$|NZ\$|NT\$|RM|Rp|[$â
 
 // currencySuffixRegex matches 3-letter currency codes at the end (e.g., "50 USD").
 var currencySuffixRegex = regexp.MustCompile(`\s+([A-Z]{3})$`)
+
+// tagTokenRegex matches a single #tag token (letter start, up to 30 word chars).
+var tagTokenRegex = regexp.MustCompile(`^#([a-zA-Z]\w{0,29})$`)
+
+// extractTags extracts #tag tokens from text, removes them, deduplicates, and lowercases.
+// It preserves original whitespace in the remaining text.
+func extractTags(text string) (tags []string, cleaned string) {
+	if !strings.Contains(text, "#") {
+		return nil, text
+	}
+
+	// Find all tags using word splitting to handle consecutive tags.
+	words := strings.Fields(text)
+	seen := make(map[string]bool)
+	tagWords := make(map[int]bool)
+
+	for i, word := range words {
+		if m := tagTokenRegex.FindStringSubmatch(word); len(m) > 1 {
+			name := strings.ToLower(m[1])
+			if !seen[name] {
+				seen[name] = true
+				tags = append(tags, name)
+			}
+			tagWords[i] = true
+		}
+	}
+
+	if len(tags) == 0 {
+		return nil, text
+	}
+
+	// Build cleaned string by removing tag words, preserving spacing between non-tag words.
+	var remaining []string
+	for i, word := range words {
+		if !tagWords[i] {
+			remaining = append(remaining, word)
+		}
+	}
+
+	cleaned = strings.Join(remaining, " ")
+	return tags, cleaned
+}
 
 // parseAmount parses a string into a decimal amount.
 func parseAmount(input string) (decimal.Decimal, error) {
@@ -136,11 +179,18 @@ func ParseExpenseInput(input string) *ParsedExpense {
 		}
 	}
 
+	// Extract tags from the remaining text.
+	var tags []string
+	if rest != "" {
+		tags, rest = extractTags(rest)
+	}
+
 	if rest == "" {
 		return &ParsedExpense{
 			Amount:      amount,
 			Description: "",
 			Currency:    detectedCurrency,
+			Tags:        tags,
 		}
 	}
 
@@ -148,6 +198,7 @@ func ParseExpenseInput(input string) *ParsedExpense {
 		Amount:      amount,
 		Description: extractDescription(rest),
 		Currency:    detectedCurrency,
+		Tags:        tags,
 	}
 }
 

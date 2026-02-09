@@ -125,6 +125,13 @@ func (b *Bot) handleHelpCore(ctx context.Context, tg TelegramAPI, update *models
 • <code>/currency</code> - Show your default currency
 • <code>/setcurrency &lt;code&gt;</code> - Set default currency (e.g., USD, EUR, THB)
 
+<b>Tags:</b>
+• Add tags inline: <code>5.50 Coffee #work #meeting</code>
+• <code>/tag &lt;id&gt; &lt;tag&gt;</code> - Add tag to expense
+• <code>/untag &lt;id&gt; &lt;tag&gt;</code> - Remove tag from expense
+• <code>/tags</code> - List all tags
+• <code>/tags &lt;name&gt;</code> - Filter expenses by tag
+
 <b>Other:</b>
 • <code>/help</code> - Show this help message`
 
@@ -630,6 +637,24 @@ func (b *Bot) saveExpenseCore(
 		return
 	}
 
+	// Save tags if any were parsed inline.
+	if len(parsed.Tags) > 0 {
+		var tagIDs []int
+		for _, name := range parsed.Tags {
+			tag, err := b.tagRepo.GetOrCreate(ctx, name)
+			if err != nil {
+				logger.Log.Warn().Err(err).Str("tag", name).Msg("Failed to create tag")
+				continue
+			}
+			tagIDs = append(tagIDs, tag.ID)
+		}
+		if len(tagIDs) > 0 {
+			if err := b.tagRepo.SetExpenseTags(ctx, expense.ID, tagIDs); err != nil {
+				logger.Log.Warn().Err(err).Int("expense_id", expense.ID).Msg("Failed to set expense tags")
+			}
+		}
+	}
+
 	logger.Log.Debug().
 		Int64("chat_id", chatID).
 		Int64("user_id", userID).
@@ -663,6 +688,10 @@ func (b *Bot) saveExpenseCore(
 		descText,
 		categoryText,
 		expense.UserExpenseNumber)
+
+	if len(parsed.Tags) > 0 {
+		text += "\n🏷️ " + strings.Join(parsed.Tags, ", ")
+	}
 
 	// Add inline edit/delete buttons
 	keyboard := &models.InlineKeyboardMarkup{
@@ -879,6 +908,16 @@ func (b *Bot) sendExpenseListCore(
 		return
 	}
 
+	// Batch-load tags for all expenses.
+	expenseIDs := make([]int, len(expenses))
+	for i, exp := range expenses {
+		expenseIDs[i] = exp.ID
+	}
+	tagsByExpense, err := b.tagRepo.GetByExpenseIDs(ctx, expenseIDs)
+	if err != nil {
+		logger.Log.Warn().Err(err).Msg("Failed to batch-load tags for expense list")
+	}
+
 	var sb strings.Builder
 	sb.WriteString(header)
 	sb.WriteString("\n\n")
@@ -887,6 +926,15 @@ func (b *Bot) sendExpenseListCore(
 		categoryText := ""
 		if exp.Category != nil {
 			categoryText = fmt.Sprintf(" [%s]", exp.Category.Name)
+		}
+
+		tagText := ""
+		if tags, ok := tagsByExpense[exp.ID]; ok && len(tags) > 0 {
+			names := make([]string, len(tags))
+			for i, t := range tags {
+				names[i] = "#" + escapeHTML(t.Name)
+			}
+			tagText = " " + strings.Join(names, " ")
 		}
 
 		descText := ""
@@ -902,19 +950,20 @@ func (b *Bot) sendExpenseListCore(
 		}
 
 		sb.WriteString(fmt.Sprintf(
-			"#%d %s%s %s%s%s\n<i>%s</i>\n\n",
+			"#%d %s%s %s%s%s%s\n<i>%s</i>\n\n",
 			exp.UserExpenseNumber,
 			currencySymbol,
 			exp.Amount.StringFixed(2),
 			exp.Currency,
 			descText,
 			categoryText,
+			tagText,
 			exp.CreatedAt.Format("Jan 2 15:04"),
 		))
 	}
 
 	logger.Log.Debug().Int64("chat_id", chatID).Int("count", len(expenses)).Msg("Sending expense list")
-	_, err := tg.SendMessage(ctx, &bot.SendMessageParams{
+	_, err = tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    chatID,
 		Text:      sb.String(),
 		ParseMode: models.ParseModeHTML,
