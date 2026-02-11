@@ -534,3 +534,115 @@ func TestExpenseRepository_Pool(t *testing.T) {
 	pool := expenseRepo.Pool()
 	require.NotNil(t, pool)
 }
+
+func TestExpenseRepository_GetByUserAndNumber(t *testing.T) {
+	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
+
+	user := &models.User{ID: 950, Username: "user950", FirstName: "Test", LastName: "User"}
+	err := userRepo.UpsertUser(ctx, user)
+	require.NoError(t, err)
+
+	expense := &models.Expense{
+		UserID:      950,
+		Amount:      decimal.NewFromFloat(42.00),
+		Currency:    "SGD",
+		Description: "Number test",
+		Status:      models.ExpenseStatusConfirmed,
+	}
+	err = expenseRepo.Create(ctx, expense)
+	require.NoError(t, err)
+	require.NotZero(t, expense.UserExpenseNumber)
+
+	t.Run("retrieves expense by user and number", func(t *testing.T) {
+		fetched, err := expenseRepo.GetByUserAndNumber(ctx, 950, expense.UserExpenseNumber)
+		require.NoError(t, err)
+		require.Equal(t, expense.ID, fetched.ID)
+		require.True(t, expense.Amount.Equal(fetched.Amount))
+		require.Equal(t, "Number test", fetched.Description)
+	})
+
+	t.Run("returns error for non-existent number", func(t *testing.T) {
+		_, err := expenseRepo.GetByUserAndNumber(ctx, 950, 99999)
+		require.Error(t, err)
+	})
+
+	t.Run("returns error for wrong user", func(t *testing.T) {
+		_, err := expenseRepo.GetByUserAndNumber(ctx, 951, expense.UserExpenseNumber)
+		require.Error(t, err)
+	})
+}
+
+func TestExpenseRepository_NullifyCategoryOnExpenses(t *testing.T) {
+	expenseRepo, userRepo, categoryRepo, ctx := setupExpenseTest(t)
+
+	user := &models.User{ID: 960, Username: "user960", FirstName: "Test", LastName: "User"}
+	err := userRepo.UpsertUser(ctx, user)
+	require.NoError(t, err)
+
+	cat, err := categoryRepo.Create(ctx, "Nullify Test Category")
+	require.NoError(t, err)
+
+	t.Run("nullifies category on matching expenses", func(t *testing.T) {
+		exp1 := &models.Expense{
+			UserID:      960,
+			Amount:      decimal.NewFromFloat(10.00),
+			Currency:    "SGD",
+			Description: "Nullify 1",
+			CategoryID:  &cat.ID,
+		}
+		err := expenseRepo.Create(ctx, exp1)
+		require.NoError(t, err)
+
+		exp2 := &models.Expense{
+			UserID:      960,
+			Amount:      decimal.NewFromFloat(20.00),
+			Currency:    "SGD",
+			Description: "Nullify 2",
+			CategoryID:  &cat.ID,
+		}
+		err = expenseRepo.Create(ctx, exp2)
+		require.NoError(t, err)
+
+		affected, err := expenseRepo.NullifyCategoryOnExpenses(ctx, cat.ID)
+		require.NoError(t, err)
+		require.Equal(t, int64(2), affected)
+
+		fetched1, err := expenseRepo.GetByID(ctx, exp1.ID)
+		require.NoError(t, err)
+		require.Nil(t, fetched1.CategoryID)
+
+		fetched2, err := expenseRepo.GetByID(ctx, exp2.ID)
+		require.NoError(t, err)
+		require.Nil(t, fetched2.CategoryID)
+	})
+
+	t.Run("returns zero when no expenses match", func(t *testing.T) {
+		affected, err := expenseRepo.NullifyCategoryOnExpenses(ctx, 99999)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), affected)
+	})
+
+	t.Run("does not affect expenses with different category", func(t *testing.T) {
+		otherCat, err := categoryRepo.Create(ctx, "Other Nullify Cat")
+		require.NoError(t, err)
+
+		exp := &models.Expense{
+			UserID:      960,
+			Amount:      decimal.NewFromFloat(30.00),
+			Currency:    "SGD",
+			Description: "Keep category",
+			CategoryID:  &otherCat.ID,
+		}
+		err = expenseRepo.Create(ctx, exp)
+		require.NoError(t, err)
+
+		affected, err := expenseRepo.NullifyCategoryOnExpenses(ctx, cat.ID)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), affected)
+
+		fetched, err := expenseRepo.GetByID(ctx, exp.ID)
+		require.NoError(t, err)
+		require.NotNil(t, fetched.CategoryID)
+		require.Equal(t, otherCat.ID, *fetched.CategoryID)
+	})
+}

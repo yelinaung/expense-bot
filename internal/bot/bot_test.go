@@ -13,6 +13,7 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/bot/mocks"
 	"gitlab.com/yelinaung/expense-bot/internal/config"
 	"gitlab.com/yelinaung/expense-bot/internal/database"
+	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
 )
 
@@ -636,4 +637,97 @@ func TestDraftConstants(t *testing.T) {
 
 	require.Equal(t, 10*60*1000*1000*1000, int(DraftExpirationTimeout.Nanoseconds()))
 	require.Equal(t, 5*60*1000*1000*1000, int(DraftCleanupInterval.Nanoseconds()))
+}
+
+func TestCleanupExpiredDrafts(t *testing.T) {
+	pool := TestDB(t)
+	b := setupTestBot(t, pool)
+	ctx := context.Background()
+
+	userID := int64(800001)
+	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+		ID:        userID,
+		Username:  "cleanupuser",
+		FirstName: "Cleanup",
+	})
+	require.NoError(t, err)
+
+	t.Run("removes expired drafts", func(t *testing.T) {
+		draft := &appmodels.Expense{
+			UserID:      userID,
+			Amount:      mustParseDecimal("5.00"),
+			Currency:    "SGD",
+			Description: "Expired draft",
+			Status:      appmodels.ExpenseStatusDraft,
+		}
+		err := b.expenseRepo.Create(ctx, draft)
+		require.NoError(t, err)
+
+		// Use a negative timeout to make all drafts "expired".
+		b.cleanupExpiredDrafts(ctx)
+
+		// With default DraftExpirationTimeout (10m), recently created draft should not be removed.
+		_, err = b.expenseRepo.GetByID(ctx, draft.ID)
+		require.NoError(t, err)
+	})
+
+	t.Run("does not panic on no drafts", func(t *testing.T) {
+		// Should run without panic even with no expired drafts.
+		b.cleanupExpiredDrafts(ctx)
+	})
+}
+
+func TestDeleteCategorySequential(t *testing.T) {
+	pool := TestDB(t)
+	b := setupTestBot(t, pool)
+	ctx := context.Background()
+
+	userID := int64(800002)
+	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+		ID:        userID,
+		Username:  "delsequser",
+		FirstName: "DelSeq",
+	})
+	require.NoError(t, err)
+
+	t.Run("deletes category with no expenses", func(t *testing.T) {
+		cat, err := b.categoryRepo.Create(ctx, "SeqDelete NoExp")
+		require.NoError(t, err)
+
+		affected, err := b.deleteCategorySequential(ctx, cat.ID)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), affected)
+
+		// Verify category is deleted.
+		_, err = b.categoryRepo.GetByName(ctx, "SeqDelete NoExp")
+		require.Error(t, err)
+	})
+
+	t.Run("nullifies expenses and deletes category", func(t *testing.T) {
+		cat, err := b.categoryRepo.Create(ctx, "SeqDelete WithExp")
+		require.NoError(t, err)
+
+		exp := &appmodels.Expense{
+			UserID:      userID,
+			Amount:      mustParseDecimal("25.00"),
+			Currency:    "SGD",
+			Description: "Cat to delete",
+			CategoryID:  &cat.ID,
+		}
+		err = b.expenseRepo.Create(ctx, exp)
+		require.NoError(t, err)
+
+		affected, err := b.deleteCategorySequential(ctx, cat.ID)
+		require.NoError(t, err)
+		require.Equal(t, int64(1), affected)
+
+		// Verify expense's category was nullified.
+		fetched, err := b.expenseRepo.GetByID(ctx, exp.ID)
+		require.NoError(t, err)
+		require.Nil(t, fetched.CategoryID)
+
+		// Verify category is deleted.
+		_, err = b.categoryRepo.GetByName(ctx, "SeqDelete WithExp")
+		require.Error(t, err)
+	})
 }

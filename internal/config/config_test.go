@@ -181,6 +181,30 @@ func TestLoad_Validation(t *testing.T) {
 	})
 }
 
+func TestConfig_IsSuperAdmin(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{
+		WhitelistedUserIDs:   []int64{100, 200},
+		WhitelistedUsernames: []string{"admin"},
+	}
+
+	t.Run("returns true for whitelisted user ID", func(t *testing.T) {
+		t.Parallel()
+		require.True(t, cfg.IsSuperAdmin(100, ""))
+	})
+
+	t.Run("returns true for whitelisted username", func(t *testing.T) {
+		t.Parallel()
+		require.True(t, cfg.IsSuperAdmin(999, "admin"))
+	})
+
+	t.Run("returns false for non-whitelisted user", func(t *testing.T) {
+		t.Parallel()
+		require.False(t, cfg.IsSuperAdmin(999, "nobody"))
+	})
+}
+
 func TestConfig_IsUserWhitelisted(t *testing.T) {
 	t.Parallel()
 

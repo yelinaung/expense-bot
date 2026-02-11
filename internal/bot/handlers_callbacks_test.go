@@ -663,6 +663,172 @@ func TestHandleCreateCategoryCallbackCore(t *testing.T) {
 	})
 }
 
+func TestPromptEditMerchantCore(t *testing.T) {
+	pool := TestDB(t)
+	b := setupTestBot(t, pool)
+	ctx := context.Background()
+	userID := int64(500020)
+
+	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+		ID:        userID,
+		Username:  "merchantpromptuser",
+		FirstName: "MerchantPrompt",
+	})
+	require.NoError(t, err)
+
+	t.Run("stores pending edit and shows prompt", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+
+		expense := &appmodels.Expense{
+			UserID:      userID,
+			Amount:      mustParseDecimal("15.00"),
+			Currency:    "SGD",
+			Description: "Old Merchant",
+			Merchant:    "Old Merchant",
+			Status:      appmodels.ExpenseStatusDraft,
+		}
+		err := b.expenseRepo.Create(ctx, expense)
+		require.NoError(t, err)
+
+		chatID := int64(22222)
+		b.promptEditMerchantCore(ctx, mockBot, chatID, 100, expense)
+
+		require.Len(t, mockBot.EditedMessages, 1)
+		require.Contains(t, mockBot.EditedMessages[0].Text, "Edit Merchant")
+		require.Contains(t, mockBot.EditedMessages[0].Text, "Old Merchant")
+
+		b.pendingEditsMu.RLock()
+		pending, exists := b.pendingEdits[chatID]
+		b.pendingEditsMu.RUnlock()
+		require.True(t, exists)
+		require.Equal(t, expense.ID, pending.ExpenseID)
+		require.Equal(t, "merchant", pending.EditType)
+	})
+}
+
+func TestProcessMerchantEditCore(t *testing.T) {
+	pool := TestDB(t)
+	b := setupTestBot(t, pool)
+	ctx := context.Background()
+	userID := int64(500021)
+
+	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+		ID:        userID,
+		Username:  "merchantedituser",
+		FirstName: "MerchantEdit",
+	})
+	require.NoError(t, err)
+
+	t.Run("empty merchant shows error", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+		chatID := int64(33333)
+		pending := &pendingEdit{ExpenseID: 1, EditType: "merchant", MessageID: 100}
+
+		b.pendingEditsMu.Lock()
+		b.pendingEdits[chatID] = pending
+		b.pendingEditsMu.Unlock()
+
+		result := b.processMerchantEditCore(ctx, mockBot, chatID, userID, pending, "   ")
+		require.True(t, result)
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		require.Contains(t, mockBot.LastSentMessage().Text, "cannot be empty")
+	})
+
+	t.Run("expense not found shows error", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+		pending := &pendingEdit{ExpenseID: 99999, EditType: "merchant", MessageID: 100}
+
+		result := b.processMerchantEditCore(ctx, mockBot, 33334, userID, pending, "New Merchant")
+		require.True(t, result)
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		require.Contains(t, mockBot.LastSentMessage().Text, "Expense not found")
+	})
+
+	t.Run("user mismatch returns silently", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+		otherUserID := userID + 100
+
+		err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+			ID:        otherUserID,
+			Username:  "othermerchantuser",
+			FirstName: "Other",
+		})
+		require.NoError(t, err)
+
+		expense := &appmodels.Expense{
+			UserID:      otherUserID,
+			Amount:      mustParseDecimal("10.00"),
+			Currency:    "SGD",
+			Description: "Other Merchant",
+			Status:      appmodels.ExpenseStatusDraft,
+		}
+		err = b.expenseRepo.Create(ctx, expense)
+		require.NoError(t, err)
+
+		pending := &pendingEdit{ExpenseID: expense.ID, EditType: "merchant", MessageID: 100}
+		result := b.processMerchantEditCore(ctx, mockBot, 33335, userID, pending, "New Merchant")
+		require.True(t, result)
+		require.Equal(t, 0, mockBot.SentMessageCount())
+	})
+
+	t.Run("valid merchant updates expense", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+
+		expense := &appmodels.Expense{
+			UserID:      userID,
+			Amount:      mustParseDecimal("20.00"),
+			Currency:    "SGD",
+			Description: "Old Name",
+			Merchant:    "Old Name",
+			Status:      appmodels.ExpenseStatusDraft,
+		}
+		err := b.expenseRepo.Create(ctx, expense)
+		require.NoError(t, err)
+
+		pending := &pendingEdit{ExpenseID: expense.ID, EditType: "merchant", MessageID: 100}
+		result := b.processMerchantEditCore(ctx, mockBot, 33336, userID, pending, "New Restaurant")
+		require.True(t, result)
+
+		require.Len(t, mockBot.EditedMessages, 1)
+		require.Contains(t, mockBot.EditedMessages[0].Text, "Merchant Updated")
+		require.Contains(t, mockBot.EditedMessages[0].Text, "New Restaurant")
+
+		updated, err := b.expenseRepo.GetByID(ctx, expense.ID)
+		require.NoError(t, err)
+		require.Equal(t, "New Restaurant", updated.Merchant)
+		require.Equal(t, "New Restaurant", updated.Description)
+	})
+
+	t.Run("clears pending edit on success", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+		chatID := int64(33337)
+
+		expense := &appmodels.Expense{
+			UserID:      userID,
+			Amount:      mustParseDecimal("15.00"),
+			Currency:    "SGD",
+			Description: "Clear Test",
+			Merchant:    "Clear Test",
+			Status:      appmodels.ExpenseStatusDraft,
+		}
+		err := b.expenseRepo.Create(ctx, expense)
+		require.NoError(t, err)
+
+		pending := &pendingEdit{ExpenseID: expense.ID, EditType: "merchant", MessageID: 100}
+		b.pendingEditsMu.Lock()
+		b.pendingEdits[chatID] = pending
+		b.pendingEditsMu.Unlock()
+
+		result := b.processMerchantEditCore(ctx, mockBot, chatID, userID, pending, "Updated Merchant")
+		require.True(t, result)
+
+		b.pendingEditsMu.RLock()
+		_, exists := b.pendingEdits[chatID]
+		b.pendingEditsMu.RUnlock()
+		require.False(t, exists)
+	})
+}
+
 func TestPromptCreateCategoryCore(t *testing.T) {
 	pool := TestDB(t)
 	b := setupTestBot(t, pool)
