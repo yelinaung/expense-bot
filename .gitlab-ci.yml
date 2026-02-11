@@ -127,7 +127,7 @@ lint:
 
 test:
   stage: test
-  image: golang:1.25-alpine
+  image: golang:1.26-alpine
   tags:
     - playground-bravo
   extends: .go-cache
