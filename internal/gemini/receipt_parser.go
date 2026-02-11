@@ -83,7 +83,7 @@ type receiptResponse struct {
 // It applies a 30-second timeout to the API call.
 func (c *Client) ParseReceipt(ctx context.Context, imageBytes []byte, mimeType string) (*ReceiptData, error) {
 	if len(imageBytes) == 0 {
-		return nil, fmt.Errorf("image data is required")
+		return nil, errors.New("image data is required")
 	}
 
 	if mimeType == "" {
@@ -112,18 +112,19 @@ func (c *Client) ParseReceipt(ctx context.Context, imageBytes []byte, mimeType s
 	}
 
 	if resp == nil || len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil {
-		return nil, fmt.Errorf("no response from Gemini")
+		return nil, errors.New("no response from Gemini")
 	}
 
-	var textContent string
+	var sb strings.Builder
 	for _, part := range resp.Candidates[0].Content.Parts {
 		if part.Text != "" {
-			textContent += part.Text
+			sb.WriteString(part.Text)
 		}
 	}
+	textContent := sb.String()
 
 	if textContent == "" {
-		return nil, fmt.Errorf("empty response from Gemini")
+		return nil, errors.New("empty response from Gemini")
 	}
 
 	data, err := parseReceiptResponse(textContent)

@@ -674,7 +674,7 @@ func (b *Bot) saveExpenseCore(
 
 	descText := ""
 	if expense.Description != "" {
-		descText = fmt.Sprintf("\n📝 %s", expense.Description)
+		descText = "\n📝 " + expense.Description
 	}
 
 	currencySymbol := appmodels.SupportedCurrencies[expense.Currency]
@@ -774,7 +774,15 @@ func (b *Bot) handleTodayCore(ctx context.Context, tg TelegramAPI, update *model
 		return
 	}
 
-	total, _ := b.expenseRepo.GetTotalByUserIDAndDateRange(ctx, userID, startOfDay, endOfDay)
+	total, err := b.expenseRepo.GetTotalByUserIDAndDateRange(ctx, userID, startOfDay, endOfDay)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to calculate today's total")
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to fetch expenses. Please try again.",
+		})
+		return
+	}
 	header := fmt.Sprintf("📅 <b>Today's Expenses</b> (Total: $%s)", total.StringFixed(2))
 	b.sendExpenseListCore(ctx, tg, chatID, expenses, header)
 }
@@ -811,7 +819,15 @@ func (b *Bot) handleWeekCore(ctx context.Context, tg TelegramAPI, update *models
 		return
 	}
 
-	total, _ := b.expenseRepo.GetTotalByUserIDAndDateRange(ctx, userID, startOfWeek, endOfWeek)
+	total, err := b.expenseRepo.GetTotalByUserIDAndDateRange(ctx, userID, startOfWeek, endOfWeek)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to calculate week's total")
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to fetch expenses. Please try again.",
+		})
+		return
+	}
 	header := fmt.Sprintf("📆 <b>This Week's Expenses</b> (Total: $%s)", total.StringFixed(2))
 	b.sendExpenseListCore(ctx, tg, chatID, expenses, header)
 }
@@ -880,8 +896,15 @@ func (b *Bot) handleCategoryCore(ctx context.Context, tg TelegramAPI, update *mo
 		return
 	}
 
-	// Get total for this category
-	total, _ := b.expenseRepo.GetTotalByUserIDAndCategory(ctx, userID, matchedCategory.ID)
+	total, err := b.expenseRepo.GetTotalByUserIDAndCategory(ctx, userID, matchedCategory.ID)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to calculate category total")
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to fetch expenses. Please try again.",
+		})
+		return
+	}
 	header := fmt.Sprintf("📁 <b>%s Expenses</b> (Total: $%s)", matchedCategory.Name, total.StringFixed(2))
 	b.sendExpenseListCore(ctx, tg, chatID, expenses, header)
 
@@ -915,8 +938,8 @@ func (b *Bot) sendExpenseListCore(
 
 	// Batch-load tags for all expenses.
 	expenseIDs := make([]int, len(expenses))
-	for i, exp := range expenses {
-		expenseIDs[i] = exp.ID
+	for i := range expenses {
+		expenseIDs[i] = expenses[i].ID
 	}
 	tagsByExpense, err := b.tagRepo.GetByExpenseIDs(ctx, expenseIDs)
 	if err != nil {
@@ -927,7 +950,8 @@ func (b *Bot) sendExpenseListCore(
 	sb.WriteString(header)
 	sb.WriteString("\n\n")
 
-	for _, exp := range expenses {
+	for i := range expenses {
+		exp := &expenses[i]
 		categoryText := ""
 		if exp.Category != nil {
 			categoryText = fmt.Sprintf(" [%s]", exp.Category.Name)
@@ -936,8 +960,8 @@ func (b *Bot) sendExpenseListCore(
 		tagText := ""
 		if tags, ok := tagsByExpense[exp.ID]; ok && len(tags) > 0 {
 			names := make([]string, len(tags))
-			for i, t := range tags {
-				names[i] = "#" + escapeHTML(t.Name)
+			for j, t := range tags {
+				names[j] = "#" + escapeHTML(t.Name)
 			}
 			tagText = " " + strings.Join(names, " ")
 		}
@@ -1062,8 +1086,15 @@ func (b *Bot) handleReportCore(ctx context.Context, tg TelegramAPI, update *mode
 		return
 	}
 
-	// Calculate total
-	total, _ := b.expenseRepo.GetTotalByUserIDAndDateRange(ctx, userID, startDate, endDate)
+	total, err := b.expenseRepo.GetTotalByUserIDAndDateRange(ctx, userID, startDate, endDate)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to calculate report total")
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to generate report. Please try again.",
+		})
+		return
+	}
 
 	// Send CSV file
 	filename := generateReportFilename(period)
@@ -1150,7 +1181,15 @@ func (b *Bot) handleEdit(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 		return
 	}
 
-	categories, _ := b.getCategoriesWithCache(ctx)
+	categories, err := b.getCategoriesWithCache(ctx)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to fetch categories for edit")
+		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to fetch categories. Please try again.",
+		})
+		return
+	}
 
 	// Load the existing category if one is set
 	if expense.CategoryID != nil {

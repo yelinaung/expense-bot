@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -38,17 +39,17 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 
 	if c.generator == nil {
 		logger.Log.Error().Msg("SuggestCategory: gemini client not initialized")
-		return nil, fmt.Errorf("gemini client not initialized")
+		return nil, errors.New("gemini client not initialized")
 	}
 
 	if description == "" {
 		logger.Log.Warn().Msg("SuggestCategory: empty description provided")
-		return nil, fmt.Errorf("description is required")
+		return nil, errors.New("description is required")
 	}
 
 	if len(availableCategories) == 0 {
 		logger.Log.Warn().Msg("SuggestCategory: no categories available")
-		return nil, fmt.Errorf("no categories available")
+		return nil, errors.New("no categories available")
 	}
 
 	// Sanitize description to prevent prompt injection attacks.
@@ -116,7 +117,7 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 		logger.Log.Warn().
 			Str("description_hash", descHash).
 			Msg("SuggestCategory: nil response from Gemini")
-		return nil, fmt.Errorf("no response from Gemini")
+		return nil, errors.New("no response from Gemini")
 	}
 
 	// Use the built-in Text() method to get concatenated text from all parts.
@@ -130,7 +131,7 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 		logger.Log.Warn().
 			Str("description_hash", descHash).
 			Msg("SuggestCategory: no text content in Gemini response")
-		return nil, fmt.Errorf("no text content in response")
+		return nil, errors.New("no text content in response")
 	}
 
 	// Extract JSON from response - Gemini sometimes includes preamble text.
@@ -139,7 +140,7 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 		logger.Log.Warn().
 			Str("description_hash", descHash).
 			Msg("SuggestCategory: no JSON found in Gemini response")
-		return nil, fmt.Errorf("no JSON found in response")
+		return nil, errors.New("no JSON found in response")
 	}
 
 	// Parse JSON response.

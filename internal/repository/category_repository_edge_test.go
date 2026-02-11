@@ -35,7 +35,7 @@ func TestCategoryRepository_CreateEdgeCases(t *testing.T) {
 		cat, err := repo.Create(ctx, "")
 		require.NoError(t, err) // Empty string is technically allowed
 		require.NotNil(t, cat)
-		require.Equal(t, "", cat.Name)
+		require.Empty(t, cat.Name)
 	})
 
 	t.Run("create with very long name", func(t *testing.T) {
@@ -191,7 +191,7 @@ func TestCategoryRepository_UpdateEdgeCases(t *testing.T) {
 		// Verify update
 		updated, err := repo.GetByID(ctx, cat.ID)
 		require.NoError(t, err)
-		require.Equal(t, "", updated.Name)
+		require.Empty(t, updated.Name)
 	})
 
 	t.Run("update to same name", func(t *testing.T) {
@@ -273,7 +273,7 @@ func TestCategoryRepository_GetAllEdgeCases(t *testing.T) {
 		initialCount := len(initialCats)
 
 		// Create 100 categories
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			_, err := repo.Create(ctx, fmt.Sprintf("Category%d", i))
 			require.NoError(t, err)
 		}

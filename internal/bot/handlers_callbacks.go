@@ -982,7 +982,11 @@ func (b *Bot) handleBackToExpenseCallbackCore(ctx context.Context, tg TelegramAP
 
 	// Load category if needed
 	if expense.CategoryID != nil {
-		categories, _ := b.getCategoriesWithCache(ctx)
+		categories, err := b.getCategoriesWithCache(ctx)
+		if err != nil {
+			logger.Log.Error().Err(err).Msg("Failed to fetch categories for expense display")
+			return
+		}
 		for i := range categories {
 			if categories[i].ID == *expense.CategoryID {
 				expense.Category = &categories[i]

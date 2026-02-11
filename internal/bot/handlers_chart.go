@@ -96,8 +96,15 @@ func (b *Bot) handleChartCore(ctx context.Context, tg TelegramAPI, update *model
 		return
 	}
 
-	// Calculate total
-	total, _ := b.expenseRepo.GetTotalByUserIDAndDateRange(ctx, userID, startDate, endDate)
+	total, err := b.expenseRepo.GetTotalByUserIDAndDateRange(ctx, userID, startDate, endDate)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to calculate total for chart")
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to generate chart. Please try again.",
+		})
+		return
+	}
 
 	// Format period range for caption
 	var periodRange string

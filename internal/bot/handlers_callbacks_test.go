@@ -28,7 +28,7 @@ func TestHandleEditCallbackCore(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := &models.Update{CallbackQuery: nil}
 		b.handleEditCallbackCore(ctx, mockBot, update)
-		require.Len(t, mockBot.AnsweredCallbacks, 0)
+		require.Empty(t, mockBot.AnsweredCallbacks)
 	})
 
 	t.Run("invalid data format returns early", func(t *testing.T) {
@@ -48,7 +48,7 @@ func TestHandleEditCallbackCore(t *testing.T) {
 		}
 		b.handleEditCallbackCore(ctx, mockBot, update)
 		require.Len(t, mockBot.AnsweredCallbacks, 1)
-		require.Len(t, mockBot.EditedMessages, 0)
+		require.Empty(t, mockBot.EditedMessages)
 	})
 
 	t.Run("edit amount action shows prompt", func(t *testing.T) {
@@ -151,7 +151,7 @@ func TestHandleEditCallbackCore(t *testing.T) {
 		}
 		b.handleEditCallbackCore(ctx, mockBot, update)
 		require.Len(t, mockBot.AnsweredCallbacks, 1)
-		require.Len(t, mockBot.EditedMessages, 0)
+		require.Empty(t, mockBot.EditedMessages)
 	})
 }
 
@@ -389,7 +389,7 @@ func TestHandleCancelEditCallbackCore(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := &models.Update{CallbackQuery: nil}
 		b.handleCancelEditCallbackCore(ctx, mockBot, update)
-		require.Len(t, mockBot.AnsweredCallbacks, 0)
+		require.Empty(t, mockBot.AnsweredCallbacks)
 	})
 
 	t.Run("clears pending edit and returns to edit menu", func(t *testing.T) {
@@ -491,7 +491,7 @@ func TestHandleSetCategoryCallbackCore(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := &models.Update{CallbackQuery: nil}
 		b.handleSetCategoryCallbackCore(ctx, mockBot, update)
-		require.Len(t, mockBot.AnsweredCallbacks, 0)
+		require.Empty(t, mockBot.AnsweredCallbacks)
 	})
 
 	t.Run("sets category and shows confirmation", func(t *testing.T) {
@@ -626,7 +626,7 @@ func TestHandleCreateCategoryCallbackCore(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := &models.Update{CallbackQuery: nil}
 		b.handleCreateCategoryCallbackCore(ctx, mockBot, update)
-		require.Len(t, mockBot.AnsweredCallbacks, 0)
+		require.Empty(t, mockBot.AnsweredCallbacks)
 	})
 
 	t.Run("shows create category prompt", func(t *testing.T) {

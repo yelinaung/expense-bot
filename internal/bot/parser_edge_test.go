@@ -133,7 +133,8 @@ func TestParseAmount_EdgeCases(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			expected, _ := decimal.NewFromString(tt.want)
+			expected, expErr := decimal.NewFromString(tt.want)
+			require.NoError(t, expErr)
 			require.True(t, expected.Equal(result), "expected %s, got %s", tt.want, result.String())
 		})
 	}
@@ -263,7 +264,8 @@ func TestParseExpenseInput_EdgeCases(t *testing.T) {
 			}
 
 			require.NotNil(t, result)
-			expected, _ := decimal.NewFromString(tt.wantAmt)
+			expected, expErr := decimal.NewFromString(tt.wantAmt)
+			require.NoError(t, expErr)
 			require.True(t, expected.Equal(result.Amount), "expected %s, got %s", tt.wantAmt, result.Amount.String())
 			require.Equal(t, tt.wantDesc, result.Description)
 		})
@@ -357,7 +359,8 @@ func TestParseAddCommand_EdgeCases(t *testing.T) {
 			}
 
 			require.NotNil(t, result)
-			expected, _ := decimal.NewFromString(tt.wantAmt)
+			expected, expErr := decimal.NewFromString(tt.wantAmt)
+			require.NoError(t, expErr)
 			require.True(t, expected.Equal(result.Amount), "expected %s, got %s", tt.wantAmt, result.Amount.String())
 			require.Equal(t, tt.wantDesc, result.Description)
 		})
@@ -468,7 +471,8 @@ func TestParseAddCommandWithCategories_ComplexEdgeCases(t *testing.T) {
 			}
 
 			require.NotNil(t, result)
-			expected, _ := decimal.NewFromString(tt.wantAmt)
+			expected, expErr := decimal.NewFromString(tt.wantAmt)
+			require.NoError(t, expErr)
 			require.True(t, expected.Equal(result.Amount), "expected %s, got %s", tt.wantAmt, result.Amount.String())
 			require.Equal(t, tt.wantDesc, result.Description)
 			require.Equal(t, tt.wantCatName, result.CategoryName)
@@ -548,7 +552,8 @@ func TestParseExpenseInputWithCategories_ComplexEdgeCases(t *testing.T) {
 			}
 
 			require.NotNil(t, result)
-			expected, _ := decimal.NewFromString(tt.wantAmt)
+			expected, expErr := decimal.NewFromString(tt.wantAmt)
+			require.NoError(t, expErr)
 			require.True(t, expected.Equal(result.Amount), "expected %s, got %s", tt.wantAmt, result.Amount.String())
 			require.Equal(t, tt.wantDesc, result.Description)
 			require.Equal(t, tt.wantCatName, result.CategoryName)

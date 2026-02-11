@@ -38,7 +38,7 @@ func TestParseReceipt_Integration(t *testing.T) {
 		require.True(t, receiptData.Amount.Equal(expectedAmount),
 			"expected amount 54.60, got %s", receiptData.Amount)
 
-		require.True(t, strings.Contains(strings.ToLower(receiptData.Merchant), "swee choon"),
+		require.Contains(t, strings.ToLower(receiptData.Merchant), "swee choon",
 			"expected merchant to contain 'Swee Choon', got %s", receiptData.Merchant)
 
 		require.Equal(t, "Food - Dining Out", receiptData.SuggestedCategory,

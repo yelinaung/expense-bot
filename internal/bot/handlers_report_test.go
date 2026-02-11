@@ -43,7 +43,7 @@ func TestHandleReportCore(t *testing.T) {
 	}
 	startOfWeek := time.Date(now.Year(), now.Month(), now.Day()-weekday+1, 10, 0, 0, 0, now.Location())
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      decimal.NewFromFloat(10.50),
@@ -64,7 +64,7 @@ func TestHandleReportCore(t *testing.T) {
 
 	// Create expenses for this month (but not this week)
 	startOfMonth := time.Date(now.Year(), now.Month(), 1, 10, 0, 0, 0, now.Location())
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      decimal.NewFromFloat(20.00),
@@ -173,6 +173,7 @@ func TestHandleReportWrapper(t *testing.T) {
 	var tgBot *bot.Bot
 
 	t.Run("wrapper delegates to core", func(t *testing.T) {
+		t.Parallel()
 		update := &models.Update{}
 		b.handleReport(ctx, tgBot, update)
 		// Should not panic

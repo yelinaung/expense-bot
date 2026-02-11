@@ -11,8 +11,6 @@ import (
 )
 
 func TestExpenseRepository_GetByUserIDAndCategory(t *testing.T) {
-	t.Parallel()
-
 	tx := database.TestTx(t)
 	repo := NewExpenseRepository(tx)
 	catRepo := NewCategoryRepository(tx)
@@ -82,9 +80,9 @@ func TestExpenseRepository_GetByUserIDAndCategory(t *testing.T) {
 		require.Len(t, expenses, 5, "should return only 5 expenses from target category")
 
 		for _, exp := range expenses {
-			require.Equal(t, userID, exp.UserID)
-			require.Equal(t, &category.ID, exp.CategoryID)
-			require.Equal(t, models.ExpenseStatusConfirmed, exp.Status)
+			require.Equal(t, exp.UserID, userID)
+			require.Equal(t, exp.CategoryID, &category.ID)
+			require.Equal(t, exp.Status, models.ExpenseStatusConfirmed)
 			require.NotNil(t, exp.Category)
 			require.Equal(t, category.Name, exp.Category.Name)
 		}
@@ -114,8 +112,6 @@ func TestExpenseRepository_GetByUserIDAndCategory(t *testing.T) {
 }
 
 func TestExpenseRepository_GetTotalByUserIDAndCategory(t *testing.T) {
-	t.Parallel()
-
 	tx := database.TestTx(t)
 	repo := NewExpenseRepository(tx)
 	catRepo := NewCategoryRepository(tx)
@@ -189,8 +185,6 @@ func TestExpenseRepository_GetTotalByUserIDAndCategory(t *testing.T) {
 }
 
 func TestExpenseRepository_CategoryFilterEdgeCases(t *testing.T) {
-	t.Parallel()
-
 	tx := database.TestTx(t)
 	repo := NewExpenseRepository(tx)
 	catRepo := NewCategoryRepository(tx)

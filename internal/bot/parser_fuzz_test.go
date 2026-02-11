@@ -2,6 +2,7 @@ package bot
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -240,7 +241,7 @@ func FuzzExtractTags(f *testing.F) {
 
 		// Invariant 4: Cleaned text must not contain any extracted #tag tokens as standalone words.
 		for _, tag := range tags {
-			for _, word := range strings.Fields(cleaned) {
+			for word := range strings.FieldsSeq(cleaned) {
 				if strings.EqualFold(word, "#"+tag) {
 					t.Errorf("extractTags(%q) cleaned text still contains #%s: %q", input, tag, cleaned)
 				}
@@ -321,14 +322,7 @@ func FuzzParseExpenseInputWithCategories(f *testing.F) {
 
 			// Invariant 2: CategoryName (if set) must be in the provided list.
 			if result.CategoryName != "" {
-				found := false
-				for _, cat := range categories {
-					if cat == result.CategoryName {
-						found = true
-						break
-					}
-				}
-				if !found {
+				if !slices.Contains(categories, result.CategoryName) {
 					t.Errorf("ParseExpenseInputWithCategories(%q) returned invalid category: %s", input, result.CategoryName)
 				}
 			}

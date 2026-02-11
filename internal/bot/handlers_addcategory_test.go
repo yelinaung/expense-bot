@@ -184,6 +184,7 @@ func TestHandleAddCategoryWrapper(t *testing.T) {
 	var tgBot *bot.Bot
 
 	t.Run("wrapper delegates to core", func(t *testing.T) {
+		t.Parallel()
 		update := &models.Update{}
 		b.handleAddCategory(ctx, tgBot, update)
 	})

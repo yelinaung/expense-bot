@@ -184,7 +184,7 @@ func TestExpenseRepository_UpdateEdgeCases(t *testing.T) {
 		// Verify
 		retrieved, err := repo.GetByID(ctx, expense.ID)
 		require.NoError(t, err)
-		require.Equal(t, "", retrieved.Description)
+		require.Empty(t, retrieved.Description)
 	})
 
 	t.Run("update status from draft to confirmed", func(t *testing.T) {

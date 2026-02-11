@@ -62,11 +62,9 @@ func FuzzIsValidTagName(f *testing.F) {
 			if !validTagNameRegex.MatchString(name) {
 				t.Errorf("isValidTagName(%q) = true, but doesn't match regex", name)
 			}
-		} else {
+		} else if validTagNameRegex.MatchString(name) && len(name) <= models.MaxTagNameLength {
 			// Invariant 3: If invalid, must NOT match the regex OR exceeds length.
-			if validTagNameRegex.MatchString(name) && len(name) <= models.MaxTagNameLength {
-				t.Errorf("isValidTagName(%q) = false, but matches regex and within length", name)
-			}
+			t.Errorf("isValidTagName(%q) = false, but matches regex and within length", name)
 		}
 	})
 }

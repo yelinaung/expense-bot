@@ -82,9 +82,9 @@ func TestUserRepository_UpsertUser_WithEmptyFields(t *testing.T) {
 
 	fetched, err := repo.GetUserByID(ctx, 54321)
 	require.NoError(t, err)
-	require.Equal(t, "", fetched.Username)
-	require.Equal(t, "", fetched.FirstName)
-	require.Equal(t, "", fetched.LastName)
+	require.Empty(t, fetched.Username)
+	require.Empty(t, fetched.FirstName)
+	require.Empty(t, fetched.LastName)
 }
 
 func TestUserRepository_UpsertUser_UpdateToEmpty(t *testing.T) {
@@ -112,9 +112,9 @@ func TestUserRepository_UpsertUser_UpdateToEmpty(t *testing.T) {
 
 	fetched, err := repo.GetUserByID(ctx, 65432)
 	require.NoError(t, err)
-	require.Equal(t, "", fetched.Username)
-	require.Equal(t, "", fetched.FirstName)
-	require.Equal(t, "", fetched.LastName)
+	require.Empty(t, fetched.Username)
+	require.Empty(t, fetched.FirstName)
+	require.Empty(t, fetched.LastName)
 }
 
 func TestUserRepository_UpdateDefaultCurrency(t *testing.T) {

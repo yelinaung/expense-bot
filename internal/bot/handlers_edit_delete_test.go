@@ -236,7 +236,14 @@ func callHandleEdit(
 		return
 	}
 
-	categories, _ := categoryRepo.GetAll(ctx)
+	categories, err := categoryRepo.GetAll(ctx)
+	if err != nil {
+		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to fetch categories. Please try again.",
+		})
+		return
+	}
 
 	// Load the existing category if one is set
 	if expense.CategoryID != nil {

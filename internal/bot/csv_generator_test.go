@@ -15,6 +15,7 @@ func TestGenerateExpensesCSV(t *testing.T) {
 	t.Parallel()
 
 	t.Run("generates CSV with header and rows", func(t *testing.T) {
+		t.Parallel()
 		expenses := []models.Expense{
 			{
 				ID:                1,
@@ -57,7 +58,7 @@ func TestGenerateExpensesCSV(t *testing.T) {
 		require.Equal(t, "10.50", row1[2])
 		require.Equal(t, "SGD", row1[3])
 		require.Equal(t, "Coffee", row1[4])
-		require.Equal(t, "", row1[5]) // Merchant
+		require.Empty(t, row1[5]) // Merchant
 		require.Equal(t, "Food", row1[6])
 
 		// Verify second row
@@ -67,11 +68,12 @@ func TestGenerateExpensesCSV(t *testing.T) {
 		require.Equal(t, "25.00", row2[2])
 		require.Equal(t, "SGD", row2[3])
 		require.Equal(t, "Taxi", row2[4])
-		require.Equal(t, "", row2[5]) // Merchant
+		require.Empty(t, row2[5]) // Merchant
 		require.Equal(t, "Transportation", row2[6])
 	})
 
 	t.Run("handles uncategorized expenses", func(t *testing.T) {
+		t.Parallel()
 		expenses := []models.Expense{
 			{
 				ID:          1,
@@ -93,6 +95,7 @@ func TestGenerateExpensesCSV(t *testing.T) {
 	})
 
 	t.Run("handles empty expense list", func(t *testing.T) {
+		t.Parallel()
 		expenses := []models.Expense{}
 
 		csvData, err := GenerateExpensesCSV(expenses)
@@ -105,6 +108,7 @@ func TestGenerateExpensesCSV(t *testing.T) {
 	})
 
 	t.Run("handles special characters in description", func(t *testing.T) {
+		t.Parallel()
 		expenses := []models.Expense{
 			{
 				ID:          1,
@@ -126,6 +130,7 @@ func TestGenerateExpensesCSV(t *testing.T) {
 	})
 
 	t.Run("formats decimal amounts correctly", func(t *testing.T) {
+		t.Parallel()
 		expenses := []models.Expense{
 			{
 				ID:          1,
@@ -196,6 +201,7 @@ func TestGenerateReportFilename(t *testing.T) {
 	t.Parallel()
 
 	t.Run("generates week filename with start date", func(t *testing.T) {
+		t.Parallel()
 		filename := generateReportFilename("week")
 		require.Contains(t, filename, "expenses_week_")
 		require.Contains(t, filename, ".csv")
@@ -203,6 +209,7 @@ func TestGenerateReportFilename(t *testing.T) {
 	})
 
 	t.Run("generates month filename with year-month", func(t *testing.T) {
+		t.Parallel()
 		filename := generateReportFilename("month")
 		require.Contains(t, filename, "expenses_")
 		require.Contains(t, filename, ".csv")
@@ -210,6 +217,7 @@ func TestGenerateReportFilename(t *testing.T) {
 	})
 
 	t.Run("generates default filename for unknown period", func(t *testing.T) {
+		t.Parallel()
 		filename := generateReportFilename("unknown")
 		require.Contains(t, filename, "expenses_")
 		require.Contains(t, filename, ".csv")

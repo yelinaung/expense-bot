@@ -72,7 +72,15 @@ func (b *Bot) handleVoiceCore(ctx context.Context, tg TelegramAPI, update *model
 		mimeType = "audio/ogg"
 	}
 
-	categories, _ := b.getCategoriesWithCache(ctx)
+	categories, err := b.getCategoriesWithCache(ctx)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to fetch categories for voice expense")
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to fetch categories. Please try again.",
+		})
+		return
+	}
 	categoryNames := make([]string, len(categories))
 	for i, cat := range categories {
 		categoryNames[i] = cat.Name

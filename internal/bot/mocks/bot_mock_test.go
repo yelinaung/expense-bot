@@ -60,8 +60,10 @@ func TestMockBot_SendMessage(t *testing.T) {
 		mockBot := NewMockBot()
 		ctx := context.Background()
 
-		msg1, _ := mockBot.SendMessage(ctx, &bot.SendMessageParams{ChatID: int64(1), Text: "a"})
-		msg2, _ := mockBot.SendMessage(ctx, &bot.SendMessageParams{ChatID: int64(1), Text: "b"})
+		msg1, err := mockBot.SendMessage(ctx, &bot.SendMessageParams{ChatID: int64(1), Text: "a"})
+		require.NoError(t, err)
+		msg2, err := mockBot.SendMessage(ctx, &bot.SendMessageParams{ChatID: int64(1), Text: "b"})
+		require.NoError(t, err)
 
 		require.Equal(t, 1000, msg1.ID)
 		require.Equal(t, 1001, msg2.ID)
@@ -212,15 +214,15 @@ func TestMockBot_Reset(t *testing.T) {
 	mockBot := NewMockBot()
 	ctx := context.Background()
 
-	mockBot.SendMessage(ctx, &bot.SendMessageParams{ChatID: int64(1), Text: "a"})
-	mockBot.EditMessageText(ctx, &bot.EditMessageTextParams{ChatID: int64(1), MessageID: 1, Text: "b"})
+	_, _ = mockBot.SendMessage(ctx, &bot.SendMessageParams{ChatID: int64(1), Text: "a"})
+	_, _ = mockBot.EditMessageText(ctx, &bot.EditMessageTextParams{ChatID: int64(1), MessageID: 1, Text: "b"})
 	mockBot.SendMessageError = errors.New("error")
 
 	mockBot.Reset()
 
 	require.Empty(t, mockBot.SentMessages)
 	require.Empty(t, mockBot.EditedMessages)
-	require.Nil(t, mockBot.SendMessageError)
+	require.NoError(t, mockBot.SendMessageError)
 }
 
 func TestMockBot_LastSentMessage_Empty(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 )
@@ -51,7 +52,7 @@ func TestGetCategoriesWithCache(t *testing.T) {
 		require.Equal(t, firstCacheTime, b.categoryCacheExpiry)
 
 		// Should return same data
-		require.Equal(t, len(categories1), len(categories2))
+		require.Len(t, categories2, len(categories1))
 	})
 
 	t.Run("cache expiry - refetches from DB", func(t *testing.T) {
@@ -81,16 +82,16 @@ func TestGetCategoriesWithCache(t *testing.T) {
 
 		// Multiple goroutines accessing cache simultaneously
 		done := make(chan bool, 10)
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			go func() {
 				_, err := b.getCategoriesWithCache(context.Background())
-				require.NoError(t, err)
+				assert.NoError(t, err)
 				done <- true
 			}()
 		}
 
 		// Wait for all goroutines
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			<-done
 		}
 
@@ -135,6 +136,6 @@ func TestInvalidateCategoryCache(t *testing.T) {
 		require.NotEmpty(t, categories2)
 
 		// Should have fresh data
-		require.Equal(t, len(categories1), len(categories2))
+		require.Len(t, categories2, len(categories1))
 	})
 }

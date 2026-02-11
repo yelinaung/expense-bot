@@ -3,6 +3,7 @@ package gemini
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"google.golang.org/genai"
@@ -49,7 +50,7 @@ type Client struct {
 // NewClient creates a new Gemini client with the provided API key.
 func NewClient(ctx context.Context, apiKey string) (*Client, error) {
 	if apiKey == "" {
-		return nil, fmt.Errorf("gemini API key is required")
+		return nil, errors.New("gemini API key is required")
 	}
 
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{

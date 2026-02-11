@@ -100,7 +100,7 @@ func TestExtractUsername(t *testing.T) {
 	t.Run("returns empty for empty update", func(t *testing.T) {
 		t.Parallel()
 		update := &tgmodels.Update{}
-		require.Equal(t, "", extractUsername(update))
+		require.Empty(t, extractUsername(update))
 	})
 
 	t.Run("returns empty for message without from", func(t *testing.T) {
@@ -108,7 +108,7 @@ func TestExtractUsername(t *testing.T) {
 		update := &tgmodels.Update{
 			Message: &tgmodels.Message{From: nil},
 		}
-		require.Equal(t, "", extractUsername(update))
+		require.Empty(t, extractUsername(update))
 	})
 }
 
@@ -600,7 +600,10 @@ func downloadPhotoFromURL(ctx context.Context, url string) ([]byte, error) {
 	}
 
 	buf := make([]byte, 1024)
-	n, _ := resp.Body.Read(buf)
+	n, err := resp.Body.Read(buf)
+	if n == 0 && err != nil {
+		return nil, err
+	}
 	return buf[:n], nil
 }
 

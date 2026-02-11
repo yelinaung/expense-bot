@@ -112,9 +112,9 @@ func TestUserRepository_UpsertUserEdgeCases(t *testing.T) {
 
 		retrieved, err := repo.GetUserByID(ctx, user.ID)
 		require.NoError(t, err)
-		require.Equal(t, "", retrieved.Username)
-		require.Equal(t, "", retrieved.FirstName)
-		require.Equal(t, "", retrieved.LastName)
+		require.Empty(t, retrieved.Username)
+		require.Empty(t, retrieved.FirstName)
+		require.Empty(t, retrieved.LastName)
 	})
 
 	t.Run("upsert with unicode characters", func(t *testing.T) {
@@ -182,9 +182,9 @@ func TestUserRepository_UpsertUserEdgeCases(t *testing.T) {
 		// Verify all empty
 		retrieved, err := repo.GetUserByID(ctx, user.ID)
 		require.NoError(t, err)
-		require.Equal(t, "", retrieved.Username)
-		require.Equal(t, "", retrieved.FirstName)
-		require.Equal(t, "", retrieved.LastName)
+		require.Empty(t, retrieved.Username)
+		require.Empty(t, retrieved.FirstName)
+		require.Empty(t, retrieved.LastName)
 	})
 
 	t.Run("upsert with newlines in fields", func(t *testing.T) {

@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -24,6 +25,7 @@ func TestSuggestCategory(t *testing.T) {
 	}
 
 	t.Run("suggests category for coffee", func(t *testing.T) {
+		t.Parallel()
 		mockGen := &mockGenerator{
 			response: createMockCategoryResponse("Food - Dining Out", 0.95, "Coffee is typically a dining out expense"),
 		}
@@ -38,6 +40,7 @@ func TestSuggestCategory(t *testing.T) {
 	})
 
 	t.Run("suggests category for taxi", func(t *testing.T) {
+		t.Parallel()
 		mockGen := &mockGenerator{
 			response: createMockCategoryResponse("Transportation", 0.98, "Taxi is a transportation expense"),
 		}
@@ -50,6 +53,7 @@ func TestSuggestCategory(t *testing.T) {
 	})
 
 	t.Run("suggests category for groceries", func(t *testing.T) {
+		t.Parallel()
 		mockGen := &mockGenerator{
 			response: createMockCategoryResponse("Food - Groceries", 0.92, "Supermarket shopping is typically groceries"),
 		}
@@ -62,6 +66,7 @@ func TestSuggestCategory(t *testing.T) {
 	})
 
 	t.Run("handles case-insensitive category matching", func(t *testing.T) {
+		t.Parallel()
 		mockGen := &mockGenerator{
 			response: createMockCategoryResponse("transportation", 0.95, "Uber is transportation"),
 		}
@@ -75,6 +80,7 @@ func TestSuggestCategory(t *testing.T) {
 	})
 
 	t.Run("returns error for empty description", func(t *testing.T) {
+		t.Parallel()
 		client := NewClientWithGenerator(&mockGenerator{})
 
 		suggestion, err := client.SuggestCategory(context.Background(), "", categories)
@@ -84,6 +90,7 @@ func TestSuggestCategory(t *testing.T) {
 	})
 
 	t.Run("returns error for empty categories list", func(t *testing.T) {
+		t.Parallel()
 		client := NewClientWithGenerator(&mockGenerator{})
 
 		suggestion, err := client.SuggestCategory(context.Background(), "coffee", []string{})
@@ -93,6 +100,7 @@ func TestSuggestCategory(t *testing.T) {
 	})
 
 	t.Run("returns error for nil generator", func(t *testing.T) {
+		t.Parallel()
 		client := &Client{generator: nil}
 
 		suggestion, err := client.SuggestCategory(context.Background(), "coffee", categories)
@@ -102,6 +110,7 @@ func TestSuggestCategory(t *testing.T) {
 	})
 
 	t.Run("returns error when suggested category not in list", func(t *testing.T) {
+		t.Parallel()
 		mockGen := &mockGenerator{
 			response: createMockCategoryResponse("Invalid Category", 0.95, "This category doesn't exist"),
 		}
@@ -114,8 +123,9 @@ func TestSuggestCategory(t *testing.T) {
 	})
 
 	t.Run("handles API errors gracefully", func(t *testing.T) {
+		t.Parallel()
 		mockGen := &mockGenerator{
-			err: fmt.Errorf("API error"),
+			err: errors.New("API error"),
 		}
 		client := NewClientWithGenerator(mockGen)
 
@@ -125,6 +135,7 @@ func TestSuggestCategory(t *testing.T) {
 	})
 
 	t.Run("handles empty response", func(t *testing.T) {
+		t.Parallel()
 		mockGen := &mockGenerator{
 			response: &genai.GenerateContentResponse{
 				Candidates: []*genai.Candidate{},
@@ -145,11 +156,13 @@ func TestBuildCategorySuggestionPrompt(t *testing.T) {
 	categories := []string{"Food", "Transportation", "Shopping"}
 
 	t.Run("includes description in prompt", func(t *testing.T) {
+		t.Parallel()
 		prompt := buildCategorySuggestionPrompt("coffee at Starbucks", categories)
 		require.Contains(t, prompt, "coffee at Starbucks")
 	})
 
 	t.Run("includes all categories in prompt", func(t *testing.T) {
+		t.Parallel()
 		prompt := buildCategorySuggestionPrompt("test", categories)
 		require.Contains(t, prompt, "Food")
 		require.Contains(t, prompt, "Transportation")
@@ -157,6 +170,7 @@ func TestBuildCategorySuggestionPrompt(t *testing.T) {
 	})
 
 	t.Run("includes instructions", func(t *testing.T) {
+		t.Parallel()
 		prompt := buildCategorySuggestionPrompt("test", categories)
 		require.Contains(t, prompt, "Categorize")
 		require.Contains(t, prompt, "confidence")
@@ -165,7 +179,7 @@ func TestBuildCategorySuggestionPrompt(t *testing.T) {
 	})
 }
 
-// Helper function to create mock category response
+// Helper function to create mock category response.
 func createMockCategoryResponse(category string, confidence float64, reasoning string) *genai.GenerateContentResponse {
 	jsonResponse := `{
 		"category": "` + category + `",

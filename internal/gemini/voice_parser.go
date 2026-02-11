@@ -52,7 +52,7 @@ func (c *Client) ParseVoiceExpense(
 	categories []string,
 ) (*VoiceExpenseData, error) {
 	if len(audioBytes) == 0 {
-		return nil, fmt.Errorf("audio data is required")
+		return nil, errors.New("audio data is required")
 	}
 
 	if mimeType == "" {
@@ -80,18 +80,19 @@ func (c *Client) ParseVoiceExpense(
 	}
 
 	if resp == nil || len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil {
-		return nil, fmt.Errorf("no response from Gemini")
+		return nil, errors.New("no response from Gemini")
 	}
 
-	var textContent string
+	var sb strings.Builder
 	for _, part := range resp.Candidates[0].Content.Parts {
 		if part.Text != "" {
-			textContent += part.Text
+			sb.WriteString(part.Text)
 		}
 	}
+	textContent := sb.String()
 
 	if textContent == "" {
-		return nil, fmt.Errorf("empty response from Gemini")
+		return nil, errors.New("empty response from Gemini")
 	}
 
 	data, err := parseVoiceExpenseResponse(textContent)

@@ -133,7 +133,15 @@ func (b *Bot) handlePhotoCore(ctx context.Context, tg TelegramAPI, update *model
 		Bool("partial", isPartial).
 		Msg("Receipt parsed")
 
-	categories, _ := b.getCategoriesWithCache(ctx)
+	categories, err := b.getCategoriesWithCache(ctx)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to fetch categories for receipt")
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to fetch categories. Please try again.",
+		})
+		return
+	}
 	var categoryID *int
 	var category *appmodels.Category
 	for i := range categories {

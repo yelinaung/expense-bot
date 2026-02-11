@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
+	"strconv"
 	"time"
 
 	"gitlab.com/yelinaung/expense-bot/internal/models"
@@ -26,19 +27,19 @@ func GenerateExpensesCSV(expenses []models.Expense) ([]byte, error) {
 	}
 
 	// Write expense rows
-	for _, expense := range expenses {
+	for i := range expenses {
 		categoryName := "Uncategorized"
-		if expense.Category != nil {
-			categoryName = expense.Category.Name
+		if expenses[i].Category != nil {
+			categoryName = expenses[i].Category.Name
 		}
 
 		row := []string{
-			fmt.Sprintf("%d", expense.UserExpenseNumber),
-			expense.CreatedAt.Format("2006-01-02 15:04:05"),
-			expense.Amount.StringFixed(2),
-			expense.Currency,
-			expense.Description,
-			expense.Merchant,
+			strconv.FormatInt(expenses[i].UserExpenseNumber, 10),
+			expenses[i].CreatedAt.Format("2006-01-02 15:04:05"),
+			expenses[i].Amount.StringFixed(2),
+			expenses[i].Currency,
+			expenses[i].Description,
+			expenses[i].Merchant,
 			categoryName,
 		}
 

@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 // Returns PNG image as bytes.
 func GenerateExpenseChart(expenses []models.Expense, period string) ([]byte, error) {
 	if len(expenses) == 0 {
-		return nil, fmt.Errorf("no expenses to chart")
+		return nil, errors.New("no expenses to chart")
 	}
 
 	// Aggregate expenses by category
@@ -69,16 +70,16 @@ func GenerateExpenseChart(expenses []models.Expense, period string) ([]byte, err
 func aggregateByCategory(expenses []models.Expense) map[string]decimal.Decimal {
 	categoryTotals := make(map[string]decimal.Decimal)
 
-	for _, expense := range expenses {
+	for i := range expenses {
 		categoryName := "Uncategorized"
-		if expense.Category != nil {
-			categoryName = expense.Category.Name
+		if expenses[i].Category != nil {
+			categoryName = expenses[i].Category.Name
 		}
 
 		if existing, ok := categoryTotals[categoryName]; ok {
-			categoryTotals[categoryName] = existing.Add(expense.Amount)
+			categoryTotals[categoryName] = existing.Add(expenses[i].Amount)
 		} else {
-			categoryTotals[categoryName] = expense.Amount
+			categoryTotals[categoryName] = expenses[i].Amount
 		}
 	}
 

@@ -296,7 +296,7 @@ func FuzzHashDescription(f *testing.F) {
 
 		// Invariant 2: Must only contain hex characters.
 		for _, c := range result {
-			if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+			if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
 				t.Errorf("hashDescription(%q) contains non-hex char: %c", input, c)
 			}
 		}

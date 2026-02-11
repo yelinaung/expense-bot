@@ -46,7 +46,7 @@ func TestHandleChartCore(t *testing.T) {
 	today := time.Date(now.Year(), now.Month(), now.Day(), 10, 0, 0, 0, loc)
 
 	// Create 3 food expenses (all dated today)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      decimal.NewFromFloat(15.50),
@@ -67,7 +67,7 @@ func TestHandleChartCore(t *testing.T) {
 	}
 
 	// Create 2 transport expenses (all dated today)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      decimal.NewFromFloat(5.00),
@@ -188,6 +188,7 @@ func TestHandleChartWrapper(t *testing.T) {
 	var tgBot *bot.Bot
 
 	t.Run("wrapper delegates to core", func(t *testing.T) {
+		t.Parallel()
 		update := &models.Update{}
 		b.handleChart(ctx, tgBot, update)
 		// Should not panic

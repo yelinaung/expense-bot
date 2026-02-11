@@ -201,11 +201,11 @@ func TestCleanupTables_WithData(t *testing.T) {
 	var userCount, categoryCount int
 	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM users").Scan(&userCount)
 	require.NoError(t, err)
-	require.Greater(t, userCount, 0)
+	require.Positive(t, userCount)
 
 	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM categories").Scan(&categoryCount)
 	require.NoError(t, err)
-	require.Greater(t, categoryCount, 0)
+	require.Positive(t, categoryCount)
 
 	// Cleanup
 	CleanupTables(t, pool)

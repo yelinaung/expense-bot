@@ -1,31 +1,107 @@
 version: "2"
+
 run:
-  tests: false
+  tests: true
+
 linters:
   enable:
-    - bodyclose
-    - exhaustive
-    - goconst
-    - godot
-    - gomoddirectives
-    - goprintffuncname
-    - gosec
-    - misspell
-    - nakedret
-    - nestif
-    - nilerr
-    - noctx
-    - nolintlint
-    - prealloc
-    - revive
-    - rowserrcheck
-    - sqlclosecheck
+    # Correctness baseline.
+    - errcheck
+    - govet
+    - ineffassign
     - staticcheck
-    - tparallel
+    - unused
+
+    # Bug catchers.
+    - errorlint
+    - nilerr
+    - nilnil
     - unconvert
     - unparam
+    - forcetypeassert
+    - exhaustive
+    - copyloopvar
+    - wastedassign
+    - fatcontext
+    - durationcheck
+    - reassign
+    - recvcheck
+    - nilnesserr
+
+    # Security.
+    - gosec
+    - bodyclose
+    - bidichk
+
+    # Performance.
+    - prealloc
+    - perfsprint
+
+    # Context and network.
+    - noctx
+
+    # Go module hygiene.
+    - gomoddirectives
+
+    # Printf function naming.
+    - goprintffuncname
+
+    # Lint suppression hygiene.
+    - nolintlint
+
+    # Spelling.
+    - misspell
+
+    # Struct tags.
+    - musttag
+    - tagliatelle
+
+    # Logging.
+    - sloglint
+
+    # Modernization.
+    - modernize
+
+    # Style (low-noise).
+    - godot
+    - nakedret
     - whitespace
-    - wrapcheck
+    - goconst
+
+    # SQL (pgx-compatible).
+    - sqlclosecheck
+
+    # Test-specific.
+    - tparallel
+    - thelper
+    - usetesting
+    - testifylint
+
+    # Diagnostics and performance via gocritic.
+    - gocritic
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: false
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+
+    tagliatelle:
+      case:
+        rules:
+          json: snake
+
+    nakedret:
+      max-func-lines: 0
+
+    sloglint:
+      attr-only: false
+      kv-only: false
+
   exclusions:
     rules:
       - text: '(slog|log)\.\w+'

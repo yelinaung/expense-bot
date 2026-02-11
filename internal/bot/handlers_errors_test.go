@@ -202,7 +202,7 @@ func TestGetCategoriesWithCache_Errors(t *testing.T) {
 		// Second call - cache hit
 		categories2, err := testBot.getCategoriesWithCache(ctx)
 		require.NoError(t, err)
-		require.Equal(t, len(categories1), len(categories2))
+		require.Len(t, categories2, len(categories1))
 	})
 }
 
@@ -459,7 +459,7 @@ func TestUserRepositoryErrors(t *testing.T) {
 		// Verify it was saved
 		retrieved, err := testBot.userRepo.GetUserByID(ctx, 22222)
 		require.NoError(t, err)
-		require.Equal(t, "", retrieved.Username)
+		require.Empty(t, retrieved.Username)
 	})
 
 	t.Run("upsert updates existing user", func(t *testing.T) {
@@ -492,31 +492,37 @@ func TestParsingEdgeCases(t *testing.T) {
 	t.Parallel()
 
 	t.Run("parse add command with invalid amount returns nil", func(t *testing.T) {
+		t.Parallel()
 		result := ParseAddCommand("/add abc Coffee")
 		require.Nil(t, result)
 	})
 
 	t.Run("parse add command with negative amount returns nil", func(t *testing.T) {
+		t.Parallel()
 		result := ParseAddCommand("/add -5.50 Coffee")
 		require.Nil(t, result)
 	})
 
 	t.Run("parse add command with zero amount returns nil", func(t *testing.T) {
+		t.Parallel()
 		result := ParseAddCommand("/add 0 Coffee")
 		require.Nil(t, result)
 	})
 
 	t.Run("parse expense input with no amount returns nil", func(t *testing.T) {
+		t.Parallel()
 		result := ParseExpenseInput("Coffee at Starbucks")
 		require.Nil(t, result)
 	})
 
 	t.Run("parse expense input with invalid amount returns nil", func(t *testing.T) {
+		t.Parallel()
 		result := ParseExpenseInput("abc Coffee")
 		require.Nil(t, result)
 	})
 
 	t.Run("match category with empty string returns nil", func(t *testing.T) {
+		t.Parallel()
 		categories := []models.Category{
 			{ID: 1, Name: "Food"},
 		}
@@ -525,6 +531,7 @@ func TestParsingEdgeCases(t *testing.T) {
 	})
 
 	t.Run("match category with no match returns nil", func(t *testing.T) {
+		t.Parallel()
 		categories := []models.Category{
 			{ID: 1, Name: "Food"},
 		}
@@ -533,6 +540,7 @@ func TestParsingEdgeCases(t *testing.T) {
 	})
 
 	t.Run("match category with empty categories returns nil", func(t *testing.T) {
+		t.Parallel()
 		result := MatchCategory("Food", []models.Category{})
 		require.Nil(t, result)
 	})

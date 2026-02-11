@@ -16,8 +16,6 @@ func TestDB(t *testing.T) database.PGXDB {
 }
 
 // setupTestBot creates a Bot instance for testing with database.
-//
-//nolint:unused // Used in test files
 func setupTestBot(t *testing.T, db database.PGXDB) *Bot {
 	t.Helper()
 
@@ -44,8 +42,6 @@ func setupTestBot(t *testing.T, db database.PGXDB) *Bot {
 }
 
 // mustParseDecimal parses a decimal string or panics (for test data).
-//
-//nolint:unused // Used in test files
 func mustParseDecimal(s string) decimal.Decimal {
 	d, err := decimal.NewFromString(s)
 	if err != nil {

@@ -159,6 +159,7 @@ func TestHandleCategoryWrapper(t *testing.T) {
 	var tgBot *bot.Bot
 
 	t.Run("wrapper delegates to core", func(t *testing.T) {
+		t.Parallel()
 		update := &models.Update{}
 		// This should not panic even with nil bot
 		b.handleCategory(ctx, tgBot, update)
