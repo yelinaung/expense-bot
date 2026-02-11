@@ -86,7 +86,7 @@ jobs:
   test:
     name: Test
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
-    needs: [secret-detection, lint]
+    needs: [secret-detection, lint, check_sast]
     env:
       POSTGRES_USER: test
       POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD || 'test' }}
