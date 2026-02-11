@@ -572,6 +572,60 @@ func TestExpenseRepository_GetByUserAndNumber(t *testing.T) {
 	})
 }
 
+func TestExpenseRepository_HasExpensesForDate(t *testing.T) {
+	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
+
+	user := &models.User{ID: 970, Username: "user970", FirstName: "Test", LastName: "User"}
+	err := userRepo.UpsertUser(ctx, user)
+	require.NoError(t, err)
+
+	now := time.Now()
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	endOfDay := startOfDay.Add(24 * time.Hour)
+
+	t.Run("returns false when no expenses", func(t *testing.T) {
+		has, err := expenseRepo.HasExpensesForDate(ctx, 970, startOfDay, endOfDay)
+		require.NoError(t, err)
+		require.False(t, has)
+	})
+
+	t.Run("returns true when confirmed expense exists today", func(t *testing.T) {
+		expense := &models.Expense{
+			UserID:      970,
+			Amount:      decimal.NewFromFloat(10.00),
+			Currency:    "SGD",
+			Description: "Lunch",
+			Status:      models.ExpenseStatusConfirmed,
+		}
+		err := expenseRepo.Create(ctx, expense)
+		require.NoError(t, err)
+
+		has, err := expenseRepo.HasExpensesForDate(ctx, 970, startOfDay, endOfDay)
+		require.NoError(t, err)
+		require.True(t, has)
+	})
+
+	t.Run("returns false when only draft expense exists", func(t *testing.T) {
+		user2 := &models.User{ID: 971, Username: "user971", FirstName: "Test", LastName: "User"}
+		err := userRepo.UpsertUser(ctx, user2)
+		require.NoError(t, err)
+
+		draft := &models.Expense{
+			UserID:      971,
+			Amount:      decimal.NewFromFloat(5.00),
+			Currency:    "SGD",
+			Description: "Draft only",
+			Status:      models.ExpenseStatusDraft,
+		}
+		err = expenseRepo.Create(ctx, draft)
+		require.NoError(t, err)
+
+		has, err := expenseRepo.HasExpensesForDate(ctx, 971, startOfDay, endOfDay)
+		require.NoError(t, err)
+		require.False(t, has)
+	})
+}
+
 func TestExpenseRepository_NullifyCategoryOnExpenses(t *testing.T) {
 	expenseRepo, userRepo, categoryRepo, ctx := setupExpenseTest(t)
 

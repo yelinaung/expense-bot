@@ -35,6 +35,7 @@ func setupTestBot(t *testing.T, db database.PGXDB) *Bot {
 		tagRepo:          repository.NewTagRepository(db),
 		approvedUserRepo: repository.NewApprovedUserRepository(db),
 		geminiClient:     nil, // No Gemini client for cache tests
+		messageSender:    nil, // Tests that need it will inject a mock
 		pendingEdits:     make(map[int64]*pendingEdit),
 	}
 

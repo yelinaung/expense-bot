@@ -112,6 +112,94 @@ func TestLoad(t *testing.T) {
 	})
 }
 
+func TestLoad_DailyReminder(t *testing.T) {
+	t.Run("parses DAILY_REMINDER_ENABLED=true", func(t *testing.T) {
+		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
+		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("WHITELISTED_USER_IDS", "123")
+		t.Setenv("DAILY_REMINDER_ENABLED", "true")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.True(t, cfg.DailyReminderEnabled)
+	})
+
+	t.Run("defaults DAILY_REMINDER_ENABLED to false", func(t *testing.T) {
+		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
+		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("WHITELISTED_USER_IDS", "123")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.False(t, cfg.DailyReminderEnabled)
+	})
+
+	t.Run("parses valid REMINDER_HOUR", func(t *testing.T) {
+		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
+		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("WHITELISTED_USER_IDS", "123")
+		t.Setenv("REMINDER_HOUR", "9")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Equal(t, 9, cfg.ReminderHour)
+	})
+
+	t.Run("defaults REMINDER_HOUR to 20 for invalid value", func(t *testing.T) {
+		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
+		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("WHITELISTED_USER_IDS", "123")
+		t.Setenv("REMINDER_HOUR", "25")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Equal(t, 20, cfg.ReminderHour)
+	})
+
+	t.Run("defaults REMINDER_HOUR to 20 for non-numeric value", func(t *testing.T) {
+		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
+		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("WHITELISTED_USER_IDS", "123")
+		t.Setenv("REMINDER_HOUR", "abc")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Equal(t, 20, cfg.ReminderHour)
+	})
+
+	t.Run("parses REMINDER_TIMEZONE", func(t *testing.T) {
+		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
+		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("WHITELISTED_USER_IDS", "123")
+		t.Setenv("REMINDER_TIMEZONE", "America/New_York")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Equal(t, "America/New_York", cfg.ReminderTimezone)
+	})
+
+	t.Run("defaults REMINDER_TIMEZONE to Asia/Singapore", func(t *testing.T) {
+		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
+		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("WHITELISTED_USER_IDS", "123")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Equal(t, "Asia/Singapore", cfg.ReminderTimezone)
+	})
+
+	t.Run("falls back to Asia/Singapore for invalid timezone", func(t *testing.T) {
+		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
+		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("WHITELISTED_USER_IDS", "123")
+		t.Setenv("REMINDER_TIMEZONE", "Invalid/Timezone")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Equal(t, "Asia/Singapore", cfg.ReminderTimezone)
+	})
+}
+
 func TestLoad_Validation(t *testing.T) {
 	t.Run("fails when TELEGRAM_BOT_TOKEN is missing", func(t *testing.T) {
 		t.Setenv("TELEGRAM_BOT_TOKEN", "")

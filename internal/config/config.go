@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -19,6 +20,9 @@ type Config struct {
 	LogLevel             string
 	WhitelistedUserIDs   []int64
 	WhitelistedUsernames []string
+	DailyReminderEnabled bool
+	ReminderHour         int
+	ReminderTimezone     string
 }
 
 // Load reads configuration from environment variables.
@@ -30,6 +34,20 @@ func Load() (*Config, error) {
 		DatabaseURL:      os.Getenv("DATABASE_URL"),
 		GeminiAPIKey:     os.Getenv("GEMINI_API_KEY"),
 		LogLevel:         os.Getenv("LOG_LEVEL"),
+	}
+
+	cfg.DailyReminderEnabled = os.Getenv("DAILY_REMINDER_ENABLED") == "true"
+	cfg.ReminderHour = 20
+	if hourStr := os.Getenv("REMINDER_HOUR"); hourStr != "" {
+		if h, err := strconv.Atoi(hourStr); err == nil && h >= 0 && h <= 23 {
+			cfg.ReminderHour = h
+		}
+	}
+	cfg.ReminderTimezone = "Asia/Singapore"
+	if tz := os.Getenv("REMINDER_TIMEZONE"); tz != "" {
+		if _, err := time.LoadLocation(tz); err == nil {
+			cfg.ReminderTimezone = tz
+		}
 	}
 
 	whitelistStr := os.Getenv("WHITELISTED_USER_IDS")

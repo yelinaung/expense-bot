@@ -51,6 +51,34 @@ func TestUserRepository_UpsertUser(t *testing.T) {
 	})
 }
 
+func TestUserRepository_GetAllUsers(t *testing.T) {
+	tx := database.TestTx(t)
+	ctx := context.Background()
+
+	repo := NewUserRepository(tx)
+
+	t.Run("returns empty when no users exist", func(t *testing.T) {
+		users, err := repo.GetAllUsers(ctx)
+		require.NoError(t, err)
+		require.Empty(t, users)
+	})
+
+	t.Run("returns all created users", func(t *testing.T) {
+		err := repo.UpsertUser(ctx, &models.User{ID: 1001, Username: "alice", FirstName: "Alice", LastName: "A"})
+		require.NoError(t, err)
+		err = repo.UpsertUser(ctx, &models.User{ID: 1002, Username: "bob", FirstName: "Bob", LastName: "B"})
+		require.NoError(t, err)
+
+		users, err := repo.GetAllUsers(ctx)
+		require.NoError(t, err)
+		require.Len(t, users, 2)
+
+		ids := []int64{users[0].ID, users[1].ID}
+		require.Contains(t, ids, int64(1001))
+		require.Contains(t, ids, int64(1002))
+	})
+}
+
 func TestUserRepository_GetUserByID(t *testing.T) {
 	tx := database.TestTx(t)
 	ctx := context.Background()

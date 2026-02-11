@@ -59,6 +59,31 @@ func (r *UserRepository) UpdateDefaultCurrency(ctx context.Context, userID int64
 	return nil
 }
 
+// GetAllUsers returns all registered users.
+func (r *UserRepository) GetAllUsers(ctx context.Context) ([]models.User, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT id, username, first_name, last_name, default_currency, created_at, updated_at
+		FROM users
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query all users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []models.User
+	for rows.Next() {
+		var u models.User
+		if err := rows.Scan(&u.ID, &u.Username, &u.FirstName, &u.LastName, &u.DefaultCurrency, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan user: %w", err)
+		}
+		users = append(users, u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating users: %w", err)
+	}
+	return users, nil
+}
+
 // GetDefaultCurrency returns a user's default currency, or SGD if not set.
 func (r *UserRepository) GetDefaultCurrency(ctx context.Context, userID int64) (string, error) {
 	var currency string

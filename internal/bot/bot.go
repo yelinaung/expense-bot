@@ -38,6 +38,8 @@ type Bot struct {
 	approvedUserRepo *repository.ApprovedUserRepository
 	geminiClient     *gemini.Client
 
+	messageSender TelegramAPI
+
 	pendingEdits   map[int64]*pendingEdit // key is chatID
 	pendingEditsMu sync.RWMutex
 
@@ -81,6 +83,7 @@ func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 	}
 
 	b.bot = telegramBot
+	b.messageSender = telegramBot
 	b.registerHandlers()
 
 	return b, nil
@@ -109,6 +112,7 @@ func (b *Bot) Start(ctx context.Context) {
 	b.cleanupExpiredDrafts(ctx)
 
 	go b.startDraftCleanupLoop(ctx)
+	go b.startDailyReminderLoop(ctx)
 
 	logger.Log.Info().Msg("Bot started polling")
 	b.bot.Start(ctx)

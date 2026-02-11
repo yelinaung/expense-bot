@@ -237,6 +237,18 @@ func (r *ExpenseRepository) NullifyCategoryOnExpenses(ctx context.Context, categ
 	return result.RowsAffected(), nil
 }
 
+// HasExpensesForDate checks if a user has any confirmed expenses in the given time range.
+func (r *ExpenseRepository) HasExpensesForDate(ctx context.Context, userID int64, startOfDay, endOfDay time.Time) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS(SELECT 1 FROM expenses WHERE user_id = $1 AND created_at >= $2 AND created_at < $3 AND status = 'confirmed')
+	`, userID, startOfDay, endOfDay).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("failed to check expenses for date: %w", err)
+	}
+	return exists, nil
+}
+
 // scanExpenses is a helper to scan expense rows with category joins.
 func scanExpenses(rows interface {
 	Next() bool
