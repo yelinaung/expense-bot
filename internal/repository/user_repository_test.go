@@ -3,7 +3,9 @@ package repository
 import (
 	"context"
 	"testing"
+	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
@@ -76,6 +78,96 @@ func TestUserRepository_GetAllUsers(t *testing.T) {
 		ids := []int64{users[0].ID, users[1].ID}
 		require.Contains(t, ids, int64(1001))
 		require.Contains(t, ids, int64(1002))
+	})
+}
+
+func TestUserRepository_GetUsersNeedingReminder(t *testing.T) {
+	tx := database.TestTx(t)
+	ctx := context.Background()
+
+	userRepo := NewUserRepository(tx)
+	expenseRepo := NewExpenseRepository(tx)
+	approvedRepo := NewApprovedUserRepository(tx)
+
+	now := time.Now()
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	endOfDay := startOfDay.AddDate(0, 0, 1)
+
+	t.Run("returns superadmin without expenses", func(t *testing.T) {
+		err := userRepo.UpsertUser(ctx, &models.User{ID: 3001, Username: "admin", FirstName: "Admin"})
+		require.NoError(t, err)
+
+		users, err := userRepo.GetUsersNeedingReminder(ctx, []int64{3001}, nil, startOfDay, endOfDay)
+		require.NoError(t, err)
+		require.Len(t, users, 1)
+		require.Equal(t, int64(3001), users[0].ID)
+	})
+
+	t.Run("excludes superadmin with expenses", func(t *testing.T) {
+		err := userRepo.UpsertUser(ctx, &models.User{ID: 3002, Username: "busyadmin", FirstName: "Busy"})
+		require.NoError(t, err)
+
+		expense := &models.Expense{
+			UserID:      3002,
+			Amount:      decimal.NewFromFloat(5.00),
+			Currency:    "SGD",
+			Description: "Coffee",
+			Status:      models.ExpenseStatusConfirmed,
+		}
+		err = expenseRepo.Create(ctx, expense)
+		require.NoError(t, err)
+
+		users, err := userRepo.GetUsersNeedingReminder(ctx, []int64{3002}, nil, startOfDay, endOfDay)
+		require.NoError(t, err)
+		require.Empty(t, users)
+	})
+
+	t.Run("returns approved user without expenses", func(t *testing.T) {
+		err := userRepo.UpsertUser(ctx, &models.User{ID: 3003, Username: "approveduser", FirstName: "Approved"})
+		require.NoError(t, err)
+		err = approvedRepo.Approve(ctx, 3003, "approveduser", 1)
+		require.NoError(t, err)
+
+		users, err := userRepo.GetUsersNeedingReminder(ctx, nil, nil, startOfDay, endOfDay)
+		require.NoError(t, err)
+
+		var found bool
+		for _, u := range users {
+			if u.ID == 3003 {
+				found = true
+				break
+			}
+		}
+		require.True(t, found, "approved user should be included")
+	})
+
+	t.Run("excludes unapproved user", func(t *testing.T) {
+		err := userRepo.UpsertUser(ctx, &models.User{ID: 3004, Username: "stranger", FirstName: "Stranger"})
+		require.NoError(t, err)
+
+		users, err := userRepo.GetUsersNeedingReminder(ctx, nil, nil, startOfDay, endOfDay)
+		require.NoError(t, err)
+
+		for _, u := range users {
+			require.NotEqual(t, int64(3004), u.ID, "unapproved user should not be included")
+		}
+	})
+
+	t.Run("matches superadmin by username", func(t *testing.T) {
+		err := userRepo.UpsertUser(ctx, &models.User{ID: 3005, Username: "UsernameAdmin", FirstName: "UAdmin"})
+		require.NoError(t, err)
+
+		users, err := userRepo.GetUsersNeedingReminder(ctx, nil, []string{"UsernameAdmin"}, startOfDay, endOfDay)
+		require.NoError(t, err)
+
+		var found bool
+		for _, u := range users {
+			if u.ID == 3005 {
+				found = true
+				break
+			}
+		}
+		require.True(t, found, "username-whitelisted user should be included")
 	})
 }
 

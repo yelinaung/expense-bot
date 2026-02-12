@@ -24,6 +24,7 @@ func TestCheckAndSendReminders(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 14
+		b.cfg.WhitelistedUserIDs = []int64{2001}
 
 		err := b.userRepo.UpsertUser(ctx, &models.User{
 			ID:        2001,
@@ -43,6 +44,55 @@ func TestCheckAndSendReminders(t *testing.T) {
 		require.Equal(t, todayStr, reminded[2001])
 	})
 
+	t.Run("sends reminder to approved user", func(t *testing.T) {
+		pool := TestDB(t)
+		b := setupTestBot(t, pool)
+		ctx := context.Background()
+		mockBot := mocks.NewMockBot()
+		b.messageSender = mockBot
+		b.cfg.ReminderHour = 14
+		b.cfg.WhitelistedUserIDs = nil // not a superadmin
+
+		err := b.userRepo.UpsertUser(ctx, &models.User{
+			ID:        2010,
+			Username:  "approved",
+			FirstName: "Frank",
+		})
+		require.NoError(t, err)
+
+		err = b.approvedUserRepo.Approve(ctx, 2010, "approved", 1)
+		require.NoError(t, err)
+
+		reminded := make(map[int64]string)
+		b.checkAndSendReminders(ctx, loc, reminded, now)
+
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		msg := mockBot.LastSentMessage()
+		require.Equal(t, int64(2010), msg.ChatID)
+	})
+
+	t.Run("skips unapproved user", func(t *testing.T) {
+		pool := TestDB(t)
+		b := setupTestBot(t, pool)
+		ctx := context.Background()
+		mockBot := mocks.NewMockBot()
+		b.messageSender = mockBot
+		b.cfg.ReminderHour = 14
+		b.cfg.WhitelistedUserIDs = nil
+
+		err := b.userRepo.UpsertUser(ctx, &models.User{
+			ID:        2011,
+			Username:  "stranger",
+			FirstName: "Ghost",
+		})
+		require.NoError(t, err)
+
+		reminded := make(map[int64]string)
+		b.checkAndSendReminders(ctx, loc, reminded, now)
+
+		require.Equal(t, 0, mockBot.SentMessageCount(), "should not send reminder to unapproved user")
+	})
+
 	t.Run("skips user with expenses today", func(t *testing.T) {
 		pool := TestDB(t)
 		b := setupTestBot(t, pool)
@@ -50,6 +100,7 @@ func TestCheckAndSendReminders(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 14
+		b.cfg.WhitelistedUserIDs = []int64{2002}
 
 		err := b.userRepo.UpsertUser(ctx, &models.User{
 			ID:        2002,
@@ -72,7 +123,6 @@ func TestCheckAndSendReminders(t *testing.T) {
 		b.checkAndSendReminders(ctx, loc, reminded, now)
 
 		require.Equal(t, 0, mockBot.SentMessageCount(), "should not send reminder to user with expenses")
-		require.Equal(t, todayStr, reminded[2002], "user with expenses should be marked as reminded")
 	})
 
 	t.Run("skips user already reminded today", func(t *testing.T) {
@@ -82,6 +132,7 @@ func TestCheckAndSendReminders(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 14
+		b.cfg.WhitelistedUserIDs = []int64{2003}
 
 		err := b.userRepo.UpsertUser(ctx, &models.User{
 			ID:        2003,
@@ -105,6 +156,7 @@ func TestCheckAndSendReminders(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 20 // now is hour 14, won't match
+		b.cfg.WhitelistedUserIDs = []int64{2004}
 
 		err := b.userRepo.UpsertUser(ctx, &models.User{
 			ID:        2004,
@@ -127,6 +179,7 @@ func TestCheckAndSendReminders(t *testing.T) {
 		mockBot.SendMessageError = errors.New("user blocked bot")
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 14
+		b.cfg.WhitelistedUserIDs = []int64{2005}
 
 		err := b.userRepo.UpsertUser(ctx, &models.User{
 			ID:        2005,
