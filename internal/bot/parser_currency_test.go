@@ -94,6 +94,27 @@ func TestParseExpenseInput_Currency(t *testing.T) {
 			wantDesc:     "Hotel",
 			wantCurrency: "USD",
 		},
+		{
+			name:         "trailing dollar sign",
+			input:        "6.80$ lunch",
+			wantAmt:      "6.80",
+			wantDesc:     "lunch",
+			wantCurrency: "USD",
+		},
+		{
+			name:         "trailing euro sign",
+			input:        "10€ coffee",
+			wantAmt:      "10.00",
+			wantDesc:     "coffee",
+			wantCurrency: "EUR",
+		},
+		{
+			name:         "trailing SGD symbol",
+			input:        "5.50S$ noodles",
+			wantAmt:      "5.50",
+			wantDesc:     "noodles",
+			wantCurrency: "SGD",
+		},
 	}
 
 	for _, tt := range tests {

@@ -382,7 +382,7 @@ Expense #%d has been saved.`,
 		expense.Amount.StringFixed(2),
 		expense.Merchant,
 		categoryText,
-		expense.CreatedAt.Format("02 Jan 2006"),
+		expense.CreatedAt.In(b.displayLocation).Format("02 Jan 2006"),
 		expense.UserExpenseNumber)
 
 	logger.Log.Info().

@@ -4,11 +4,26 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/shopspring/decimal"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 )
+
+// currencySymbolsByLenDesc is currencySymbolToCode keys sorted by length
+// descending so that multi-char symbols (e.g. "S$") are matched before
+// single-char ones (e.g. "$").
+var currencySymbolsByLenDesc []string
+
+func init() {
+	for sym := range currencySymbolToCode {
+		currencySymbolsByLenDesc = append(currencySymbolsByLenDesc, sym)
+	}
+	sort.Slice(currencySymbolsByLenDesc, func(i, j int) bool {
+		return len(currencySymbolsByLenDesc[i]) > len(currencySymbolsByLenDesc[j])
+	})
+}
 
 // errInvalidAmount is returned when the amount is zero or negative.
 var errInvalidAmount = errors.New("amount must be greater than zero")
@@ -152,6 +167,17 @@ func ParseExpenseInput(input string) *ParsedExpense {
 	}
 
 	rest := strings.TrimSpace(input[len(match):])
+
+	// Check for currency symbol immediately after amount (e.g., "6.80$ lunch").
+	if detectedCurrency == "" && rest != "" {
+		for _, symbol := range currencySymbolsByLenDesc {
+			if strings.HasPrefix(rest, symbol) {
+				detectedCurrency = currencySymbolToCode[symbol]
+				rest = strings.TrimSpace(rest[len(symbol):])
+				break
+			}
+		}
+	}
 
 	// Check for currency code immediately after amount (e.g., "189.00 SGD - OG Albert").
 	if rest != "" {

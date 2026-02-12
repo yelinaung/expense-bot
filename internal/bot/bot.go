@@ -38,7 +38,8 @@ type Bot struct {
 	approvedUserRepo *repository.ApprovedUserRepository
 	geminiClient     *gemini.Client
 
-	messageSender TelegramAPI
+	messageSender   TelegramAPI
+	displayLocation *time.Location
 
 	pendingEdits   map[int64]*pendingEdit // key is chatID
 	pendingEditsMu sync.RWMutex
@@ -84,6 +85,13 @@ func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 
 	b.bot = telegramBot
 	b.messageSender = telegramBot
+
+	loc, err := time.LoadLocation(cfg.ReminderTimezone)
+	if err != nil {
+		loc = time.UTC
+	}
+	b.displayLocation = loc
+
 	b.registerHandlers()
 
 	return b, nil
