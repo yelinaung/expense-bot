@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.6.0] - 2026-02-13 - User Management, Daily Reminders & Reliability
+
+### Added
+- **Dynamic User Management**:
+  - `/approve <user_id|@username>` - Grant bot access to a user.
+  - `/revoke <user_id|@username>` - Revoke bot access from a user.
+  - `/users` - List superadmins and approved users.
+- **Daily Reminder**:
+  - Optional reminders for users with no confirmed expenses for the day.
+  - Configurable hour and timezone via `DAILY_REMINDER_ENABLED`, `REMINDER_HOUR`, and `REMINDER_TIMEZONE`.
+
+### Changed
+- **Input Parsing**:
+  - Improved trailing currency symbol handling (for example `6.80$`, `10€`, `5.50S$`).
+- **Timezone Display**:
+  - Expense timestamps now display in the configured reminder/user timezone in key bot responses.
+- **Code Quality**:
+  - Comprehensive lint cleanup and broader test coverage across previously untested paths.
+- **Dependencies/Tooling**:
+  - Updated `google.golang.org/genai` to `v1.46.0`.
+  - Updated Go Docker tag to `1.26`.
+  - Updated `golangci-lint` Docker tag to `v2.9`.
+
+### Fixed
+- **Admin Argument Parsing**:
+  - Preserved `@username` correctly in admin commands.
+- **Reminder Reliability**:
+  - Hardened reminder loop behavior and associated tests.
+- **Integration Test Flow**:
+  - Improved integration test workflow behavior and failure handling.
+- **Approval Lookup Robustness**:
+  - Replaced brittle no-row string matching with sentinel error handling.
+
+### CI/CD
+- **Pipeline Dependencies**:
+  - Adjusted CI needs/dependencies, including test requirements on security checks.
+
 ## [v0.5.0] - 2026-02-09 - Tags, Category Management & GitLab Releases
 
 ### Added

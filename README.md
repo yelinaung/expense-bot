@@ -111,9 +111,18 @@ WHITELISTED_USER_IDS=123456789,987654321
 # Alternative to user IDs, accepts with or without @ prefix
 WHITELISTED_USERNAMES=alice,bob,@charlie
 
+# Hash salt for privacy-preserving logging (generate with: openssl rand -hex 32)
+# Must be at least 32 characters
+LOG_HASH_SALT=generate_random_64_char_hex_string_here
+
 # Gemini API Key (optional - enables receipt OCR and auto-categorization)
 # Get from https://aistudio.google.com/app/apikey
 GEMINI_API_KEY=your_gemini_api_key_here
+
+# Daily reminder settings (optional)
+DAILY_REMINDER_ENABLED=false
+REMINDER_HOUR=20
+REMINDER_TIMEZONE=Asia/Singapore
 ```
 
 ### 4. Set Up Database
@@ -175,6 +184,16 @@ go run main.go
 | `/tag <id> #tag1 [#tag2] ...` | Add tags to an expense | `/tag 1 #work #meeting` |
 | `/untag <id> #tag` | Remove a tag from an expense | `/untag 1 #work` |
 | `/tags [#name]` | List all tags or filter expenses by tag | `/tags #work` |
+
+### Admin Commands
+
+> These commands are available to superadmins only.
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/approve <user_id\|@username>` | Approve a user by Telegram ID or username | `/approve @alice` |
+| `/revoke <user_id\|@username>` | Revoke an approved user by ID or username | `/revoke 123456789` |
+| `/users` | List superadmins and approved users | `/users` |
 
 ### Multi-Currency Support
 
@@ -402,6 +421,9 @@ The project uses:
 | `LOG_HASH_SALT` | Yes | Random string for privacy-preserving logging (min 32 chars) | - |
 | `GEMINI_API_KEY` | No | Google Gemini API key for OCR and auto-categorization | - |
 | `LOG_LEVEL` | No | Log level (debug, info, warn, error) | info |
+| `DAILY_REMINDER_ENABLED` | No | Enable daily reminders for users without expenses (`true`/`false`) | false |
+| `REMINDER_HOUR` | No | Hour of day to send reminders (0-23) | 20 |
+| `REMINDER_TIMEZONE` | No | IANA timezone for reminder scheduling and display | Asia/Singapore |
 
 *At least one of `WHITELISTED_USER_IDS` or `WHITELISTED_USERNAMES` is required.
 
@@ -593,7 +615,7 @@ Additional documentation is available in the [`docs/`](./docs) directory:
 
 - **[Privacy Policy](./docs/PRIVACY.md)** - How receipt photos and user data are processed
 - **[Scalability Guide](./docs/SCALABILITY.md)** - Scaling strategies and multi-instance deployment
-- **[Development Agents](./docs/AGENTS.md)** - Claude Code AI agents used in development
+- **[Development Agents](./AGENTS.md)** - Claude Code AI agents used in development
 - **[Coverage Improvement Plan](./docs/COVERAGE_IMPROVEMENT_PLAN.md)** - Test coverage strategy
 - **[Phase 1 Progress](./docs/PHASE1_PROGRESS.md)** - Testing milestone achievements
 
