@@ -29,10 +29,18 @@ test-db-down:
 	docker compose -f docker-compose.test.yml down -v
 
 test-integration: test-db-up
-	@TEST_DATABASE_URL="postgres://$${POSTGRES_USER:-test}:$${POSTGRES_PASSWORD:-test}@localhost:5433/$${POSTGRES_DB:-expense_bot_test}?sslmode=disable" \
-		go test -v -coverprofile=coverage.out -covermode=atomic -p 1 ./... 2>&1 | grep -v "no such tool" || true
-	@go tool cover -func=coverage.out
-	@$(MAKE) test-db-down
+	@out_file="$$(mktemp)"; \
+	test_status=0; \
+	TEST_DATABASE_URL="postgres://$${POSTGRES_USER:-test}:$${POSTGRES_PASSWORD:-test}@localhost:5433/$${POSTGRES_DB:-expense_bot_test}?sslmode=disable" \
+		go test -v -coverprofile=coverage.out -covermode=atomic -p 1 ./... > "$$out_file" 2>&1 || test_status=$$?; \
+	grep -v "no such tool" "$$out_file"; \
+	rm -f "$$out_file"; \
+	cover_status=0; \
+	go tool cover -func=coverage.out || cover_status=$$?; \
+	$(MAKE) test-db-down; \
+	if [ $$test_status -ne 0 ]; then exit $$test_status; fi; \
+	if [ $$cover_status -ne 0 ]; then exit $$cover_status; fi; \
+	exit 0
 
 coverage-html: test-coverage
 	go tool cover -html=coverage.out -o coverage.html

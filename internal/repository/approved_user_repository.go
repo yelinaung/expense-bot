@@ -2,8 +2,10 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 )
@@ -58,7 +60,7 @@ func (r *ApprovedUserRepository) IsApproved(ctx context.Context, userID int64, u
 		LIMIT 1
 	`, userID, username).Scan(&matchedUserID)
 	if scanErr != nil {
-		if scanErr.Error() == "no rows in result set" {
+		if errors.Is(scanErr, pgx.ErrNoRows) {
 			return false, false, nil
 		}
 		return false, false, fmt.Errorf("failed to check approved status: %w", scanErr)

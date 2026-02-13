@@ -39,6 +39,17 @@ func (b *Bot) startDailyReminderLoop(ctx context.Context) {
 	ticker := time.NewTicker(ReminderCheckInterval)
 	defer ticker.Stop()
 
+	select {
+	case <-ctx.Done():
+		logger.Log.Info().Msg("Daily reminder loop stopped")
+		return
+	default:
+	}
+
+	// Run one check immediately so reminders aren't skipped when the process
+	// starts during the configured reminder hour.
+	b.checkAndSendReminders(ctx, loc, reminded, time.Now().In(loc))
+
 	for {
 		select {
 		case <-ctx.Done():

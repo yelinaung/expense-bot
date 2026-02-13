@@ -118,6 +118,8 @@ func TestCheckAndSendReminders(t *testing.T) {
 		}
 		err = b.expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
+		_, err = b.db.Exec(ctx, `UPDATE expenses SET created_at = $2 WHERE id = $1`, expense.ID, now)
+		require.NoError(t, err)
 
 		reminded := make(map[int64]string)
 		b.checkAndSendReminders(ctx, loc, reminded, now)
@@ -217,4 +219,44 @@ func TestCheckAndSendReminders(t *testing.T) {
 		require.False(t, has9002, "old entry should be pruned")
 		require.Equal(t, todayStr, reminded[9003], "today's entry should survive")
 	})
+}
+
+func TestStartDailyReminderLoop_RunsImmediateCheck(t *testing.T) {
+	pool := TestDB(t)
+	b := setupTestBot(t, pool)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	mockBot := mocks.NewMockBot()
+	b.messageSender = mockBot
+	b.cfg.DailyReminderEnabled = true
+	b.cfg.ReminderTimezone = "UTC"
+	b.cfg.ReminderHour = time.Now().UTC().Hour()
+	b.cfg.WhitelistedUserIDs = []int64{2100}
+
+	err := b.userRepo.UpsertUser(ctx, &models.User{
+		ID:        2100,
+		Username:  "startupcheck",
+		FirstName: "Nora",
+	})
+	require.NoError(t, err)
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		b.startDailyReminderLoop(ctx)
+	}()
+
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if mockBot.SentMessageCount() > 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	cancel()
+	<-done
+
+	require.Equal(t, 1, mockBot.SentMessageCount(), "should send reminder on immediate startup check")
 }

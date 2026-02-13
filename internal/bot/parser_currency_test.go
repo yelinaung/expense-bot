@@ -53,6 +53,27 @@ func TestParseExpenseInput_Currency(t *testing.T) {
 			wantCurrency: "SGD",
 		},
 		{
+			name:         "Hong Kong dollar prefix",
+			input:        "HK$ 18 Milk Tea",
+			wantAmt:      "18.00",
+			wantDesc:     "Milk Tea",
+			wantCurrency: "HKD",
+		},
+		{
+			name:         "New Zealand dollar prefix",
+			input:        "NZ$12 Snack",
+			wantAmt:      "12.00",
+			wantDesc:     "Snack",
+			wantCurrency: "NZD",
+		},
+		{
+			name:         "Taiwan dollar prefix",
+			input:        "NT$200 Dinner",
+			wantAmt:      "200.00",
+			wantDesc:     "Dinner",
+			wantCurrency: "TWD",
+		},
+		{
 			name:         "3-letter code suffix",
 			input:        "50 Taxi THB",
 			wantAmt:      "50.00",
@@ -148,6 +169,9 @@ func TestCurrencySymbolToCode(t *testing.T) {
 		{"¥", "JPY"},
 		{"S$", "SGD"},
 		{"A$", "AUD"},
+		{"HK$", "HKD"},
+		{"NZ$", "NZD"},
+		{"NT$", "TWD"},
 		{"RM", "MYR"},
 		{"Rp", "IDR"},
 	}

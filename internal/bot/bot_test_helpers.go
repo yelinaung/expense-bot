@@ -2,6 +2,7 @@ package bot
 
 import (
 	"testing"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"gitlab.com/yelinaung/expense-bot/internal/config"
@@ -36,6 +37,7 @@ func setupTestBot(t *testing.T, db database.PGXDB) *Bot {
 		approvedUserRepo: repository.NewApprovedUserRepository(db),
 		geminiClient:     nil, // No Gemini client for cache tests
 		messageSender:    nil, // Tests that need it will inject a mock
+		displayLocation:  time.UTC,
 		pendingEdits:     make(map[int64]*pendingEdit),
 	}
 

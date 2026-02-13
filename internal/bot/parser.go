@@ -45,19 +45,22 @@ var bracketCategoryRegex = regexp.MustCompile(`\s*\[([^\]]+)\]\s*$`)
 
 // currencySymbolToCode maps currency symbols to currency codes.
 var currencySymbolToCode = map[string]string{
-	"$":  "USD", // Default $ to USD; user can override with explicit code
-	"€":  "EUR",
-	"£":  "GBP",
-	"¥":  "JPY",
-	"฿":  "THB",
-	"₱":  "PHP",
-	"₫":  "VND",
-	"₩":  "KRW",
-	"₹":  "INR",
-	"S$": "SGD",
-	"A$": "AUD",
-	"RM": "MYR",
-	"Rp": "IDR",
+	"$":   "USD", // Default $ to USD; user can override with explicit code
+	"€":   "EUR",
+	"£":   "GBP",
+	"¥":   "JPY",
+	"฿":   "THB",
+	"₱":   "PHP",
+	"₫":   "VND",
+	"₩":   "KRW",
+	"₹":   "INR",
+	"S$":  "SGD",
+	"A$":  "AUD",
+	"HK$": "HKD",
+	"NZ$": "NZD",
+	"NT$": "TWD",
+	"RM":  "MYR",
+	"Rp":  "IDR",
 }
 
 // currencyPrefixRegex matches currency symbols or codes at the start.
