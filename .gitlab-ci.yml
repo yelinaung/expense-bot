@@ -142,6 +142,7 @@ test:
   needs:
     - job: check_secrets
     - job: lint
+    - job: check_sast
   services:
     - name: postgres:18-alpine
       alias: postgres
