@@ -56,7 +56,7 @@ func (r *ApprovedUserRepository) IsApproved(ctx context.Context, userID int64, u
 	scanErr := r.db.QueryRow(ctx, `
 		SELECT user_id FROM approved_users
 		WHERE (user_id = $1 AND user_id != 0)
-		   OR (LOWER(username) = LOWER($2) AND username != '')
+		   OR (LOWER(username) = LOWER($2) AND username != '' AND user_id = 0)
 		LIMIT 1
 	`, userID, username).Scan(&matchedUserID)
 	if scanErr != nil {

@@ -161,6 +161,32 @@ func TestApprovedUserRepository_GetAll(t *testing.T) {
 	})
 }
 
+func TestApprovedUserRepository_RecycledUsernameDoesNotInheritAccess(t *testing.T) {
+	tx := database.TestTx(t)
+	ctx := context.Background()
+
+	repo := NewApprovedUserRepository(tx)
+
+	// 1. Admin approves @origuser by username.
+	err := repo.ApproveByUsername(ctx, "origuser", 99999)
+	require.NoError(t, err)
+
+	// 2. Original user messages the bot → backfill binds the row to user_id 40001.
+	err = repo.UpdateUserID(ctx, "origuser", 40001)
+	require.NoError(t, err)
+
+	// 3. Original user is still approved by their immutable user_id.
+	approved, _, err := repo.IsApproved(ctx, 40001, "origuser")
+	require.NoError(t, err)
+	require.True(t, approved)
+
+	// 4. An attacker claims @origuser (different user_id 40002).
+	//    They must NOT inherit access from the now-bound row.
+	approved, _, err = repo.IsApproved(ctx, 40002, "origuser")
+	require.NoError(t, err)
+	require.False(t, approved, "recycled username must not inherit access after backfill")
+}
+
 func TestApprovedUserRepository_ApproveDuplicate(t *testing.T) {
 	tx := database.TestTx(t)
 	ctx := context.Background()
