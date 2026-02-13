@@ -219,6 +219,7 @@ release:
     - job: lint
   variables:
     GIT_DEPTH: 0
+    GOTOOLCHAIN: auto
   script:
     - goreleaser release --config .goreleaser.gitlab.yaml --clean
   rules:
