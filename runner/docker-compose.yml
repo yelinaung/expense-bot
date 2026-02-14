@@ -1,0 +1,32 @@
+services:
+  runner1:
+    build: .
+    container_name: github-runner-expense-bot-1
+    restart: always
+    environment:
+      REPO_URL: ${REPO_URL}
+      ACCESS_TOKEN: ${ACCESS_TOKEN}
+      RUNNER_NAME: expense-bot-runner1
+      RUNNER_WORKDIR: /tmp/github-runner-homelab
+      LABELS: playground-ubuntu,self-hosted
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - runner1-work:/tmp/github-runner-homelab
+
+  runner2:
+    build: .
+    container_name: github-runner-expense-bot-2
+    restart: always
+    environment:
+      REPO_URL: ${REPO_URL}
+      ACCESS_TOKEN: ${ACCESS_TOKEN}
+      RUNNER_NAME: expense-bot-runner2
+      RUNNER_WORKDIR: /tmp/github-runner-homelab
+      LABELS: playground-ubuntu,self-hosted
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - runner2-work:/tmp/github-runner-homelab
+
+volumes:
+  runner1-work:
+  runner2-work:

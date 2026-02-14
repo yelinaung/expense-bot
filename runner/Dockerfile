@@ -2,6 +2,11 @@ FROM myoung34/github-runner:latest
 
 ARG GO_VERSION=1.25.7
 ARG GOLANGCI_LINT_VERSION=2.8.0
+ARG GORELEASER_VERSION=2.8.2
+ARG GITLEAKS_VERSION=8.30.0
+
+RUN apt-get update && apt-get install -y --no-install-recommends jq && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /opt/hostedtoolcache/go/${GO_VERSION}/x64 && \
     curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" | \
@@ -14,8 +19,11 @@ ENV PATH="/opt/hostedtoolcache/go/${GO_VERSION}/x64/bin:/opt/hostedtoolcache/go/
 
 RUN go install mvdan.cc/gofumpt@latest && \
     go install golang.org/x/vuln/cmd/govulncheck@latest && \
+    go install github.com/securego/gosec/v2/cmd/gosec@latest && \
     curl -fsSL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | \
     sh -s -- -b "${GOBIN}" "v${GOLANGCI_LINT_VERSION}" && \
-    curl -fsSL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_8.30.0_linux_x64.tar.gz | \
+    curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | \
     tar -xz -C /usr/local/bin gitleaks && \
+    curl -fsSL "https://github.com/goreleaser/goreleaser/releases/download/v${GORELEASER_VERSION}/goreleaser_Linux_x86_64.tar.gz" | \
+    tar -xz -C /usr/local/bin goreleaser && \
     go clean -modcache
