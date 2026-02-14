@@ -61,3 +61,13 @@ func TestClient_GenerativeClient(t *testing.T) {
 	genClient := client.GenerativeClient()
 	require.NotNil(t, genClient)
 }
+
+func TestModelsAdapter_GenerateContent_NilModels(t *testing.T) {
+	t.Parallel()
+
+	adapter := &modelsAdapter{}
+	resp, err := adapter.GenerateContent(context.Background(), ModelName, nil, nil)
+	require.Error(t, err)
+	require.Nil(t, resp)
+	require.Contains(t, err.Error(), "genai models client is nil")
+}

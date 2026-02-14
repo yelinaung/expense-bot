@@ -207,3 +207,29 @@ func TestPhotoUpdate(t *testing.T) {
 	require.Len(t, update.Message.Photo, 2)
 	require.Equal(t, "photo-123", update.Message.Photo[1].FileID)
 }
+
+func TestUpdateBuilder_WithVoice(t *testing.T) {
+	t.Parallel()
+
+	update := NewUpdateBuilder().
+		WithMessage(100, 200, "").
+		WithVoice("voice-123", 7).
+		Build()
+
+	require.NotNil(t, update.Message)
+	require.NotNil(t, update.Message.Voice)
+	require.Equal(t, "voice-123", update.Message.Voice.FileID)
+	require.Equal(t, 7, update.Message.Voice.Duration)
+}
+
+func TestVoiceUpdate(t *testing.T) {
+	t.Parallel()
+
+	update := VoiceUpdate(300, 400, "voice-file", 11)
+	require.NotNil(t, update.Message)
+	require.Equal(t, int64(300), update.Message.Chat.ID)
+	require.Equal(t, int64(400), update.Message.From.ID)
+	require.NotNil(t, update.Message.Voice)
+	require.Equal(t, "voice-file", update.Message.Voice.FileID)
+	require.Equal(t, 11, update.Message.Voice.Duration)
+}

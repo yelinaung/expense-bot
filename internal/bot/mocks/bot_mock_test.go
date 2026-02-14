@@ -184,6 +184,51 @@ func TestMockBot_GetFile(t *testing.T) {
 	})
 }
 
+func TestMockBot_SendDocumentAndCounters(t *testing.T) {
+	t.Parallel()
+
+	mockBot := NewMockBot()
+
+	// Empty state helpers.
+	require.Equal(t, 0, mockBot.EditedMessageCount())
+	require.Equal(t, 0, mockBot.AnsweredCallbackCount())
+	require.Equal(t, 0, mockBot.SentDocumentCount())
+	require.Nil(t, mockBot.LastSentDocument())
+
+	// Add one edit and one callback to exercise helper counters.
+	_, _ = mockBot.EditMessageText(context.Background(), &bot.EditMessageTextParams{
+		ChatID:    int64(1),
+		MessageID: 1,
+		Text:      "edited",
+	})
+	_, _ = mockBot.AnswerCallbackQuery(context.Background(), &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: "cb-1",
+		Text:            "ok",
+	})
+
+	msg, err := mockBot.SendDocument(context.Background(), &bot.SendDocumentParams{
+		ChatID:  int64(123),
+		Caption: "report",
+		Document: &models.InputFileUpload{
+			Filename: "report.csv",
+			Data:     nil,
+		},
+		ParseMode: models.ParseModeHTML,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	require.Equal(t, 1, mockBot.EditedMessageCount())
+	require.Equal(t, 1, mockBot.AnsweredCallbackCount())
+	require.Equal(t, 1, mockBot.SentDocumentCount())
+
+	doc := mockBot.LastSentDocument()
+	require.NotNil(t, doc)
+	require.Equal(t, int64(123), doc.ChatID)
+	require.Equal(t, "report.csv", doc.Filename)
+	require.Equal(t, "report", doc.Caption)
+}
+
 func TestMockBot_FileDownloadLink(t *testing.T) {
 	t.Parallel()
 

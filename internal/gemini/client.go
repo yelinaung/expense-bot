@@ -34,6 +34,10 @@ func (m *modelsAdapter) GenerateContent(
 	contents []*genai.Content,
 	config *genai.GenerateContentConfig,
 ) (*genai.GenerateContentResponse, error) {
+	if m == nil || m.models == nil {
+		return nil, errors.New("genai models client is nil")
+	}
+
 	resp, err := m.models.GenerateContent(ctx, model, contents, config)
 	if err != nil {
 		return nil, fmt.Errorf("genai.GenerateContent: %w", err)
