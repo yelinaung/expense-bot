@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -23,6 +24,14 @@ type Config struct {
 	DailyReminderEnabled bool
 	ReminderHour         int
 	ReminderTimezone     string
+
+	// resolvedSuperadmins maps normalized username → bound user_id.
+	// Once a whitelisted username is seen with a real user_id, the
+	// binding is recorded and only that user_id is accepted for the
+	// username going forward. This prevents recycled-username attacks.
+	resolvedSuperadmins   map[string]int64
+	resolvedSuperadminIDs map[int64]struct{}
+	resolvedMu            sync.RWMutex
 }
 
 // Load reads configuration from environment variables.
@@ -30,10 +39,12 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	cfg := &Config{
-		TelegramBotToken: os.Getenv("TELEGRAM_BOT_TOKEN"),
-		DatabaseURL:      os.Getenv("DATABASE_URL"),
-		GeminiAPIKey:     os.Getenv("GEMINI_API_KEY"),
-		LogLevel:         os.Getenv("LOG_LEVEL"),
+		TelegramBotToken:      os.Getenv("TELEGRAM_BOT_TOKEN"),
+		DatabaseURL:           os.Getenv("DATABASE_URL"),
+		GeminiAPIKey:          os.Getenv("GEMINI_API_KEY"),
+		LogLevel:              os.Getenv("LOG_LEVEL"),
+		resolvedSuperadmins:   make(map[string]int64),
+		resolvedSuperadminIDs: make(map[int64]struct{}),
 	}
 
 	cfg.DailyReminderEnabled = os.Getenv("DAILY_REMINDER_ENABLED") == "true"
@@ -109,28 +120,146 @@ func (c *Config) validate() error {
 	return nil
 }
 
-// IsSuperAdmin checks if a user is a superadmin (defined via environment variables).
-func (c *Config) IsSuperAdmin(userID int64, username string) bool {
-	return c.IsUserWhitelisted(userID, username)
+// normalizeUsername returns a lowercase, @-stripped username for map keys.
+func normalizeUsername(u string) string {
+	return strings.ToLower(strings.TrimPrefix(u, "@"))
 }
 
-// IsUserWhitelisted checks if a Telegram user ID or username is in the whitelist.
-// Returns true if either the user ID or username is whitelisted.
-func (c *Config) IsUserWhitelisted(userID int64, username string) bool {
-	// Check user ID whitelist
+// ensureResolvedMaps lazily initializes the resolved maps under a
+// write lock. This is needed for Config structs created via literal
+// in tests. Must be called before any read-lock access.
+func (c *Config) ensureResolvedMaps() {
+	c.resolvedMu.Lock()
+	if c.resolvedSuperadmins == nil {
+		c.resolvedSuperadmins = make(map[string]int64)
+	}
+	if c.resolvedSuperadminIDs == nil {
+		c.resolvedSuperadminIDs = make(map[int64]struct{})
+	}
+	c.resolvedMu.Unlock()
+}
+
+// SuperadminBinding represents a username → user_id binding that
+// should be persisted by the caller.
+type SuperadminBinding struct {
+	Username string
+	UserID   int64
+}
+
+// LoadSuperadminBindings pre-loads persisted username → user_id
+// bindings into the in-memory maps. Call this at startup after
+// loading bindings from the database. Only bindings whose username
+// matches a current WHITELISTED_USERNAMES entry are loaded.
+func (c *Config) LoadSuperadminBindings(bindings []SuperadminBinding) {
+	c.ensureResolvedMaps()
+	c.resolvedMu.Lock()
+	defer c.resolvedMu.Unlock()
+
+	for _, b := range bindings {
+		norm := normalizeUsername(b.Username)
+		if !c.isWhitelistedUsername(norm) {
+			continue
+		}
+		c.resolvedSuperadmins[norm] = b.UserID
+		c.resolvedSuperadminIDs[b.UserID] = struct{}{}
+	}
+}
+
+// IsSuperAdmin checks if a user is a superadmin (defined via environment
+// variables). On the first call with a whitelisted username and a non-zero
+// userID, the username is bound to that userID. Subsequent calls with the
+// same username but a different userID are rejected, preventing
+// recycled-username attacks.
+func (c *Config) IsSuperAdmin(userID int64, username string) bool {
+	_, ok := c.checkWhitelist(userID, username)
+	return ok
+}
+
+// checkWhitelist is the internal implementation of IsUserWhitelisted.
+// It returns a non-nil *SuperadminBinding when a new binding was just
+// created (needs persistence) and whether the user is whitelisted.
+func (c *Config) checkWhitelist(userID int64, username string) (*SuperadminBinding, bool) {
 	if slices.Contains(c.WhitelistedUserIDs, userID) {
-		return true
+		return nil, true
 	}
 
-	// Check username whitelist (case-insensitive)
-	if username != "" {
-		username = strings.TrimPrefix(username, "@")
-		for _, whitelisted := range c.WhitelistedUsernames {
-			if strings.EqualFold(whitelisted, username) {
-				return true
-			}
+	c.ensureResolvedMaps()
+
+	c.resolvedMu.RLock()
+	if userID != 0 {
+		if _, ok := c.resolvedSuperadminIDs[userID]; ok {
+			c.resolvedMu.RUnlock()
+			return nil, true
 		}
 	}
+	c.resolvedMu.RUnlock()
 
+	if username == "" {
+		return nil, false
+	}
+
+	norm := normalizeUsername(username)
+	if !c.isWhitelistedUsername(norm) {
+		return nil, false
+	}
+
+	c.resolvedMu.Lock()
+	defer c.resolvedMu.Unlock()
+
+	if boundID, bound := c.resolvedSuperadmins[norm]; bound {
+		// When userID is 0 this is a lookup-only call (e.g. the
+		// /revoke guard checking whether a target is a superadmin).
+		// Return true so the caller knows the username belongs to a
+		// superadmin, but do not bind.
+		if userID == 0 {
+			return nil, true
+		}
+		return nil, userID == boundID
+	}
+
+	if userID != 0 {
+		c.resolvedSuperadmins[norm] = userID
+		c.resolvedSuperadminIDs[userID] = struct{}{}
+		return &SuperadminBinding{Username: norm, UserID: userID}, true
+	}
+	return nil, true
+}
+
+// IsUserWhitelisted checks if a Telegram user ID or username is in the
+// whitelist. Usernames are treated as bootstrap-only: once a username is
+// seen with a real user_id, the binding is recorded and only that
+// user_id is accepted for the username going forward.
+func (c *Config) IsUserWhitelisted(userID int64, username string) bool {
+	_, ok := c.checkWhitelist(userID, username)
+	return ok
+}
+
+// CheckSuperAdmin is like IsSuperAdmin but also returns a non-nil
+// *SuperadminBinding when a new username → user_id binding was just
+// created and should be persisted by the caller.
+func (c *Config) CheckSuperAdmin(userID int64, username string) (isSuperAdmin bool, newBinding *SuperadminBinding) {
+	binding, ok := c.checkWhitelist(userID, username)
+	return ok, binding
+}
+
+// isWhitelistedUsername checks whether norm (already lowered, @-stripped)
+// matches any entry in WhitelistedUsernames.
+func (c *Config) isWhitelistedUsername(norm string) bool {
+	for _, w := range c.WhitelistedUsernames {
+		if normalizeUsername(w) == norm {
+			return true
+		}
+	}
 	return false
+}
+
+// SuperadminBound reports whether the given username has already been
+// bound to a specific user_id via the bootstrap mechanism.
+func (c *Config) SuperadminBound(username string) (userID int64, bound bool) {
+	norm := normalizeUsername(username)
+	c.ensureResolvedMaps()
+	c.resolvedMu.RLock()
+	defer c.resolvedMu.RUnlock()
+	id, ok := c.resolvedSuperadmins[norm]
+	return id, ok
 }

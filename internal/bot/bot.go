@@ -42,6 +42,7 @@ type Bot struct {
 	expenseRepo      *repository.ExpenseRepository
 	tagRepo          *repository.TagRepository
 	approvedUserRepo *repository.ApprovedUserRepository
+	bindingRepo      *repository.SuperadminBindingRepository
 	geminiClient     *gemini.Client
 
 	messageSender   TelegramAPI
@@ -56,8 +57,31 @@ type Bot struct {
 	categoryCacheMu     sync.RWMutex
 }
 
+func (b *Bot) getDisplayLocation() *time.Location {
+	if b != nil && b.displayLocation != nil {
+		return b.displayLocation
+	}
+	return time.UTC
+}
+
 // New creates a new Bot instance.
 func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
+	bindingRepo := repository.NewSuperadminBindingRepository(db)
+	bindings, err := bindingRepo.LoadAll(context.Background())
+	if err != nil {
+		logger.Log.Warn().Err(err).Msg("Failed to load superadmin bindings from DB")
+	} else if len(bindings) > 0 {
+		configBindings := make([]config.SuperadminBinding, len(bindings))
+		for i, b := range bindings {
+			configBindings[i] = config.SuperadminBinding{
+				Username: b.Username,
+				UserID:   b.UserID,
+			}
+		}
+		cfg.LoadSuperadminBindings(configBindings)
+		logger.Log.Info().Int("count", len(bindings)).Msg("Loaded superadmin bindings from DB")
+	}
+
 	b := &Bot{
 		cfg:              cfg,
 		db:               db,
@@ -66,6 +90,7 @@ func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 		expenseRepo:      repository.NewExpenseRepository(db),
 		tagRepo:          repository.NewTagRepository(db),
 		approvedUserRepo: repository.NewApprovedUserRepository(db),
+		bindingRepo:      bindingRepo,
 		pendingEdits:     make(map[int64]*pendingEdit),
 	}
 
@@ -203,7 +228,23 @@ func (b *Bot) registerHandlers() {
 // isAuthorized checks if a user is a superadmin or a DB-approved user.
 // Returns false on DB errors (fail closed).
 func (b *Bot) isAuthorized(ctx context.Context, userID int64, username string) bool {
-	if b.cfg.IsSuperAdmin(userID, username) {
+	isSuperAdmin, newBinding := b.cfg.CheckSuperAdmin(userID, username)
+	if isSuperAdmin {
+		if newBinding != nil {
+			go func() {
+				if err := b.bindingRepo.Save(context.Background(), newBinding.Username, newBinding.UserID); err != nil {
+					logger.Log.Error().Err(err).
+						Str("username", newBinding.Username).
+						Int64("user_id", newBinding.UserID).
+						Msg("Failed to persist superadmin binding")
+				} else {
+					logger.Log.Info().
+						Str("username", newBinding.Username).
+						Int64("user_id", newBinding.UserID).
+						Msg("Persisted superadmin binding; consider adding user_id to WHITELISTED_USER_IDS")
+				}
+			}()
+		}
 		return true
 	}
 
@@ -218,7 +259,7 @@ func (b *Bot) isAuthorized(ctx context.Context, userID int64, username string) b
 		// Backfill user_id for username-only approved users (fire-and-forget).
 		go func() {
 			if err := b.approvedUserRepo.UpdateUserID(context.Background(), username, userID); err != nil {
-				logger.Log.Debug().Err(err).Str("username", username).Msg("Failed to backfill user ID")
+				logger.Log.Warn().Err(err).Str("username", username).Msg("Failed to backfill user ID")
 			}
 		}()
 	}

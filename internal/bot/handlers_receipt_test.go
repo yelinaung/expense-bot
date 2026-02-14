@@ -161,7 +161,7 @@ func TestHandleConfirmReceiptCore(t *testing.T) {
 		require.Len(t, mockBot.EditedMessages, 1)
 		msg := mockBot.EditedMessages[0].Text
 		require.Contains(t, msg, "Expense Confirmed")
-		require.Contains(t, msg, "$25.50 SGD")
+		require.Contains(t, msg, "S$25.50 SGD")
 		require.Contains(t, msg, "Test Receipt")
 
 		// Verify date is formatted as "DD Mon YYYY" not raw timestamp
@@ -172,6 +172,27 @@ func TestHandleConfirmReceiptCore(t *testing.T) {
 		updated, err := b.expenseRepo.GetByID(ctx, expense.ID)
 		require.NoError(t, err)
 		require.Equal(t, appmodels.ExpenseStatusConfirmed, updated.Status)
+	})
+
+	t.Run("uses expense currency in confirmation message", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+
+		expense := &appmodels.Expense{
+			UserID:      userID,
+			Amount:      mustParseDecimal("30.00"),
+			Currency:    "USD",
+			Description: "US Test Receipt",
+			Merchant:    "US Test Receipt",
+			Status:      appmodels.ExpenseStatusDraft,
+		}
+		err := b.expenseRepo.Create(ctx, expense)
+		require.NoError(t, err)
+
+		b.handleConfirmReceiptCore(ctx, mockBot, 12345, 101, expense)
+
+		require.Len(t, mockBot.EditedMessages, 1)
+		msg := mockBot.EditedMessages[0].Text
+		require.Contains(t, msg, "$30.00 USD")
 	})
 }
 

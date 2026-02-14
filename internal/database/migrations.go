@@ -131,6 +131,12 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_approved_users_username
 			ON approved_users(LOWER(username)) WHERE username != ''`,
+
+		`CREATE TABLE IF NOT EXISTS superadmin_bindings (
+			username TEXT PRIMARY KEY,
+			user_id BIGINT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`,
 	}
 
 	for i, migration := range migrations {

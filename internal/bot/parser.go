@@ -188,10 +188,16 @@ func ParseExpenseInput(input string) *ParsedExpense {
 		if len(fields) > 0 {
 			code := strings.ToUpper(fields[0])
 			if _, ok := models.SupportedCurrencies[code]; ok {
-				detectedCurrency = code
-				rest = strings.TrimSpace(strings.TrimPrefix(rest, fields[0]))
-				rest = strings.TrimPrefix(rest, "-")
-				rest = strings.TrimSpace(rest)
+				// Set code only when no currency was detected yet.
+				// If a symbol already set the same currency, strip the redundant code token.
+				if detectedCurrency == "" || detectedCurrency == code {
+					if detectedCurrency == "" {
+						detectedCurrency = code
+					}
+					rest = strings.TrimSpace(strings.TrimPrefix(rest, fields[0]))
+					rest = strings.TrimPrefix(rest, "-")
+					rest = strings.TrimSpace(rest)
+				}
 			}
 		}
 	}

@@ -371,18 +371,29 @@ func (b *Bot) handleConfirmReceiptCore(
 		}
 	}
 
+	currencyCode := expense.Currency
+	if currencyCode == "" {
+		currencyCode = appmodels.DefaultCurrency
+	}
+	currencySymbol, ok := appmodels.SupportedCurrencies[currencyCode]
+	if !ok {
+		currencySymbol = "$"
+	}
+
 	text := fmt.Sprintf(`✅ <b>Expense Confirmed!</b>
 
-💰 Amount: $%s SGD
+💰 Amount: %s%s %s
 🏪 Merchant: %s
 📁 Category: %s
 🗓️ Date: %s
 
 Expense #%d has been saved.`,
+		currencySymbol,
 		expense.Amount.StringFixed(2),
+		currencyCode,
 		escapeHTML(expense.Merchant),
 		categoryText,
-		expense.CreatedAt.In(b.displayLocation).Format("02 Jan 2006"),
+		expense.CreatedAt.In(b.getDisplayLocation()).Format("02 Jan 2006"),
 		expense.UserExpenseNumber)
 
 	logger.Log.Info().

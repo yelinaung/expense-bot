@@ -991,7 +991,7 @@ func (b *Bot) sendExpenseListCore(
 			descText,
 			categoryText,
 			tagText,
-			exp.CreatedAt.In(b.displayLocation).Format("Jan 2 15:04"),
+			exp.CreatedAt.In(b.getDisplayLocation()).Format("Jan 2 15:04"),
 		))
 	}
 

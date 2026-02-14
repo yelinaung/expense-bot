@@ -272,44 +272,85 @@ func TestLoad_Validation(t *testing.T) {
 func TestConfig_IsSuperAdmin(t *testing.T) {
 	t.Parallel()
 
-	cfg := &Config{
-		WhitelistedUserIDs:   []int64{100, 200},
-		WhitelistedUsernames: []string{"admin"},
-	}
-
 	t.Run("returns true for whitelisted user ID", func(t *testing.T) {
 		t.Parallel()
+		cfg := &Config{
+			WhitelistedUserIDs:   []int64{100, 200},
+			WhitelistedUsernames: []string{"admin"},
+		}
 		require.True(t, cfg.IsSuperAdmin(100, ""))
 	})
 
-	t.Run("returns true for whitelisted username", func(t *testing.T) {
+	t.Run("returns true for whitelisted username and binds", func(t *testing.T) {
 		t.Parallel()
+		cfg := &Config{
+			WhitelistedUserIDs:   []int64{100, 200},
+			WhitelistedUsernames: []string{"admin"},
+		}
 		require.True(t, cfg.IsSuperAdmin(999, "admin"))
+		require.True(t, cfg.IsSuperAdmin(999, ""), "bound user_id should work without username")
 	})
 
 	t.Run("returns false for non-whitelisted user", func(t *testing.T) {
 		t.Parallel()
+		cfg := &Config{
+			WhitelistedUserIDs:   []int64{100, 200},
+			WhitelistedUsernames: []string{"admin"},
+		}
 		require.False(t, cfg.IsSuperAdmin(999, "nobody"))
+	})
+
+	t.Run("recycled username rejected after binding", func(t *testing.T) {
+		t.Parallel()
+		cfg := &Config{
+			WhitelistedUsernames: []string{"admin"},
+		}
+		require.True(t, cfg.IsSuperAdmin(42, "admin"), "bootstrap should succeed")
+		require.True(t, cfg.IsSuperAdmin(42, "admin"), "same user should still work")
+		require.True(t, cfg.IsSuperAdmin(42, ""), "bound user_id alone should work")
+		require.False(t, cfg.IsSuperAdmin(99, "admin"), "different user_id with recycled username must be rejected")
+	})
+
+	t.Run("userID 0 does not create binding", func(t *testing.T) {
+		t.Parallel()
+		cfg := &Config{
+			WhitelistedUsernames: []string{"admin"},
+		}
+		require.True(t, cfg.IsSuperAdmin(0, "admin"), "userID=0 should still return true for lookup")
+		require.True(t, cfg.IsSuperAdmin(42, "admin"), "should still be able to bind after userID=0 call")
+		require.False(t, cfg.IsSuperAdmin(99, "admin"), "recycled username rejected after real binding")
+	})
+
+	t.Run("userID 0 lookup returns true after binding", func(t *testing.T) {
+		t.Parallel()
+		cfg := &Config{
+			WhitelistedUsernames: []string{"admin"},
+		}
+		require.True(t, cfg.IsSuperAdmin(42, "admin"), "bootstrap binds")
+		require.True(t, cfg.IsSuperAdmin(0, "admin"), "lookup-only call must still return true after binding")
+		require.False(t, cfg.IsSuperAdmin(99, "admin"), "attacker still rejected")
 	})
 }
 
 func TestConfig_IsUserWhitelisted(t *testing.T) {
 	t.Parallel()
 
-	cfg := &Config{
-		WhitelistedUserIDs:   []int64{100, 200, 300},
-		WhitelistedUsernames: []string{"alice", "bob", "charlie"},
-	}
-
 	t.Run("returns true for whitelisted user ID", func(t *testing.T) {
 		t.Parallel()
+		cfg := &Config{
+			WhitelistedUserIDs:   []int64{100, 200, 300},
+			WhitelistedUsernames: []string{"alice"},
+		}
 		require.True(t, cfg.IsUserWhitelisted(100, ""))
 		require.True(t, cfg.IsUserWhitelisted(200, ""))
 		require.True(t, cfg.IsUserWhitelisted(300, ""))
 	})
 
-	t.Run("returns true for whitelisted username", func(t *testing.T) {
+	t.Run("returns true for whitelisted username bootstrap", func(t *testing.T) {
 		t.Parallel()
+		cfg := &Config{
+			WhitelistedUsernames: []string{"alice", "bob", "charlie"},
+		}
 		require.True(t, cfg.IsUserWhitelisted(999, "alice"))
 		require.True(t, cfg.IsUserWhitelisted(888, "bob"))
 		require.True(t, cfg.IsUserWhitelisted(777, "charlie"))
@@ -317,12 +358,18 @@ func TestConfig_IsUserWhitelisted(t *testing.T) {
 
 	t.Run("returns true for whitelisted username with @ prefix", func(t *testing.T) {
 		t.Parallel()
+		cfg := &Config{
+			WhitelistedUsernames: []string{"alice", "bob"},
+		}
 		require.True(t, cfg.IsUserWhitelisted(999, "@alice"))
 		require.True(t, cfg.IsUserWhitelisted(888, "@bob"))
 	})
 
 	t.Run("username check is case insensitive", func(t *testing.T) {
 		t.Parallel()
+		cfg := &Config{
+			WhitelistedUsernames: []string{"alice", "bob", "charlie"},
+		}
 		require.True(t, cfg.IsUserWhitelisted(999, "ALICE"))
 		require.True(t, cfg.IsUserWhitelisted(888, "Bob"))
 		require.True(t, cfg.IsUserWhitelisted(777, "ChArLiE"))
@@ -330,6 +377,10 @@ func TestConfig_IsUserWhitelisted(t *testing.T) {
 
 	t.Run("returns false for non-whitelisted user", func(t *testing.T) {
 		t.Parallel()
+		cfg := &Config{
+			WhitelistedUserIDs:   []int64{100},
+			WhitelistedUsernames: []string{"alice"},
+		}
 		require.False(t, cfg.IsUserWhitelisted(999, "unknown"))
 		require.False(t, cfg.IsUserWhitelisted(0, ""))
 		require.False(t, cfg.IsUserWhitelisted(555, "notinlist"))
@@ -341,13 +392,139 @@ func TestConfig_IsUserWhitelisted(t *testing.T) {
 		require.False(t, emptyCfg.IsUserWhitelisted(100, "alice"))
 	})
 
-	t.Run("returns true if either user ID or username is whitelisted", func(t *testing.T) {
+	t.Run("user ID match works even with non-whitelisted username", func(t *testing.T) {
 		t.Parallel()
-		// User ID matches but username doesn't
+		cfg := &Config{
+			WhitelistedUserIDs:   []int64{100},
+			WhitelistedUsernames: []string{"alice"},
+		}
 		require.True(t, cfg.IsUserWhitelisted(100, "notinlist"))
-		// Username matches but user ID doesn't
+	})
+
+	t.Run("username binds on first use then enforces user_id", func(t *testing.T) {
+		t.Parallel()
+		cfg := &Config{
+			WhitelistedUsernames: []string{"alice"},
+		}
 		require.True(t, cfg.IsUserWhitelisted(999, "alice"))
-		// Both match
-		require.True(t, cfg.IsUserWhitelisted(100, "alice"))
+		require.True(t, cfg.IsUserWhitelisted(999, "alice"))
+		require.False(t, cfg.IsUserWhitelisted(888, "alice"), "different user_id must be rejected after binding")
+	})
+}
+
+func TestConfig_SuperadminBound(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{
+		WhitelistedUsernames: []string{"admin"},
+	}
+
+	_, bound := cfg.SuperadminBound("admin")
+	require.False(t, bound, "should not be bound before first use")
+
+	cfg.IsSuperAdmin(42, "admin")
+
+	id, bound := cfg.SuperadminBound("admin")
+	require.True(t, bound)
+	require.Equal(t, int64(42), id)
+}
+
+func TestConfig_LoadSuperadminBindings(t *testing.T) {
+	t.Parallel()
+
+	t.Run("pre-loaded binding prevents recycled username", func(t *testing.T) {
+		t.Parallel()
+		cfg := &Config{
+			WhitelistedUsernames: []string{"admin"},
+		}
+		cfg.LoadSuperadminBindings([]SuperadminBinding{
+			{Username: "admin", UserID: 42},
+		})
+		require.True(t, cfg.IsSuperAdmin(42, "admin"))
+		require.True(t, cfg.IsSuperAdmin(42, ""))
+		require.False(t, cfg.IsSuperAdmin(99, "admin"), "recycled username must be rejected")
+	})
+
+	t.Run("ignores bindings for non-whitelisted usernames", func(t *testing.T) {
+		t.Parallel()
+		cfg := &Config{
+			WhitelistedUsernames: []string{"admin"},
+		}
+		cfg.LoadSuperadminBindings([]SuperadminBinding{
+			{Username: "removed_user", UserID: 55},
+		})
+		require.False(t, cfg.IsSuperAdmin(55, ""), "non-whitelisted binding should be ignored")
+	})
+
+	t.Run("survives restart simulation", func(t *testing.T) {
+		t.Parallel()
+
+		cfg1 := &Config{
+			WhitelistedUsernames: []string{"admin"},
+		}
+		cfg1.IsSuperAdmin(42, "admin")
+
+		id, bound := cfg1.SuperadminBound("admin")
+		require.True(t, bound)
+
+		cfg2 := &Config{
+			WhitelistedUsernames: []string{"admin"},
+		}
+		cfg2.LoadSuperadminBindings([]SuperadminBinding{
+			{Username: "admin", UserID: id},
+		})
+		require.True(t, cfg2.IsSuperAdmin(42, "admin"))
+		require.False(t, cfg2.IsSuperAdmin(99, "admin"), "attacker must be rejected after restart+reload")
+	})
+}
+
+func TestConfig_CheckSuperAdmin(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns new binding on first username match", func(t *testing.T) {
+		t.Parallel()
+		cfg := &Config{
+			WhitelistedUsernames: []string{"admin"},
+		}
+		ok, binding := cfg.CheckSuperAdmin(42, "admin")
+		require.True(t, ok)
+		require.NotNil(t, binding)
+		require.Equal(t, int64(42), binding.UserID)
+		require.Equal(t, "admin", binding.Username)
+	})
+
+	t.Run("returns nil binding on subsequent calls", func(t *testing.T) {
+		t.Parallel()
+		cfg := &Config{
+			WhitelistedUsernames: []string{"admin"},
+		}
+		cfg.CheckSuperAdmin(42, "admin")
+
+		ok, binding := cfg.CheckSuperAdmin(42, "admin")
+		require.True(t, ok)
+		require.Nil(t, binding, "no new binding for already-bound username")
+	})
+
+	t.Run("returns nil binding for user ID match", func(t *testing.T) {
+		t.Parallel()
+		cfg := &Config{
+			WhitelistedUserIDs: []int64{100},
+		}
+		ok, binding := cfg.CheckSuperAdmin(100, "")
+		require.True(t, ok)
+		require.Nil(t, binding)
+	})
+
+	t.Run("returns nil binding for pre-loaded binding", func(t *testing.T) {
+		t.Parallel()
+		cfg := &Config{
+			WhitelistedUsernames: []string{"admin"},
+		}
+		cfg.LoadSuperadminBindings([]SuperadminBinding{
+			{Username: "admin", UserID: 42},
+		})
+		ok, binding := cfg.CheckSuperAdmin(42, "admin")
+		require.True(t, ok)
+		require.Nil(t, binding, "pre-loaded binding should not produce a new binding")
 	})
 }

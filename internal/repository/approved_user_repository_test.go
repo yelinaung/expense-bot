@@ -45,6 +45,25 @@ func TestApprovedUserRepository_ApproveAndRevoke(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, approved)
 	})
+
+	t.Run("revoke by username after backfill", func(t *testing.T) {
+		err := repo.ApproveByUsername(ctx, "bounduser", 99999)
+		require.NoError(t, err)
+
+		err = repo.UpdateUserID(ctx, "bounduser", 54321)
+		require.NoError(t, err)
+
+		approved, _, err := repo.IsApproved(ctx, 54321, "bounduser")
+		require.NoError(t, err)
+		require.True(t, approved)
+
+		err = repo.RevokeByUsername(ctx, "bounduser")
+		require.NoError(t, err)
+
+		approved, _, err = repo.IsApproved(ctx, 54321, "bounduser")
+		require.NoError(t, err)
+		require.False(t, approved)
+	})
 }
 
 func TestApprovedUserRepository_IsApproved(t *testing.T) {
