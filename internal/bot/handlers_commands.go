@@ -603,15 +603,6 @@ func (b *Bot) saveExpenseCore(
 		}
 	}
 
-	// If nothing matched, default to "Others" when available.
-	if !categoryMatched {
-		if fallback := MatchCategory("Others", categories); fallback != nil {
-			expense.CategoryID = &fallback.ID
-			expense.Category = fallback
-			categoryMatched = true
-		}
-	}
-
 	// If no category matched and Gemini is available, use AI to suggest category
 	if !categoryMatched && b.geminiClient != nil && parsed.Description != "" {
 		categoryNames := make([]string, len(categories))
@@ -625,20 +616,87 @@ func (b *Bot) saveExpenseCore(
 				Str("description", logger.SanitizeDescription(parsed.Description)).
 				Msg("Failed to get AI category suggestion")
 		} else if suggestion != nil && suggestion.Confidence > 0.5 {
-			// Use AI suggestion if confidence is above 50%
-			for _, cat := range categories {
-				if strings.EqualFold(cat.Name, suggestion.Category) {
-					expense.CategoryID = &cat.ID
-					expense.Category = &cat
-					logger.Log.Info().
+			if suggestion.Matched {
+				// Use AI suggestion if confidence is above 50%.
+				for i := range categories {
+					if strings.EqualFold(categories[i].Name, suggestion.Category) {
+						expense.CategoryID = &categories[i].ID
+						expense.Category = &categories[i]
+						categoryMatched = true
+						logger.Log.Info().
+							Str("description", logger.SanitizeDescription(parsed.Description)).
+							Str("suggested_category", suggestion.Category).
+							Float64("confidence", suggestion.Confidence).
+							Str("reasoning", suggestion.Reasoning).
+							Msg("AI category suggestion applied")
+						break
+					}
+				}
+			} else if suggestion.NewCategoryName != "" && suggestion.Confidence >= 0.8 {
+				// Create new category only for high-confidence unmatched suggestions.
+				newCategory := suggestion.NewCategoryName
+				invalidName := strings.TrimSpace(newCategory) == "" || len(newCategory) > appmodels.MaxCategoryNameLength
+				if !invalidName {
+					for _, r := range newCategory {
+						if unicode.IsControl(r) {
+							invalidName = true
+							break
+						}
+					}
+				}
+
+				if invalidName {
+					logger.Log.Warn().
 						Str("description", logger.SanitizeDescription(parsed.Description)).
-						Str("suggested_category", suggestion.Category).
-						Float64("confidence", suggestion.Confidence).
-						Str("reasoning", suggestion.Reasoning).
-						Msg("AI category suggestion applied")
-					break
+						Str("new_category", newCategory).
+						Msg("AI suggested invalid new category name; skipping auto-create")
+				} else {
+					// Avoid duplicates if suggestion differs only by case.
+					for i := range categories {
+						if strings.EqualFold(categories[i].Name, newCategory) {
+							expense.CategoryID = &categories[i].ID
+							expense.Category = &categories[i]
+							categoryMatched = true
+							break
+						}
+					}
+
+					if !categoryMatched {
+						cat, createErr := b.categoryRepo.Create(ctx, newCategory)
+						if createErr != nil {
+							// Handle race/duplicate by attempting to fetch existing.
+							existing, getErr := b.categoryRepo.GetByName(ctx, newCategory)
+							if getErr == nil {
+								expense.CategoryID = &existing.ID
+								expense.Category = existing
+								categoryMatched = true
+							} else {
+								logger.Log.Warn().Err(createErr).
+									Str("new_category", newCategory).
+									Msg("Failed to auto-create category from AI suggestion")
+							}
+						} else {
+							expense.CategoryID = &cat.ID
+							expense.Category = cat
+							categoryMatched = true
+							b.invalidateCategoryCache()
+							logger.Log.Info().
+								Str("description", logger.SanitizeDescription(parsed.Description)).
+								Str("new_category", newCategory).
+								Float64("confidence", suggestion.Confidence).
+								Msg("Auto-created category from AI suggestion")
+						}
+					}
 				}
 			}
+		}
+	}
+
+	// If nothing matched, default to "Others" when available.
+	if !categoryMatched {
+		if fallback := MatchCategory("Others", categories); fallback != nil {
+			expense.CategoryID = &fallback.ID
+			expense.Category = fallback
 		}
 	}
 

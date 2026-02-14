@@ -24,9 +24,11 @@ var MaxCategoryNameLength = models.MaxCategoryNameLength
 
 // CategorySuggestion represents a suggested category for an expense description.
 type CategorySuggestion struct {
-	Category   string  `json:"category"`
-	Confidence float64 `json:"confidence"`
-	Reasoning  string  `json:"reasoning"`
+	Category        string  `json:"category"`
+	Confidence      float64 `json:"confidence"`
+	Reasoning       string  `json:"reasoning"`
+	Matched         bool    `json:"matched"`
+	NewCategoryName string  `json:"new_category_name"`
 }
 
 // SuggestCategory uses Gemini to suggest an appropriate category for an expense description.
@@ -89,8 +91,8 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 			Properties: map[string]*genai.Schema{
 				"category": {
 					Type:        genai.TypeString,
-					Enum:        availableCategories, // Restrict to allowed values.
-					Description: "The most appropriate category from the provided list",
+					Enum:        append(append([]string{}, availableCategories...), ""),
+					Description: "Category from provided list when matched=true; otherwise empty string",
 				},
 				"confidence": {
 					Type:        genai.TypeNumber,
@@ -100,8 +102,16 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 					Type:        genai.TypeString,
 					Description: "Brief explanation for the categorization",
 				},
+				"matched": {
+					Type:        genai.TypeBoolean,
+					Description: "True if an existing category is a good match, false otherwise",
+				},
+				"new_category_name": {
+					Type:        genai.TypeString,
+					Description: "Suggested new category name when matched=false; otherwise empty string",
+				},
 			},
-			Required: []string{"category", "confidence", "reasoning"},
+			Required: []string{"category", "confidence", "reasoning", "matched", "new_category_name"},
 		},
 	}
 
@@ -158,25 +168,6 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 		Float64("confidence", suggestion.Confidence).
 		Msg("SuggestCategory: parsed Gemini suggestion")
 
-	// Validate that suggested category is in the available list
-	validCategory := false
-	for _, cat := range availableCategories {
-		if strings.EqualFold(cat, suggestion.Category) {
-			suggestion.Category = cat // Use exact case from available list
-			validCategory = true
-			break
-		}
-	}
-
-	if !validCategory {
-		logger.Log.Warn().
-			Str("description_hash", descHash).
-			Str("suggested_category", suggestion.Category).
-			Strs("available_categories", availableCategories).
-			Msg("SuggestCategory: suggested category not in available list")
-		return nil, fmt.Errorf("suggested category '%s' not in available categories", suggestion.Category)
-	}
-
 	// Validate confidence range.
 	if suggestion.Confidence < 0.0 || suggestion.Confidence > 1.0 {
 		logger.Log.Warn().
@@ -187,12 +178,67 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 
 	// Sanitize reasoning field before returning.
 	suggestion.Reasoning = sanitizeReasoning(suggestion.Reasoning)
+	suggestion.NewCategoryName = SanitizeCategoryName(suggestion.NewCategoryName)
+
+	// Backward compatibility: treat legacy payloads that only return "category"
+	// as matched suggestions.
+	treatAsMatched := suggestion.Matched || (suggestion.Category != "" && suggestion.NewCategoryName == "")
+
+	if treatAsMatched {
+		// Validate that suggested category is in the available list.
+		validCategory := false
+		for _, cat := range availableCategories {
+			if strings.EqualFold(cat, suggestion.Category) {
+				suggestion.Category = cat // Use exact case from available list.
+				validCategory = true
+				break
+			}
+		}
+		if !validCategory {
+			logger.Log.Warn().
+				Str("description_hash", descHash).
+				Str("suggested_category", suggestion.Category).
+				Strs("available_categories", availableCategories).
+				Msg("SuggestCategory: suggested category not in available list")
+			return nil, fmt.Errorf("suggested category '%s' not in available categories", suggestion.Category)
+		}
+		suggestion.Matched = true
+		suggestion.NewCategoryName = ""
+		logger.Log.Debug().
+			Str("description_hash", descHash).
+			Str("category", suggestion.Category).
+			Float64("confidence", suggestion.Confidence).
+			Msg("SuggestCategory: successfully matched category")
+		return &suggestion, nil
+	}
+
+	if suggestion.NewCategoryName == "" {
+		return nil, errors.New("no valid matched category or new category suggestion")
+	}
+
+	// If model suggests a "new" category that already exists, normalize to matched.
+	for _, cat := range availableCategories {
+		if strings.EqualFold(cat, suggestion.NewCategoryName) {
+			suggestion.Matched = true
+			suggestion.Category = cat
+			suggestion.NewCategoryName = ""
+			logger.Log.Debug().
+				Str("description_hash", descHash).
+				Str("category", suggestion.Category).
+				Float64("confidence", suggestion.Confidence).
+				Msg("SuggestCategory: normalized proposed new category to existing category")
+			return &suggestion, nil
+		}
+	}
+
+	suggestion.Matched = false
+	suggestion.Category = ""
 
 	logger.Log.Debug().
 		Str("description_hash", descHash).
-		Str("category", suggestion.Category).
+		Str("new_category", suggestion.NewCategoryName).
 		Float64("confidence", suggestion.Confidence).
-		Msg("SuggestCategory: successfully matched category")
+		Msg("SuggestCategory: proposing new category")
 
 	return &suggestion, nil
 }
@@ -213,7 +259,7 @@ Rules:
 - Higher confidence (0.8-1.0) for obvious categories, lower (0.5-0.7) for ambiguous ones
 
 Return JSON only:
-{"category": "exact category name", "confidence": 0.0-1.0, "reasoning": "brief explanation"}`, description, categoriesList)
+{"category": "exact category name or empty", "confidence": 0.0-1.0, "reasoning": "brief explanation", "matched": true/false, "new_category_name": "new name when matched=false else empty"}`, description, categoriesList)
 }
 
 // extractJSON extracts a JSON object from text that may contain preamble.

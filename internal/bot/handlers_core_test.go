@@ -8,7 +8,9 @@ import (
 	"github.com/go-telegram/bot/models"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/bot/mocks"
+	"gitlab.com/yelinaung/expense-bot/internal/gemini"
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
+	"google.golang.org/genai"
 )
 
 func TestHandleAddCore(t *testing.T) {
@@ -480,6 +482,82 @@ func TestSaveExpenseCore(t *testing.T) {
 		require.Contains(t, msg.Text, "Others")
 	})
 
+	t.Run("ai can suggest and create a new category when unmatched", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+		userID := int64(200005)
+
+		err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+			ID:        userID,
+			Username:  "saveuser5",
+			FirstName: "Save5",
+		})
+		require.NoError(t, err)
+
+		b.geminiClient = gemini.NewClientWithGenerator(&botTestGenerator{
+			response: makeBotCategorySuggestionResponse(`{
+				"category": "",
+				"confidence": 0.95,
+				"reasoning": "Recurring software subscription",
+				"matched": false,
+				"new_category_name": "AI Subscriptions"
+			}`),
+		})
+
+		categories, err := b.categoryRepo.GetAll(ctx)
+		require.NoError(t, err)
+
+		parsed := &ParsedExpense{
+			Amount:      mustParseDecimal("19.99"),
+			Description: "ChatGPT monthly",
+		}
+
+		b.saveExpenseCore(ctx, mockBot, 12345, userID, parsed, categories)
+
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		msg := mockBot.LastSentMessage()
+		require.Contains(t, msg.Text, "AI Subscriptions")
+
+		createdCat, err := b.categoryRepo.GetByName(ctx, "AI Subscriptions")
+		require.NoError(t, err)
+		require.NotNil(t, createdCat)
+	})
+
+	t.Run("invalid ai new category suggestion falls back to Others", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+		userID := int64(200006)
+
+		err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+			ID:        userID,
+			Username:  "saveuser6",
+			FirstName: "Save6",
+		})
+		require.NoError(t, err)
+
+		b.geminiClient = gemini.NewClientWithGenerator(&botTestGenerator{
+			response: makeBotCategorySuggestionResponse(`{
+				"category": "",
+				"confidence": 0.95,
+				"reasoning": "Bad suggestion",
+				"matched": false,
+				"new_category_name": "\u0000"
+			}`),
+		})
+
+		categories, err := b.categoryRepo.GetAll(ctx)
+		require.NoError(t, err)
+
+		parsed := &ParsedExpense{
+			Amount:      mustParseDecimal("8.00"),
+			Description: "unknown item",
+		}
+
+		b.saveExpenseCore(ctx, mockBot, 12345, userID, parsed, categories)
+
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		msg := mockBot.LastSentMessage()
+		require.Contains(t, msg.Text, "Others")
+	})
+
 	t.Run("empty description is handled", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		userID := int64(200003)
@@ -503,4 +581,32 @@ func TestSaveExpenseCore(t *testing.T) {
 		require.Contains(t, msg.Text, "Expense Added")
 		require.NotContains(t, msg.Text, "📝")
 	})
+}
+
+type botTestGenerator struct {
+	response *genai.GenerateContentResponse
+	err      error
+}
+
+func (m *botTestGenerator) GenerateContent(
+	_ context.Context,
+	_ string,
+	_ []*genai.Content,
+	_ *genai.GenerateContentConfig,
+) (*genai.GenerateContentResponse, error) {
+	return m.response, m.err
+}
+
+func makeBotCategorySuggestionResponse(jsonText string) *genai.GenerateContentResponse {
+	return &genai.GenerateContentResponse{
+		Candidates: []*genai.Candidate{
+			{
+				Content: &genai.Content{
+					Parts: []*genai.Part{
+						{Text: jsonText},
+					},
+				},
+			},
+		},
+	}
 }

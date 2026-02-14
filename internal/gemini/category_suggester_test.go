@@ -184,7 +184,31 @@ func createMockCategoryResponse(category string, confidence float64, reasoning s
 	jsonResponse := `{
 		"category": "` + category + `",
 		"confidence": ` + formatFloat(confidence) + `,
-		"reasoning": "` + reasoning + `"
+		"reasoning": "` + reasoning + `",
+		"matched": true,
+		"new_category_name": ""
+	}`
+
+	return &genai.GenerateContentResponse{
+		Candidates: []*genai.Candidate{
+			{
+				Content: &genai.Content{
+					Parts: []*genai.Part{
+						{Text: jsonResponse},
+					},
+				},
+			},
+		},
+	}
+}
+
+func createMockNewCategoryResponse(newCategory string, confidence float64, reasoning string) *genai.GenerateContentResponse {
+	jsonResponse := `{
+		"category": "",
+		"confidence": ` + formatFloat(confidence) + `,
+		"reasoning": "` + reasoning + `",
+		"matched": false,
+		"new_category_name": "` + newCategory + `"
 	}`
 
 	return &genai.GenerateContentResponse{
@@ -490,6 +514,65 @@ func TestSuggestCategory_PromptInjection(t *testing.T) {
 			require.LessOrEqual(t, suggestion.Confidence, 1.0)
 		})
 	}
+}
+
+func TestSuggestCategory_NewCategorySuggestion(t *testing.T) {
+	t.Parallel()
+
+	categories := []string{"Food - Dining Out", "Transportation"}
+	mockGen := &mockGenerator{
+		response: createMockNewCategoryResponse("Subscriptions - AI Tools", 0.92, "Distinct recurring software expense"),
+	}
+	client := NewClientWithGenerator(mockGen)
+
+	suggestion, err := client.SuggestCategory(context.Background(), "ChatGPT monthly plan", categories)
+	require.NoError(t, err)
+	require.NotNil(t, suggestion)
+	require.False(t, suggestion.Matched)
+	require.Empty(t, suggestion.Category)
+	require.Equal(t, "Subscriptions - AI Tools", suggestion.NewCategoryName)
+}
+
+func TestSuggestCategory_NewCategoryNormalizedToExisting(t *testing.T) {
+	t.Parallel()
+
+	categories := []string{"Food - Dining Out", "Transportation"}
+	mockGen := &mockGenerator{
+		response: createMockNewCategoryResponse("transportation", 0.90, "existing category phrased as new"),
+	}
+	client := NewClientWithGenerator(mockGen)
+
+	suggestion, err := client.SuggestCategory(context.Background(), "uber to airport", categories)
+	require.NoError(t, err)
+	require.NotNil(t, suggestion)
+	require.True(t, suggestion.Matched)
+	require.Equal(t, "Transportation", suggestion.Category)
+	require.Empty(t, suggestion.NewCategoryName)
+}
+
+func TestSuggestCategory_InvalidPayloadWithoutCategoryOrNewCategory(t *testing.T) {
+	t.Parallel()
+
+	categories := []string{"Food - Dining Out", "Transportation"}
+	mockGen := &mockGenerator{
+		response: &genai.GenerateContentResponse{
+			Candidates: []*genai.Candidate{
+				{
+					Content: &genai.Content{
+						Parts: []*genai.Part{
+							{Text: `{"category":"","confidence":0.8,"reasoning":"none","matched":false,"new_category_name":""}`},
+						},
+					},
+				},
+			},
+		},
+	}
+	client := NewClientWithGenerator(mockGen)
+
+	suggestion, err := client.SuggestCategory(context.Background(), "some random expense", categories)
+	require.Error(t, err)
+	require.Nil(t, suggestion)
+	require.Contains(t, err.Error(), "no valid matched category or new category suggestion")
 }
 
 func TestSanitizeForPrompt(t *testing.T) {
