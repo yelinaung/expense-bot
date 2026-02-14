@@ -47,16 +47,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: stable
-          cache: true
+      - name: Install gosec
+        run: |
+          if ! command -v gosec &>/dev/null; then
+            go install github.com/securego/gosec/v2/cmd/gosec@latest
+          fi
+          gosec --version
 
       - name: Run Gosec Security Scanner
-        uses: securego/gosec@master
-        with:
-          args: "-fmt sarif -out results.sarif ./..."
+        run: gosec -fmt sarif -out results.sarif ./...
 
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@v3
