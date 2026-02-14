@@ -159,6 +159,21 @@ jobs:
         run: make test-race
 
   # === DEPENDENCY SECURITY ===
+  dependency-review:
+    name: Dependency Review
+    runs-on: [self-hosted, Linux, X64, playground-ubuntu]
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+          comment-summary-in-pr: on-failure
+
   govulncheck:
     name: Vulnerability Check
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
