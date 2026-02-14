@@ -16,11 +16,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: TruffleHog Secret Scan
-        uses: trufflesecurity/trufflehog@main
-        with:
-          path: ./
-          extra_args: --only-verified --trust-local-git-config
+      - name: Gitleaks Secret Scan
+        run: gitleaks detect --source . --verbose
 
   sast:
     name: SAST (Semgrep)

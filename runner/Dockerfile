@@ -16,4 +16,5 @@ RUN go install mvdan.cc/gofumpt@latest && \
     go install golang.org/x/vuln/cmd/govulncheck@latest && \
     curl -fsSL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | \
     sh -s -- -b "${GOBIN}" "v${GOLANGCI_LINT_VERSION}" && \
+    go install github.com/gitleaks/gitleaks/v8@latest && \
     go clean -modcache
