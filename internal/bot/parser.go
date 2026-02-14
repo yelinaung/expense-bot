@@ -175,7 +175,11 @@ func ParseExpenseInput(input string) *ParsedExpense {
 	if detectedCurrency == "" && rest != "" {
 		for _, symbol := range currencySymbolsByLenDesc {
 			if strings.HasPrefix(rest, symbol) {
-				detectedCurrency = currencySymbolToCode[symbol]
+				// Treat trailing "$" as ambiguous: strip it from description but
+				// keep currency unset so user default currency applies.
+				if symbol != "$" {
+					detectedCurrency = currencySymbolToCode[symbol]
+				}
 				rest = strings.TrimSpace(rest[len(symbol):])
 				break
 			}

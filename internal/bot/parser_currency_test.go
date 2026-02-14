@@ -120,14 +120,14 @@ func TestParseExpenseInput_Currency(t *testing.T) {
 			input:        "6.80$ lunch",
 			wantAmt:      "6.80",
 			wantDesc:     "lunch",
-			wantCurrency: "USD",
+			wantCurrency: "",
 		},
 		{
 			name:         "trailing dollar sign amount only",
 			input:        "6.80$",
 			wantAmt:      "6.80",
 			wantDesc:     "",
-			wantCurrency: "USD",
+			wantCurrency: "",
 		},
 		{
 			name:         "trailing euro sign",
@@ -154,8 +154,8 @@ func TestParseExpenseInput_Currency(t *testing.T) {
 			name:         "trailing symbol is not overridden by following 3-letter code",
 			input:        "6.80$ SGD lunch",
 			wantAmt:      "6.80",
-			wantDesc:     "SGD lunch",
-			wantCurrency: "USD",
+			wantDesc:     "lunch",
+			wantCurrency: "SGD",
 		},
 	}
 

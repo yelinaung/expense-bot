@@ -603,6 +603,15 @@ func (b *Bot) saveExpenseCore(
 		}
 	}
 
+	// If nothing matched, default to "Others" when available.
+	if !categoryMatched {
+		if fallback := MatchCategory("Others", categories); fallback != nil {
+			expense.CategoryID = &fallback.ID
+			expense.Category = fallback
+			categoryMatched = true
+		}
+	}
+
 	// If no category matched and Gemini is available, use AI to suggest category
 	if !categoryMatched && b.geminiClient != nil && parsed.Description != "" {
 		categoryNames := make([]string, len(categories))

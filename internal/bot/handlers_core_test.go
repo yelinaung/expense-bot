@@ -453,6 +453,33 @@ func TestSaveExpenseCore(t *testing.T) {
 		require.Contains(t, msg.Text, categories[0].Name)
 	})
 
+	t.Run("expense without matched category defaults to Others when available", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+		userID := int64(200004)
+
+		err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+			ID:        userID,
+			Username:  "saveuser4",
+			FirstName: "Save4",
+		})
+		require.NoError(t, err)
+
+		categories, err := b.categoryRepo.GetAll(ctx)
+		require.NoError(t, err)
+
+		parsed := &ParsedExpense{
+			Amount:      mustParseDecimal("18.00"),
+			Description: "valentine roses",
+		}
+
+		b.saveExpenseCore(ctx, mockBot, 12345, userID, parsed, categories)
+
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		msg := mockBot.LastSentMessage()
+		require.Contains(t, msg.Text, "Expense Added")
+		require.Contains(t, msg.Text, "Others")
+	})
+
 	t.Run("empty description is handled", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		userID := int64(200003)
