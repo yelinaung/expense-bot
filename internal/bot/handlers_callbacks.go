@@ -25,6 +25,14 @@ func (b *Bot) handleEditCallbackCore(ctx context.Context, tg TelegramAPI, update
 	}
 
 	data := update.CallbackQuery.Data
+	// Defensive dispatch: inline action callbacks like edit_expense_123
+	// may be routed here because of the generic "edit_" prefix handler.
+	// Delegate so edit/delete buttons always work.
+	if strings.HasPrefix(data, "edit_expense_") || strings.HasPrefix(data, "delete_expense_") {
+		b.handleExpenseActionCallbackCore(ctx, tg, update)
+		return
+	}
+
 	userID := update.CallbackQuery.From.ID
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	messageID := update.CallbackQuery.Message.Message.ID

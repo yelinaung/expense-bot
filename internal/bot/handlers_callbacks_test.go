@@ -115,6 +115,39 @@ func TestHandleEditCallbackCore(t *testing.T) {
 		require.Contains(t, mockBot.EditedMessages[0].Text, "Select Category")
 	})
 
+	t.Run("edit_expense callback is delegated to inline action handler", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+
+		expense := &appmodels.Expense{
+			UserID:      userID,
+			Amount:      mustParseDecimal("80.00"),
+			Currency:    "SGD",
+			Description: "Inline Edit",
+			Status:      appmodels.ExpenseStatusConfirmed,
+		}
+		err := b.expenseRepo.Create(ctx, expense)
+		require.NoError(t, err)
+
+		update := &models.Update{
+			CallbackQuery: &models.CallbackQuery{
+				ID:   "callback-inline-edit",
+				From: models.User{ID: userID},
+				Data: fmt.Sprintf("edit_expense_%d", expense.ID),
+				Message: models.MaybeInaccessibleMessage{
+					Message: &models.Message{
+						ID:   101,
+						Chat: models.Chat{ID: 12345},
+					},
+				},
+			},
+		}
+
+		b.handleEditCallbackCore(ctx, mockBot, update)
+
+		require.Len(t, mockBot.EditedMessages, 1)
+		require.Contains(t, mockBot.EditedMessages[0].Text, "Edit Expense #")
+	})
+
 	t.Run("user mismatch returns early", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		otherUserID := userID + 100
