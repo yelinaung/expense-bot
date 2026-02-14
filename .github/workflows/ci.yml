@@ -39,6 +39,25 @@ jobs:
         with:
           config: auto
 
+  gosec:
+    name: Gosec Security Check
+    runs-on: [self-hosted, Linux, X64, playground-ubuntu]
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run Gosec Security Scanner
+        uses: securego/gosec@master
+        with:
+          args: "-fmt sarif -out results.sarif ./..."
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+        if: always()
+
   # === QUALITY STAGE ===
   lint:
     name: Lint
