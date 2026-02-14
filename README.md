@@ -122,6 +122,7 @@ GEMINI_API_KEY=your_gemini_api_key_here
 # Exchange rate settings (optional - used for automatic currency conversion)
 EXCHANGE_RATE_BASE_URL=https://api.frankfurter.app
 EXCHANGE_RATE_TIMEOUT=5s
+EXCHANGE_RATE_CACHE_TTL=12h
 
 # Daily reminder settings (optional)
 DAILY_REMINDER_ENABLED=false
@@ -432,6 +433,7 @@ The project uses:
 | `GEMINI_API_KEY` | No | Google Gemini API key for OCR and auto-categorization | - |
 | `EXCHANGE_RATE_BASE_URL` | No | Base URL for exchange rate API | `https://api.frankfurter.app` |
 | `EXCHANGE_RATE_TIMEOUT` | No | HTTP timeout for exchange rate API calls | `5s` |
+| `EXCHANGE_RATE_CACHE_TTL` | No | In-memory TTL for cached FX rates by currency pair | `12h` |
 | `LOG_LEVEL` | No | Log level (debug, info, warn, error) | info |
 | `DAILY_REMINDER_ENABLED` | No | Enable daily reminders for users without expenses (`true`/`false`) | false |
 | `REMINDER_HOUR` | No | Hour of day to send reminders (0-23) | 20 |

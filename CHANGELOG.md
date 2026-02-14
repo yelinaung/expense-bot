@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The original amount and currency are preserved in `description` metadata (for example: `[orig: 18.00 USD -> 24.30 SGD @ 1.3500 (2026-02-14)]`).
 - **Exchange Provider Configuration**:
   - Added optional `EXCHANGE_RATE_BASE_URL` and `EXCHANGE_RATE_TIMEOUT` configuration for rate lookup behavior.
+  - Added optional `EXCHANGE_RATE_CACHE_TTL` for in-memory FX rate caching by currency pair.
 
 ## [v0.6.0] - 2026-02-13 - User Management, Daily Reminders & Reliability
 

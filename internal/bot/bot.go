@@ -93,8 +93,11 @@ func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 		tagRepo:          repository.NewTagRepository(db),
 		approvedUserRepo: repository.NewApprovedUserRepository(db),
 		bindingRepo:      bindingRepo,
-		exchangeService:  exchange.NewFrankfurterClient(cfg.ExchangeRateBaseURL, cfg.ExchangeRateTimeout),
-		pendingEdits:     make(map[int64]*pendingEdit),
+		exchangeService: exchange.NewCachedService(
+			exchange.NewFrankfurterClient(cfg.ExchangeRateBaseURL, cfg.ExchangeRateTimeout),
+			cfg.ExchangeRateCacheTTL,
+		),
+		pendingEdits: make(map[int64]*pendingEdit),
 	}
 
 	if cfg.GeminiAPIKey != "" {

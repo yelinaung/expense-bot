@@ -21,6 +21,7 @@ type Config struct {
 	GeminiAPIKey         string
 	ExchangeRateBaseURL  string
 	ExchangeRateTimeout  time.Duration
+	ExchangeRateCacheTTL time.Duration
 	LogLevel             string
 	WhitelistedUserIDs   []int64
 	WhitelistedUsernames []string
@@ -47,6 +48,7 @@ func Load() (*Config, error) {
 		GeminiAPIKey:          os.Getenv("GEMINI_API_KEY"),
 		ExchangeRateBaseURL:   "https://api.frankfurter.app",
 		ExchangeRateTimeout:   5 * time.Second,
+		ExchangeRateCacheTTL:  12 * time.Hour,
 		LogLevel:              os.Getenv("LOG_LEVEL"),
 		resolvedSuperadmins:   make(map[string]int64),
 		resolvedSuperadminIDs: make(map[int64]struct{}),
@@ -61,6 +63,11 @@ func Load() (*Config, error) {
 	if timeout := strings.TrimSpace(os.Getenv("EXCHANGE_RATE_TIMEOUT")); timeout != "" {
 		if d, err := time.ParseDuration(timeout); err == nil && d > 0 {
 			cfg.ExchangeRateTimeout = d
+		}
+	}
+	if cacheTTL := strings.TrimSpace(os.Getenv("EXCHANGE_RATE_CACHE_TTL")); cacheTTL != "" {
+		if d, err := time.ParseDuration(cacheTTL); err == nil && d > 0 {
+			cfg.ExchangeRateCacheTTL = d
 		}
 	}
 

@@ -76,11 +76,13 @@ func TestLoad(t *testing.T) {
 		t.Setenv("WHITELISTED_USER_IDS", "123")
 		t.Setenv("EXCHANGE_RATE_BASE_URL", "https://rates.example.com")
 		t.Setenv("EXCHANGE_RATE_TIMEOUT", "3s")
+		t.Setenv("EXCHANGE_RATE_CACHE_TTL", "1h")
 
 		cfg, err := Load()
 		require.NoError(t, err)
 		require.Equal(t, "https://rates.example.com", cfg.ExchangeRateBaseURL)
 		require.Equal(t, 3*time.Second, cfg.ExchangeRateTimeout)
+		require.Equal(t, time.Hour, cfg.ExchangeRateCacheTTL)
 	})
 
 	t.Run("uses exchange defaults for invalid timeout", func(t *testing.T) {
@@ -93,6 +95,7 @@ func TestLoad(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "https://api.frankfurter.app", cfg.ExchangeRateBaseURL)
 		require.Equal(t, 5*time.Second, cfg.ExchangeRateTimeout)
+		require.Equal(t, 12*time.Hour, cfg.ExchangeRateCacheTTL)
 	})
 
 	t.Run("parses whitelisted usernames", func(t *testing.T) {
