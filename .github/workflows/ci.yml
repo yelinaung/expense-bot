@@ -47,6 +47,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # Install gosec directly using host Go (not Docker action)
       - name: Install gosec
         run: |
           if ! command -v gosec &>/dev/null; then
