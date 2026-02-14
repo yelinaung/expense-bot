@@ -16,8 +16,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install gitleaks
+        run: |
+          if ! command -v gitleaks &>/dev/null; then
+            go install github.com/gitleaks/gitleaks/v8@latest
+          fi
+
       - name: Gitleaks Secret Scan
-        uses: gitleaks/gitleaks-action@v2
+        run: gitleaks detect --source . --verbose
 
   sast:
     name: SAST (Semgrep)
