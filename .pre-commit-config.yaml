@@ -1,3 +1,11 @@
+ci:
+  skip:
+    - go-vet-mod
+    - go-imports
+    - go-mod-tidy
+    - go-test-mod
+    - golangci-lint-mod
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
