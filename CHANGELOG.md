@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Automatic Currency Conversion to User Default**:
+  - When an expense is entered in a different currency than the user's default, the bot converts and stores it in the default currency.
+  - Applied consistently across `/add`, free-text parsing, receipt OCR, and voice input flows.
+  - The original amount and currency are preserved in `description` metadata (for example: `[orig: 18.00 USD -> 24.30 SGD @ 1.3500 (2026-02-14)]`).
+- **Exchange Provider Configuration**:
+  - Added optional `EXCHANGE_RATE_BASE_URL` and `EXCHANGE_RATE_TIMEOUT` configuration for rate lookup behavior.
+
 ## [v0.6.0] - 2026-02-13 - User Management, Daily Reminders & Reliability
 
 ### Added

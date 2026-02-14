@@ -157,12 +157,19 @@ func (b *Bot) handlePhotoCore(ctx context.Context, tg TelegramAPI, update *model
 	if merchant == "" {
 		merchant = "Unknown merchant"
 	}
+	amount, currency, description := b.convertExpenseCurrency(
+		ctx,
+		userID,
+		receiptData.Amount,
+		receiptData.Currency,
+		merchant,
+	)
 
 	expense := &appmodels.Expense{
 		UserID:        userID,
-		Amount:        receiptData.Amount,
-		Currency:      "SGD",
-		Description:   merchant,
+		Amount:        amount,
+		Currency:      currency,
+		Description:   description,
 		Merchant:      merchant,
 		CategoryID:    categoryID,
 		Category:      category,
@@ -188,30 +195,35 @@ func (b *Bot) handlePhotoCore(ctx context.Context, tg TelegramAPI, update *model
 	if !receiptData.Date.IsZero() {
 		dateText = receiptData.Date.Format("02 Jan 2006")
 	}
+	currencySymbol := getCurrencyOrCodeSymbol(expense.Currency)
 
 	// Build message based on extraction completeness.
 	var text string
 	if isPartial {
 		text = fmt.Sprintf(`⚠️ <b>Partial Extraction - Please Verify</b>
 
-💰 Amount: $%s SGD
+💰 Amount: %s%s %s
 🏪 Merchant: %s
 📅 Date: %s
 📁 Category: %s
 
 <i>Some data could not be extracted. Please edit or confirm.</i>`,
+			currencySymbol,
 			expense.Amount.StringFixed(2),
+			expense.Currency,
 			escapeHTML(expense.Merchant),
 			dateText,
 			categoryText)
 	} else {
 		text = fmt.Sprintf(`📸 <b>Receipt Scanned!</b>
 
-💰 Amount: $%s SGD
+💰 Amount: %s%s %s
 🏪 Merchant: %s
 📅 Date: %s
 📁 Category: %s`,
+			currencySymbol,
 			expense.Amount.StringFixed(2),
+			expense.Currency,
 			escapeHTML(expense.Merchant),
 			dateText,
 			categoryText)
@@ -324,10 +336,12 @@ func (b *Bot) handleBackToReceiptCore(
 
 	text := fmt.Sprintf(`📸 <b>Receipt Scanned!</b>
 
-💰 Amount: $%s SGD
+💰 Amount: %s%s %s
 🏪 Merchant: %s
 📁 Category: %s`,
+		getCurrencyOrCodeSymbol(expense.Currency),
 		expense.Amount.StringFixed(2),
+		expense.Currency,
 		escapeHTML(expense.Merchant),
 		categoryText)
 
@@ -375,10 +389,7 @@ func (b *Bot) handleConfirmReceiptCore(
 	if currencyCode == "" {
 		currencyCode = appmodels.DefaultCurrency
 	}
-	currencySymbol, ok := appmodels.SupportedCurrencies[currencyCode]
-	if !ok {
-		currencySymbol = "$"
-	}
+	currencySymbol := getCurrencyOrCodeSymbol(currencyCode)
 
 	text := fmt.Sprintf(`✅ <b>Expense Confirmed!</b>
 
@@ -473,12 +484,14 @@ func (b *Bot) handleEditReceiptCore(
 
 	text := fmt.Sprintf(`✏️ <b>Edit Expense</b>
 
-💰 Amount: $%s SGD
+💰 Amount: %s%s %s
 🏪 Merchant: %s
 📁 Category: %s
 
 Select what to edit:`,
+		getCurrencyOrCodeSymbol(expense.Currency),
 		expense.Amount.StringFixed(2),
+		expense.Currency,
 		escapeHTML(expense.Merchant),
 		categoryText)
 

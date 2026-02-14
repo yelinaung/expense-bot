@@ -1,4 +1,4 @@
-.PHONY: build test test-coverage test-integration lint fmt clean test-db-up test-db-down release
+.PHONY: build test test-coverage test-integration lint fmt clean test-db-up test-db-down release push
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
@@ -95,3 +95,20 @@ clean:
 
 release:
 	goreleaser release --snapshot --clean
+
+push:
+	@set -e; \
+	branch="$$(git rev-parse --abbrev-ref HEAD)"; \
+	if [ "$$branch" = "HEAD" ]; then \
+		echo "Detached HEAD; please checkout a branch before pushing."; \
+		exit 1; \
+	fi; \
+	remotes="$$(git remote)"; \
+	if [ -z "$$remotes" ]; then \
+		echo "No git remotes configured."; \
+		exit 1; \
+	fi; \
+	for remote in $$remotes; do \
+		echo "Pushing $$branch to $$remote..."; \
+		git push "$$remote" "$$branch"; \
+	done

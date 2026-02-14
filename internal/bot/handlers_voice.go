@@ -139,26 +139,25 @@ func (b *Bot) handleVoiceCore(ctx context.Context, tg TelegramAPI, update *model
 		}
 	}
 
-	currency := voiceData.Currency
-	if currency == "" {
-		var currErr error
-		currency, currErr = b.userRepo.GetDefaultCurrency(ctx, userID)
-		if currErr != nil {
-			currency = appmodels.DefaultCurrency
-		}
-	}
-
 	description := voiceData.Description
 	if description == "" {
 		description = "Voice expense"
 	}
+	merchant := description
+	amount, currency, description := b.convertExpenseCurrency(
+		ctx,
+		userID,
+		voiceData.Amount,
+		voiceData.Currency,
+		description,
+	)
 
 	expense := &appmodels.Expense{
 		UserID:      userID,
-		Amount:      voiceData.Amount,
+		Amount:      amount,
 		Currency:    currency,
 		Description: description,
-		Merchant:    description,
+		Merchant:    merchant,
 		CategoryID:  categoryID,
 		Category:    category,
 		Status:      appmodels.ExpenseStatusDraft,
@@ -178,10 +177,7 @@ func (b *Bot) handleVoiceCore(ctx context.Context, tg TelegramAPI, update *model
 		categoryText = escapeHTML(category.Name)
 	}
 
-	currencySymbol := appmodels.SupportedCurrencies[expense.Currency]
-	if currencySymbol == "" {
-		currencySymbol = expense.Currency
-	}
+	currencySymbol := getCurrencyOrCodeSymbol(expense.Currency)
 
 	text := fmt.Sprintf(`🎙️ <b>Voice Expense Detected!</b>
 

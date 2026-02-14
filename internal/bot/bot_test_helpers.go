@@ -1,12 +1,14 @@
 package bot
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"gitlab.com/yelinaung/expense-bot/internal/config"
 	"gitlab.com/yelinaung/expense-bot/internal/database"
+	"gitlab.com/yelinaung/expense-bot/internal/exchange"
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
 )
 
@@ -36,6 +38,7 @@ func setupTestBot(t *testing.T, db database.PGXDB) *Bot {
 		tagRepo:          repository.NewTagRepository(db),
 		approvedUserRepo: repository.NewApprovedUserRepository(db),
 		geminiClient:     nil, // No Gemini client for cache tests
+		exchangeService:  &testExchangeService{},
 		messageSender:    nil, // Tests that need it will inject a mock
 		displayLocation:  time.UTC,
 		pendingEdits:     make(map[int64]*pendingEdit),
@@ -51,4 +54,27 @@ func mustParseDecimal(s string) decimal.Decimal {
 		panic("invalid decimal in test: " + s)
 	}
 	return d
+}
+
+type testExchangeService struct{}
+
+func (s *testExchangeService) Convert(
+	_ context.Context,
+	amount decimal.Decimal,
+	fromCurrency, toCurrency string,
+) (exchange.ConversionResult, error) {
+	if fromCurrency == toCurrency {
+		return exchange.ConversionResult{
+			Amount:   amount,
+			Rate:     decimal.NewFromInt(1),
+			RateDate: time.Date(2026, 2, 14, 0, 0, 0, 0, time.UTC),
+		}, nil
+	}
+	// Keep test helper deterministic and network-free; conversion logic itself
+	// is validated by dedicated unit tests with explicit mocks.
+	return exchange.ConversionResult{
+		Amount:   amount,
+		Rate:     decimal.NewFromInt(1),
+		RateDate: time.Date(2026, 2, 14, 0, 0, 0, 0, time.UTC),
+	}, nil
 }

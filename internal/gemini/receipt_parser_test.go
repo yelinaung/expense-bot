@@ -35,6 +35,7 @@ func TestBuildReceiptPrompt(t *testing.T) {
 	require.Contains(t, prompt, "Food - Dining Out")
 	require.Contains(t, prompt, "Transportation")
 	require.Contains(t, prompt, "amount")
+	require.Contains(t, prompt, "currency")
 	require.Contains(t, prompt, "merchant")
 	require.Contains(t, prompt, "date")
 	require.Contains(t, prompt, "suggested_category")
@@ -727,24 +728,28 @@ func TestParseReceiptResponse_SanitizesFields(t *testing.T) {
 	tests := []struct {
 		name         string
 		response     string
+		wantCurrency string
 		wantMerchant string
 		wantCategory string
 	}{
 		{
 			name:         "sanitizes newlines in merchant",
-			response:     `{"amount": "10.00", "merchant": "Evil\nStore", "date": "", "suggested_category": "Others", "confidence": 0.8}`,
+			response:     `{"amount": "10.00", "currency": "usd", "merchant": "Evil\nStore", "date": "", "suggested_category": "Others", "confidence": 0.8}`,
+			wantCurrency: "usd",
 			wantMerchant: "Evil Store",
 			wantCategory: "Others",
 		},
 		{
 			name:         "sanitizes quotes in merchant",
-			response:     `{"amount": "10.00", "merchant": "Store", "date": "", "suggested_category": "Others", "confidence": 0.8}`,
+			response:     `{"amount": "10.00", "currency": "EUR", "merchant": "Store", "date": "", "suggested_category": "Others", "confidence": 0.8}`,
+			wantCurrency: "EUR",
 			wantMerchant: "Store",
 			wantCategory: "Others",
 		},
 		{
 			name:         "sanitizes null bytes in category",
-			response:     `{"amount": "10.00", "merchant": "Store", "date": "", "suggested_category": "Food\u0000Evil", "confidence": 0.8}`,
+			response:     `{"amount": "10.00", "currency": "", "merchant": "Store", "date": "", "suggested_category": "Food\u0000Evil", "confidence": 0.8}`,
+			wantCurrency: "",
 			wantMerchant: "Store",
 			wantCategory: "FoodEvil",
 		},
@@ -755,6 +760,7 @@ func TestParseReceiptResponse_SanitizesFields(t *testing.T) {
 			t.Parallel()
 			data, err := parseReceiptResponse(tt.response)
 			require.NoError(t, err)
+			require.Equal(t, tt.wantCurrency, data.Currency)
 			require.Equal(t, tt.wantMerchant, data.Merchant)
 			require.Equal(t, tt.wantCategory, data.SuggestedCategory)
 		})

@@ -2,6 +2,7 @@ package config
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -67,6 +68,31 @@ func TestLoad(t *testing.T) {
 		cfg, err := Load()
 		require.NoError(t, err)
 		require.Equal(t, "test-gemini-key", cfg.GeminiAPIKey)
+	})
+
+	t.Run("loads exchange config from env", func(t *testing.T) {
+		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
+		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("WHITELISTED_USER_IDS", "123")
+		t.Setenv("EXCHANGE_RATE_BASE_URL", "https://rates.example.com")
+		t.Setenv("EXCHANGE_RATE_TIMEOUT", "3s")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Equal(t, "https://rates.example.com", cfg.ExchangeRateBaseURL)
+		require.Equal(t, 3*time.Second, cfg.ExchangeRateTimeout)
+	})
+
+	t.Run("uses exchange defaults for invalid timeout", func(t *testing.T) {
+		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
+		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("WHITELISTED_USER_IDS", "123")
+		t.Setenv("EXCHANGE_RATE_TIMEOUT", "invalid")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Equal(t, "https://api.frankfurter.app", cfg.ExchangeRateBaseURL)
+		require.Equal(t, 5*time.Second, cfg.ExchangeRateTimeout)
 	})
 
 	t.Run("parses whitelisted usernames", func(t *testing.T) {

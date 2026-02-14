@@ -571,23 +571,21 @@ func (b *Bot) saveExpenseCore(
 	parsed *ParsedExpense,
 	categories []appmodels.Category,
 ) {
-	// Determine currency: use parsed currency, fall back to user default
-	currency := parsed.Currency
-	if currency == "" {
-		var err error
-		currency, err = b.userRepo.GetDefaultCurrency(ctx, userID)
-		if err != nil {
-			logger.Log.Debug().Err(err).Str("user_hash", logger.HashUserID(userID)).Msg("Failed to get default currency, using SGD")
-			currency = appmodels.DefaultCurrency
-		}
-	}
+	merchant := parsed.Description
+	amount, currency, description := b.convertExpenseCurrency(
+		ctx,
+		userID,
+		parsed.Amount,
+		parsed.Currency,
+		parsed.Description,
+	)
 
 	expense := &appmodels.Expense{
 		UserID:      userID,
-		Amount:      parsed.Amount,
+		Amount:      amount,
 		Currency:    currency,
-		Description: parsed.Description,
-		Merchant:    parsed.Description,
+		Description: description,
+		Merchant:    merchant,
 	}
 
 	// Try to match category from parsed input first
@@ -744,10 +742,7 @@ func (b *Bot) saveExpenseCore(
 		descText = "\n📝 " + escapeHTML(expense.Description)
 	}
 
-	currencySymbol := appmodels.SupportedCurrencies[expense.Currency]
-	if currencySymbol == "" {
-		currencySymbol = expense.Currency
-	}
+	currencySymbol := getCurrencyOrCodeSymbol(expense.Currency)
 
 	text := fmt.Sprintf(`✅ <b>Expense Added</b>
 
@@ -779,13 +774,12 @@ func (b *Bot) saveExpenseCore(
 		},
 	}
 
-	_, err := tg.SendMessage(ctx, &bot.SendMessageParams{
+	if _, err := tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:      chatID,
 		Text:        text,
 		ParseMode:   models.ParseModeHTML,
 		ReplyMarkup: keyboard,
-	})
-	if err != nil {
+	}); err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to send expense confirmation")
 	}
 }

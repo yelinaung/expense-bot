@@ -13,6 +13,7 @@ import (
 	tgmodels "github.com/go-telegram/bot/models"
 	"gitlab.com/yelinaung/expense-bot/internal/config"
 	"gitlab.com/yelinaung/expense-bot/internal/database"
+	"gitlab.com/yelinaung/expense-bot/internal/exchange"
 	"gitlab.com/yelinaung/expense-bot/internal/gemini"
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
@@ -44,6 +45,7 @@ type Bot struct {
 	approvedUserRepo *repository.ApprovedUserRepository
 	bindingRepo      *repository.SuperadminBindingRepository
 	geminiClient     *gemini.Client
+	exchangeService  exchange.Service
 
 	messageSender   TelegramAPI
 	displayLocation *time.Location
@@ -91,6 +93,7 @@ func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 		tagRepo:          repository.NewTagRepository(db),
 		approvedUserRepo: repository.NewApprovedUserRepository(db),
 		bindingRepo:      bindingRepo,
+		exchangeService:  exchange.NewFrankfurterClient(cfg.ExchangeRateBaseURL, cfg.ExchangeRateTimeout),
 		pendingEdits:     make(map[int64]*pendingEdit),
 	}
 

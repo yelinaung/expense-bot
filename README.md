@@ -119,6 +119,10 @@ LOG_HASH_SALT=generate_random_64_char_hex_string_here
 # Get from https://aistudio.google.com/app/apikey
 GEMINI_API_KEY=your_gemini_api_key_here
 
+# Exchange rate settings (optional - used for automatic currency conversion)
+EXCHANGE_RATE_BASE_URL=https://api.frankfurter.app
+EXCHANGE_RATE_TIMEOUT=5s
+
 # Daily reminder settings (optional)
 DAILY_REMINDER_ENABLED=false
 REMINDER_HOUR=20
@@ -221,6 +225,12 @@ SGD 25 Groceries     # SGD with prefix code
 ```
 
 The bot automatically detects currency from symbols (€, $, £, etc.) or 3-letter codes (USD, EUR, SGD). If no currency is specified, it uses your default currency (SGD by default).
+
+If you enter a different currency than your default, the bot converts it to your default currency before saving and appends the original amount/currency to the description, for example:
+
+```text
+Valentine roses [orig: 18.00 USD -> 24.30 SGD @ 1.3500 (2026-02-14)]
+```
 
 ### Quick Expense Entry
 
@@ -420,6 +430,8 @@ The project uses:
 | `WHITELISTED_USERNAMES` | Yes* | Comma-separated Telegram usernames | - |
 | `LOG_HASH_SALT` | Yes | Random string for privacy-preserving logging (min 32 chars) | - |
 | `GEMINI_API_KEY` | No | Google Gemini API key for OCR and auto-categorization | - |
+| `EXCHANGE_RATE_BASE_URL` | No | Base URL for exchange rate API | `https://api.frankfurter.app` |
+| `EXCHANGE_RATE_TIMEOUT` | No | HTTP timeout for exchange rate API calls | `5s` |
 | `LOG_LEVEL` | No | Log level (debug, info, warn, error) | info |
 | `DAILY_REMINDER_ENABLED` | No | Enable daily reminders for users without expenses (`true`/`false`) | false |
 | `REMINDER_HOUR` | No | Hour of day to send reminders (0-23) | 20 |

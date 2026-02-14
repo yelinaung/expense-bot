@@ -2,6 +2,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -18,6 +19,8 @@ type Config struct {
 	TelegramBotToken     string
 	DatabaseURL          string
 	GeminiAPIKey         string
+	ExchangeRateBaseURL  string
+	ExchangeRateTimeout  time.Duration
 	LogLevel             string
 	WhitelistedUserIDs   []int64
 	WhitelistedUsernames []string
@@ -42,9 +45,23 @@ func Load() (*Config, error) {
 		TelegramBotToken:      os.Getenv("TELEGRAM_BOT_TOKEN"),
 		DatabaseURL:           os.Getenv("DATABASE_URL"),
 		GeminiAPIKey:          os.Getenv("GEMINI_API_KEY"),
+		ExchangeRateBaseURL:   "https://api.frankfurter.app",
+		ExchangeRateTimeout:   5 * time.Second,
 		LogLevel:              os.Getenv("LOG_LEVEL"),
 		resolvedSuperadmins:   make(map[string]int64),
 		resolvedSuperadminIDs: make(map[int64]struct{}),
+	}
+	if baseURL := strings.TrimSpace(os.Getenv("EXCHANGE_RATE_BASE_URL")); baseURL != "" {
+		// Validate URL scheme to prevent SSRF
+		if !strings.HasPrefix(baseURL, "http://") && !strings.HasPrefix(baseURL, "https://") {
+			return nil, errors.New("EXCHANGE_RATE_BASE_URL must use http:// or https:// scheme")
+		}
+		cfg.ExchangeRateBaseURL = baseURL
+	}
+	if timeout := strings.TrimSpace(os.Getenv("EXCHANGE_RATE_TIMEOUT")); timeout != "" {
+		if d, err := time.ParseDuration(timeout); err == nil && d > 0 {
+			cfg.ExchangeRateTimeout = d
+		}
 	}
 
 	cfg.DailyReminderEnabled = os.Getenv("DAILY_REMINDER_ENABLED") == "true"
