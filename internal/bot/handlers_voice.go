@@ -175,7 +175,7 @@ func (b *Bot) handleVoiceCore(ctx context.Context, tg TelegramAPI, update *model
 
 	categoryText := categoryUncategorized
 	if category != nil {
-		categoryText = category.Name
+		categoryText = escapeHTML(category.Name)
 	}
 
 	currencySymbol := appmodels.SupportedCurrencies[expense.Currency]
@@ -193,7 +193,7 @@ Please confirm, edit, or cancel:`,
 		currencySymbol,
 		expense.Amount.StringFixed(2),
 		expense.Currency,
-		expense.Description,
+		escapeHTML(expense.Description),
 		categoryText)
 
 	keyboard := buildReceiptConfirmationKeyboard(expense.ID)

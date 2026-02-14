@@ -110,6 +110,52 @@ func TestTagRepository_GetAll(t *testing.T) {
 	})
 }
 
+func TestTagRepository_GetAllByUserID(t *testing.T) {
+	tagRepo, expenseRepo, userRepo, ctx := setupTagTest(t)
+
+	userA := int64(81001)
+	userB := int64(81002)
+	err := userRepo.UpsertUser(ctx, &models.User{ID: userA, Username: "usera"})
+	require.NoError(t, err)
+	err = userRepo.UpsertUser(ctx, &models.User{ID: userB, Username: "userb"})
+	require.NoError(t, err)
+
+	expA := &models.Expense{
+		UserID:      userA,
+		Amount:      decimal.NewFromFloat(9.99),
+		Currency:    "SGD",
+		Description: "A expense",
+		Status:      models.ExpenseStatusConfirmed,
+	}
+	err = expenseRepo.Create(ctx, expA)
+	require.NoError(t, err)
+
+	expB := &models.Expense{
+		UserID:      userB,
+		Amount:      decimal.NewFromFloat(3.50),
+		Currency:    "SGD",
+		Description: "B expense",
+		Status:      models.ExpenseStatusConfirmed,
+	}
+	err = expenseRepo.Create(ctx, expB)
+	require.NoError(t, err)
+
+	tagA, err := tagRepo.GetOrCreate(ctx, "private_a")
+	require.NoError(t, err)
+	tagB, err := tagRepo.GetOrCreate(ctx, "private_b")
+	require.NoError(t, err)
+
+	err = tagRepo.AddTagsToExpense(ctx, expA.ID, []int{tagA.ID})
+	require.NoError(t, err)
+	err = tagRepo.AddTagsToExpense(ctx, expB.ID, []int{tagB.ID})
+	require.NoError(t, err)
+
+	tagsA, err := tagRepo.GetAllByUserID(ctx, userA)
+	require.NoError(t, err)
+	require.Len(t, tagsA, 1)
+	require.Equal(t, "private_a", tagsA[0].Name)
+}
+
 func TestTagRepository_Delete(t *testing.T) {
 	tagRepo, _, _, ctx := setupTagTest(t)
 

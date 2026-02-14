@@ -159,6 +159,35 @@ func TestGenerateExpensesCSV(t *testing.T) {
 	})
 }
 
+func TestSanitizeCSVCell(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "normal string", input: "Coffee", want: "Coffee"},
+		{name: "empty string", input: "", want: ""},
+		{name: "starts with equals", input: "=SUM(A1:A10)", want: "'=SUM(A1:A10)"},
+		{name: "starts with plus", input: "+1234", want: "'+1234"},
+		{name: "starts with minus", input: "-100", want: "'-100"},
+		{name: "starts with at", input: "@import", want: "'@import"},
+		{name: "starts with tab", input: "\tcmd", want: "'\tcmd"},
+		{name: "starts with carriage return", input: "\rcmd", want: "'\rcmd"},
+		{name: "starts with spaces then formula", input: "   =cmd", want: "'   =cmd"},
+		{name: "number string", input: "42.50", want: "42.50"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := sanitizeCSVCell(tt.input)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestGetWeekDateRange(t *testing.T) {
 	t.Run("returns Monday to Sunday range", func(t *testing.T) {
 		start, end := getWeekDateRange()

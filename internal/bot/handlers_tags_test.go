@@ -283,8 +283,20 @@ func TestHandleTagsCore(t *testing.T) {
 	t.Run("lists all tags", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 
-		// Create a tag.
-		_, err := b.tagRepo.GetOrCreate(ctx, "listtag")
+		// Create an expense owned by the user and tag it.
+		expense := &appmodels.Expense{
+			UserID:      userID,
+			Amount:      mustParseDecimal("1.00"),
+			Currency:    "SGD",
+			Description: "tag list test",
+			Status:      appmodels.ExpenseStatusConfirmed,
+		}
+		err := b.expenseRepo.Create(ctx, expense)
+		require.NoError(t, err)
+
+		tag, err := b.tagRepo.GetOrCreate(ctx, "listtag")
+		require.NoError(t, err)
+		err = b.tagRepo.AddTagsToExpense(ctx, expense.ID, []int{tag.ID})
 		require.NoError(t, err)
 
 		update := mocks.CommandUpdate(12345, userID, "/tags")
@@ -293,6 +305,39 @@ func TestHandleTagsCore(t *testing.T) {
 		msg := mockBot.LastSentMessage()
 		require.Contains(t, msg.Text, "Tags")
 		require.Contains(t, msg.Text, "#listtag")
+	})
+
+	t.Run("does not leak other users tags", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+
+		otherUserID := int64(700099)
+		err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+			ID:        otherUserID,
+			Username:  "othertagsuser",
+			FirstName: "Other",
+		})
+		require.NoError(t, err)
+
+		otherExpense := &appmodels.Expense{
+			UserID:      otherUserID,
+			Amount:      mustParseDecimal("2.00"),
+			Currency:    "SGD",
+			Description: "other tag list test",
+			Status:      appmodels.ExpenseStatusConfirmed,
+		}
+		err = b.expenseRepo.Create(ctx, otherExpense)
+		require.NoError(t, err)
+
+		otherTag, err := b.tagRepo.GetOrCreate(ctx, "secretothertag")
+		require.NoError(t, err)
+		err = b.tagRepo.AddTagsToExpense(ctx, otherExpense.ID, []int{otherTag.ID})
+		require.NoError(t, err)
+
+		update := mocks.CommandUpdate(12345, userID, "/tags")
+		b.handleTagsCore(ctx, mockBot, update)
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		msg := mockBot.LastSentMessage()
+		require.NotContains(t, msg.Text, "#secretothertag")
 	})
 
 	t.Run("filters expenses by tag", func(t *testing.T) {

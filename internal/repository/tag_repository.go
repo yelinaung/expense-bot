@@ -138,6 +138,25 @@ func (r *TagRepository) GetAll(ctx context.Context) ([]models.Tag, error) {
 	return scanTags(rows)
 }
 
+// GetAllByUserID retrieves all tags used by a specific user, limited to 100.
+func (r *TagRepository) GetAllByUserID(ctx context.Context, userID int64) ([]models.Tag, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT DISTINCT t.id, t.name, t.created_at
+		FROM tags t
+		JOIN expense_tags et ON et.tag_id = t.id
+		JOIN expenses e ON e.id = et.expense_id
+		WHERE e.user_id = $1
+		ORDER BY t.name
+		LIMIT 100
+	`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query tags by user: %w", err)
+	}
+	defer rows.Close()
+
+	return scanTags(rows)
+}
+
 // GetByName retrieves a tag by name (exact match).
 func (r *TagRepository) GetByName(ctx context.Context, name string) (*models.Tag, error) {
 	var tag models.Tag

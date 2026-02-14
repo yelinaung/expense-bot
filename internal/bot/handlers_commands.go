@@ -36,7 +36,7 @@ func formatGreeting(firstName string) string {
 	if firstName == "" {
 		return ""
 	}
-	return ", " + firstName
+	return ", " + escapeHTML(firstName)
 }
 
 // handleStart handles the /start command.
@@ -182,7 +182,7 @@ func (b *Bot) handleCategoriesCore(ctx context.Context, tg TelegramAPI, update *
 	var sb strings.Builder
 	sb.WriteString("📁 <b>Expense Categories</b>\n\n")
 	for i, cat := range categories {
-		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, cat.Name))
+		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, escapeHTML(cat.Name)))
 	}
 
 	logger.Log.Debug().Int64("chat_id", update.Message.Chat.ID).Msg("Sending /categories response")
@@ -256,7 +256,7 @@ func (b *Bot) handleAddCategoryCore(ctx context.Context, tg TelegramAPI, update 
 
 	_, err = tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    chatID,
-		Text:      fmt.Sprintf("✅ Category '<b>%s</b>' created.", cat.Name),
+		Text:      fmt.Sprintf("✅ Category '<b>%s</b>' created.", escapeHTML(cat.Name)),
 		ParseMode: models.ParseModeHTML,
 	})
 	if err != nil {
@@ -357,7 +357,7 @@ func (b *Bot) handleRenameCategoryCore(ctx context.Context, tg TelegramAPI, upda
 
 	_, err = tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    chatID,
-		Text:      fmt.Sprintf("✅ Category '<b>%s</b>' renamed to '<b>%s</b>'.", oldName, newName),
+		Text:      fmt.Sprintf("✅ Category '<b>%s</b>' renamed to '<b>%s</b>'.", escapeHTML(oldName), escapeHTML(newName)),
 		ParseMode: models.ParseModeHTML,
 	})
 	if err != nil {
@@ -459,7 +459,7 @@ func (b *Bot) handleDeleteCategoryCore(ctx context.Context, tg TelegramAPI, upda
 
 	logger.Log.Info().Int("category_id", cat.ID).Str("name", cat.Name).Int64("affected_expenses", affected).Msg("Category deleted")
 
-	text := fmt.Sprintf("✅ Category '<b>%s</b>' deleted.", cat.Name)
+	text := fmt.Sprintf("✅ Category '<b>%s</b>' deleted.", escapeHTML(cat.Name))
 	if affected > 0 {
 		text += fmt.Sprintf("\n\n%d expense(s) have been uncategorized.", affected)
 	}
@@ -669,12 +669,12 @@ func (b *Bot) saveExpenseCore(
 
 	categoryText := categoryUncategorized
 	if expense.Category != nil {
-		categoryText = expense.Category.Name
+		categoryText = escapeHTML(expense.Category.Name)
 	}
 
 	descText := ""
 	if expense.Description != "" {
-		descText = "\n📝 " + expense.Description
+		descText = "\n📝 " + escapeHTML(expense.Description)
 	}
 
 	currencySymbol := appmodels.SupportedCurrencies[expense.Currency]
@@ -695,7 +695,11 @@ func (b *Bot) saveExpenseCore(
 		expense.UserExpenseNumber)
 
 	if len(parsed.Tags) > 0 {
-		text += "\n🏷️ " + strings.Join(parsed.Tags, ", ")
+		escapedTags := make([]string, len(parsed.Tags))
+		for i, t := range parsed.Tags {
+			escapedTags[i] = escapeHTML(t)
+		}
+		text += "\n🏷️ " + strings.Join(escapedTags, ", ")
 	}
 
 	// Add inline edit/delete buttons
@@ -879,7 +883,7 @@ func (b *Bot) handleCategoryCore(ctx context.Context, tg TelegramAPI, update *mo
 	if matchedCategory == nil {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      fmt.Sprintf("❌ Category '%s' not found.\n\nUse /categories to see all available categories.", args),
+			Text:      fmt.Sprintf("❌ Category '%s' not found.\n\nUse /categories to see all available categories.", escapeHTML(args)),
 			ParseMode: models.ParseModeHTML,
 		})
 		return
@@ -905,7 +909,7 @@ func (b *Bot) handleCategoryCore(ctx context.Context, tg TelegramAPI, update *mo
 		})
 		return
 	}
-	header := fmt.Sprintf("📁 <b>%s Expenses</b> (Total: $%s)", matchedCategory.Name, total.StringFixed(2))
+	header := fmt.Sprintf("📁 <b>%s Expenses</b> (Total: $%s)", escapeHTML(matchedCategory.Name), total.StringFixed(2))
 	b.sendExpenseListCore(ctx, tg, chatID, expenses, header)
 
 	logger.Log.Info().
@@ -954,7 +958,7 @@ func (b *Bot) sendExpenseListCore(
 		exp := &expenses[i]
 		categoryText := ""
 		if exp.Category != nil {
-			categoryText = fmt.Sprintf(" [%s]", exp.Category.Name)
+			categoryText = fmt.Sprintf(" [%s]", escapeHTML(exp.Category.Name))
 		}
 
 		tagText := ""
@@ -968,9 +972,9 @@ func (b *Bot) sendExpenseListCore(
 
 		descText := ""
 		if exp.Merchant != "" {
-			descText = " - " + exp.Merchant
+			descText = " - " + escapeHTML(exp.Merchant)
 		} else if exp.Description != "" {
-			descText = " - " + exp.Description
+			descText = " - " + escapeHTML(exp.Description)
 		}
 
 		currencySymbol := appmodels.SupportedCurrencies[exp.Currency]
@@ -1252,7 +1256,7 @@ func (b *Bot) handleEdit(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 
 	categoryText := categoryUncategorized
 	if expense.Category != nil {
-		categoryText = expense.Category.Name
+		categoryText = escapeHTML(expense.Category.Name)
 	}
 
 	currencySymbol := appmodels.SupportedCurrencies[expense.Currency]
@@ -1270,7 +1274,7 @@ func (b *Bot) handleEdit(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 		currencySymbol,
 		expense.Amount.StringFixed(2),
 		expense.Currency,
-		expense.Description,
+		escapeHTML(expense.Description),
 		categoryText)
 
 	_, err = tgBot.SendMessage(ctx, &bot.SendMessageParams{

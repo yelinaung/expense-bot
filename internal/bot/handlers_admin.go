@@ -86,7 +86,7 @@ func (b *Bot) handleApproveCore(ctx context.Context, tg TelegramAPI, update *mod
 	}
 	_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    chatID,
-		Text:      fmt.Sprintf("User <code>@%s</code> has been approved.", targetUsername),
+		Text:      fmt.Sprintf("User <code>@%s</code> has been approved.", escapeHTML(targetUsername)),
 		ParseMode: models.ParseModeHTML,
 	})
 }
@@ -168,7 +168,7 @@ func (b *Bot) handleRevokeCore(ctx context.Context, tg TelegramAPI, update *mode
 	}
 	_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    chatID,
-		Text:      fmt.Sprintf("User <code>@%s</code> has been revoked.", targetUsername),
+		Text:      fmt.Sprintf("User <code>@%s</code> has been revoked.", escapeHTML(targetUsername)),
 		ParseMode: models.ParseModeHTML,
 	})
 }
@@ -202,7 +202,7 @@ func (b *Bot) handleUsersCore(ctx context.Context, tg TelegramAPI, update *model
 		sb.WriteString(fmt.Sprintf("  ID: <code>%d</code>\n", id))
 	}
 	for _, u := range b.cfg.WhitelistedUsernames {
-		sb.WriteString(fmt.Sprintf("  @%s\n", u))
+		sb.WriteString(fmt.Sprintf("  @%s\n", escapeHTML(u)))
 	}
 
 	approved, err := b.approvedUserRepo.GetAll(ctx)
@@ -222,11 +222,11 @@ func (b *Bot) handleUsersCore(ctx context.Context, tg TelegramAPI, update *model
 		for _, u := range approved {
 			switch {
 			case u.UserID != 0 && u.Username != "":
-				sb.WriteString(fmt.Sprintf("  ID: <code>%d</code> (@%s)\n", u.UserID, u.Username))
+				sb.WriteString(fmt.Sprintf("  ID: <code>%d</code> (@%s)\n", u.UserID, escapeHTML(u.Username)))
 			case u.UserID != 0:
 				sb.WriteString(fmt.Sprintf("  ID: <code>%d</code>\n", u.UserID))
 			default:
-				sb.WriteString(fmt.Sprintf("  @%s\n", u.Username))
+				sb.WriteString(fmt.Sprintf("  @%s\n", escapeHTML(u.Username)))
 			}
 		}
 	}

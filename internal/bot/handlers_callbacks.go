@@ -240,11 +240,11 @@ func (b *Bot) processAmountEditCore(
 	// Show updated confirmation message.
 	categoryText := categoryUncategorized
 	if expense.Category != nil {
-		categoryText = expense.Category.Name
+		categoryText = escapeHTML(expense.Category.Name)
 	} else if expense.CategoryID != nil {
 		cat, err := b.categoryRepo.GetByID(ctx, *expense.CategoryID)
 		if err == nil {
-			categoryText = cat.Name
+			categoryText = escapeHTML(cat.Name)
 		}
 	}
 
@@ -258,7 +258,7 @@ func (b *Bot) processAmountEditCore(
 
 Amount updated. Confirm to save.`,
 		expense.Amount.StringFixed(2),
-		expense.Merchant,
+		escapeHTML(expense.Merchant),
 		categoryText)
 
 	// Edit the original message.
@@ -328,11 +328,11 @@ func (b *Bot) processMerchantEditCore(
 
 	categoryText := categoryUncategorized
 	if expense.Category != nil {
-		categoryText = expense.Category.Name
+		categoryText = escapeHTML(expense.Category.Name)
 	} else if expense.CategoryID != nil {
 		cat, err := b.categoryRepo.GetByID(ctx, *expense.CategoryID)
 		if err == nil {
-			categoryText = cat.Name
+			categoryText = escapeHTML(cat.Name)
 		}
 	}
 
@@ -346,7 +346,7 @@ func (b *Bot) processMerchantEditCore(
 
 Merchant updated. Confirm to save.`,
 		expense.Amount.StringFixed(2),
-		expense.Merchant,
+		escapeHTML(expense.Merchant),
 		categoryText)
 
 	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
@@ -449,8 +449,8 @@ func (b *Bot) showCategorySelectionCore(
 
 Current: %s
 
-Choose a new category:`,
-		getCategoryName(expense))
+		Choose a new category:`,
+		escapeHTML(getCategoryName(expense)))
 
 	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      chatID,
@@ -537,8 +537,8 @@ func (b *Bot) handleSetCategoryCallbackCore(ctx context.Context, tg TelegramAPI,
 
 Category updated. Confirm to save.`,
 		expense.Amount.StringFixed(2),
-		expense.Merchant,
-		category.Name)
+		escapeHTML(expense.Merchant),
+		escapeHTML(category.Name))
 
 	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      chatID,
@@ -800,7 +800,7 @@ func (b *Bot) handleInlineEditExpenseCore(
 ) {
 	categoryText := categoryUncategorized
 	if expense.Category != nil {
-		categoryText = expense.Category.Name
+		categoryText = escapeHTML(expense.Category.Name)
 	}
 
 	text := fmt.Sprintf(`✏️ <b>Edit Expense #%d</b>
@@ -813,7 +813,7 @@ Current Details:
 What would you like to edit?`,
 		expense.UserExpenseNumber,
 		expense.Amount.StringFixed(2),
-		expense.Description,
+		escapeHTML(expense.Description),
 		categoryText)
 
 	keyboard := &models.InlineKeyboardMarkup{
@@ -860,7 +860,7 @@ Are you sure you want to delete this expense?
 
 This action cannot be undone.`,
 		expense.Amount.StringFixed(2),
-		expense.Description,
+		escapeHTML(expense.Description),
 		expense.UserExpenseNumber)
 
 	keyboard := &models.InlineKeyboardMarkup{
@@ -997,12 +997,12 @@ func (b *Bot) handleBackToExpenseCallbackCore(ctx context.Context, tg TelegramAP
 
 	categoryText := categoryUncategorized
 	if expense.Category != nil {
-		categoryText = expense.Category.Name
+		categoryText = escapeHTML(expense.Category.Name)
 	}
 
 	descText := ""
 	if expense.Description != "" {
-		descText = "\n📝 " + expense.Description
+		descText = "\n📝 " + escapeHTML(expense.Description)
 	}
 
 	text := fmt.Sprintf(`✅ <b>Expense Added</b>

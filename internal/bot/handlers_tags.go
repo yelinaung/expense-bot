@@ -294,7 +294,7 @@ func (b *Bot) handleTagsCore(ctx context.Context, tg TelegramAPI, update *models
 
 	if args == "" {
 		// List all tags.
-		tags, err := b.tagRepo.GetAll(ctx)
+		tags, err := b.tagRepo.GetAllByUserID(ctx, userID)
 		if err != nil {
 			logger.Log.Error().Err(err).Msg("Failed to fetch tags")
 			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{

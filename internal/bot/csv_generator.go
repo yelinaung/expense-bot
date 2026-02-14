@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"gitlab.com/yelinaung/expense-bot/internal/models"
@@ -14,6 +15,23 @@ const (
 	periodWeek  = "week"
 	periodMonth = "month"
 )
+
+// sanitizeCSVCell prefixes cell values that could be interpreted as
+// formulas by spreadsheet applications.
+func sanitizeCSVCell(s string) string {
+	if s == "" {
+		return s
+	}
+	trimmed := strings.TrimLeft(s, " ")
+	if trimmed == "" {
+		return s
+	}
+	switch trimmed[0] {
+	case '=', '+', '-', '@', '\t', '\r':
+		return "'" + s
+	}
+	return s
+}
 
 // GenerateExpensesCSV generates a CSV file from a list of expenses.
 func GenerateExpensesCSV(expenses []models.Expense) ([]byte, error) {
@@ -38,9 +56,9 @@ func GenerateExpensesCSV(expenses []models.Expense) ([]byte, error) {
 			expenses[i].CreatedAt.Format("2006-01-02 15:04:05"),
 			expenses[i].Amount.StringFixed(2),
 			expenses[i].Currency,
-			expenses[i].Description,
-			expenses[i].Merchant,
-			categoryName,
+			sanitizeCSVCell(expenses[i].Description),
+			sanitizeCSVCell(expenses[i].Merchant),
+			sanitizeCSVCell(categoryName),
 		}
 
 		if err := writer.Write(row); err != nil {

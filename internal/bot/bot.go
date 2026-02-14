@@ -19,6 +19,12 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
 )
 
+var downloadClient = &http.Client{
+	Timeout: 30 * time.Second,
+}
+
+const maxDownloadBytes = 10 << 20
+
 // pendingEdit represents a pending edit operation waiting for user input.
 type pendingEdit struct {
 	ExpenseID int
@@ -267,7 +273,7 @@ func logUserAction(userID int64, username string, update *tgmodels.Update) {
 			Int64("chat_id", msg.Chat.ID)
 
 		if msg.Text != "" {
-			event = event.Str("text", msg.Text)
+			event = event.Str("text", logger.SanitizeText(msg.Text))
 		}
 		if len(msg.Photo) > 0 {
 			event = event.Str("type", "photo")
@@ -292,7 +298,7 @@ func logUserAction(userID int64, username string, update *tgmodels.Update) {
 		logger.Log.Debug().
 			Int64("user_id", userID).
 			Str("username", username).
-			Str("text", update.EditedMessage.Text).
+			Str("text", logger.SanitizeText(update.EditedMessage.Text)).
 			Msg("Edited message")
 	}
 }
@@ -367,7 +373,7 @@ func (b *Bot) defaultHandler(ctx context.Context, tgBot *bot.Bot, update *tgmode
 
 	logger.Log.Debug().
 		Int64("chat_id", chatID).
-		Str("text", update.Message.Text).
+		Str("text", logger.SanitizeText(update.Message.Text)).
 		Msg("Default handler triggered")
 
 	if update.Message.Voice != nil {
@@ -415,7 +421,7 @@ func (b *Bot) downloadFile(ctx context.Context, tg TelegramAPI, fileID string) (
 		return nil, fmt.Errorf("failed to create download request: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := downloadClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download file: %w", err)
 	}
@@ -425,9 +431,12 @@ func (b *Bot) downloadFile(ctx context.Context, tg TelegramAPI, fileID string) (
 		return nil, fmt.Errorf("download failed with status: %d", resp.StatusCode)
 	}
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxDownloadBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file data: %w", err)
+	}
+	if len(data) > maxDownloadBytes {
+		return nil, fmt.Errorf("downloaded file exceeds size limit (%d bytes)", maxDownloadBytes)
 	}
 
 	return data, nil

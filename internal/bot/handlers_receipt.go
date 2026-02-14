@@ -181,7 +181,7 @@ func (b *Bot) handlePhotoCore(ctx context.Context, tg TelegramAPI, update *model
 
 	categoryText := categoryUncategorized
 	if category != nil {
-		categoryText = category.Name
+		categoryText = escapeHTML(category.Name)
 	}
 
 	dateText := "Unknown"
@@ -201,7 +201,7 @@ func (b *Bot) handlePhotoCore(ctx context.Context, tg TelegramAPI, update *model
 
 <i>Some data could not be extracted. Please edit or confirm.</i>`,
 			expense.Amount.StringFixed(2),
-			expense.Merchant,
+			escapeHTML(expense.Merchant),
 			dateText,
 			categoryText)
 	} else {
@@ -212,7 +212,7 @@ func (b *Bot) handlePhotoCore(ctx context.Context, tg TelegramAPI, update *model
 📅 Date: %s
 📁 Category: %s`,
 			expense.Amount.StringFixed(2),
-			expense.Merchant,
+			escapeHTML(expense.Merchant),
 			dateText,
 			categoryText)
 	}
@@ -314,11 +314,11 @@ func (b *Bot) handleBackToReceiptCore(
 ) {
 	categoryText := categoryUncategorized
 	if expense.Category != nil {
-		categoryText = expense.Category.Name
+		categoryText = escapeHTML(expense.Category.Name)
 	} else if expense.CategoryID != nil {
 		cat, err := b.categoryRepo.GetByID(ctx, *expense.CategoryID)
 		if err == nil {
-			categoryText = cat.Name
+			categoryText = escapeHTML(cat.Name)
 		}
 	}
 
@@ -328,7 +328,7 @@ func (b *Bot) handleBackToReceiptCore(
 🏪 Merchant: %s
 📁 Category: %s`,
 		expense.Amount.StringFixed(2),
-		expense.Merchant,
+		escapeHTML(expense.Merchant),
 		categoryText)
 
 	keyboard := buildReceiptConfirmationKeyboard(expense.ID)
@@ -363,11 +363,11 @@ func (b *Bot) handleConfirmReceiptCore(
 
 	categoryText := categoryUncategorized
 	if expense.Category != nil {
-		categoryText = expense.Category.Name
+		categoryText = escapeHTML(expense.Category.Name)
 	} else if expense.CategoryID != nil {
 		cat, err := b.categoryRepo.GetByID(ctx, *expense.CategoryID)
 		if err == nil {
-			categoryText = cat.Name
+			categoryText = escapeHTML(cat.Name)
 		}
 	}
 
@@ -380,7 +380,7 @@ func (b *Bot) handleConfirmReceiptCore(
 
 Expense #%d has been saved.`,
 		expense.Amount.StringFixed(2),
-		expense.Merchant,
+		escapeHTML(expense.Merchant),
 		categoryText,
 		expense.CreatedAt.In(b.displayLocation).Format("02 Jan 2006"),
 		expense.UserExpenseNumber)
@@ -452,11 +452,11 @@ func (b *Bot) handleEditReceiptCore(
 
 	categoryText := categoryUncategorized
 	if expense.Category != nil {
-		categoryText = expense.Category.Name
+		categoryText = escapeHTML(expense.Category.Name)
 	} else if expense.CategoryID != nil {
 		cat, err := b.categoryRepo.GetByID(ctx, *expense.CategoryID)
 		if err == nil {
-			categoryText = cat.Name
+			categoryText = escapeHTML(cat.Name)
 		}
 	}
 
@@ -468,7 +468,7 @@ func (b *Bot) handleEditReceiptCore(
 
 Select what to edit:`,
 		expense.Amount.StringFixed(2),
-		expense.Merchant,
+		escapeHTML(expense.Merchant),
 		categoryText)
 
 	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
