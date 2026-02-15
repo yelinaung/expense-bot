@@ -95,12 +95,7 @@ ENSURE that the test coverage stays at or above 50% (CI enforced).
 
 ## Formatting
 
-- ALWAYS format any Go code you write.
-  - First, try `gofumpt -w .`.
-  - If `gofumpt` is not available, use `goimports`.
-  - If `goimports` is not available, use `gofmt`.
-  - You can also use `task fmt` to run `gofumpt -w .` on the entire project,
-    as long as `gofumpt` is on the `PATH`.
+- ALWAYS format any Go code you write with `make fmt`
 
 ## Comments
 
@@ -115,6 +110,7 @@ ENSURE that the test coverage stays at or above 50% (CI enforced).
 - ALWAYS run pre-commits before pushing
 - Try to keep commits to one line, not including your attribution. Only use
   multi-line commits when additional context is truly necessary.
+- Push to all remotes with `make push`.
 
 ## Working on the TUI (UI)
-Anytime you need to work on the tui before starting work read the internal/ui/AGENTS.md file
+Anytime you starts the work, read the AGENTS.md file
