@@ -226,8 +226,9 @@ func (b *Bot) isAuthorized(ctx context.Context, userID int64, username string) b
 	isSuperAdmin, newBinding := b.cfg.CheckSuperAdmin(userID, username)
 	if isSuperAdmin {
 		if newBinding != nil {
+			saveCtx := context.WithoutCancel(ctx)
 			go func() {
-				if err := b.bindingRepo.Save(context.Background(), newBinding.Username, newBinding.UserID); err != nil {
+				if err := b.bindingRepo.Save(saveCtx, newBinding.Username, newBinding.UserID); err != nil {
 					logger.Log.Error().Err(err).
 						Str("username", newBinding.Username).
 						Int64("user_id", newBinding.UserID).
@@ -252,8 +253,9 @@ func (b *Bot) isAuthorized(ctx context.Context, userID int64, username string) b
 	}
 	if needsBackfill {
 		// Backfill user_id for username-only approved users (fire-and-forget).
+		backfillCtx := context.WithoutCancel(ctx)
 		go func() {
-			if err := b.approvedUserRepo.UpdateUserID(context.Background(), username, userID); err != nil {
+			if err := b.approvedUserRepo.UpdateUserID(backfillCtx, username, userID); err != nil {
 				logger.Log.Debug().Err(err).Str("username", username).Msg("Failed to backfill user ID")
 			}
 		}()
