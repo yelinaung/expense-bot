@@ -157,6 +157,13 @@ func TestParseExpenseInput_Currency(t *testing.T) {
 			wantDesc:     "lunch",
 			wantCurrency: "SGD",
 		},
+		{
+			name:         "trailing dollar with baht keyword uses THB",
+			input:        "20$ baht sim card",
+			wantAmt:      "20.00",
+			wantDesc:     "sim card",
+			wantCurrency: "THB",
+		},
 	}
 
 	for _, tt := range tests {

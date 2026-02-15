@@ -716,3 +716,31 @@ func TestSuggestCategory_ConfidenceValidation(t *testing.T) {
 		require.Contains(t, err.Error(), "confidence out of range")
 	})
 }
+
+func TestSuggestCategory_SanitizesCategoryEnum(t *testing.T) {
+	t.Parallel()
+
+	categories := []string{
+		"Food - Dining Out",
+		"",
+		"   ",
+		"Transportation",
+		"transportation",
+		"Utilities\n",
+	}
+	mockGen := &mockGenerator{
+		response: createMockCategoryResponse("Transportation", 0.92, "taxi"),
+	}
+	client := NewClientWithGenerator(mockGen)
+
+	suggestion, err := client.SuggestCategory(context.Background(), "taxi", categories)
+	require.NoError(t, err)
+	require.NotNil(t, suggestion)
+	require.NotNil(t, mockGen.lastConfig)
+	require.NotNil(t, mockGen.lastConfig.ResponseSchema)
+
+	categorySchema := mockGen.lastConfig.ResponseSchema.Properties["category"]
+	require.NotNil(t, categorySchema)
+	require.Equal(t, []string{"Food - Dining Out", "Transportation", "Utilities"}, categorySchema.Enum)
+	require.NotContains(t, categorySchema.Enum, "")
+}

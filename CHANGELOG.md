@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.6.3] - 2026-02-15 - Runtime FX/AI Fixes
+
+### Fixed
+- **Gemini Category Suggestion Schema**:
+  - Removed invalid empty enum values from the `category` response schema that caused Gemini `400 INVALID_ARGUMENT` errors.
+  - Sanitized and deduplicated available category lists before prompt/schema generation.
+- **Exchange Service Initialization**:
+  - Wired exchange service initialization in `bot.New` so currency conversion works in production runtime instead of always falling back to `fx_unavailable`.
+- **Currency Parsing for THB Inputs**:
+  - Improved parser behavior for inputs like `20$ baht sim card` by recognizing `baht` as `THB`.
+  - Added regression tests for THB keyword parsing.
+
 ## [v0.6.2] - 2026-02-15 - Currency Conversion, Security Hardening & CI Quality
 
 ### Added

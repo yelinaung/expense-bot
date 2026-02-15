@@ -33,23 +33,24 @@ type CategorySuggestion struct {
 
 // SuggestCategory uses Gemini to suggest an appropriate category for an expense description.
 func (c *Client) SuggestCategory(ctx context.Context, description string, availableCategories []string) (*CategorySuggestion, error) {
+	cleanedCategories := sanitizeAvailableCategories(availableCategories)
 	descHash := hashDescription(description)
 	logger.Log.Debug().
 		Str("description_hash", descHash).
-		Int("category_count", len(availableCategories)).
+		Int("category_count", len(cleanedCategories)).
 		Msg("SuggestCategory called")
 
-	if err := c.validateSuggestCategoryInput(description, availableCategories); err != nil {
+	if err := c.validateSuggestCategoryInput(description, cleanedCategories); err != nil {
 		return nil, err
 	}
 
 	// Sanitize description to prevent prompt injection attacks.
 	sanitizedDescription := sanitizeDescription(description)
 
-	prompt := buildCategorySuggestionPrompt(sanitizedDescription, availableCategories)
+	prompt := buildCategorySuggestionPrompt(sanitizedDescription, cleanedCategories)
 	logger.Log.Debug().
 		Str("description_hash", descHash).
-		Int("category_count", len(availableCategories)).
+		Int("category_count", len(cleanedCategories)).
 		Msg("SuggestCategory: sending prompt to Gemini")
 
 	// Set timeout for API call
@@ -80,8 +81,8 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 			Properties: map[string]*genai.Schema{
 				"category": {
 					Type:        genai.TypeString,
-					Enum:        append(append([]string{}, availableCategories...), ""),
-					Description: "Category from provided list when matched=true; otherwise empty string",
+					Enum:        append([]string{}, cleanedCategories...),
+					Description: "Category from provided list when matched=true",
 				},
 				"confidence": {
 					Type:        genai.TypeNumber,
@@ -100,7 +101,7 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 					Description: "Suggested new category name when matched=false; otherwise empty string",
 				},
 			},
-			Required: []string{"category", "confidence", "reasoning", "matched", "new_category_name"},
+			Required: []string{"confidence", "reasoning", "matched", "new_category_name"},
 		},
 	}
 
@@ -119,7 +120,7 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 		Float64("confidence", suggestion.Confidence).
 		Msg("SuggestCategory: parsed Gemini suggestion")
 
-	return normalizeSuggestion(suggestion, availableCategories, descHash)
+	return normalizeSuggestion(suggestion, cleanedCategories, descHash)
 }
 
 func (c *Client) validateSuggestCategoryInput(description string, availableCategories []string) error {
@@ -136,6 +137,30 @@ func (c *Client) validateSuggestCategoryInput(description string, availableCateg
 		return errors.New("no categories available")
 	}
 	return nil
+}
+
+func sanitizeAvailableCategories(availableCategories []string) []string {
+	if len(availableCategories) == 0 {
+		return nil
+	}
+
+	cleaned := make([]string, 0, len(availableCategories))
+	seen := make(map[string]struct{}, len(availableCategories))
+
+	for _, cat := range availableCategories {
+		sanitized := strings.TrimSpace(SanitizeCategoryName(cat))
+		if sanitized == "" {
+			continue
+		}
+		key := strings.ToLower(sanitized)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		cleaned = append(cleaned, sanitized)
+	}
+
+	return cleaned
 }
 
 func (c *Client) callSuggestCategory(

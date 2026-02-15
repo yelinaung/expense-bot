@@ -87,6 +87,7 @@ func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 		approvedUserRepo: repository.NewApprovedUserRepository(db),
 		bindingRepo:      bindingRepo,
 		pendingEdits:     make(map[int64]*pendingEdit),
+		exchangeService:  newExchangeService(cfg),
 	}
 
 	if cfg.GeminiAPIKey != "" {
@@ -121,6 +122,11 @@ func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 	b.registerHandlers()
 
 	return b, nil
+}
+
+func newExchangeService(cfg *config.Config) exchange.Converter {
+	client := exchange.NewFrankfurterClient(cfg.ExchangeRateBaseURL, cfg.ExchangeRateTimeout)
+	return exchange.NewCachedService(client, cfg.ExchangeRateCacheTTL)
 }
 
 const (

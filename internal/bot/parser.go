@@ -63,6 +63,10 @@ var currencySymbolToCode = map[string]string{
 	"Rp":  "IDR",
 }
 
+var currencyWordToCode = map[string]string{
+	"BAHT": "THB",
+}
+
 // currencyPrefixRegex matches currency symbols or codes at the start.
 // Matches: $, €, £, ¥, S$, A$, RM, Rp, or 3-letter codes like USD, SGD.
 var currencyPrefixRegex = regexp.MustCompile(`^(S\$|A\$|HK\$|NZ\$|NT\$|RM|Rp|[$€£¥฿₱₫₩₹]|[A-Z]{3})\s*`)
@@ -221,9 +225,15 @@ func parseImmediateCurrencyCode(detectedCurrency, rest string) (string, string) 
 	if len(fields) == 0 {
 		return detectedCurrency, rest
 	}
-	code := strings.ToUpper(fields[0])
+
+	token := strings.Trim(fields[0], ".,;:")
+	code := strings.ToUpper(token)
 	if _, ok := models.SupportedCurrencies[code]; !ok {
-		return detectedCurrency, rest
+		wordCode, wordOK := currencyWordToCode[code]
+		if !wordOK {
+			return detectedCurrency, rest
+		}
+		code = wordCode
 	}
 	if detectedCurrency != "" && detectedCurrency != code {
 		return detectedCurrency, rest
