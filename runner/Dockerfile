@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends jq && \
     rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /opt/hostedtoolcache/go/${GO_VERSION}/x64 && \
-    curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" | \
+    curl --proto "=https" --tlsv1.2 -sSf -L "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" | \
     tar -xz -C /opt/hostedtoolcache/go/${GO_VERSION}/x64 --strip-components=1 && \
     touch /opt/hostedtoolcache/go/${GO_VERSION}/x64.complete
 
@@ -22,11 +22,11 @@ ENV PATH="/opt/hostedtoolcache/go/${GO_VERSION}/x64/bin:/opt/hostedtoolcache/go/
 RUN go install mvdan.cc/gofumpt@latest && \
     go install golang.org/x/vuln/cmd/govulncheck@latest && \
     go install github.com/securego/gosec/v2/cmd/gosec@latest && \
-    curl -fsSL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | \
+    curl --proto "=https" --tlsv1.2 -sSf -L "https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh" | \
     sh -s -- -b "${GOBIN}" "v${GOLANGCI_LINT_VERSION}" && \
-    curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | \
+    curl --proto "=https" --tlsv1.2 -sSf -L "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | \
     tar -xz -C /usr/local/bin gitleaks && \
-    curl -fsSL "https://github.com/goreleaser/goreleaser/releases/download/v${GORELEASER_VERSION}/goreleaser_Linux_x86_64.tar.gz" | \
+    curl --proto "=https" --tlsv1.2 -sSf -L "https://github.com/goreleaser/goreleaser/releases/download/v${GORELEASER_VERSION}/goreleaser_Linux_x86_64.tar.gz" | \
     tar -xz -C /usr/local/bin goreleaser && \
     go clean -modcache
 
