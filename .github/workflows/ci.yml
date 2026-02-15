@@ -29,14 +29,18 @@ jobs:
   sast:
     name: SAST (Semgrep)
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
-    container:
-      image: semgrep/semgrep
     permissions:
       contents: read
       security-events: write
     if: github.actor != 'dependabot[bot]'
     steps:
       - uses: actions/checkout@v6
+
+      - name: Install Semgrep
+        run: |
+          if ! command -v semgrep &>/dev/null; then
+            pip install semgrep
+          fi
 
       - name: Run Semgrep
         run: semgrep ci
