@@ -7,7 +7,8 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY . .
+COPY main.go ./
+COPY internal ./internal
 ARG VERSION=dev
 ARG COMMIT=none
 ARG BUILD_DATE=unknown

@@ -1,0 +1,41 @@
+# VCS and local env.
+.git
+.gitignore
+.github
+.gitlab-ci.yml
+.env
+.env.*
+!.env.example
+
+# Docs and local tooling.
+docs/
+scripts/
+runner/
+.agents/
+.claude/
+AGENTS.md
+
+# Build/test artifacts.
+bin/
+tmp/
+*.out
+*.test
+coverage.out
+cover.out
+graph.png
+expense-bot
+
+# Compose and release/dev metadata not needed for build.
+docker-compose*.yml
+Makefile
+CHANGELOG.md
+CONTRIBUTING.md
+LICENSE
+Procfile
+renovate.json
+generate_graph.go
+
+# Editor/OS noise.
+.DS_Store
+*.swp
+*.swo

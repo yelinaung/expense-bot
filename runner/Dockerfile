@@ -5,6 +5,8 @@ ARG GOLANGCI_LINT_VERSION=2.8.0
 ARG GORELEASER_VERSION=2.8.2
 ARG GITLEAKS_VERSION=8.30.0
 
+USER root
+
 RUN apt-get update && apt-get install -y --no-install-recommends jq && \
     rm -rf /var/lib/apt/lists/*
 
@@ -27,3 +29,5 @@ RUN go install mvdan.cc/gofumpt@latest && \
     curl -fsSL "https://github.com/goreleaser/goreleaser/releases/download/v${GORELEASER_VERSION}/goreleaser_Linux_x86_64.tar.gz" | \
     tar -xz -C /usr/local/bin goreleaser && \
     go clean -modcache
+
+USER runner
