@@ -11,6 +11,8 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
 )
 
+const onlySuperadminsMsg = "⛔ Only superadmins can use this command."
+
 // extractAdminArgs extracts command arguments while preserving @username args.
 // Unlike extractCommandArgs, it only strips the command word (and any bot mention
 // attached to it), preserving @username as an argument rather than stripping it.
@@ -41,7 +43,7 @@ func (b *Bot) handleApproveCore(ctx context.Context, tg TelegramAPI, update *mod
 	if !b.cfg.IsSuperAdmin(userID, username) {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "⛔ Only superadmins can use this command.",
+			Text:   onlySuperadminsMsg,
 		})
 		return
 	}
@@ -109,7 +111,7 @@ func (b *Bot) handleRevokeCore(ctx context.Context, tg TelegramAPI, update *mode
 	if !b.cfg.IsSuperAdmin(userID, username) {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "⛔ Only superadmins can use this command.",
+			Text:   onlySuperadminsMsg,
 		})
 		return
 	}
@@ -191,7 +193,7 @@ func (b *Bot) handleUsersCore(ctx context.Context, tg TelegramAPI, update *model
 	if !b.cfg.IsSuperAdmin(userID, username) {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "⛔ Only superadmins can use this command.",
+			Text:   onlySuperadminsMsg,
 		})
 		return
 	}

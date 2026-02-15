@@ -13,6 +13,11 @@ import (
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
+const (
+	valentineRosesDesc = "Valentine roses"
+	fxUnavailableNote  = "[fx_unavailable: kept USD, target SGD]"
+)
+
 type mockExchangeService struct {
 	result exchange.ConversionResult
 	err    error
@@ -77,11 +82,11 @@ func TestConvertExpenseCurrency(t *testing.T) {
 			userID,
 			decimal.RequireFromString("18"),
 			"USD",
-			"Valentine roses",
+			valentineRosesDesc,
 		)
 		require.Equal(t, decimal.RequireFromString("24.30"), amount)
 		require.Equal(t, "SGD", currency)
-		require.Contains(t, description, "Valentine roses")
+		require.Contains(t, description, valentineRosesDesc)
 		require.Contains(t, description, "[orig: 18.00 USD -> 24.30 SGD @ 1.3500 (2026-02-14)]")
 		require.Equal(t, 1, mockSvc.calls)
 	})
@@ -95,11 +100,11 @@ func TestConvertExpenseCurrency(t *testing.T) {
 			userID,
 			decimal.RequireFromString("18"),
 			"USD",
-			"Valentine roses",
+			valentineRosesDesc,
 		)
 		require.Equal(t, decimal.RequireFromString("18"), amount)
 		require.Equal(t, "USD", currency)
-		require.Contains(t, description, "[fx_unavailable: kept USD, target SGD]")
+		require.Contains(t, description, fxUnavailableNote)
 		require.Equal(t, 1, mockSvc.calls)
 	})
 }
@@ -129,7 +134,7 @@ func TestSaveExpenseCore_ConvertsCurrencyToDefault(t *testing.T) {
 	parsed := &ParsedExpense{
 		Amount:      decimal.RequireFromString("18"),
 		Currency:    "USD",
-		Description: "Valentine roses",
+		Description: valentineRosesDesc,
 	}
 
 	mockBot := mocks.NewMockBot()
@@ -146,7 +151,7 @@ func TestSaveExpenseCore_ConvertsCurrencyToDefault(t *testing.T) {
 	require.Equal(t, "SGD", expenses[0].Currency)
 	require.True(t, decimal.RequireFromString("24.30").Equal(expenses[0].Amount))
 	require.Contains(t, expenses[0].Description, "[orig: 18.00 USD -> 24.30 SGD @ 1.3500 (2026-02-14)]")
-	require.Equal(t, "Valentine roses", expenses[0].Merchant)
+	require.Equal(t, valentineRosesDesc, expenses[0].Merchant)
 }
 
 func TestSaveExpenseCore_ExchangeOutageDoesNotBlockSave(t *testing.T) {
@@ -168,7 +173,7 @@ func TestSaveExpenseCore_ExchangeOutageDoesNotBlockSave(t *testing.T) {
 	parsed := &ParsedExpense{
 		Amount:      decimal.RequireFromString("18"),
 		Currency:    "USD",
-		Description: "Valentine roses",
+		Description: valentineRosesDesc,
 	}
 
 	mockBot := mocks.NewMockBot()
@@ -177,13 +182,13 @@ func TestSaveExpenseCore_ExchangeOutageDoesNotBlockSave(t *testing.T) {
 	require.Equal(t, 1, mockBot.SentMessageCount())
 	msg := mockBot.LastSentMessage()
 	require.Contains(t, msg.Text, "$18.00 USD")
-	require.Contains(t, msg.Text, "[fx_unavailable: kept USD, target SGD]")
+	require.Contains(t, msg.Text, fxUnavailableNote)
 
 	expenses, err := b.expenseRepo.GetByUserID(ctx, userID, 1)
 	require.NoError(t, err)
 	require.Len(t, expenses, 1)
 	require.Equal(t, "USD", expenses[0].Currency)
 	require.True(t, decimal.RequireFromString("18").Equal(expenses[0].Amount))
-	require.Contains(t, expenses[0].Description, "[fx_unavailable: kept USD, target SGD]")
-	require.Equal(t, "Valentine roses", expenses[0].Merchant)
+	require.Contains(t, expenses[0].Description, fxUnavailableNote)
+	require.Equal(t, valentineRosesDesc, expenses[0].Merchant)
 }

@@ -7,24 +7,31 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
+const (
+	foodDiningOutCatMatch  = "Food - Dining Out"
+	foodGroceryCatMatch    = "Food - Grocery"
+	healthWellnessCatMatch = "Health and Wellness"
+	travelVacationCatMatch = "Travel & Vacation"
+)
+
 func TestMatchCategory(t *testing.T) {
 	t.Parallel()
 
 	categories := []models.Category{
-		{ID: 1, Name: "Food - Dining Out"},
-		{ID: 2, Name: "Food - Grocery"},
+		{ID: 1, Name: foodDiningOutCatMatch},
+		{ID: 2, Name: foodGroceryCatMatch},
 		{ID: 3, Name: "Transportation"},
 		{ID: 4, Name: "Communication"},
 		{ID: 5, Name: "Housing - Mortgage"},
 		{ID: 6, Name: "Housing - Others"},
 		{ID: 7, Name: "Personal Care"},
-		{ID: 8, Name: "Health and Wellness"},
+		{ID: 8, Name: healthWellnessCatMatch},
 		{ID: 9, Name: "Education"},
 		{ID: 10, Name: "Entertainment"},
 		{ID: 11, Name: "Credit/Debt Payments"},
 		{ID: 12, Name: "Others"},
 		{ID: 13, Name: "Utilities"},
-		{ID: 14, Name: "Travel & Vacation"},
+		{ID: 14, Name: travelVacationCatMatch},
 		{ID: 15, Name: "Subscriptions"},
 		{ID: 16, Name: "Donations"},
 	}
@@ -38,15 +45,15 @@ func TestMatchCategory(t *testing.T) {
 	}{
 		{
 			name:      "exact match",
-			suggested: "Food - Dining Out",
+			suggested: foodDiningOutCatMatch,
 			wantCatID: 1,
-			wantName:  "Food - Dining Out",
+			wantName:  foodDiningOutCatMatch,
 		},
 		{
 			name:      "exact match case insensitive",
 			suggested: "food - dining out",
 			wantCatID: 1,
-			wantName:  "Food - Dining Out",
+			wantName:  foodDiningOutCatMatch,
 		},
 		{
 			name:      "exact match uppercase",
@@ -58,13 +65,13 @@ func TestMatchCategory(t *testing.T) {
 			name:      "contains match - dining",
 			suggested: "dining",
 			wantCatID: 1,
-			wantName:  "Food - Dining Out",
+			wantName:  foodDiningOutCatMatch,
 		},
 		{
 			name:      "contains match - grocery",
 			suggested: "grocery",
 			wantCatID: 2,
-			wantName:  "Food - Grocery",
+			wantName:  foodGroceryCatMatch,
 		},
 		{
 			name:      "contains match - transport",
@@ -76,7 +83,7 @@ func TestMatchCategory(t *testing.T) {
 			name:      "contains match - wellness",
 			suggested: "wellness",
 			wantCatID: 8,
-			wantName:  "Health and Wellness",
+			wantName:  healthWellnessCatMatch,
 		},
 		{
 			name:      "contains match - mortgage",
@@ -88,19 +95,19 @@ func TestMatchCategory(t *testing.T) {
 			name:      "word match - travel",
 			suggested: "travel",
 			wantCatID: 14,
-			wantName:  "Travel & Vacation",
+			wantName:  travelVacationCatMatch,
 		},
 		{
 			name:      "word match - vacation",
 			suggested: "vacation",
 			wantCatID: 14,
-			wantName:  "Travel & Vacation",
+			wantName:  travelVacationCatMatch,
 		},
 		{
 			name:      "word match - health",
 			suggested: "health",
 			wantCatID: 8,
-			wantName:  "Health and Wellness",
+			wantName:  healthWellnessCatMatch,
 		},
 		{
 			name:      "word match - entertainment",
@@ -126,8 +133,8 @@ func TestMatchCategory(t *testing.T) {
 		{
 			name:      "contains match - food",
 			suggested: "food",
-			wantCatID: 2, // "Food - Grocery" is shorter than "Food - Dining Out".
-			wantName:  "Food - Grocery",
+			wantCatID: 2, // foodGroceryCatMatch is shorter than foodDiningOutCatMatch.
+			wantName:  foodGroceryCatMatch,
 		},
 		{
 			name:      "contains match - housing",
@@ -139,7 +146,7 @@ func TestMatchCategory(t *testing.T) {
 			name:      "reverse contains - suggested has category name",
 			suggested: "Restaurant Food - Dining Out expenses",
 			wantCatID: 1,
-			wantName:  "Food - Dining Out",
+			wantName:  foodDiningOutCatMatch,
 		},
 	}
 
@@ -185,7 +192,7 @@ func TestExtractSignificantWords(t *testing.T) {
 		},
 		{
 			name:  "with dash separator",
-			input: "Food - Dining Out",
+			input: foodDiningOutCatMatch,
 			want:  []string{"food", "dining", "out"},
 		},
 		{
@@ -195,12 +202,12 @@ func TestExtractSignificantWords(t *testing.T) {
 		},
 		{
 			name:  "with ampersand",
-			input: "Travel & Vacation",
+			input: travelVacationCatMatch,
 			want:  []string{"travel", "vacation"},
 		},
 		{
 			name:  "filters stop words",
-			input: "Health and Wellness",
+			input: healthWellnessCatMatch,
 			want:  []string{"health", "wellness"},
 		},
 		{

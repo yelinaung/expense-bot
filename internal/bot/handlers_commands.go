@@ -17,6 +17,11 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
 )
 
+const (
+	failedFetchCategoriesMsg = "❌ Failed to fetch categories. Please try again."
+	failedFetchExpensesMsg   = "❌ Failed to fetch expenses. Please try again."
+)
+
 // extractCommandArgs strips the /command prefix (and optional @botname suffix)
 // from a message and returns the remaining trimmed arguments.
 func extractCommandArgs(text, command string) string {
@@ -166,7 +171,7 @@ func (b *Bot) handleCategoriesCore(ctx context.Context, tg TelegramAPI, update *
 	if err != nil {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
-			Text:   "❌ Failed to fetch categories. Please try again.",
+			Text:   failedFetchCategoriesMsg,
 		})
 		return
 	}
@@ -803,7 +808,7 @@ func (b *Bot) handleListCore(ctx context.Context, tg TelegramAPI, update *models
 		logger.Log.Error().Err(err).Msg("Failed to fetch expenses")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Failed to fetch expenses. Please try again.",
+			Text:   failedFetchExpensesMsg,
 		})
 		return
 	}
@@ -834,7 +839,7 @@ func (b *Bot) handleTodayCore(ctx context.Context, tg TelegramAPI, update *model
 		logger.Log.Error().Err(err).Msg("Failed to fetch today's expenses")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Failed to fetch expenses. Please try again.",
+			Text:   failedFetchExpensesMsg,
 		})
 		return
 	}
@@ -844,7 +849,7 @@ func (b *Bot) handleTodayCore(ctx context.Context, tg TelegramAPI, update *model
 		logger.Log.Error().Err(err).Msg("Failed to calculate today's total")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Failed to fetch expenses. Please try again.",
+			Text:   failedFetchExpensesMsg,
 		})
 		return
 	}
@@ -879,7 +884,7 @@ func (b *Bot) handleWeekCore(ctx context.Context, tg TelegramAPI, update *models
 		logger.Log.Error().Err(err).Msg("Failed to fetch week's expenses")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Failed to fetch expenses. Please try again.",
+			Text:   failedFetchExpensesMsg,
 		})
 		return
 	}
@@ -889,7 +894,7 @@ func (b *Bot) handleWeekCore(ctx context.Context, tg TelegramAPI, update *models
 		logger.Log.Error().Err(err).Msg("Failed to calculate week's total")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Failed to fetch expenses. Please try again.",
+			Text:   failedFetchExpensesMsg,
 		})
 		return
 	}
@@ -928,7 +933,7 @@ func (b *Bot) handleCategoryCore(ctx context.Context, tg TelegramAPI, update *mo
 		logger.Log.Error().Err(err).Msg("Failed to fetch categories")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Failed to fetch categories. Please try again.",
+			Text:   failedFetchCategoriesMsg,
 		})
 		return
 	}
@@ -956,7 +961,7 @@ func (b *Bot) handleCategoryCore(ctx context.Context, tg TelegramAPI, update *mo
 		logger.Log.Error().Err(err).Int("category_id", matchedCategory.ID).Msg("Failed to fetch expenses by category")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Failed to fetch expenses. Please try again.",
+			Text:   failedFetchExpensesMsg,
 		})
 		return
 	}
@@ -966,7 +971,7 @@ func (b *Bot) handleCategoryCore(ctx context.Context, tg TelegramAPI, update *mo
 		logger.Log.Error().Err(err).Msg("Failed to calculate category total")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Failed to fetch expenses. Please try again.",
+			Text:   failedFetchExpensesMsg,
 		})
 		return
 	}
@@ -1251,7 +1256,7 @@ func (b *Bot) handleEdit(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 		logger.Log.Error().Err(err).Msg("Failed to fetch categories for edit")
 		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Failed to fetch categories. Please try again.",
+			Text:   failedFetchCategoriesMsg,
 		})
 		return
 	}

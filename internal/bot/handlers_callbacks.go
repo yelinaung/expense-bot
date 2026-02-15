@@ -13,6 +13,12 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
 )
 
+const (
+	editCancelText       = "⬅️ Cancel"
+	cancelEditCallback   = "cancel_edit_%d"
+	expenseNotFoundMsgCB = "❌ Expense not found."
+)
+
 // handleEditCallback handles edit sub-menu button presses.
 func (b *Bot) handleEditCallback(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
 	b.handleEditCallbackCore(ctx, tgBot, update)
@@ -96,7 +102,7 @@ Please type the new amount (e.g., <code>25.50</code>):`,
 	keyboard := &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{
 			{
-				{Text: "⬅️ Cancel", CallbackData: fmt.Sprintf("cancel_edit_%d", expense.ID)},
+				{Text: editCancelText, CallbackData: fmt.Sprintf(cancelEditCallback, expense.ID)},
 			},
 		},
 	}
@@ -136,7 +142,7 @@ Please type the new merchant name:`,
 	keyboard := &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{
 			{
-				{Text: "⬅️ Cancel", CallbackData: fmt.Sprintf("cancel_edit_%d", expense.ID)},
+				{Text: editCancelText, CallbackData: fmt.Sprintf(cancelEditCallback, expense.ID)},
 			},
 		},
 	}
@@ -219,7 +225,7 @@ func (b *Bot) processAmountEditCore(
 		logger.Log.Error().Err(err).Int("expense_id", pending.ExpenseID).Msg("Expense not found for edit")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Expense not found.",
+			Text:   expenseNotFoundMsgCB,
 		})
 		return true
 	}
@@ -308,7 +314,7 @@ func (b *Bot) processMerchantEditCore(
 		logger.Log.Error().Err(err).Int("expense_id", pending.ExpenseID).Msg("Expense not found for edit")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Expense not found.",
+			Text:   expenseNotFoundMsgCB,
 		})
 		return true
 	}
@@ -592,7 +598,7 @@ func (b *Bot) processCategoryCreateCore(
 		logger.Log.Error().Err(err).Int("expense_id", pending.ExpenseID).Msg("Expense not found")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Expense not found.",
+			Text:   expenseNotFoundMsgCB,
 		})
 		return true
 	}
@@ -717,7 +723,7 @@ Please type the name for the new category (e.g., <code>Subscriptions</code>):`
 	keyboard := &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{
 			{
-				{Text: "⬅️ Cancel", CallbackData: fmt.Sprintf("cancel_edit_%d", expense.ID)},
+				{Text: editCancelText, CallbackData: fmt.Sprintf(cancelEditCallback, expense.ID)},
 			},
 		},
 	}
@@ -775,7 +781,7 @@ func (b *Bot) handleExpenseActionCallbackCore(ctx context.Context, tg TelegramAP
 		_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 			ChatID:    chatID,
 			MessageID: messageID,
-			Text:      "❌ Expense not found.",
+			Text:      expenseNotFoundMsgCB,
 		})
 		return
 	}

@@ -7,21 +7,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	testDatabaseURLConfig = "postgres://localhost/test"
+	testTokenConfig       = "token"
+)
+
 func TestLoad(t *testing.T) {
 	t.Run("loads all config from env", func(t *testing.T) {
 		t.Setenv("TELEGRAM_BOT_TOKEN", "test-token-123")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USER_IDS", "123")
 
 		cfg, err := Load()
 		require.NoError(t, err)
 		require.Equal(t, "test-token-123", cfg.TelegramBotToken)
-		require.Equal(t, "postgres://localhost/test", cfg.DatabaseURL)
+		require.Equal(t, testDatabaseURLConfig, cfg.DatabaseURL)
 	})
 
 	t.Run("parses whitelisted user IDs", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USER_IDS", "123,456,789")
 
 		cfg, err := Load()
@@ -30,8 +35,8 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("handles whitespace in user IDs", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USER_IDS", " 123 , 456 , 789 ")
 
 		cfg, err := Load()
@@ -40,8 +45,8 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("skips invalid user IDs", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USER_IDS", "123,invalid,456")
 
 		cfg, err := Load()
@@ -50,8 +55,8 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("skips empty entries from trailing commas", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USER_IDS", "123,,456,")
 
 		cfg, err := Load()
@@ -60,8 +65,8 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("loads GeminiAPIKey from env", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("GEMINI_API_KEY", "test-gemini-key")
 		t.Setenv("WHITELISTED_USER_IDS", "123")
 
@@ -71,8 +76,8 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("loads exchange config from env", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USER_IDS", "123")
 		t.Setenv("EXCHANGE_RATE_BASE_URL", "https://rates.example.com")
 		t.Setenv("EXCHANGE_RATE_TIMEOUT", "3s")
@@ -86,8 +91,8 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("uses exchange defaults for invalid timeout", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USER_IDS", "123")
 		t.Setenv("EXCHANGE_RATE_TIMEOUT", "invalid")
 
@@ -99,8 +104,8 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("parses whitelisted usernames", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USERNAMES", "alice,bob,charlie")
 
 		cfg, err := Load()
@@ -109,8 +114,8 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("handles whitespace in usernames", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USERNAMES", " alice , bob , charlie ")
 
 		cfg, err := Load()
@@ -119,8 +124,8 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("strips @ prefix from usernames", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USERNAMES", "@alice,@bob,charlie")
 
 		cfg, err := Load()
@@ -129,8 +134,8 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("loads both user IDs and usernames", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USER_IDS", "123,456")
 		t.Setenv("WHITELISTED_USERNAMES", "alice,bob")
 
@@ -143,8 +148,8 @@ func TestLoad(t *testing.T) {
 
 func TestLoad_DailyReminder(t *testing.T) {
 	t.Run("parses DAILY_REMINDER_ENABLED=true", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USER_IDS", "123")
 		t.Setenv("DAILY_REMINDER_ENABLED", "true")
 
@@ -154,8 +159,8 @@ func TestLoad_DailyReminder(t *testing.T) {
 	})
 
 	t.Run("defaults DAILY_REMINDER_ENABLED to false", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USER_IDS", "123")
 
 		cfg, err := Load()
@@ -164,8 +169,8 @@ func TestLoad_DailyReminder(t *testing.T) {
 	})
 
 	t.Run("parses valid REMINDER_HOUR", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USER_IDS", "123")
 		t.Setenv("REMINDER_HOUR", "9")
 
@@ -175,8 +180,8 @@ func TestLoad_DailyReminder(t *testing.T) {
 	})
 
 	t.Run("defaults REMINDER_HOUR to 20 for invalid value", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USER_IDS", "123")
 		t.Setenv("REMINDER_HOUR", "25")
 
@@ -186,8 +191,8 @@ func TestLoad_DailyReminder(t *testing.T) {
 	})
 
 	t.Run("defaults REMINDER_HOUR to 20 for non-numeric value", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USER_IDS", "123")
 		t.Setenv("REMINDER_HOUR", "abc")
 
@@ -197,8 +202,8 @@ func TestLoad_DailyReminder(t *testing.T) {
 	})
 
 	t.Run("parses REMINDER_TIMEZONE", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USER_IDS", "123")
 		t.Setenv("REMINDER_TIMEZONE", "America/New_York")
 
@@ -208,8 +213,8 @@ func TestLoad_DailyReminder(t *testing.T) {
 	})
 
 	t.Run("defaults REMINDER_TIMEZONE to Asia/Singapore", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USER_IDS", "123")
 
 		cfg, err := Load()
@@ -218,8 +223,8 @@ func TestLoad_DailyReminder(t *testing.T) {
 	})
 
 	t.Run("falls back to Asia/Singapore for invalid timezone", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USER_IDS", "123")
 		t.Setenv("REMINDER_TIMEZONE", "Invalid/Timezone")
 
@@ -232,7 +237,7 @@ func TestLoad_DailyReminder(t *testing.T) {
 func TestLoad_Validation(t *testing.T) {
 	t.Run("fails when TELEGRAM_BOT_TOKEN is missing", func(t *testing.T) {
 		t.Setenv("TELEGRAM_BOT_TOKEN", "")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USER_IDS", "123")
 
 		_, err := Load()
@@ -241,7 +246,7 @@ func TestLoad_Validation(t *testing.T) {
 	})
 
 	t.Run("fails when DATABASE_URL is missing", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
 		t.Setenv("DATABASE_URL", "")
 		t.Setenv("WHITELISTED_USER_IDS", "123")
 
@@ -251,8 +256,8 @@ func TestLoad_Validation(t *testing.T) {
 	})
 
 	t.Run("fails when no whitelisted users", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USER_IDS", "")
 		t.Setenv("WHITELISTED_USERNAMES", "")
 
@@ -274,8 +279,8 @@ func TestLoad_Validation(t *testing.T) {
 	})
 
 	t.Run("succeeds with username whitelist only", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USER_IDS", "")
 		t.Setenv("WHITELISTED_USERNAMES", "alice")
 
@@ -286,8 +291,8 @@ func TestLoad_Validation(t *testing.T) {
 	})
 
 	t.Run("succeeds with user ID whitelist only", func(t *testing.T) {
-		t.Setenv("TELEGRAM_BOT_TOKEN", "token")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("TELEGRAM_BOT_TOKEN", testTokenConfig)
+		t.Setenv("DATABASE_URL", testDatabaseURLConfig)
 		t.Setenv("WHITELISTED_USER_IDS", "123")
 		t.Setenv("WHITELISTED_USERNAMES", "")
 

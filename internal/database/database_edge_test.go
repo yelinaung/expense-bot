@@ -9,6 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	selectCountUsersQuery      = "SELECT COUNT(*) FROM users"
+	selectCountCategoriesQuery = "SELECT COUNT(*) FROM categories"
+)
+
 // TestRunMigrations_Idempotent tests that migrations can be run multiple times safely.
 func TestRunMigrations_Idempotent(t *testing.T) {
 	pool := TestDB(t)
@@ -28,7 +33,7 @@ func TestRunMigrations_Idempotent(t *testing.T) {
 
 	// Verify tables still exist and are functional
 	var count int
-	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM users").Scan(&count)
+	err = pool.QueryRow(ctx, selectCountUsersQuery).Scan(&count)
 	require.NoError(t, err)
 }
 
@@ -61,7 +66,7 @@ func TestSeedCategories_AlreadySeeded(t *testing.T) {
 	require.NoError(t, err)
 
 	var count int
-	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM categories").Scan(&count)
+	err = pool.QueryRow(ctx, selectCountCategoriesQuery).Scan(&count)
 	require.NoError(t, err)
 	require.Equal(t, 16, count)
 
@@ -69,7 +74,7 @@ func TestSeedCategories_AlreadySeeded(t *testing.T) {
 	err = SeedCategories(ctx, pool)
 	require.NoError(t, err)
 
-	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM categories").Scan(&count)
+	err = pool.QueryRow(ctx, selectCountCategoriesQuery).Scan(&count)
 	require.NoError(t, err)
 	require.Equal(t, 16, count, "should not duplicate categories")
 
@@ -77,7 +82,7 @@ func TestSeedCategories_AlreadySeeded(t *testing.T) {
 	err = SeedCategories(ctx, pool)
 	require.NoError(t, err)
 
-	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM categories").Scan(&count)
+	err = pool.QueryRow(ctx, selectCountCategoriesQuery).Scan(&count)
 	require.NoError(t, err)
 	require.Equal(t, 16, count, "should not duplicate categories after multiple seeds")
 }
@@ -172,11 +177,11 @@ func TestCleanupTables_EmptyDatabase(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
 
-	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM categories").Scan(&count)
+	err = pool.QueryRow(ctx, selectCountCategoriesQuery).Scan(&count)
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
 
-	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM users").Scan(&count)
+	err = pool.QueryRow(ctx, selectCountUsersQuery).Scan(&count)
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
 }
@@ -199,11 +204,11 @@ func TestCleanupTables_WithData(t *testing.T) {
 
 	// Verify data exists
 	var userCount, categoryCount int
-	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM users").Scan(&userCount)
+	err = pool.QueryRow(ctx, selectCountUsersQuery).Scan(&userCount)
 	require.NoError(t, err)
 	require.Positive(t, userCount)
 
-	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM categories").Scan(&categoryCount)
+	err = pool.QueryRow(ctx, selectCountCategoriesQuery).Scan(&categoryCount)
 	require.NoError(t, err)
 	require.Positive(t, categoryCount)
 
@@ -215,11 +220,11 @@ func TestCleanupTables_WithData(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, userCount)
 
-	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM categories").Scan(&categoryCount)
+	err = pool.QueryRow(ctx, selectCountCategoriesQuery).Scan(&categoryCount)
 	require.NoError(t, err)
 	require.Equal(t, 0, categoryCount)
 
-	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM users").Scan(&userCount)
+	err = pool.QueryRow(ctx, selectCountUsersQuery).Scan(&userCount)
 	require.NoError(t, err)
 	require.Equal(t, 0, userCount)
 }
@@ -315,7 +320,7 @@ func TestSeedCategories_CategoryNames(t *testing.T) {
 
 	// Verify exact count
 	var count int
-	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM categories").Scan(&count)
+	err = pool.QueryRow(ctx, selectCountCategoriesQuery).Scan(&count)
 	require.NoError(t, err)
 	require.Equal(t, len(expectedCategories), count)
 }

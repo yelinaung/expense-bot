@@ -10,7 +10,10 @@ import (
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
-const callbackIDReceipt = "callback123"
+const (
+	callbackIDReceipt = "callback123"
+	testReceiptText   = "Test Receipt"
+)
 
 func TestBuildReceiptConfirmationKeyboard(t *testing.T) {
 	t.Parallel()
@@ -151,8 +154,8 @@ func TestHandleConfirmReceiptCore(t *testing.T) {
 			UserID:      userID,
 			Amount:      mustParseDecimal("25.50"),
 			Currency:    "SGD",
-			Description: "Test Receipt",
-			Merchant:    "Test Receipt",
+			Description: testReceiptText,
+			Merchant:    testReceiptText,
 			Status:      appmodels.ExpenseStatusDraft,
 		}
 		err := b.expenseRepo.Create(ctx, expense)
@@ -164,7 +167,7 @@ func TestHandleConfirmReceiptCore(t *testing.T) {
 		msg := mockBot.EditedMessages[0].Text
 		require.Contains(t, msg, "Expense Confirmed")
 		require.Contains(t, msg, "S$25.50 SGD")
-		require.Contains(t, msg, "Test Receipt")
+		require.Contains(t, msg, testReceiptText)
 
 		// Verify date is formatted as "DD Mon YYYY" not raw timestamp
 		require.Contains(t, msg, "🗓️ Date:")

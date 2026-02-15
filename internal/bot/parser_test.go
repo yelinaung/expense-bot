@@ -7,6 +7,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	invalidAmountFormatParserTest = "invalid amount format"
+	fiveFiftyCoffeeParserTest     = "5.50 Coffee"
+	addFiveFiftyCoffeeParserTest  = "/add 5.50 Coffee"
+	foodDiningOutParserTest       = "Food - Dining Out"
+	travelVacationParserTest      = "Travel & Vacation"
+	oneEightyNineParserTest       = "189.00"
+	ogAlbertParserTest            = "OG Albert"
+)
+
 func TestParseAmount(t *testing.T) {
 	t.Parallel()
 
@@ -73,25 +83,25 @@ func TestParseAmount(t *testing.T) {
 			name:    "invalid format letters",
 			input:   "abc",
 			wantErr: true,
-			errMsg:  "invalid amount format",
+			errMsg:  invalidAmountFormatParserTest,
 		},
 		{
 			name:    "empty string",
 			input:   "",
 			wantErr: true,
-			errMsg:  "invalid amount format",
+			errMsg:  invalidAmountFormatParserTest,
 		},
 		{
 			name:    "only whitespace",
 			input:   "   ",
 			wantErr: true,
-			errMsg:  "invalid amount format",
+			errMsg:  invalidAmountFormatParserTest,
 		},
 		{
 			name:    "mixed letters and numbers",
 			input:   "25abc",
 			wantErr: true,
-			errMsg:  "invalid amount format",
+			errMsg:  invalidAmountFormatParserTest,
 		},
 	}
 
@@ -124,7 +134,7 @@ func TestParseExpenseInput(t *testing.T) {
 	}{
 		{
 			name:     "simple amount and description",
-			input:    "5.50 Coffee",
+			input:    fiveFiftyCoffeeParserTest,
 			wantAmt:  "5.50",
 			wantDesc: "Coffee",
 		},
@@ -244,7 +254,7 @@ func TestParseAddCommand(t *testing.T) {
 	}{
 		{
 			name:     "simple add command",
-			input:    "/add 5.50 Coffee",
+			input:    addFiveFiftyCoffeeParserTest,
 			wantAmt:  "5.50",
 			wantDesc: "Coffee",
 		},
@@ -326,7 +336,7 @@ func TestParseAddCommandWithCategories(t *testing.T) {
 	t.Parallel()
 
 	categories := []string{
-		"Food - Dining Out",
+		foodDiningOutParserTest,
 		"Food - Grocery",
 		"Transportation",
 		"Entertainment",
@@ -345,11 +355,11 @@ func TestParseAddCommandWithCategories(t *testing.T) {
 			input:       "/add 5.50 Coffee Food - Dining Out",
 			wantAmt:     "5.50",
 			wantDesc:    "Coffee",
-			wantCatName: "Food - Dining Out",
+			wantCatName: foodDiningOutParserTest,
 		},
 		{
 			name:        "no category match",
-			input:       "/add 5.50 Coffee",
+			input:       addFiveFiftyCoffeeParserTest,
 			wantAmt:     "5.50",
 			wantDesc:    "Coffee",
 			wantCatName: "",
@@ -392,9 +402,9 @@ func TestParseExpenseInputWithCategories(t *testing.T) {
 	t.Parallel()
 
 	categories := []string{
-		"Food - Dining Out",
+		foodDiningOutParserTest,
 		"Transportation",
-		"Travel & Vacation",
+		travelVacationParserTest,
 	}
 
 	tests := []struct {
@@ -411,11 +421,11 @@ func TestParseExpenseInputWithCategories(t *testing.T) {
 			input:       "5.50 Coffee Food - Dining Out",
 			wantAmt:     "5.50",
 			wantDesc:    "Coffee",
-			wantCatName: "Food - Dining Out",
+			wantCatName: foodDiningOutParserTest,
 		},
 		{
 			name:        "free text without category",
-			input:       "5.50 Coffee",
+			input:       fiveFiftyCoffeeParserTest,
 			wantAmt:     "5.50",
 			wantDesc:    "Coffee",
 			wantCatName: "",
@@ -423,23 +433,23 @@ func TestParseExpenseInputWithCategories(t *testing.T) {
 		{
 			name:        "bracket category syntax",
 			input:       "189.00 OG Albert [Travel & Vacation]",
-			wantAmt:     "189.00",
-			wantDesc:    "OG Albert",
-			wantCatName: "Travel & Vacation",
+			wantAmt:     oneEightyNineParserTest,
+			wantDesc:    ogAlbertParserTest,
+			wantCatName: travelVacationParserTest,
 		},
 		{
 			name:         "currency prefix with bracket category",
 			input:        "S$189.00 SGD - OG Albert [Travel & Vacation]",
-			wantAmt:      "189.00",
-			wantDesc:     "OG Albert",
-			wantCatName:  "Travel & Vacation",
+			wantAmt:      oneEightyNineParserTest,
+			wantDesc:     ogAlbertParserTest,
+			wantCatName:  travelVacationParserTest,
 			wantCurrency: "SGD",
 		},
 		{
 			name:         "currency code after amount stripped from description",
 			input:        "189.00 SGD OG Albert",
-			wantAmt:      "189.00",
-			wantDesc:     "OG Albert",
+			wantAmt:      oneEightyNineParserTest,
+			wantDesc:     ogAlbertParserTest,
 			wantCurrency: "SGD",
 		},
 		{
@@ -447,14 +457,14 @@ func TestParseExpenseInputWithCategories(t *testing.T) {
 			input:       "10.00 Lunch [food - dining out]",
 			wantAmt:     "10.00",
 			wantDesc:    "Lunch",
-			wantCatName: "Food - Dining Out",
+			wantCatName: foodDiningOutParserTest,
 		},
 		{
 			name:        "bracket with unknown category falls back to suffix",
 			input:       "10.00 Lunch [Unknown Cat] Food - Dining Out",
 			wantAmt:     "10.00",
 			wantDesc:    "Lunch [Unknown Cat]",
-			wantCatName: "Food - Dining Out",
+			wantCatName: foodDiningOutParserTest,
 		},
 	}
 
@@ -560,7 +570,7 @@ func TestParseAddCommandWithCategoriesEdgeCases(t *testing.T) {
 	}{
 		{
 			name:        "empty category list",
-			input:       "/add 5.50 Coffee",
+			input:       addFiveFiftyCoffeeParserTest,
 			categories:  []string{},
 			wantAmt:     "5.50",
 			wantDesc:    "Coffee",
@@ -568,7 +578,7 @@ func TestParseAddCommandWithCategoriesEdgeCases(t *testing.T) {
 		},
 		{
 			name:        "nil category list",
-			input:       "/add 5.50 Coffee",
+			input:       addFiveFiftyCoffeeParserTest,
 			categories:  nil,
 			wantAmt:     "5.50",
 			wantDesc:    "Coffee",
@@ -630,7 +640,7 @@ func TestParseExpenseInputWithCategoriesEdgeCases(t *testing.T) {
 	}{
 		{
 			name:        "empty category list",
-			input:       "5.50 Coffee",
+			input:       fiveFiftyCoffeeParserTest,
 			categories:  []string{},
 			wantAmt:     "5.50",
 			wantDesc:    "Coffee",

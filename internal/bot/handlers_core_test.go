@@ -13,7 +13,10 @@ import (
 	"google.golang.org/genai"
 )
 
-const nilMessageReturnsEarlyCore = "nil message returns early"
+const (
+	nilMessageReturnsEarlyCore = "nil message returns early"
+	expenseAddedTextCore       = "Expense Added"
+)
 
 func TestHandleAddCore(t *testing.T) {
 	pool := TestDB(t)
@@ -51,7 +54,7 @@ func TestHandleAddCore(t *testing.T) {
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "Expense Added")
+		require.Contains(t, msg.Text, expenseAddedTextCore)
 		require.Contains(t, msg.Text, "$5.50 SGD")
 		require.Contains(t, msg.Text, "Coffee")
 	})
@@ -105,7 +108,7 @@ func TestHandleAddCore(t *testing.T) {
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "Expense Added")
+		require.Contains(t, msg.Text, expenseAddedTextCore)
 		require.Contains(t, msg.Text, "$12.99 SGD")
 		require.Contains(t, msg.Text, "Lunch")
 		require.Contains(t, msg.Text, "Food")
@@ -423,7 +426,7 @@ func TestSaveExpenseCore(t *testing.T) {
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "Expense Added")
+		require.Contains(t, msg.Text, expenseAddedTextCore)
 		require.Contains(t, msg.Text, "$10.00 SGD")
 		require.Contains(t, msg.Text, "Uncategorized")
 	})
@@ -453,7 +456,7 @@ func TestSaveExpenseCore(t *testing.T) {
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "Expense Added")
+		require.Contains(t, msg.Text, expenseAddedTextCore)
 		require.Contains(t, msg.Text, categories[0].Name)
 	})
 
@@ -480,7 +483,7 @@ func TestSaveExpenseCore(t *testing.T) {
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "Expense Added")
+		require.Contains(t, msg.Text, expenseAddedTextCore)
 		require.Contains(t, msg.Text, "Others")
 	})
 
@@ -580,7 +583,7 @@ func TestSaveExpenseCore(t *testing.T) {
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "Expense Added")
+		require.Contains(t, msg.Text, expenseAddedTextCore)
 		require.NotContains(t, msg.Text, "📝")
 	})
 }

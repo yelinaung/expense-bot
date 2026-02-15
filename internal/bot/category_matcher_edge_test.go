@@ -7,18 +7,25 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
+const (
+	foodDiningOutCatEdge     = "Food - Dining Out"
+	foodGroceryCatEdge       = "Food - Grocery"
+	transportationBusCatEdge = "Transportation - Bus"
+	travelVacationCatEdge    = "Travel & Vacation"
+)
+
 // TestMatchCategory_EdgeCases tests additional edge cases for category matching.
 func TestMatchCategory_EdgeCases(t *testing.T) {
 	t.Parallel()
 
 	categories := []models.Category{
-		{ID: 1, Name: "Food - Dining Out"},
-		{ID: 2, Name: "Food - Grocery"},
-		{ID: 3, Name: "Transportation - Bus"},
+		{ID: 1, Name: foodDiningOutCatEdge},
+		{ID: 2, Name: foodGroceryCatEdge},
+		{ID: 3, Name: transportationBusCatEdge},
 		{ID: 4, Name: "Transportation - Taxi"},
 		{ID: 5, Name: "Entertainment"},
 		{ID: 6, Name: "Others"},
-		{ID: 7, Name: "Travel & Vacation"},
+		{ID: 7, Name: travelVacationCatEdge},
 		{ID: 8, Name: "Health and Wellness"},
 	}
 
@@ -33,13 +40,13 @@ func TestMatchCategory_EdgeCases(t *testing.T) {
 			name:      "suggested with leading spaces",
 			suggested: "   Food - Dining Out",
 			wantCatID: 1,
-			wantName:  "Food - Dining Out",
+			wantName:  foodDiningOutCatEdge,
 		},
 		{
 			name:      "suggested with trailing spaces",
 			suggested: "Food - Dining Out   ",
 			wantCatID: 1,
-			wantName:  "Food - Dining Out",
+			wantName:  foodDiningOutCatEdge,
 		},
 		{
 			name:      "suggested with mixed case and spaces",
@@ -50,14 +57,14 @@ func TestMatchCategory_EdgeCases(t *testing.T) {
 		{
 			name:      "suggested with unicode characters",
 			suggested: "Café Dining",
-			wantCatID: 1, // Matches "Dining" in "Food - Dining Out"
-			wantName:  "Food - Dining Out",
+			wantCatID: 1, // Matches "Dining" in foodDiningOutCatEdge
+			wantName:  foodDiningOutCatEdge,
 		},
 		{
 			name:      "suggested with emoji",
 			suggested: "🚌 Transportation",
-			wantCatID: 3, // Matches "Transportation - Bus"
-			wantName:  "Transportation - Bus",
+			wantCatID: 3, // Matches transportationBusCatEdge
+			wantName:  transportationBusCatEdge,
 		},
 		{
 			name:      "very long suggested category",
@@ -72,26 +79,26 @@ func TestMatchCategory_EdgeCases(t *testing.T) {
 		{
 			name:      "suggested is substring of multiple categories",
 			suggested: "Transportation",
-			wantCatID: 3, // Should match "Transportation - Bus" (first/shortest)
-			wantName:  "Transportation - Bus",
+			wantCatID: 3, // Should match transportationBusCatEdge (first/shortest)
+			wantName:  transportationBusCatEdge,
 		},
 		{
 			name:      "suggested with multiple spaces",
 			suggested: "Food    Dining    Out",
 			wantCatID: 1,
-			wantName:  "Food - Dining Out",
+			wantName:  foodDiningOutCatEdge,
 		},
 		{
 			name:      "two characters matches via substring",
 			suggested: "Fo",
-			wantCatID: 2, // Matches "Food" in "Food - Grocery"
-			wantName:  "Food - Grocery",
+			wantCatID: 2, // Matches "Food" in foodGroceryCatEdge
+			wantName:  foodGroceryCatEdge,
 		},
 		{
 			name:      "three characters matches",
 			suggested: "bus",
 			wantCatID: 3,
-			wantName:  "Transportation - Bus",
+			wantName:  transportationBusCatEdge,
 		},
 		{
 			name:      "exact match takes precedence over contains",
@@ -103,19 +110,19 @@ func TestMatchCategory_EdgeCases(t *testing.T) {
 			name:      "suggested with parentheses",
 			suggested: "Food (Dining)",
 			wantCatID: 1,
-			wantName:  "Food - Dining Out",
+			wantName:  foodDiningOutCatEdge,
 		},
 		{
 			name:      "suggested with brackets",
 			suggested: "Food [Dining]",
 			wantCatID: 1,
-			wantName:  "Food - Dining Out",
+			wantName:  foodDiningOutCatEdge,
 		},
 		{
 			name:      "reverse match - longer suggested",
 			suggested: "Going to Transportation - Bus station",
 			wantCatID: 3,
-			wantName:  "Transportation - Bus",
+			wantName:  transportationBusCatEdge,
 		},
 		{
 			name:      "word match with multiple words",
@@ -132,19 +139,19 @@ func TestMatchCategory_EdgeCases(t *testing.T) {
 			name:      "suggested with ampersand matches",
 			suggested: "Travel&Vacation",
 			wantCatID: 7, // Ampersand gets normalized
-			wantName:  "Travel & Vacation",
+			wantName:  travelVacationCatEdge,
 		},
 		{
 			name:      "suggested with slash",
 			suggested: "Travel/Vacation",
 			wantCatID: 7,
-			wantName:  "Travel & Vacation",
+			wantName:  travelVacationCatEdge,
 		},
 		{
 			name:      "multiple category matches - picks first",
 			suggested: "food",
-			wantCatID: 2, // Should pick "Food - Grocery" (shorter)
-			wantName:  "Food - Grocery",
+			wantCatID: 2, // Should pick foodGroceryCatEdge (shorter)
+			wantName:  foodGroceryCatEdge,
 		},
 	}
 
@@ -372,7 +379,7 @@ func TestMatchCategory_MultipleMatches(t *testing.T) {
 	categories := []models.Category{
 		{ID: 1, Name: "Food"},
 		{ID: 2, Name: "Food - Dining"},
-		{ID: 3, Name: "Food - Dining Out"},
+		{ID: 3, Name: foodDiningOutCatEdge},
 		{ID: 4, Name: "Food - Dining Out - Restaurant"},
 	}
 
@@ -390,9 +397,9 @@ func TestMatchCategory_MultipleMatches(t *testing.T) {
 		},
 		{
 			name:      "exact match with spaces",
-			suggested: "Food - Dining Out",
+			suggested: foodDiningOutCatEdge,
 			wantCatID: 3,
-			wantName:  "Food - Dining Out",
+			wantName:  foodDiningOutCatEdge,
 		},
 		{
 			name:      "shortest contains match",

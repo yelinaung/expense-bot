@@ -12,9 +12,12 @@ import (
 )
 
 const (
-	superadminUsername  = "superadmin"
-	superadminFirstName = "Super"
-	superadminLastName  = "Admin"
+	superadminUsername             = "superadmin"
+	superadminFirstName            = "Super"
+	superadminLastName             = "Admin"
+	nonSuperadminRejectedAdminTest = "non-superadmin rejected"
+	onlySuperadminsTextAdminTest   = "Only superadmins"
+	usersCommandAdminTest          = "/users"
 )
 
 func TestHandleApproveCore(t *testing.T) {
@@ -38,7 +41,7 @@ func TestHandleApproveCore(t *testing.T) {
 		require.Equal(t, 0, mockBot.SentMessageCount())
 	})
 
-	t.Run("non-superadmin rejected", func(t *testing.T) {
+	t.Run(nonSuperadminRejectedAdminTest, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := mocks.NewUpdateBuilder().
 			WithMessage(1, 999, "/approve 12345").
@@ -46,7 +49,7 @@ func TestHandleApproveCore(t *testing.T) {
 			Build()
 		b.handleApproveCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
-		require.Contains(t, mockBot.LastSentMessage().Text, "Only superadmins")
+		require.Contains(t, mockBot.LastSentMessage().Text, onlySuperadminsTextAdminTest)
 	})
 
 	t.Run("no args shows usage", func(t *testing.T) {
@@ -107,7 +110,7 @@ func TestHandleRevokeCore(t *testing.T) {
 		pendingEdits:     make(map[int64]*pendingEdit),
 	}
 
-	t.Run("non-superadmin rejected", func(t *testing.T) {
+	t.Run(nonSuperadminRejectedAdminTest, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := mocks.NewUpdateBuilder().
 			WithMessage(1, 999, "/revoke 12345").
@@ -115,7 +118,7 @@ func TestHandleRevokeCore(t *testing.T) {
 			Build()
 		b.handleRevokeCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
-		require.Contains(t, mockBot.LastSentMessage().Text, "Only superadmins")
+		require.Contains(t, mockBot.LastSentMessage().Text, onlySuperadminsTextAdminTest)
 	})
 
 	t.Run("revoke by ID", func(t *testing.T) {
@@ -190,21 +193,21 @@ func TestHandleUsersCore(t *testing.T) {
 		pendingEdits:     make(map[int64]*pendingEdit),
 	}
 
-	t.Run("non-superadmin rejected", func(t *testing.T) {
+	t.Run(nonSuperadminRejectedAdminTest, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := mocks.NewUpdateBuilder().
-			WithMessage(1, 999, "/users").
+			WithMessage(1, 999, usersCommandAdminTest).
 			WithFrom(999, "regular", "Regular", "User").
 			Build()
 		b.handleUsersCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
-		require.Contains(t, mockBot.LastSentMessage().Text, "Only superadmins")
+		require.Contains(t, mockBot.LastSentMessage().Text, onlySuperadminsTextAdminTest)
 	})
 
 	t.Run("lists superadmins and empty approved", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := mocks.NewUpdateBuilder().
-			WithMessage(1, 100, "/users").
+			WithMessage(1, 100, usersCommandAdminTest).
 			WithFrom(100, superadminUsername, superadminFirstName, superadminLastName).
 			Build()
 		b.handleUsersCore(ctx, mockBot, update)
@@ -222,7 +225,7 @@ func TestHandleUsersCore(t *testing.T) {
 
 		mockBot := mocks.NewMockBot()
 		update := mocks.NewUpdateBuilder().
-			WithMessage(1, 100, "/users").
+			WithMessage(1, 100, usersCommandAdminTest).
 			WithFrom(100, superadminUsername, superadminFirstName, superadminLastName).
 			Build()
 		b.handleUsersCore(ctx, mockBot, update)

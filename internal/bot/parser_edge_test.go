@@ -7,6 +7,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	invalidAmountFormatEdge  = "invalid amount format"
+	tenPointNineNineNineEdge = "10.999"
+	foodDiningOutParserEdge  = "Food - Dining Out"
+	foodGroceryParserEdge    = "Food - Grocery"
+	entertainmentParserEdge  = "Entertainment"
+)
+
 func requireDecimalAmount(t *testing.T, want string, got decimal.Decimal) {
 	t.Helper()
 
@@ -42,8 +50,8 @@ func TestParseAmount_EdgeCases(t *testing.T) {
 		},
 		{
 			name:  "amount with three decimal places truncates",
-			input: "10.999",
-			want:  "10.999",
+			input: tenPointNineNineNineEdge,
+			want:  tenPointNineNineNineEdge,
 		},
 		{
 			name:  "amount with many decimal places",
@@ -58,25 +66,25 @@ func TestParseAmount_EdgeCases(t *testing.T) {
 		{
 			name:  "comma with three decimals",
 			input: "10,999",
-			want:  "10.999",
+			want:  tenPointNineNineNineEdge,
 		},
 		{
 			name:    "multiple commas",
 			input:   "1,000,50",
 			wantErr: true,
-			errMsg:  "invalid amount format",
+			errMsg:  invalidAmountFormatEdge,
 		},
 		{
 			name:    "multiple dots",
 			input:   "10.50.25",
 			wantErr: true,
-			errMsg:  "invalid amount format",
+			errMsg:  invalidAmountFormatEdge,
 		},
 		{
 			name:    "dot and comma mixed",
 			input:   "10.50,25",
 			wantErr: true,
-			errMsg:  "invalid amount format",
+			errMsg:  invalidAmountFormatEdge,
 		},
 		{
 			name:    "leading dot",
@@ -94,13 +102,13 @@ func TestParseAmount_EdgeCases(t *testing.T) {
 			name:    "amount with currency symbol",
 			input:   "$10.50",
 			wantErr: true,
-			errMsg:  "invalid amount format",
+			errMsg:  invalidAmountFormatEdge,
 		},
 		{
 			name:    "amount with spaces inside",
 			input:   "10 50",
 			wantErr: true,
-			errMsg:  "invalid amount format",
+			errMsg:  invalidAmountFormatEdge,
 		},
 		{
 			name:  "scientific notation",
@@ -116,13 +124,13 @@ func TestParseAmount_EdgeCases(t *testing.T) {
 			name:    "special characters",
 			input:   "10@50",
 			wantErr: true,
-			errMsg:  "invalid amount format",
+			errMsg:  invalidAmountFormatEdge,
 		},
 		{
 			name:    "unicode digits",
 			input:   "१२३",
 			wantErr: true,
-			errMsg:  "invalid amount format",
+			errMsg:  invalidAmountFormatEdge,
 		},
 		{
 			name:    "negative zero",
@@ -380,11 +388,11 @@ func TestParseAddCommandWithCategories_ComplexEdgeCases(t *testing.T) {
 
 	categories := []string{
 		"Food",
-		"Food - Dining Out",
-		"Food - Grocery",
+		foodDiningOutParserEdge,
+		foodGroceryParserEdge,
 		"Transportation - Bus",
 		"Transportation - Taxi",
-		"Entertainment",
+		entertainmentParserEdge,
 	}
 
 	tests := []struct {
@@ -400,7 +408,7 @@ func TestParseAddCommandWithCategories_ComplexEdgeCases(t *testing.T) {
 			input:       "/add 10.00 Dinner Food - Dining Out",
 			wantAmt:     "10.00",
 			wantDesc:    "Dinner",
-			wantCatName: "Food - Dining Out",
+			wantCatName: foodDiningOutParserEdge,
 		},
 		{
 			name:        "category name in description but not at end",
@@ -414,7 +422,7 @@ func TestParseAddCommandWithCategories_ComplexEdgeCases(t *testing.T) {
 			input:       "/add 10.00 Food and Entertainment",
 			wantAmt:     "10.00",
 			wantDesc:    "Food and",
-			wantCatName: "Entertainment",
+			wantCatName: entertainmentParserEdge,
 		},
 		{
 			name:        "category with special characters in name",
@@ -435,7 +443,7 @@ func TestParseAddCommandWithCategories_ComplexEdgeCases(t *testing.T) {
 			input:       "/add 10.00 Dinner   Food - Dining Out",
 			wantAmt:     "10.00",
 			wantDesc:    "Dinner",
-			wantCatName: "Food - Dining Out",
+			wantCatName: foodDiningOutParserEdge,
 		},
 		{
 			name:        "category only in description no amount text",
@@ -463,7 +471,7 @@ func TestParseAddCommandWithCategories_ComplexEdgeCases(t *testing.T) {
 			input:       "/add 10.00 Movie Entertainment   ",
 			wantAmt:     "10.00",
 			wantDesc:    "Movie",
-			wantCatName: "Entertainment",
+			wantCatName: entertainmentParserEdge,
 		},
 	}
 
@@ -487,8 +495,8 @@ func TestParseExpenseInputWithCategories_ComplexEdgeCases(t *testing.T) {
 	t.Parallel()
 
 	categories := []string{
-		"Food - Dining Out",
-		"Food - Grocery",
+		foodDiningOutParserEdge,
+		foodGroceryParserEdge,
 		"Utilities",
 		"Utilities - Electric",
 	}
@@ -520,21 +528,21 @@ func TestParseExpenseInputWithCategories_ComplexEdgeCases(t *testing.T) {
 			input:       "10.00 Food from food store Food - Grocery",
 			wantAmt:     "10.00",
 			wantDesc:    "Food from food store",
-			wantCatName: "Food - Grocery",
+			wantCatName: foodGroceryParserEdge,
 		},
 		{
 			name:        "unicode in description with category",
 			input:       "10.00 Café ☕ Food - Dining Out",
 			wantAmt:     "10.00",
 			wantDesc:    "Café ☕",
-			wantCatName: "Food - Dining Out",
+			wantCatName: foodDiningOutParserEdge,
 		},
 		{
 			name:        "number in description with category",
 			input:       "10.00 Order #12345 Food - Dining Out",
 			wantAmt:     "10.00",
 			wantDesc:    "Order #12345",
-			wantCatName: "Food - Dining Out",
+			wantCatName: foodDiningOutParserEdge,
 		},
 		{
 			name:    "invalid amount with categories",

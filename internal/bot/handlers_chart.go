@@ -12,6 +12,8 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
 )
 
+const failedGenerateChartMsg = "❌ Failed to generate chart. Please try again."
+
 // handleChart handles the /chart command to generate visual expense breakdown charts.
 func (b *Bot) handleChart(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
 	b.handleChartCore(ctx, tgBot, update)
@@ -71,7 +73,7 @@ func (b *Bot) handleChartCore(ctx context.Context, tg TelegramAPI, update *model
 		logger.Log.Error().Err(err).Msg("Failed to fetch expenses for chart")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Failed to generate chart. Please try again.",
+			Text:   failedGenerateChartMsg,
 		})
 		return
 	}
@@ -91,7 +93,7 @@ func (b *Bot) handleChartCore(ctx context.Context, tg TelegramAPI, update *model
 		logger.Log.Error().Err(err).Msg("Failed to generate chart")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Failed to generate chart. Please try again.",
+			Text:   failedGenerateChartMsg,
 		})
 		return
 	}
@@ -101,7 +103,7 @@ func (b *Bot) handleChartCore(ctx context.Context, tg TelegramAPI, update *model
 		logger.Log.Error().Err(err).Msg("Failed to calculate total for chart")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Failed to generate chart. Please try again.",
+			Text:   failedGenerateChartMsg,
 		})
 		return
 	}
