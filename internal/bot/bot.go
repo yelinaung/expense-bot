@@ -47,7 +47,7 @@ type Bot struct {
 	geminiClient     *gemini.Client
 
 	messageSender   TelegramAPI
-	exchangeService exchange.Service
+	exchangeService exchange.Converter
 	displayLocation *time.Location
 
 	pendingEdits   map[int64]*pendingEdit // key is chatID

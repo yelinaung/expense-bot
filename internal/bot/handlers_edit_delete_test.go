@@ -184,7 +184,7 @@ func callHandleEdit(
 	args := strings.TrimPrefix(update.Message.Text, "/edit")
 	args = strings.TrimSpace(args)
 
-	if idx := strings.Index(args, "@"); idx == 0 {
+	if strings.Index(args, "@") == 0 {
 		if spaceIdx := strings.Index(args, " "); spaceIdx != -1 {
 			args = strings.TrimSpace(args[spaceIdx:])
 		} else {
@@ -292,7 +292,7 @@ func callHandleEdit(
 		}
 	}
 
-	if err := expenseRepo.Update(ctx, expense); err != nil {
+	if expenseRepo.Update(ctx, expense) != nil {
 		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Failed to update expense. Please try again.",
@@ -483,7 +483,7 @@ func callHandleDelete(
 	args := strings.TrimPrefix(update.Message.Text, "/delete")
 	args = strings.TrimSpace(args)
 
-	if idx := strings.Index(args, "@"); idx == 0 {
+	if strings.Index(args, "@") == 0 {
 		if spaceIdx := strings.Index(args, " "); spaceIdx != -1 {
 			args = strings.TrimSpace(args[spaceIdx:])
 		} else {

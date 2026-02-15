@@ -217,7 +217,8 @@ func (c *Config) IsSuperAdmin(userID int64, username string) bool {
 	return ok
 }
 
-// checkWhitelist is the internal implementation of IsUserWhitelisted.
+// checkWhitelist is the internal implementation used by superadmin and
+// whitelist checks.
 // It returns a non-nil *SuperadminBinding when a new binding was just
 // created (needs persistence) and whether the user is whitelisted.
 func (c *Config) checkWhitelist(userID int64, username string) (*SuperadminBinding, bool) {
@@ -272,8 +273,7 @@ func (c *Config) checkWhitelist(userID int64, username string) (*SuperadminBindi
 // seen with a real user_id, the binding is recorded and only that
 // user_id is accepted for the username going forward.
 func (c *Config) IsUserWhitelisted(userID int64, username string) bool {
-	_, ok := c.checkWhitelist(userID, username)
-	return ok
+	return c.IsSuperAdmin(userID, username)
 }
 
 // CheckSuperAdmin is like IsSuperAdmin but also returns a non-nil

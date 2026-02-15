@@ -16,18 +16,18 @@ type cachedRateEntry struct {
 	ExpiresAt time.Time
 }
 
-// CachedService wraps an exchange Service with in-memory TTL caching.
+// CachedService wraps an exchange Converter with in-memory TTL caching.
 // Cache entries are keyed by normalized "FROM->TO" currency pair.
 type CachedService struct {
-	inner Service
+	inner Converter
 	ttl   time.Duration
 
 	mu    sync.RWMutex
 	rates map[string]cachedRateEntry
 }
 
-// NewCachedService returns a Service that caches exchange rates in memory.
-func NewCachedService(inner Service, ttl time.Duration) *CachedService {
+// NewCachedService returns a converter that caches exchange rates in memory.
+func NewCachedService(inner Converter, ttl time.Duration) *CachedService {
 	if ttl <= 0 {
 		ttl = 12 * time.Hour
 	}

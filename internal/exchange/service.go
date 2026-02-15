@@ -14,7 +14,7 @@ type ConversionResult struct {
 	RateDate time.Time
 }
 
-// Service converts amounts between currencies.
-type Service interface {
+// Converter converts amounts between currencies.
+type Converter interface {
 	Convert(ctx context.Context, amount decimal.Decimal, fromCurrency, toCurrency string) (ConversionResult, error)
 }
