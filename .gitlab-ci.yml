@@ -56,7 +56,7 @@ gosec:
     - export PATH="$GOPATH/bin:$PATH"
     - go install github.com/securego/gosec/v2/cmd/gosec@latest
   script:
-    - gosec ./...
+    - gosec -exclude-dir=.go ./...
 
 # === QUALITY STAGE ===
 # All quality checks run in parallel
