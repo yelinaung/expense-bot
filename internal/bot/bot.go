@@ -45,9 +45,9 @@ type Bot struct {
 	approvedUserRepo *repository.ApprovedUserRepository
 	bindingRepo      *repository.SuperadminBindingRepository
 	geminiClient     *gemini.Client
-	exchangeService  exchange.Service
 
 	messageSender   TelegramAPI
+	exchangeService exchange.Service
 	displayLocation *time.Location
 
 	pendingEdits   map[int64]*pendingEdit // key is chatID
@@ -57,13 +57,6 @@ type Bot struct {
 	categoryCache       []models.Category
 	categoryCacheExpiry time.Time
 	categoryCacheMu     sync.RWMutex
-}
-
-func (b *Bot) getDisplayLocation() *time.Location {
-	if b != nil && b.displayLocation != nil {
-		return b.displayLocation
-	}
-	return time.UTC
 }
 
 // New creates a new Bot instance.
@@ -93,11 +86,7 @@ func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 		tagRepo:          repository.NewTagRepository(db),
 		approvedUserRepo: repository.NewApprovedUserRepository(db),
 		bindingRepo:      bindingRepo,
-		exchangeService: exchange.NewCachedService(
-			exchange.NewFrankfurterClient(cfg.ExchangeRateBaseURL, cfg.ExchangeRateTimeout),
-			cfg.ExchangeRateCacheTTL,
-		),
-		pendingEdits: make(map[int64]*pendingEdit),
+		pendingEdits:     make(map[int64]*pendingEdit),
 	}
 
 	if cfg.GeminiAPIKey != "" {
@@ -265,7 +254,7 @@ func (b *Bot) isAuthorized(ctx context.Context, userID int64, username string) b
 		// Backfill user_id for username-only approved users (fire-and-forget).
 		go func() {
 			if err := b.approvedUserRepo.UpdateUserID(context.Background(), username, userID); err != nil {
-				logger.Log.Warn().Err(err).Str("username", username).Msg("Failed to backfill user ID")
+				logger.Log.Debug().Err(err).Str("username", username).Msg("Failed to backfill user ID")
 			}
 		}()
 	}
@@ -468,7 +457,7 @@ func (b *Bot) downloadFile(ctx context.Context, tg TelegramAPI, fileID string) (
 		return nil, fmt.Errorf("failed to create download request: %w", err)
 	}
 
-	resp, err := downloadClient.Do(req)
+	resp, err := downloadClient.Do(req) // #nosec G704 -- URL comes from Telegram's FileDownloadLink API, not user input.
 	if err != nil {
 		return nil, fmt.Errorf("failed to download file: %w", err)
 	}

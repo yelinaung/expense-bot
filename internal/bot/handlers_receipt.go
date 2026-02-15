@@ -404,7 +404,7 @@ Expense #%d has been saved.`,
 		currencyCode,
 		escapeHTML(expense.Merchant),
 		categoryText,
-		expense.CreatedAt.In(b.getDisplayLocation()).Format("02 Jan 2006"),
+		expense.CreatedAt.In(b.displayLocation).Format("02 Jan 2006"),
 		expense.UserExpenseNumber)
 
 	logger.Log.Info().

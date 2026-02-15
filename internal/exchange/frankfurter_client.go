@@ -78,7 +78,7 @@ func (c *FrankfurterClient) Convert(
 		return ConversionResult{}, fmt.Errorf("failed to create conversion request: %w", err)
 	}
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.httpClient.Do(req) // #nosec G704 -- URL is built from a hardcoded/config base URL with query-escaped params.
 	if err != nil {
 		return ConversionResult{}, fmt.Errorf("failed to request conversion rate: %w", err)
 	}
