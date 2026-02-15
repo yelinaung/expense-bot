@@ -39,19 +39,8 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 		Int("category_count", len(availableCategories)).
 		Msg("SuggestCategory called")
 
-	if c.generator == nil {
-		logger.Log.Error().Msg("SuggestCategory: gemini client not initialized")
-		return nil, errors.New("gemini client not initialized")
-	}
-
-	if description == "" {
-		logger.Log.Warn().Msg("SuggestCategory: empty description provided")
-		return nil, errors.New("description is required")
-	}
-
-	if len(availableCategories) == 0 {
-		logger.Log.Warn().Msg("SuggestCategory: no categories available")
-		return nil, errors.New("no categories available")
+	if err := c.validateSuggestCategoryInput(description, availableCategories); err != nil {
+		return nil, err
 	}
 
 	// Sanitize description to prevent prompt injection attacks.
@@ -115,51 +104,13 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 		},
 	}
 
-	resp, err := c.generator.GenerateContent(timeoutCtx, ModelName, contents, config)
+	fullText, err := c.callSuggestCategory(timeoutCtx, contents, config, descHash)
 	if err != nil {
-		logger.Log.Error().Err(err).
-			Str("description_hash", descHash).
-			Msg("SuggestCategory: Gemini API call failed")
-		return nil, fmt.Errorf("gemini API call failed: %w", err)
+		return nil, err
 	}
-
-	if resp == nil {
-		logger.Log.Warn().
-			Str("description_hash", descHash).
-			Msg("SuggestCategory: nil response from Gemini")
-		return nil, errors.New("no response from Gemini")
-	}
-
-	// Use the built-in Text() method to get concatenated text from all parts.
-	fullText := resp.Text()
-
-	logger.Log.Debug().
-		Str("description_hash", descHash).
-		Msg("SuggestCategory: received Gemini response")
-
-	if fullText == "" {
-		logger.Log.Warn().
-			Str("description_hash", descHash).
-			Msg("SuggestCategory: no text content in Gemini response")
-		return nil, errors.New("no text content in response")
-	}
-
-	// Extract JSON from response - Gemini sometimes includes preamble text.
-	jsonText := extractJSON(fullText)
-	if jsonText == "" {
-		logger.Log.Warn().
-			Str("description_hash", descHash).
-			Msg("SuggestCategory: no JSON found in Gemini response")
-		return nil, errors.New("no JSON found in response")
-	}
-
-	// Parse JSON response.
-	var suggestion CategorySuggestion
-	if err := json.Unmarshal([]byte(jsonText), &suggestion); err != nil {
-		logger.Log.Error().Err(err).
-			Str("description_hash", descHash).
-			Msg("SuggestCategory: failed to parse JSON response")
-		return nil, fmt.Errorf("failed to parse JSON response: %w", err)
+	suggestion, err := parseSuggestionFromText(fullText, descHash)
+	if err != nil {
+		return nil, err
 	}
 
 	logger.Log.Debug().
@@ -168,7 +119,81 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 		Float64("confidence", suggestion.Confidence).
 		Msg("SuggestCategory: parsed Gemini suggestion")
 
-	// Validate confidence range.
+	return normalizeSuggestion(suggestion, availableCategories, descHash)
+}
+
+func (c *Client) validateSuggestCategoryInput(description string, availableCategories []string) error {
+	if c.generator == nil {
+		logger.Log.Error().Msg("SuggestCategory: gemini client not initialized")
+		return errors.New("gemini client not initialized")
+	}
+	if description == "" {
+		logger.Log.Warn().Msg("SuggestCategory: empty description provided")
+		return errors.New("description is required")
+	}
+	if len(availableCategories) == 0 {
+		logger.Log.Warn().Msg("SuggestCategory: no categories available")
+		return errors.New("no categories available")
+	}
+	return nil
+}
+
+func (c *Client) callSuggestCategory(
+	ctx context.Context,
+	contents []*genai.Content,
+	config *genai.GenerateContentConfig,
+	descHash string,
+) (string, error) {
+	resp, err := c.generator.GenerateContent(ctx, ModelName, contents, config)
+	if err != nil {
+		logger.Log.Error().Err(err).
+			Str("description_hash", descHash).
+			Msg("SuggestCategory: Gemini API call failed")
+		return "", fmt.Errorf("gemini API call failed: %w", err)
+	}
+	if resp == nil {
+		logger.Log.Warn().
+			Str("description_hash", descHash).
+			Msg("SuggestCategory: nil response from Gemini")
+		return "", errors.New("no response from Gemini")
+	}
+	fullText := resp.Text()
+	logger.Log.Debug().
+		Str("description_hash", descHash).
+		Msg("SuggestCategory: received Gemini response")
+	if fullText == "" {
+		logger.Log.Warn().
+			Str("description_hash", descHash).
+			Msg("SuggestCategory: no text content in Gemini response")
+		return "", errors.New("no text content in response")
+	}
+	return fullText, nil
+}
+
+func parseSuggestionFromText(fullText, descHash string) (CategorySuggestion, error) {
+	jsonText := extractJSON(fullText)
+	if jsonText == "" {
+		logger.Log.Warn().
+			Str("description_hash", descHash).
+			Msg("SuggestCategory: no JSON found in Gemini response")
+		return CategorySuggestion{}, errors.New("no JSON found in response")
+	}
+
+	var suggestion CategorySuggestion
+	if err := json.Unmarshal([]byte(jsonText), &suggestion); err != nil {
+		logger.Log.Error().Err(err).
+			Str("description_hash", descHash).
+			Msg("SuggestCategory: failed to parse JSON response")
+		return CategorySuggestion{}, fmt.Errorf("failed to parse JSON response: %w", err)
+	}
+	return suggestion, nil
+}
+
+func normalizeSuggestion(
+	suggestion CategorySuggestion,
+	availableCategories []string,
+	descHash string,
+) (*CategorySuggestion, error) {
 	if suggestion.Confidence < 0.0 || suggestion.Confidence > 1.0 {
 		logger.Log.Warn().
 			Float64("confidence", suggestion.Confidence).
@@ -176,47 +201,20 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 		return nil, fmt.Errorf("confidence out of range: %f", suggestion.Confidence)
 	}
 
-	// Sanitize reasoning field before returning.
 	suggestion.Reasoning = sanitizeReasoning(suggestion.Reasoning)
 	suggestion.NewCategoryName = SanitizeCategoryName(suggestion.NewCategoryName)
 
 	// Backward compatibility: treat legacy payloads that only return "category"
 	// as matched suggestions.
 	treatAsMatched := suggestion.Matched || (suggestion.Category != "" && suggestion.NewCategoryName == "")
-
 	if treatAsMatched {
-		// Validate that suggested category is in the available list.
-		validCategory := false
-		for _, cat := range availableCategories {
-			if strings.EqualFold(cat, suggestion.Category) {
-				suggestion.Category = cat // Use exact case from available list.
-				validCategory = true
-				break
-			}
-		}
-		if !validCategory {
-			logger.Log.Warn().
-				Str("description_hash", descHash).
-				Str("suggested_category", suggestion.Category).
-				Strs("available_categories", availableCategories).
-				Msg("SuggestCategory: suggested category not in available list")
-			return nil, fmt.Errorf("suggested category '%s' not in available categories", suggestion.Category)
-		}
-		suggestion.Matched = true
-		suggestion.NewCategoryName = ""
-		logger.Log.Debug().
-			Str("description_hash", descHash).
-			Str("category", suggestion.Category).
-			Float64("confidence", suggestion.Confidence).
-			Msg("SuggestCategory: successfully matched category")
-		return &suggestion, nil
+		return normalizeMatchedSuggestion(suggestion, availableCategories, descHash)
 	}
 
 	if suggestion.NewCategoryName == "" {
 		return nil, errors.New("no valid matched category or new category suggestion")
 	}
 
-	// If model suggests a "new" category that already exists, normalize to matched.
 	for _, cat := range availableCategories {
 		if strings.EqualFold(cat, suggestion.NewCategoryName) {
 			suggestion.Matched = true
@@ -233,14 +231,39 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 
 	suggestion.Matched = false
 	suggestion.Category = ""
-
 	logger.Log.Debug().
 		Str("description_hash", descHash).
 		Str("new_category", suggestion.NewCategoryName).
 		Float64("confidence", suggestion.Confidence).
 		Msg("SuggestCategory: proposing new category")
-
 	return &suggestion, nil
+}
+
+func normalizeMatchedSuggestion(
+	suggestion CategorySuggestion,
+	availableCategories []string,
+	descHash string,
+) (*CategorySuggestion, error) {
+	for _, cat := range availableCategories {
+		if strings.EqualFold(cat, suggestion.Category) {
+			suggestion.Category = cat
+			suggestion.Matched = true
+			suggestion.NewCategoryName = ""
+			logger.Log.Debug().
+				Str("description_hash", descHash).
+				Str("category", suggestion.Category).
+				Float64("confidence", suggestion.Confidence).
+				Msg("SuggestCategory: successfully matched category")
+			return &suggestion, nil
+		}
+	}
+
+	logger.Log.Warn().
+		Str("description_hash", descHash).
+		Str("suggested_category", suggestion.Category).
+		Strs("available_categories", availableCategories).
+		Msg("SuggestCategory: suggested category not in available list")
+	return nil, fmt.Errorf("suggested category '%s' not in available categories", suggestion.Category)
 }
 
 // buildCategorySuggestionPrompt creates the prompt for category suggestion.

@@ -137,100 +137,17 @@ func ParseExpenseInput(input string) *ParsedExpense {
 		return nil
 	}
 
-	var detectedCurrency string
-
-	// Check for currency prefix (e.g., "$5.50", "SGD 10", "S$5")
-	if prefixMatch := currencyPrefixRegex.FindStringSubmatch(input); len(prefixMatch) > 1 {
-		symbol := prefixMatch[1]
-		// Convert symbol to code if it's a symbol
-		if code, ok := currencySymbolToCode[symbol]; ok {
-			detectedCurrency = code
-		} else if _, ok := models.SupportedCurrencies[symbol]; ok {
-			// It's already a valid currency code
-			detectedCurrency = symbol
-		}
-		if detectedCurrency != "" {
-			input = strings.TrimSpace(input[len(prefixMatch[0]):])
-		}
-	}
-
-	match := amountRegex.FindString(input)
-	if match == "" {
+	detectedCurrency, input := parseCurrencyPrefix(input)
+	amount, rest := parseAmountAndRest(input)
+	if !amount.GreaterThan(decimal.Zero) {
 		return nil
 	}
-
-	match = strings.ReplaceAll(match, ",", ".")
-	amount, err := decimal.NewFromString(match)
-	if err != nil {
-		return nil
-	}
-
-	if amount.LessThanOrEqual(decimal.Zero) {
-		return nil
-	}
-
-	rest := strings.TrimSpace(input[len(match):])
-
-	// Check for currency symbol immediately after amount (e.g., "6.80$ lunch").
-	if detectedCurrency == "" && rest != "" {
-		for _, symbol := range currencySymbolsByLenDesc {
-			if strings.HasPrefix(rest, symbol) {
-				// Treat trailing "$" as ambiguous: strip it from description but
-				// keep currency unset so user default currency applies.
-				if symbol != "$" {
-					detectedCurrency = currencySymbolToCode[symbol]
-				}
-				rest = strings.TrimSpace(rest[len(symbol):])
-				break
-			}
-		}
-	}
-
-	// Check for currency code immediately after amount (e.g., "189.00 SGD - OG Albert").
-	if rest != "" {
-		fields := strings.Fields(rest)
-		if len(fields) > 0 {
-			code := strings.ToUpper(fields[0])
-			if _, ok := models.SupportedCurrencies[code]; ok {
-				// Set code only when no currency was detected yet.
-				// If a symbol already set the same currency, strip the redundant code token.
-				if detectedCurrency == "" || detectedCurrency == code {
-					if detectedCurrency == "" {
-						detectedCurrency = code
-					}
-					rest = strings.TrimSpace(strings.TrimPrefix(rest, fields[0]))
-					rest = strings.TrimPrefix(rest, "-")
-					rest = strings.TrimSpace(rest)
-				}
-			}
-		}
-	}
-
-	// Check for currency suffix in description (e.g., "Coffee USD").
-	if detectedCurrency == "" && rest != "" {
-		upperRest := strings.ToUpper(rest)
-		if suffixMatch := currencySuffixRegex.FindStringSubmatch(upperRest); len(suffixMatch) > 1 {
-			code := suffixMatch[1]
-			if _, ok := models.SupportedCurrencies[code]; ok {
-				detectedCurrency = code
-				rest = strings.TrimSpace(rest[:len(rest)-len(suffixMatch[0])])
-			}
-		}
-	}
+	detectedCurrency, rest = parseCurrencyAfterAmount(detectedCurrency, rest)
 
 	// Extract tags from the remaining text.
 	var tags []string
 	if rest != "" {
 		tags, rest = extractTags(rest)
-	}
-
-	if rest == "" {
-		return &ParsedExpense{
-			Amount:      amount,
-			Description: "",
-			Currency:    detectedCurrency,
-			Tags:        tags,
-		}
 	}
 
 	return &ParsedExpense{
@@ -239,6 +156,101 @@ func ParseExpenseInput(input string) *ParsedExpense {
 		Currency:    detectedCurrency,
 		Tags:        tags,
 	}
+}
+
+func parseCurrencyPrefix(input string) (currency string, remaining string) {
+	prefixMatch := currencyPrefixRegex.FindStringSubmatch(input)
+	if len(prefixMatch) <= 1 {
+		return "", input
+	}
+
+	prefix := prefixMatch[1]
+	if code, ok := currencySymbolToCode[prefix]; ok {
+		currency = code
+	} else if _, ok := models.SupportedCurrencies[prefix]; ok {
+		currency = prefix
+	}
+	if currency == "" {
+		return "", input
+	}
+	return currency, strings.TrimSpace(input[len(prefixMatch[0]):])
+}
+
+func parseAmountAndRest(input string) (decimal.Decimal, string) {
+	match := amountRegex.FindString(input)
+	if match == "" {
+		return decimal.Zero, ""
+	}
+	match = strings.ReplaceAll(match, ",", ".")
+	amount, err := decimal.NewFromString(match)
+	if err != nil || amount.LessThanOrEqual(decimal.Zero) {
+		return decimal.Zero, ""
+	}
+	return amount, strings.TrimSpace(input[len(match):])
+}
+
+func parseCurrencyAfterAmount(detectedCurrency, rest string) (string, string) {
+	detectedCurrency, rest = parseTrailingCurrencySymbol(detectedCurrency, rest)
+	detectedCurrency, rest = parseImmediateCurrencyCode(detectedCurrency, rest)
+	return parseSuffixCurrencyCode(detectedCurrency, rest)
+}
+
+func parseTrailingCurrencySymbol(detectedCurrency, rest string) (string, string) {
+	if detectedCurrency != "" || rest == "" {
+		return detectedCurrency, rest
+	}
+	for _, symbol := range currencySymbolsByLenDesc {
+		if !strings.HasPrefix(rest, symbol) {
+			continue
+		}
+		// Treat trailing "$" as ambiguous: strip it from description but keep
+		// currency unset so user default currency applies.
+		if symbol != "$" {
+			detectedCurrency = currencySymbolToCode[symbol]
+		}
+		return detectedCurrency, strings.TrimSpace(rest[len(symbol):])
+	}
+	return detectedCurrency, rest
+}
+
+func parseImmediateCurrencyCode(detectedCurrency, rest string) (string, string) {
+	if rest == "" {
+		return detectedCurrency, rest
+	}
+	fields := strings.Fields(rest)
+	if len(fields) == 0 {
+		return detectedCurrency, rest
+	}
+	code := strings.ToUpper(fields[0])
+	if _, ok := models.SupportedCurrencies[code]; !ok {
+		return detectedCurrency, rest
+	}
+	if detectedCurrency != "" && detectedCurrency != code {
+		return detectedCurrency, rest
+	}
+	if detectedCurrency == "" {
+		detectedCurrency = code
+	}
+	trimmed := strings.TrimSpace(strings.TrimPrefix(rest, fields[0]))
+	trimmed = strings.TrimPrefix(trimmed, "-")
+	return detectedCurrency, strings.TrimSpace(trimmed)
+}
+
+func parseSuffixCurrencyCode(detectedCurrency, rest string) (string, string) {
+	if detectedCurrency != "" || rest == "" {
+		return detectedCurrency, rest
+	}
+	upperRest := strings.ToUpper(rest)
+	suffixMatch := currencySuffixRegex.FindStringSubmatch(upperRest)
+	if len(suffixMatch) <= 1 {
+		return detectedCurrency, rest
+	}
+	code := suffixMatch[1]
+	if _, ok := models.SupportedCurrencies[code]; !ok {
+		return detectedCurrency, rest
+	}
+	trimmed := strings.TrimSpace(rest[:len(rest)-len(suffixMatch[0])])
+	return code, trimmed
 }
 
 // extractDescription extracts the description from the input.

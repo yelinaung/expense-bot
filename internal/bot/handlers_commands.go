@@ -12,6 +12,7 @@ import (
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 	"gitlab.com/yelinaung/expense-bot/internal/database"
+	"gitlab.com/yelinaung/expense-bot/internal/gemini"
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
@@ -593,115 +594,7 @@ func (b *Bot) saveExpenseCore(
 		Merchant:    merchant,
 	}
 
-	// Try to match category from parsed input first
-	categoryMatched := false
-	if parsed.CategoryName != "" {
-		for _, cat := range categories {
-			if strings.EqualFold(cat.Name, parsed.CategoryName) {
-				expense.CategoryID = &cat.ID
-				expense.Category = &cat
-				categoryMatched = true
-				break
-			}
-		}
-	}
-
-	// If no category matched and Gemini is available, use AI to suggest category
-	if !categoryMatched && b.geminiClient != nil && parsed.Description != "" {
-		categoryNames := make([]string, len(categories))
-		for i, cat := range categories {
-			categoryNames[i] = cat.Name
-		}
-
-		suggestion, err := b.geminiClient.SuggestCategory(ctx, parsed.Description, categoryNames)
-		if err != nil {
-			logger.Log.Debug().Err(err).
-				Str("description", logger.SanitizeDescription(parsed.Description)).
-				Msg("Failed to get AI category suggestion")
-		} else if suggestion != nil && suggestion.Confidence > 0.5 {
-			if suggestion.Matched {
-				// Use AI suggestion if confidence is above 50%.
-				for i := range categories {
-					if strings.EqualFold(categories[i].Name, suggestion.Category) {
-						expense.CategoryID = &categories[i].ID
-						expense.Category = &categories[i]
-						categoryMatched = true
-						logger.Log.Info().
-							Str("description", logger.SanitizeDescription(parsed.Description)).
-							Str("suggested_category", suggestion.Category).
-							Float64("confidence", suggestion.Confidence).
-							Str("reasoning", suggestion.Reasoning).
-							Msg("AI category suggestion applied")
-						break
-					}
-				}
-			} else if suggestion.NewCategoryName != "" && suggestion.Confidence >= 0.8 {
-				// Create new category only for high-confidence unmatched suggestions.
-				newCategory := suggestion.NewCategoryName
-				invalidName := strings.TrimSpace(newCategory) == "" || len(newCategory) > appmodels.MaxCategoryNameLength
-				if !invalidName {
-					for _, r := range newCategory {
-						if unicode.IsControl(r) {
-							invalidName = true
-							break
-						}
-					}
-				}
-
-				if invalidName {
-					logger.Log.Warn().
-						Str("description", logger.SanitizeDescription(parsed.Description)).
-						Str("new_category", newCategory).
-						Msg("AI suggested invalid new category name; skipping auto-create")
-				} else {
-					// Avoid duplicates if suggestion differs only by case.
-					for i := range categories {
-						if strings.EqualFold(categories[i].Name, newCategory) {
-							expense.CategoryID = &categories[i].ID
-							expense.Category = &categories[i]
-							categoryMatched = true
-							break
-						}
-					}
-
-					if !categoryMatched {
-						cat, createErr := b.categoryRepo.Create(ctx, newCategory)
-						if createErr != nil {
-							// Handle race/duplicate by attempting to fetch existing.
-							existing, getErr := b.categoryRepo.GetByName(ctx, newCategory)
-							if getErr == nil {
-								expense.CategoryID = &existing.ID
-								expense.Category = existing
-								categoryMatched = true
-							} else {
-								logger.Log.Warn().Err(createErr).
-									Str("new_category", newCategory).
-									Msg("Failed to auto-create category from AI suggestion")
-							}
-						} else {
-							expense.CategoryID = &cat.ID
-							expense.Category = cat
-							categoryMatched = true
-							b.invalidateCategoryCache()
-							logger.Log.Info().
-								Str("description", logger.SanitizeDescription(parsed.Description)).
-								Str("new_category", newCategory).
-								Float64("confidence", suggestion.Confidence).
-								Msg("Auto-created category from AI suggestion")
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// If nothing matched, default to "Others" when available.
-	if !categoryMatched {
-		if fallback := MatchCategory("Others", categories); fallback != nil {
-			expense.CategoryID = &fallback.ID
-			expense.Category = fallback
-		}
-	}
+	b.assignExpenseCategory(ctx, expense, parsed, categories)
 
 	if err := b.expenseRepo.Create(ctx, expense); err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to create expense")
@@ -712,23 +605,7 @@ func (b *Bot) saveExpenseCore(
 		return
 	}
 
-	// Save tags if any were parsed inline.
-	if len(parsed.Tags) > 0 {
-		var tagIDs []int
-		for _, name := range parsed.Tags {
-			tag, err := b.tagRepo.GetOrCreate(ctx, name)
-			if err != nil {
-				logger.Log.Warn().Err(err).Str("tag", name).Msg("Failed to create tag")
-				continue
-			}
-			tagIDs = append(tagIDs, tag.ID)
-		}
-		if len(tagIDs) > 0 {
-			if err := b.tagRepo.SetExpenseTags(ctx, expense.ID, tagIDs); err != nil {
-				logger.Log.Warn().Err(err).Int("expense_id", expense.ID).Msg("Failed to set expense tags")
-			}
-		}
-	}
+	b.saveInlineTags(ctx, expense.ID, parsed.Tags)
 
 	logger.Log.Debug().
 		Int64("chat_id", chatID).
@@ -737,37 +614,7 @@ func (b *Bot) saveExpenseCore(
 		Str("description", expense.Description).
 		Msg("Expense created")
 
-	categoryText := categoryUncategorized
-	if expense.Category != nil {
-		categoryText = escapeHTML(expense.Category.Name)
-	}
-
-	descText := ""
-	if expense.Description != "" {
-		descText = "\n📝 " + escapeHTML(expense.Description)
-	}
-
-	currencySymbol := getCurrencyOrCodeSymbol(expense.Currency)
-
-	text := fmt.Sprintf(`✅ <b>Expense Added</b>
-
-💰 %s%s %s%s
-📁 %s
-🆔 #%d`,
-		currencySymbol,
-		expense.Amount.StringFixed(2),
-		expense.Currency,
-		descText,
-		categoryText,
-		expense.UserExpenseNumber)
-
-	if len(parsed.Tags) > 0 {
-		escapedTags := make([]string, len(parsed.Tags))
-		for i, t := range parsed.Tags {
-			escapedTags[i] = escapeHTML(t)
-		}
-		text += "\n🏷️ " + strings.Join(escapedTags, ", ")
-	}
+	text := buildExpenseAddedMessage(expense, parsed.Tags)
 
 	// Add inline edit/delete buttons
 	keyboard := &models.InlineKeyboardMarkup{
@@ -787,6 +634,213 @@ func (b *Bot) saveExpenseCore(
 	}); err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to send expense confirmation")
 	}
+}
+
+func (b *Bot) assignExpenseCategory(
+	ctx context.Context,
+	expense *appmodels.Expense,
+	parsed *ParsedExpense,
+	categories []appmodels.Category,
+) {
+	if b.assignParsedCategory(expense, parsed.CategoryName, categories) {
+		return
+	}
+	if b.assignAICategorySuggestion(ctx, expense, parsed.Description, categories) {
+		return
+	}
+	if fallback := MatchCategory("Others", categories); fallback != nil {
+		expense.CategoryID = &fallback.ID
+		expense.Category = fallback
+	}
+}
+
+func (b *Bot) assignParsedCategory(
+	expense *appmodels.Expense,
+	categoryName string,
+	categories []appmodels.Category,
+) bool {
+	if categoryName == "" {
+		return false
+	}
+	for i := range categories {
+		if strings.EqualFold(categories[i].Name, categoryName) {
+			expense.CategoryID = &categories[i].ID
+			expense.Category = &categories[i]
+			return true
+		}
+	}
+	return false
+}
+
+func (b *Bot) assignAICategorySuggestion(
+	ctx context.Context,
+	expense *appmodels.Expense,
+	description string,
+	categories []appmodels.Category,
+) bool {
+	if b.geminiClient == nil || description == "" {
+		return false
+	}
+
+	categoryNames := make([]string, len(categories))
+	for i, cat := range categories {
+		categoryNames[i] = cat.Name
+	}
+
+	suggestion, err := b.geminiClient.SuggestCategory(ctx, description, categoryNames)
+	if err != nil {
+		logger.Log.Debug().Err(err).
+			Str("description", logger.SanitizeDescription(description)).
+			Msg("Failed to get AI category suggestion")
+		return false
+	}
+	if suggestion == nil || suggestion.Confidence <= 0.5 {
+		return false
+	}
+	if suggestion.Matched {
+		return b.applyMatchedSuggestion(expense, description, suggestion, categories)
+	}
+	if suggestion.NewCategoryName != "" && suggestion.Confidence >= 0.8 {
+		return b.applyNewCategorySuggestion(ctx, expense, description, suggestion, categories)
+	}
+	return false
+}
+
+func (b *Bot) applyMatchedSuggestion(
+	expense *appmodels.Expense,
+	description string,
+	suggestion *gemini.CategorySuggestion,
+	categories []appmodels.Category,
+) bool {
+	for i := range categories {
+		if !strings.EqualFold(categories[i].Name, suggestion.Category) {
+			continue
+		}
+		expense.CategoryID = &categories[i].ID
+		expense.Category = &categories[i]
+		logger.Log.Info().
+			Str("description", logger.SanitizeDescription(description)).
+			Str("suggested_category", suggestion.Category).
+			Float64("confidence", suggestion.Confidence).
+			Str("reasoning", suggestion.Reasoning).
+			Msg("AI category suggestion applied")
+		return true
+	}
+	return false
+}
+
+func (b *Bot) applyNewCategorySuggestion(
+	ctx context.Context,
+	expense *appmodels.Expense,
+	description string,
+	suggestion *gemini.CategorySuggestion,
+	categories []appmodels.Category,
+) bool {
+	newCategory := suggestion.NewCategoryName
+	if !isValidAutoCreatedCategoryName(newCategory) {
+		logger.Log.Warn().
+			Str("description", logger.SanitizeDescription(description)).
+			Str("new_category", newCategory).
+			Msg("AI suggested invalid new category name; skipping auto-create")
+		return false
+	}
+
+	for i := range categories {
+		if strings.EqualFold(categories[i].Name, newCategory) {
+			expense.CategoryID = &categories[i].ID
+			expense.Category = &categories[i]
+			return true
+		}
+	}
+
+	cat, err := b.categoryRepo.Create(ctx, newCategory)
+	if err != nil {
+		existing, getErr := b.categoryRepo.GetByName(ctx, newCategory)
+		if getErr == nil {
+			expense.CategoryID = &existing.ID
+			expense.Category = existing
+			return true
+		}
+		logger.Log.Warn().Err(err).
+			Str("new_category", newCategory).
+			Msg("Failed to auto-create category from AI suggestion")
+		return false
+	}
+
+	expense.CategoryID = &cat.ID
+	expense.Category = cat
+	b.invalidateCategoryCache()
+	logger.Log.Info().
+		Str("description", logger.SanitizeDescription(description)).
+		Str("new_category", newCategory).
+		Float64("confidence", suggestion.Confidence).
+		Msg("Auto-created category from AI suggestion")
+	return true
+}
+
+func isValidAutoCreatedCategoryName(name string) bool {
+	if strings.TrimSpace(name) == "" || len(name) > appmodels.MaxCategoryNameLength {
+		return false
+	}
+	for _, r := range name {
+		if unicode.IsControl(r) {
+			return false
+		}
+	}
+	return true
+}
+
+func (b *Bot) saveInlineTags(ctx context.Context, expenseID int, tags []string) {
+	if len(tags) == 0 {
+		return
+	}
+	tagIDs := make([]int, 0, len(tags))
+	for _, name := range tags {
+		tag, err := b.tagRepo.GetOrCreate(ctx, name)
+		if err != nil {
+			logger.Log.Warn().Err(err).Str("tag", name).Msg("Failed to create tag")
+			continue
+		}
+		tagIDs = append(tagIDs, tag.ID)
+	}
+	if len(tagIDs) == 0 {
+		return
+	}
+	if err := b.tagRepo.SetExpenseTags(ctx, expenseID, tagIDs); err != nil {
+		logger.Log.Warn().Err(err).Int("expense_id", expenseID).Msg("Failed to set expense tags")
+	}
+}
+
+func buildExpenseAddedMessage(expense *appmodels.Expense, parsedTags []string) string {
+	categoryText := categoryUncategorized
+	if expense.Category != nil {
+		categoryText = escapeHTML(expense.Category.Name)
+	}
+	descText := ""
+	if expense.Description != "" {
+		descText = "\n📝 " + escapeHTML(expense.Description)
+	}
+	currencySymbol := getCurrencyOrCodeSymbol(expense.Currency)
+	text := fmt.Sprintf(`✅ <b>Expense Added</b>
+
+💰 %s%s %s%s
+📁 %s
+🆔 #%d`,
+		currencySymbol,
+		expense.Amount.StringFixed(2),
+		expense.Currency,
+		descText,
+		categoryText,
+		expense.UserExpenseNumber)
+
+	if len(parsedTags) == 0 {
+		return text
+	}
+	escapedTags := make([]string, len(parsedTags))
+	for i, tag := range parsedTags {
+		escapedTags[i] = escapeHTML(tag)
+	}
+	return text + "\n🏷️ " + strings.Join(escapedTags, ", ")
 }
 
 // handleList handles the /list command to show recent expenses.
@@ -995,18 +1049,10 @@ func (b *Bot) sendExpenseListCore(
 	header string,
 ) {
 	if len(expenses) == 0 {
-		_, err := tg.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    chatID,
-			Text:      header + "\n\nNo expenses found.",
-			ParseMode: models.ParseModeHTML,
-		})
-		if err != nil {
-			logger.Log.Error().Err(err).Msg("Failed to send empty expense list")
-		}
+		b.sendEmptyExpenseList(ctx, tg, chatID, header)
 		return
 	}
 
-	// Batch-load tags for all expenses.
 	expenseIDs := make([]int, len(expenses))
 	for i := range expenses {
 		expenseIDs[i] = expenses[i].ID
@@ -1016,60 +1062,82 @@ func (b *Bot) sendExpenseListCore(
 		logger.Log.Warn().Err(err).Msg("Failed to batch-load tags for expense list")
 	}
 
-	var sb strings.Builder
-	sb.WriteString(header)
-	sb.WriteString("\n\n")
-
-	for i := range expenses {
-		exp := &expenses[i]
-		categoryText := ""
-		if exp.Category != nil {
-			categoryText = fmt.Sprintf(" [%s]", escapeHTML(exp.Category.Name))
-		}
-
-		tagText := ""
-		if tags, ok := tagsByExpense[exp.ID]; ok && len(tags) > 0 {
-			names := make([]string, len(tags))
-			for j, t := range tags {
-				names[j] = "#" + escapeHTML(t.Name)
-			}
-			tagText = " " + strings.Join(names, " ")
-		}
-
-		descText := ""
-		if exp.Merchant != "" {
-			descText = " - " + escapeHTML(exp.Merchant)
-		} else if exp.Description != "" {
-			descText = " - " + escapeHTML(exp.Description)
-		}
-
-		currencySymbol := appmodels.SupportedCurrencies[exp.Currency]
-		if currencySymbol == "" {
-			currencySymbol = exp.Currency
-		}
-
-		sb.WriteString(fmt.Sprintf(
-			"#%d %s%s %s%s%s%s\n<i>%s</i>\n\n",
-			exp.UserExpenseNumber,
-			currencySymbol,
-			exp.Amount.StringFixed(2),
-			exp.Currency,
-			descText,
-			categoryText,
-			tagText,
-			exp.CreatedAt.In(b.displayLocation).Format("Jan 2 15:04"),
-		))
-	}
+	text := b.buildExpenseListMessage(header, expenses, tagsByExpense)
 
 	logger.Log.Debug().Int64("chat_id", chatID).Int("count", len(expenses)).Msg("Sending expense list")
 	_, err = tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    chatID,
-		Text:      sb.String(),
+		Text:      text,
 		ParseMode: models.ParseModeHTML,
 	})
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to send expense list")
 	}
+}
+
+func (b *Bot) sendEmptyExpenseList(ctx context.Context, tg TelegramAPI, chatID int64, header string) {
+	_, err := tg.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:    chatID,
+		Text:      header + "\n\nNo expenses found.",
+		ParseMode: models.ParseModeHTML,
+	})
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("Failed to send empty expense list")
+	}
+}
+
+func (b *Bot) buildExpenseListMessage(
+	header string,
+	expenses []appmodels.Expense,
+	tagsByExpense map[int][]appmodels.Tag,
+) string {
+	var sb strings.Builder
+	sb.WriteString(header)
+	sb.WriteString("\n\n")
+	for i := range expenses {
+		sb.WriteString(b.formatExpenseListItem(&expenses[i], tagsByExpense[expenses[i].ID]))
+	}
+	return sb.String()
+}
+
+func (b *Bot) formatExpenseListItem(exp *appmodels.Expense, tags []appmodels.Tag) string {
+	categoryText := ""
+	if exp.Category != nil {
+		categoryText = fmt.Sprintf(" [%s]", escapeHTML(exp.Category.Name))
+	}
+
+	tagText := ""
+	if len(tags) > 0 {
+		names := make([]string, len(tags))
+		for i, tag := range tags {
+			names[i] = "#" + escapeHTML(tag.Name)
+		}
+		tagText = " " + strings.Join(names, " ")
+	}
+
+	descText := ""
+	if exp.Merchant != "" {
+		descText = " - " + escapeHTML(exp.Merchant)
+	} else if exp.Description != "" {
+		descText = " - " + escapeHTML(exp.Description)
+	}
+
+	currencySymbol := appmodels.SupportedCurrencies[exp.Currency]
+	if currencySymbol == "" {
+		currencySymbol = exp.Currency
+	}
+
+	return fmt.Sprintf(
+		"#%d %s%s %s%s%s%s\n<i>%s</i>\n\n",
+		exp.UserExpenseNumber,
+		currencySymbol,
+		exp.Amount.StringFixed(2),
+		exp.Currency,
+		descText,
+		categoryText,
+		tagText,
+		exp.CreatedAt.In(b.displayLocation).Format("Jan 2 15:04"),
+	)
 }
 
 // handleReport handles the /report command to generate CSV reports.
@@ -1196,6 +1264,11 @@ func (b *Bot) handleReportCore(ctx context.Context, tg TelegramAPI, update *mode
 
 // handleEdit handles the /edit command to modify an expense.
 func (b *Bot) handleEdit(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleEditCore(ctx, tgBot, update)
+}
+
+// handleEditCore is the testable implementation of handleEdit.
+func (b *Bot) handleEditCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
 	if update.Message == nil {
 		return
 	}
@@ -1203,65 +1276,104 @@ func (b *Bot) handleEdit(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 	chatID := update.Message.Chat.ID
 	userID := update.Message.From.ID
 
-	args := extractCommandArgs(update.Message.Text, "/edit")
-
-	if args == "" {
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+	expenseNum, newValues, errText := parseEditCommand(update.Message.Text)
+	if errText != "" {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      "❌ Usage: <code>/edit &lt;id&gt; &lt;amount&gt; &lt;description&gt; [category]</code>",
+			Text:      errText,
 			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
 
-	parts := strings.SplitN(args, " ", 2)
-	expenseNum, err := strconv.ParseInt(parts[0], 10, 64)
-	if err != nil {
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    chatID,
-			Text:      "❌ Invalid expense ID. Use: <code>/edit &lt;id&gt; &lt;amount&gt; &lt;description&gt;</code>",
-			ParseMode: models.ParseModeHTML,
-		})
-		return
-	}
-
-	expense, err := b.expenseRepo.GetByUserAndNumber(ctx, userID, expenseNum)
-	if err != nil {
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
-			Text:   fmt.Sprintf("❌ Expense #%d not found.", expenseNum),
-		})
-		return
-	}
-
-	if expense.UserID != userID {
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
-			Text:   "❌ You can only edit your own expenses.",
-		})
-		return
-	}
-
-	if len(parts) < 2 {
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    chatID,
-			Text:      "❌ Please provide new values: <code>/edit &lt;id&gt; &lt;amount&gt; &lt;description&gt;</code>",
-			ParseMode: models.ParseModeHTML,
-		})
+	expense, found := b.getEditableExpense(ctx, tg, chatID, userID, expenseNum)
+	if !found {
 		return
 	}
 
 	categories, err := b.getCategoriesWithCache(ctx)
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to fetch categories for edit")
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   failedFetchCategoriesMsg,
 		})
 		return
 	}
 
-	// Load the existing category if one is set
+	parsed := parseEditExpenseValues(newValues, expense, categories)
+	if parsed == nil {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    chatID,
+			Text:      "❌ Invalid format. Use: <code>/edit &lt;id&gt; &lt;amount&gt; &lt;description&gt;</code>",
+			ParseMode: models.ParseModeHTML,
+		})
+		return
+	}
+	applyParsedEdit(expense, parsed, categories)
+
+	if err := b.expenseRepo.Update(ctx, expense); err != nil {
+		logger.Log.Error().Err(err).Int64("expense_num", expenseNum).Msg("Failed to update expense")
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to update expense. Please try again.",
+		})
+		return
+	}
+
+	logger.Log.Debug().
+		Int64("chat_id", chatID).
+		Int64("expense_num", expenseNum).
+		Msg("Expense updated")
+
+	sendEditConfirmation(ctx, tg, chatID, expense)
+}
+
+func parseEditCommand(text string) (int64, string, string) {
+	args := extractCommandArgs(text, "/edit")
+	if args == "" {
+		return 0, "", "❌ Usage: <code>/edit &lt;id&gt; &lt;amount&gt; &lt;description&gt; [category]</code>"
+	}
+
+	parts := strings.SplitN(args, " ", 2)
+	expenseNum, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return 0, "", "❌ Invalid expense ID. Use: <code>/edit &lt;id&gt; &lt;amount&gt; &lt;description&gt;</code>"
+	}
+	if len(parts) < 2 {
+		return 0, "", "❌ Please provide new values: <code>/edit &lt;id&gt; &lt;amount&gt; &lt;description&gt;</code>"
+	}
+	return expenseNum, parts[1], ""
+}
+
+func (b *Bot) getEditableExpense(
+	ctx context.Context,
+	tg TelegramAPI,
+	chatID, userID, expenseNum int64,
+) (*appmodels.Expense, bool) {
+	expense, err := b.expenseRepo.GetByUserAndNumber(ctx, userID, expenseNum)
+	if err != nil {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   fmt.Sprintf("❌ Expense #%d not found.", expenseNum),
+		})
+		return nil, false
+	}
+	if expense.UserID != userID {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ You can only edit your own expenses.",
+		})
+		return nil, false
+	}
+	return expense, true
+}
+
+func parseEditExpenseValues(
+	values string,
+	expense *appmodels.Expense,
+	categories []appmodels.Category,
+) *ParsedExpense {
 	if expense.CategoryID != nil {
 		for i := range categories {
 			if categories[i].ID == *expense.CategoryID {
@@ -1274,52 +1386,35 @@ func (b *Bot) handleEdit(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 	for i, cat := range categories {
 		categoryNames[i] = cat.Name
 	}
+	return ParseExpenseInputWithCategories(values, categoryNames)
+}
 
-	parsed := ParseExpenseInputWithCategories(parts[1], categoryNames)
-	if parsed == nil {
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    chatID,
-			Text:      "❌ Invalid format. Use: <code>/edit &lt;id&gt; &lt;amount&gt; &lt;description&gt;</code>",
-			ParseMode: models.ParseModeHTML,
-		})
-		return
-	}
-
+func applyParsedEdit(
+	expense *appmodels.Expense,
+	parsed *ParsedExpense,
+	categories []appmodels.Category,
+) {
 	expense.Amount = parsed.Amount
-
 	if parsed.Currency != "" {
 		expense.Currency = parsed.Currency
 	}
-
 	if parsed.Description != "" {
 		expense.Description = parsed.Description
 		expense.Merchant = parsed.Description
 	}
-
-	if parsed.CategoryName != "" {
-		for _, cat := range categories {
-			if strings.EqualFold(cat.Name, parsed.CategoryName) {
-				expense.CategoryID = &cat.ID
-				expense.Category = &cat
-				break
-			}
-		}
-	}
-
-	if err := b.expenseRepo.Update(ctx, expense); err != nil {
-		logger.Log.Error().Err(err).Int64("expense_num", expenseNum).Msg("Failed to update expense")
-		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
-			Text:   "❌ Failed to update expense. Please try again.",
-		})
+	if parsed.CategoryName == "" {
 		return
 	}
+	for i := range categories {
+		if strings.EqualFold(categories[i].Name, parsed.CategoryName) {
+			expense.CategoryID = &categories[i].ID
+			expense.Category = &categories[i]
+			return
+		}
+	}
+}
 
-	logger.Log.Debug().
-		Int64("chat_id", chatID).
-		Int64("expense_num", expenseNum).
-		Msg("Expense updated")
-
+func sendEditConfirmation(ctx context.Context, tg TelegramAPI, chatID int64, expense *appmodels.Expense) {
 	categoryText := categoryUncategorized
 	if expense.Category != nil {
 		categoryText = escapeHTML(expense.Category.Name)
@@ -1343,7 +1438,7 @@ func (b *Bot) handleEdit(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 		escapeHTML(expense.Description),
 		categoryText)
 
-	_, err = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+	_, err := tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    chatID,
 		Text:      text,
 		ParseMode: models.ParseModeHTML,

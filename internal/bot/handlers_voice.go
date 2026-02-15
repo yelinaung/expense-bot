@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -95,27 +94,7 @@ func (b *Bot) handleVoiceCore(ctx context.Context, tg TelegramAPI, update *model
 			Int64("chat_id", chatID).
 			Int64("user_id", userID).
 			Msg("Failed to parse voice expense")
-
-		switch {
-		case errors.Is(err, gemini.ErrVoiceParseTimeout):
-			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID:    chatID,
-				Text:      "⏱️ Voice processing timed out. Please try again or add manually: <code>/add &lt;amount&gt; &lt;description&gt;</code>",
-				ParseMode: models.ParseModeHTML,
-			})
-		case errors.Is(err, gemini.ErrNoVoiceData):
-			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID:    chatID,
-				Text:      "❌ Could not extract expense information from your voice message. Please try again or add manually: <code>/add &lt;amount&gt; &lt;description&gt;</code>",
-				ParseMode: models.ParseModeHTML,
-			})
-		default:
-			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID:    chatID,
-				Text:      "❌ Failed to process voice message. Please try again or add manually: <code>/add &lt;amount&gt; &lt;description&gt;</code>",
-				ParseMode: models.ParseModeHTML,
-			})
-		}
+		sendVoiceParseError(ctx, tg, chatID, err)
 		return
 	}
 
@@ -129,15 +108,7 @@ func (b *Bot) handleVoiceCore(ctx context.Context, tg TelegramAPI, update *model
 		Float64("confidence", voiceData.Confidence).
 		Msg("Voice expense parsed")
 
-	var categoryID *int
-	var category *appmodels.Category
-	for i := range categories {
-		if strings.EqualFold(categories[i].Name, voiceData.SuggestedCategory) {
-			categoryID = &categories[i].ID
-			category = &categories[i]
-			break
-		}
-	}
+	categoryID, category := findCategoryByName(categories, voiceData.SuggestedCategory)
 
 	description := voiceData.Description
 	if description == "" {
@@ -172,25 +143,7 @@ func (b *Bot) handleVoiceCore(ctx context.Context, tg TelegramAPI, update *model
 		return
 	}
 
-	categoryText := categoryUncategorized
-	if category != nil {
-		categoryText = escapeHTML(category.Name)
-	}
-
-	currencySymbol := getCurrencyOrCodeSymbol(expense.Currency)
-
-	text := fmt.Sprintf(`🎙️ <b>Voice Expense Detected!</b>
-
-💰 Amount: %s%s %s
-📝 Description: %s
-📁 Category: %s
-
-Please confirm, edit, or cancel:`,
-		currencySymbol,
-		expense.Amount.StringFixed(2),
-		expense.Currency,
-		escapeHTML(expense.Description),
-		categoryText)
+	text := buildVoiceConfirmationText(expense)
 
 	keyboard := buildReceiptConfirmationKeyboard(expense.ID)
 
@@ -210,4 +163,39 @@ Please confirm, edit, or cancel:`,
 		Int("expense_id", expense.ID).
 		Int("message_id", msg.ID).
 		Msg("Voice expense confirmation sent with inline keyboard")
+}
+
+func sendVoiceParseError(ctx context.Context, tg TelegramAPI, chatID int64, err error) {
+	text := "❌ Failed to process voice message. Please try again or add manually: <code>/add &lt;amount&gt; &lt;description&gt;</code>"
+	if errors.Is(err, gemini.ErrVoiceParseTimeout) {
+		text = "⏱️ Voice processing timed out. Please try again or add manually: <code>/add &lt;amount&gt; &lt;description&gt;</code>"
+	}
+	if errors.Is(err, gemini.ErrNoVoiceData) {
+		text = "❌ Could not extract expense information from your voice message. Please try again or add manually: <code>/add &lt;amount&gt; &lt;description&gt;</code>"
+	}
+	_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:    chatID,
+		Text:      text,
+		ParseMode: models.ParseModeHTML,
+	})
+}
+
+func buildVoiceConfirmationText(expense *appmodels.Expense) string {
+	categoryText := categoryUncategorized
+	if expense.Category != nil {
+		categoryText = escapeHTML(expense.Category.Name)
+	}
+	currencySymbol := getCurrencyOrCodeSymbol(expense.Currency)
+	return fmt.Sprintf(`🎙️ <b>Voice Expense Detected!</b>
+
+💰 Amount: %s%s %s
+📝 Description: %s
+📁 Category: %s
+
+Please confirm, edit, or cancel:`,
+		currencySymbol,
+		expense.Amount.StringFixed(2),
+		expense.Currency,
+		escapeHTML(expense.Description),
+		categoryText)
 }

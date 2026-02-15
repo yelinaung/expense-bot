@@ -12,27 +12,35 @@ import (
 // 2. Contains match (e.g., "dining" matches "Food - Dining Out")
 // 3. No match -> returns nil.
 func MatchCategory(suggested string, categories []models.Category) *models.Category {
-	if suggested == "" {
-		return nil
-	}
-
 	suggestedLower := strings.ToLower(strings.TrimSpace(suggested))
 	if suggestedLower == "" {
 		return nil
 	}
 
-	// Strategy 1: Exact match (case-insensitive).
+	if match := findExactCategoryMatch(suggested, categories); match != nil {
+		return match
+	}
+	if match := findShortestContainingCategoryMatch(suggestedLower, categories); match != nil {
+		return match
+	}
+	if match := findLongestContainedCategoryMatch(suggestedLower, categories); match != nil {
+		return match
+	}
+	return findWordBasedCategoryMatch(suggested, categories)
+}
+
+func findExactCategoryMatch(suggested string, categories []models.Category) *models.Category {
 	for i := range categories {
 		if strings.EqualFold(categories[i].Name, suggested) {
 			return &categories[i]
 		}
 	}
+	return nil
+}
 
-	// Strategy 2: Contains match - find categories where suggested is a substring.
-	// Track the best match (shortest category name that contains the term).
+func findShortestContainingCategoryMatch(suggestedLower string, categories []models.Category) *models.Category {
 	var bestMatch *models.Category
 	bestLen := 0
-
 	for i := range categories {
 		catLower := strings.ToLower(categories[i].Name)
 		if strings.Contains(catLower, suggestedLower) {
@@ -42,13 +50,12 @@ func MatchCategory(suggested string, categories []models.Category) *models.Categ
 			}
 		}
 	}
+	return bestMatch
+}
 
-	if bestMatch != nil {
-		return bestMatch
-	}
-
-	// Strategy 2b: Check if category name contains suggested (reverse check).
-	// e.g., suggested "Food - Dining Out" matches category "Dining Out".
+func findLongestContainedCategoryMatch(suggestedLower string, categories []models.Category) *models.Category {
+	var bestMatch *models.Category
+	bestLen := 0
 	for i := range categories {
 		catLower := strings.ToLower(categories[i].Name)
 		if strings.Contains(suggestedLower, catLower) {
@@ -58,12 +65,10 @@ func MatchCategory(suggested string, categories []models.Category) *models.Categ
 			}
 		}
 	}
+	return bestMatch
+}
 
-	if bestMatch != nil {
-		return bestMatch
-	}
-
-	// Strategy 3: Word-based matching - check if any significant word matches.
+func findWordBasedCategoryMatch(suggested string, categories []models.Category) *models.Category {
 	suggestedWords := extractSignificantWords(suggested)
 	for i := range categories {
 		catWords := extractSignificantWords(categories[i].Name)
@@ -75,7 +80,6 @@ func MatchCategory(suggested string, categories []models.Category) *models.Categ
 			}
 		}
 	}
-
 	return nil
 }
 

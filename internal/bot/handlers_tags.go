@@ -46,33 +46,19 @@ func (b *Bot) handleTagCore(ctx context.Context, tg TelegramAPI, update *models.
 	chatID := update.Message.Chat.ID
 	userID := update.Message.From.ID
 
-	args := extractCommandArgs(update.Message.Text, "/tag")
-
-	if args == "" {
+	expenseNum, tagNames, parseErrText := parseTagCommand(update.Message.Text)
+	if parseErrText != "" {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      "❌ Usage: <code>/tag &lt;id&gt; #tag1 [#tag2] ...</code>",
+			Text:      parseErrText,
 			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
-
-	parts := strings.Fields(args)
-	if len(parts) < 2 {
+	if len(tagNames) > maxTagsPerCommand {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    chatID,
-			Text:      "❌ Usage: <code>/tag &lt;id&gt; #tag1 [#tag2] ...</code>",
-			ParseMode: models.ParseModeHTML,
-		})
-		return
-	}
-
-	expenseNum, err := strconv.ParseInt(parts[0], 10, 64)
-	if err != nil {
-		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    chatID,
-			Text:      "❌ Invalid expense ID. Use: <code>/tag &lt;id&gt; #tag1 [#tag2] ...</code>",
-			ParseMode: models.ParseModeHTML,
+			ChatID: chatID,
+			Text:   fmt.Sprintf("❌ Too many tags. Maximum %d tags per command.", maxTagsPerCommand),
 		})
 		return
 	}
@@ -94,38 +80,15 @@ func (b *Bot) handleTagCore(ctx context.Context, tg TelegramAPI, update *models.
 		return
 	}
 
-	tagNames := parts[1:]
-	if len(tagNames) > maxTagsPerCommand {
+	tagIDs, addedNames, err := b.resolveTagIDs(ctx, tagNames)
+	if err != nil {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
-			Text:   fmt.Sprintf("❌ Too many tags. Maximum %d tags per command.", maxTagsPerCommand),
+			ChatID:    chatID,
+			Text:      err.Error(),
+			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
-
-	tagIDs := make([]int, 0, len(tagNames))
-	addedNames := make([]string, 0, len(tagNames))
-	for _, name := range tagNames {
-		name = strings.ToLower(strings.TrimPrefix(name, "#"))
-		if name == "" {
-			continue
-		}
-		if !isValidTagName(name) {
-			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID: chatID,
-				Text:   fmt.Sprintf("❌ Invalid tag name '%s'. Tags must start with a letter, contain only letters/numbers/underscores, and be at most %d characters.", name, appmodels.MaxTagNameLength),
-			})
-			return
-		}
-		tag, err := b.tagRepo.GetOrCreate(ctx, name)
-		if err != nil {
-			logger.Log.Warn().Err(err).Str("tag", name).Msg("Failed to create tag")
-			continue
-		}
-		tagIDs = append(tagIDs, tag.ID)
-		addedNames = append(addedNames, "#"+name)
-	}
-
 	if len(tagIDs) == 0 {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
@@ -149,21 +112,7 @@ func (b *Bot) handleTagCore(ctx context.Context, tg TelegramAPI, update *models.
 		logger.Log.Warn().Err(err).Int("expense_id", expense.ID).Msg("Failed to fetch tags for confirmation")
 	}
 
-	var text string
-	if len(currentTags) > 0 {
-		var currentNames []string
-		for _, t := range currentTags {
-			currentNames = append(currentNames, "#"+escapeHTML(t.Name))
-		}
-		text = fmt.Sprintf("✅ Added %s to expense #%d.\n🏷️ Tags: %s",
-			strings.Join(addedNames, ", "),
-			expenseNum,
-			strings.Join(currentNames, " "))
-	} else {
-		text = fmt.Sprintf("✅ Added %s to expense #%d.",
-			strings.Join(addedNames, ", "),
-			expenseNum)
-	}
+	text := buildTagConfirmationText(addedNames, expenseNum, currentTags)
 
 	_, err = tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    chatID,
@@ -173,6 +122,69 @@ func (b *Bot) handleTagCore(ctx context.Context, tg TelegramAPI, update *models.
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to send /tag response")
 	}
+}
+
+func parseTagCommand(text string) (int64, []string, string) {
+	args := extractCommandArgs(text, "/tag")
+	if args == "" {
+		return 0, nil, "❌ Usage: <code>/tag &lt;id&gt; #tag1 [#tag2] ...</code>"
+	}
+	parts := strings.Fields(args)
+	if len(parts) < 2 {
+		return 0, nil, "❌ Usage: <code>/tag &lt;id&gt; #tag1 [#tag2] ...</code>"
+	}
+	expenseNum, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return 0, nil, "❌ Invalid expense ID. Use: <code>/tag &lt;id&gt; #tag1 [#tag2] ...</code>"
+	}
+	return expenseNum, parts[1:], ""
+}
+
+func (b *Bot) resolveTagIDs(ctx context.Context, tagNames []string) ([]int, []string, error) {
+	tagIDs := make([]int, 0, len(tagNames))
+	addedNames := make([]string, 0, len(tagNames))
+	for _, name := range tagNames {
+		name = strings.ToLower(strings.TrimPrefix(name, "#"))
+		if name == "" {
+			continue
+		}
+		if !isValidTagName(name) {
+			return nil, nil, fmt.Errorf(
+				"❌ Invalid tag name '%s'. Tags must start with a letter, contain only letters/numbers/underscores, and be at most %d characters",
+				name,
+				appmodels.MaxTagNameLength,
+			)
+		}
+		tag, err := b.tagRepo.GetOrCreate(ctx, name)
+		if err != nil {
+			logger.Log.Warn().Err(err).Str("tag", name).Msg("Failed to create tag")
+			continue
+		}
+		tagIDs = append(tagIDs, tag.ID)
+		addedNames = append(addedNames, "#"+name)
+	}
+	return tagIDs, addedNames, nil
+}
+
+func buildTagConfirmationText(
+	addedNames []string,
+	expenseNum int64,
+	currentTags []appmodels.Tag,
+) string {
+	if len(currentTags) == 0 {
+		return fmt.Sprintf("✅ Added %s to expense #%d.",
+			strings.Join(addedNames, ", "),
+			expenseNum)
+	}
+
+	currentNames := make([]string, 0, len(currentTags))
+	for _, tag := range currentTags {
+		currentNames = append(currentNames, "#"+escapeHTML(tag.Name))
+	}
+	return fmt.Sprintf("✅ Added %s to expense #%d.\n🏷️ Tags: %s",
+		strings.Join(addedNames, ", "),
+		expenseNum,
+		strings.Join(currentNames, " "))
 }
 
 // handleUntag handles the /untag command to remove a tag from an expense.

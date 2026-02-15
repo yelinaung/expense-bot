@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -97,27 +98,7 @@ func (b *Bot) handlePhotoCore(ctx context.Context, tg TelegramAPI, update *model
 			Int64("chat_id", chatID).
 			Int64("user_id", userID).
 			Msg("Failed to parse receipt")
-
-		switch {
-		case errors.Is(err, gemini.ErrParseTimeout):
-			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID:    chatID,
-				Text:      "⏱️ Receipt processing timed out. Please try again or add manually: <code>/add &lt;amount&gt; &lt;description&gt;</code>",
-				ParseMode: models.ParseModeHTML,
-			})
-		case errors.Is(err, gemini.ErrNoData):
-			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID:    chatID,
-				Text:      "❌ Could not read this receipt. Please add manually: <code>/add &lt;amount&gt; &lt;description&gt;</code>",
-				ParseMode: models.ParseModeHTML,
-			})
-		default:
-			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID:    chatID,
-				Text:      "❌ Could not read this receipt. Please add manually: <code>/add &lt;amount&gt; &lt;description&gt;</code>",
-				ParseMode: models.ParseModeHTML,
-			})
-		}
+		sendReceiptParseError(ctx, tg, chatID, err)
 		return
 	}
 
@@ -142,15 +123,7 @@ func (b *Bot) handlePhotoCore(ctx context.Context, tg TelegramAPI, update *model
 		})
 		return
 	}
-	var categoryID *int
-	var category *appmodels.Category
-	for i := range categories {
-		if strings.EqualFold(categories[i].Name, receiptData.SuggestedCategory) {
-			categoryID = &categories[i].ID
-			category = &categories[i]
-			break
-		}
-	}
+	categoryID, category := findCategoryByName(categories, receiptData.SuggestedCategory)
 
 	// Use sensible defaults for partial data.
 	merchant := receiptData.Merchant
@@ -186,48 +159,7 @@ func (b *Bot) handlePhotoCore(ctx context.Context, tg TelegramAPI, update *model
 		return
 	}
 
-	categoryText := categoryUncategorized
-	if category != nil {
-		categoryText = escapeHTML(category.Name)
-	}
-
-	dateText := "Unknown"
-	if !receiptData.Date.IsZero() {
-		dateText = receiptData.Date.Format("02 Jan 2006")
-	}
-	currencySymbol := getCurrencyOrCodeSymbol(expense.Currency)
-
-	// Build message based on extraction completeness.
-	var text string
-	if isPartial {
-		text = fmt.Sprintf(`⚠️ <b>Partial Extraction - Please Verify</b>
-
-💰 Amount: %s%s %s
-🏪 Merchant: %s
-📅 Date: %s
-📁 Category: %s
-
-<i>Some data could not be extracted. Please edit or confirm.</i>`,
-			currencySymbol,
-			expense.Amount.StringFixed(2),
-			expense.Currency,
-			escapeHTML(expense.Merchant),
-			dateText,
-			categoryText)
-	} else {
-		text = fmt.Sprintf(`📸 <b>Receipt Scanned!</b>
-
-💰 Amount: %s%s %s
-🏪 Merchant: %s
-📅 Date: %s
-📁 Category: %s`,
-			currencySymbol,
-			expense.Amount.StringFixed(2),
-			expense.Currency,
-			escapeHTML(expense.Merchant),
-			dateText,
-			categoryText)
-	}
+	text := buildReceiptConfirmationText(expense, receiptData.Date, isPartial)
 
 	keyboard := buildReceiptConfirmationKeyboard(expense.ID)
 
@@ -248,6 +180,75 @@ func (b *Bot) handlePhotoCore(ctx context.Context, tg TelegramAPI, update *model
 		Int("message_id", msg.ID).
 		Bool("partial", isPartial).
 		Msg("Receipt confirmation sent with inline keyboard")
+}
+
+func sendReceiptParseError(ctx context.Context, tg TelegramAPI, chatID int64, err error) {
+	text := "❌ Could not read this receipt. Please add manually: <code>/add &lt;amount&gt; &lt;description&gt;</code>"
+	if errors.Is(err, gemini.ErrParseTimeout) {
+		text = "⏱️ Receipt processing timed out. Please try again or add manually: <code>/add &lt;amount&gt; &lt;description&gt;</code>"
+	}
+	_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:    chatID,
+		Text:      text,
+		ParseMode: models.ParseModeHTML,
+	})
+}
+
+func findCategoryByName(
+	categories []appmodels.Category,
+	name string,
+) (*int, *appmodels.Category) {
+	for i := range categories {
+		if strings.EqualFold(categories[i].Name, name) {
+			return &categories[i].ID, &categories[i]
+		}
+	}
+	return nil, nil
+}
+
+func buildReceiptConfirmationText(
+	expense *appmodels.Expense,
+	receiptDate time.Time,
+	isPartial bool,
+) string {
+	categoryText := categoryUncategorized
+	if expense.Category != nil {
+		categoryText = escapeHTML(expense.Category.Name)
+	}
+	dateText := "Unknown"
+	if !receiptDate.IsZero() {
+		dateText = receiptDate.Format("02 Jan 2006")
+	}
+	currencySymbol := getCurrencyOrCodeSymbol(expense.Currency)
+	if isPartial {
+		return fmt.Sprintf(`⚠️ <b>Partial Extraction - Please Verify</b>
+
+💰 Amount: %s%s %s
+🏪 Merchant: %s
+📅 Date: %s
+📁 Category: %s
+
+<i>Some data could not be extracted. Please edit or confirm.</i>`,
+			currencySymbol,
+			expense.Amount.StringFixed(2),
+			expense.Currency,
+			escapeHTML(expense.Merchant),
+			dateText,
+			categoryText)
+	}
+
+	return fmt.Sprintf(`📸 <b>Receipt Scanned!</b>
+
+💰 Amount: %s%s %s
+🏪 Merchant: %s
+📅 Date: %s
+📁 Category: %s`,
+		currencySymbol,
+		expense.Amount.StringFixed(2),
+		expense.Currency,
+		escapeHTML(expense.Merchant),
+		dateText,
+		categoryText)
 }
 
 // handleReceiptCallback handles receipt confirmation button presses.

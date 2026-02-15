@@ -42,7 +42,24 @@ type Config struct {
 func Load() (*Config, error) {
 	_ = godotenv.Load()
 
-	cfg := &Config{
+	cfg := newDefaultConfig()
+	if err := applyExchangeRateConfig(cfg); err != nil {
+		return nil, err
+	}
+	applyReminderConfig(cfg)
+	cfg.WhitelistedUserIDs = parseWhitelistedUserIDs(os.Getenv("WHITELISTED_USER_IDS"))
+	cfg.WhitelistedUsernames = parseWhitelistedUsernames(os.Getenv("WHITELISTED_USERNAMES"))
+
+	// Validate required configuration.
+	if err := cfg.validate(); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
+}
+
+func newDefaultConfig() *Config {
+	return &Config{
 		TelegramBotToken:      os.Getenv("TELEGRAM_BOT_TOKEN"),
 		DatabaseURL:           os.Getenv("DATABASE_URL"),
 		GeminiAPIKey:          os.Getenv("GEMINI_API_KEY"),
@@ -53,24 +70,32 @@ func Load() (*Config, error) {
 		resolvedSuperadmins:   make(map[string]int64),
 		resolvedSuperadminIDs: make(map[int64]struct{}),
 	}
+}
+
+func applyExchangeRateConfig(cfg *Config) error {
 	if baseURL := strings.TrimSpace(os.Getenv("EXCHANGE_RATE_BASE_URL")); baseURL != "" {
-		// Validate URL scheme to prevent SSRF
+		// Validate URL scheme to prevent SSRF.
 		if !strings.HasPrefix(baseURL, "http://") && !strings.HasPrefix(baseURL, "https://") {
-			return nil, errors.New("EXCHANGE_RATE_BASE_URL must use http:// or https:// scheme")
+			return errors.New("EXCHANGE_RATE_BASE_URL must use http:// or https:// scheme")
 		}
 		cfg.ExchangeRateBaseURL = baseURL
 	}
+
 	if timeout := strings.TrimSpace(os.Getenv("EXCHANGE_RATE_TIMEOUT")); timeout != "" {
 		if d, err := time.ParseDuration(timeout); err == nil && d > 0 {
 			cfg.ExchangeRateTimeout = d
 		}
 	}
+
 	if cacheTTL := strings.TrimSpace(os.Getenv("EXCHANGE_RATE_CACHE_TTL")); cacheTTL != "" {
 		if d, err := time.ParseDuration(cacheTTL); err == nil && d > 0 {
 			cfg.ExchangeRateCacheTTL = d
 		}
 	}
+	return nil
+}
 
+func applyReminderConfig(cfg *Config) {
 	cfg.DailyReminderEnabled = os.Getenv("DAILY_REMINDER_ENABLED") == "true"
 	cfg.ReminderHour = 20
 	if hourStr := os.Getenv("REMINDER_HOUR"); hourStr != "" {
@@ -84,41 +109,34 @@ func Load() (*Config, error) {
 			cfg.ReminderTimezone = tz
 		}
 	}
+}
 
-	whitelistStr := os.Getenv("WHITELISTED_USER_IDS")
-	if whitelistStr != "" {
-		for idStr := range strings.SplitSeq(whitelistStr, ",") {
-			idStr = strings.TrimSpace(idStr)
-			if idStr == "" {
-				continue
-			}
-			id, err := strconv.ParseInt(idStr, 10, 64)
-			if err != nil {
-				continue
-			}
-			cfg.WhitelistedUserIDs = append(cfg.WhitelistedUserIDs, id)
+func parseWhitelistedUserIDs(raw string) []int64 {
+	var ids []int64
+	for idStr := range strings.SplitSeq(raw, ",") {
+		idStr = strings.TrimSpace(idStr)
+		if idStr == "" {
+			continue
 		}
-	}
-
-	whitelistUsernames := os.Getenv("WHITELISTED_USERNAMES")
-	if whitelistUsernames != "" {
-		for username := range strings.SplitSeq(whitelistUsernames, ",") {
-			username = strings.TrimSpace(username)
-			if username == "" {
-				continue
-			}
-			// Remove @ prefix if present
-			username = strings.TrimPrefix(username, "@")
-			cfg.WhitelistedUsernames = append(cfg.WhitelistedUsernames, username)
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			continue
 		}
+		ids = append(ids, id)
 	}
+	return ids
+}
 
-	// Validate required configuration.
-	if err := cfg.validate(); err != nil {
-		return nil, err
+func parseWhitelistedUsernames(raw string) []string {
+	var usernames []string
+	for username := range strings.SplitSeq(raw, ",") {
+		username = strings.TrimSpace(username)
+		if username == "" {
+			continue
+		}
+		usernames = append(usernames, strings.TrimPrefix(username, "@"))
 	}
-
-	return cfg, nil
+	return usernames
 }
 
 // validate checks that all required configuration is present.
