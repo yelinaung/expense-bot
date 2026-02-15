@@ -47,9 +47,7 @@ func appendOriginalAmountDescription(
 }
 
 func appendConversionUnavailableDescription(
-	description string,
-	originalCurrency string,
-	targetCurrency string,
+	description, originalCurrency, targetCurrency string,
 ) string {
 	metadata := fmt.Sprintf("[fx_unavailable: kept %s, target %s]", originalCurrency, targetCurrency)
 	if strings.TrimSpace(description) == "" {

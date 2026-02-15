@@ -527,7 +527,7 @@ func callHandleDelete(
 		return
 	}
 
-	if err := expenseRepo.Delete(ctx, expense.ID); err != nil {
+	if expenseRepo.Delete(ctx, expense.ID) != nil {
 		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Failed to delete expense. Please try again.",
