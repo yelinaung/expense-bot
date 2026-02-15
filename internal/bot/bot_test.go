@@ -181,6 +181,7 @@ func TestLogUserAction(t *testing.T) {
 func TestWhitelistMiddleware(t *testing.T) {
 	tx := database.TestTx(t)
 	ctx := context.Background()
+	const testMessage = "test message"
 
 	t.Run("allows whitelisted user", func(t *testing.T) {
 		cfg := &config.Config{
@@ -200,7 +201,7 @@ func TestWhitelistMiddleware(t *testing.T) {
 			nextCalled = true
 		}
 
-		update := mocks.MessageUpdate(999, 12345, "test message")
+		update := mocks.MessageUpdate(999, 12345, testMessage)
 
 		middleware := b.whitelistMiddleware(next)
 		middleware(ctx, nil, update)
@@ -227,7 +228,7 @@ func TestWhitelistMiddleware(t *testing.T) {
 			nextCalled = true
 		}
 
-		update := mocks.MessageUpdate(999, 99999, "test message")
+		update := mocks.MessageUpdate(999, 99999, testMessage)
 
 		middleware := b.whitelistMiddleware(next)
 		callMiddlewareWithMock(ctx, mockBot, middleware, update)
@@ -261,7 +262,7 @@ func TestWhitelistMiddleware(t *testing.T) {
 			nextCalled = true
 		}
 
-		update := mocks.MessageUpdate(999, 77777, "test message")
+		update := mocks.MessageUpdate(999, 77777, testMessage)
 
 		middleware := b.whitelistMiddleware(next)
 		middleware(ctx, nil, update)

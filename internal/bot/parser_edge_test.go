@@ -7,6 +7,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func requireDecimalAmount(t *testing.T, want string, got decimal.Decimal) {
+	t.Helper()
+
+	expected, err := decimal.NewFromString(want)
+	require.NoError(t, err)
+	require.True(t, expected.Equal(got), "expected %s, got %s", want, got.String())
+}
+
+func requireParsedExpense(t *testing.T, result *ParsedExpense, wantAmt, wantDesc, wantCatName string) {
+	t.Helper()
+
+	require.NotNil(t, result)
+	requireDecimalAmount(t, wantAmt, result.Amount)
+	require.Equal(t, wantDesc, result.Description)
+	require.Equal(t, wantCatName, result.CategoryName)
+}
+
 // TestParseAmount_EdgeCases tests additional edge cases for parseAmount.
 func TestParseAmount_EdgeCases(t *testing.T) {
 	t.Parallel()
@@ -133,9 +150,7 @@ func TestParseAmount_EdgeCases(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			expected, expErr := decimal.NewFromString(tt.want)
-			require.NoError(t, expErr)
-			require.True(t, expected.Equal(result), "expected %s, got %s", tt.want, result.String())
+			requireDecimalAmount(t, tt.want, result)
 		})
 	}
 }
@@ -263,11 +278,7 @@ func TestParseExpenseInput_EdgeCases(t *testing.T) {
 				return
 			}
 
-			require.NotNil(t, result)
-			expected, expErr := decimal.NewFromString(tt.wantAmt)
-			require.NoError(t, expErr)
-			require.True(t, expected.Equal(result.Amount), "expected %s, got %s", tt.wantAmt, result.Amount.String())
-			require.Equal(t, tt.wantDesc, result.Description)
+			requireParsedExpense(t, result, tt.wantAmt, tt.wantDesc, "")
 		})
 	}
 }
@@ -358,11 +369,7 @@ func TestParseAddCommand_EdgeCases(t *testing.T) {
 				return
 			}
 
-			require.NotNil(t, result)
-			expected, expErr := decimal.NewFromString(tt.wantAmt)
-			require.NoError(t, expErr)
-			require.True(t, expected.Equal(result.Amount), "expected %s, got %s", tt.wantAmt, result.Amount.String())
-			require.Equal(t, tt.wantDesc, result.Description)
+			requireParsedExpense(t, result, tt.wantAmt, tt.wantDesc, "")
 		})
 	}
 }
@@ -470,12 +477,7 @@ func TestParseAddCommandWithCategories_ComplexEdgeCases(t *testing.T) {
 				return
 			}
 
-			require.NotNil(t, result)
-			expected, expErr := decimal.NewFromString(tt.wantAmt)
-			require.NoError(t, expErr)
-			require.True(t, expected.Equal(result.Amount), "expected %s, got %s", tt.wantAmt, result.Amount.String())
-			require.Equal(t, tt.wantDesc, result.Description)
-			require.Equal(t, tt.wantCatName, result.CategoryName)
+			requireParsedExpense(t, result, tt.wantAmt, tt.wantDesc, tt.wantCatName)
 		})
 	}
 }
@@ -551,12 +553,7 @@ func TestParseExpenseInputWithCategories_ComplexEdgeCases(t *testing.T) {
 				return
 			}
 
-			require.NotNil(t, result)
-			expected, expErr := decimal.NewFromString(tt.wantAmt)
-			require.NoError(t, expErr)
-			require.True(t, expected.Equal(result.Amount), "expected %s, got %s", tt.wantAmt, result.Amount.String())
-			require.Equal(t, tt.wantDesc, result.Description)
-			require.Equal(t, tt.wantCatName, result.CategoryName)
+			requireParsedExpense(t, result, tt.wantAmt, tt.wantDesc, tt.wantCatName)
 		})
 	}
 }

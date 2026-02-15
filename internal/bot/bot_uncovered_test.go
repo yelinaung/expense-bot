@@ -25,6 +25,7 @@ func TestBotDefaultHandler_NilMessage(t *testing.T) {
 
 func TestBotDownloadFile(t *testing.T) {
 	t.Parallel()
+	const fileID = "file-1"
 
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
@@ -38,7 +39,7 @@ func TestBotDownloadFile(t *testing.T) {
 		mockBot.FileDownloadLinkToReturn = server.URL
 
 		b := &Bot{}
-		data, err := b.downloadFile(context.Background(), mockBot, "file-1")
+		data, err := b.downloadFile(context.Background(), mockBot, fileID)
 		require.NoError(t, err)
 		require.Equal(t, []byte("ok-bytes"), data)
 	})
@@ -50,7 +51,7 @@ func TestBotDownloadFile(t *testing.T) {
 		mockBot.GetFileError = errors.New("boom")
 
 		b := &Bot{}
-		data, err := b.downloadFile(context.Background(), mockBot, "file-1")
+		data, err := b.downloadFile(context.Background(), mockBot, fileID)
 		require.Error(t, err)
 		require.Nil(t, data)
 		require.Contains(t, err.Error(), "failed to get file info")
@@ -68,7 +69,7 @@ func TestBotDownloadFile(t *testing.T) {
 		mockBot.FileDownloadLinkToReturn = server.URL
 
 		b := &Bot{}
-		data, err := b.downloadFile(context.Background(), mockBot, "file-1")
+		data, err := b.downloadFile(context.Background(), mockBot, fileID)
 		require.Error(t, err)
 		require.Nil(t, data)
 		require.Contains(t, err.Error(), "download failed with status")
@@ -87,7 +88,7 @@ func TestBotDownloadFile(t *testing.T) {
 		mockBot.FileDownloadLinkToReturn = server.URL
 
 		b := &Bot{}
-		data, err := b.downloadFile(context.Background(), mockBot, "file-1")
+		data, err := b.downloadFile(context.Background(), mockBot, fileID)
 		require.Error(t, err)
 		require.Nil(t, data)
 		require.Contains(t, err.Error(), "exceeds size limit")
