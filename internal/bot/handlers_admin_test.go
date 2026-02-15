@@ -12,12 +12,20 @@ import (
 )
 
 const (
-	superadminUsername             = "superadmin"
-	superadminFirstName            = "Super"
-	superadminLastName             = "Admin"
-	nonSuperadminRejectedAdminTest = "non-superadmin rejected"
-	onlySuperadminsTextAdminTest   = "Only superadmins"
-	usersCommandAdminTest          = "/users"
+	superadminUsername              = "superadmin"
+	superadminFirstName             = "Super"
+	superadminLastName              = "Admin"
+	nonSuperadminRejectedAdminTest  = "non-superadmin rejected"
+	onlySuperadminsTextAdminTest    = "Only superadmins"
+	usersCommandAdminTest           = "/users"
+	regularUsernameAdminTest        = "regular"
+	regularFirstNameAdminTest       = "Regular"
+	regularLastNameAdminTest        = "User"
+	revokedTextAdminTest            = "revoked"
+	approvedTextAdminTest           = "approved"
+	superadminCannotRevokeAdminTest = "Superadmins cannot be revoked"
+	superadminsTextAdminTest        = "Superadmins"
+	approveByIDCmdAdminTest         = "/approve 12345"
 )
 
 func TestHandleApproveCore(t *testing.T) {
@@ -44,8 +52,8 @@ func TestHandleApproveCore(t *testing.T) {
 	t.Run(nonSuperadminRejectedAdminTest, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := mocks.NewUpdateBuilder().
-			WithMessage(1, 999, "/approve 12345").
-			WithFrom(999, "regular", "Regular", "User").
+			WithMessage(1, 999, approveByIDCmdAdminTest).
+			WithFrom(999, regularUsernameAdminTest, regularFirstNameAdminTest, regularLastNameAdminTest).
 			Build()
 		b.handleApproveCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
@@ -66,13 +74,13 @@ func TestHandleApproveCore(t *testing.T) {
 	t.Run("approve by ID", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := mocks.NewUpdateBuilder().
-			WithMessage(1, 100, "/approve 12345").
+			WithMessage(1, 100, approveByIDCmdAdminTest).
 			WithFrom(100, superadminUsername, superadminFirstName, superadminLastName).
 			Build()
 		b.handleApproveCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		require.Contains(t, mockBot.LastSentMessage().Text, "12345")
-		require.Contains(t, mockBot.LastSentMessage().Text, "approved")
+		require.Contains(t, mockBot.LastSentMessage().Text, approvedTextAdminTest)
 
 		approved, _, err := b.approvedUserRepo.IsApproved(ctx, 12345, "")
 		require.NoError(t, err)
@@ -88,7 +96,7 @@ func TestHandleApproveCore(t *testing.T) {
 		b.handleApproveCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		require.Contains(t, mockBot.LastSentMessage().Text, "@newuser")
-		require.Contains(t, mockBot.LastSentMessage().Text, "approved")
+		require.Contains(t, mockBot.LastSentMessage().Text, approvedTextAdminTest)
 
 		approved, _, err := b.approvedUserRepo.IsApproved(ctx, 0, "newuser")
 		require.NoError(t, err)
@@ -114,7 +122,7 @@ func TestHandleRevokeCore(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := mocks.NewUpdateBuilder().
 			WithMessage(1, 999, "/revoke 12345").
-			WithFrom(999, "regular", "Regular", "User").
+			WithFrom(999, regularUsernameAdminTest, regularFirstNameAdminTest, regularLastNameAdminTest).
 			Build()
 		b.handleRevokeCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
@@ -134,7 +142,7 @@ func TestHandleRevokeCore(t *testing.T) {
 		b.handleRevokeCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		require.Contains(t, mockBot.LastSentMessage().Text, "22222")
-		require.Contains(t, mockBot.LastSentMessage().Text, "revoked")
+		require.Contains(t, mockBot.LastSentMessage().Text, revokedTextAdminTest)
 
 		approved, _, err := b.approvedUserRepo.IsApproved(ctx, 22222, "")
 		require.NoError(t, err)
@@ -153,7 +161,7 @@ func TestHandleRevokeCore(t *testing.T) {
 		b.handleRevokeCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		require.Contains(t, mockBot.LastSentMessage().Text, "@revokeuser")
-		require.Contains(t, mockBot.LastSentMessage().Text, "revoked")
+		require.Contains(t, mockBot.LastSentMessage().Text, revokedTextAdminTest)
 	})
 
 	t.Run("cannot revoke superadmin by ID", func(t *testing.T) {
@@ -164,7 +172,7 @@ func TestHandleRevokeCore(t *testing.T) {
 			Build()
 		b.handleRevokeCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
-		require.Contains(t, mockBot.LastSentMessage().Text, "Superadmins cannot be revoked")
+		require.Contains(t, mockBot.LastSentMessage().Text, superadminCannotRevokeAdminTest)
 	})
 
 	t.Run("cannot revoke superadmin by username", func(t *testing.T) {
@@ -175,7 +183,7 @@ func TestHandleRevokeCore(t *testing.T) {
 			Build()
 		b.handleRevokeCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
-		require.Contains(t, mockBot.LastSentMessage().Text, "Superadmins cannot be revoked")
+		require.Contains(t, mockBot.LastSentMessage().Text, superadminCannotRevokeAdminTest)
 	})
 }
 
@@ -197,7 +205,7 @@ func TestHandleUsersCore(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := mocks.NewUpdateBuilder().
 			WithMessage(1, 999, usersCommandAdminTest).
-			WithFrom(999, "regular", "Regular", "User").
+			WithFrom(999, regularUsernameAdminTest, regularFirstNameAdminTest, regularLastNameAdminTest).
 			Build()
 		b.handleUsersCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
@@ -213,7 +221,7 @@ func TestHandleUsersCore(t *testing.T) {
 		b.handleUsersCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage().Text
-		require.Contains(t, msg, "Superadmins")
+		require.Contains(t, msg, superadminsTextAdminTest)
 		require.Contains(t, msg, "100")
 		require.Contains(t, msg, "@superadmin")
 		require.Contains(t, msg, "(none)")
@@ -231,7 +239,7 @@ func TestHandleUsersCore(t *testing.T) {
 		b.handleUsersCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage().Text
-		require.Contains(t, msg, "Superadmins")
+		require.Contains(t, msg, superadminsTextAdminTest)
 		require.Contains(t, msg, "Approved Users")
 		require.Contains(t, msg, "55555")
 		require.Contains(t, msg, "@frank")

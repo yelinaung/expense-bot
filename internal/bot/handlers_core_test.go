@@ -3,6 +3,7 @@ package bot
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/go-telegram/bot/models"
@@ -14,9 +15,36 @@ import (
 )
 
 const (
-	nilMessageReturnsEarlyCore = "nil message returns early"
-	expenseAddedTextCore       = "Expense Added"
+	nilMessageReturnsEarlyCore        = "nil message returns early"
+	expenseAddedTextCore              = "Expense Added"
+	addFiveFiftyCoffeeCoreTest        = "/add 5.50 Coffee"
+	aiSubscriptionsCoreTest           = "AI Subscriptions"
+	recentExpensesTextCoreTest        = "Recent Expenses"
+	welcomeTextCoreTest               = "Welcome"
+	totalLabelCoreTest                = "Total:"
+	aliceNameCoreTest                 = "Alice"
+	testItemCoreTest                  = "Test Item"
+	foodTextCoreTest                  = "Food"
+	othersTextCoreTest                = "Others"
+	botRespCategoryKeyCoreTest        = "category"
+	botRespConfidenceKeyCoreTest      = "confidence"
+	botRespReasoningKeyCoreTest       = "reasoning"
+	botRespMatchedKeyCoreTest         = "matched"
+	botRespNewCategoryNameKeyCoreTest = "new_category_name"
 )
+
+func makeCategorySuggestionPayload(reason string, matched bool, newCategoryName string) string {
+	return fmt.Sprintf(`{%q:"",%q:0.95,%q:%q,%q:%t,%q:%q}`,
+		botRespCategoryKeyCoreTest,
+		botRespConfidenceKeyCoreTest,
+		botRespReasoningKeyCoreTest,
+		reason,
+		botRespMatchedKeyCoreTest,
+		matched,
+		botRespNewCategoryNameKeyCoreTest,
+		newCategoryName,
+	)
+}
 
 func TestHandleAddCore(t *testing.T) {
 	pool := TestDB(t)
@@ -46,7 +74,7 @@ func TestHandleAddCore(t *testing.T) {
 			Message: &models.Message{
 				Chat: models.Chat{ID: 12345},
 				From: &models.User{ID: userID},
-				Text: "/add 5.50 Coffee",
+				Text: addFiveFiftyCoffeeCoreTest,
 			},
 		}
 
@@ -111,7 +139,7 @@ func TestHandleAddCore(t *testing.T) {
 		require.Contains(t, msg.Text, expenseAddedTextCore)
 		require.Contains(t, msg.Text, "$12.99 SGD")
 		require.Contains(t, msg.Text, "Lunch")
-		require.Contains(t, msg.Text, "Food")
+		require.Contains(t, msg.Text, foodTextCoreTest)
 	})
 
 	t.Run("send message error is handled gracefully", func(t *testing.T) {
@@ -130,7 +158,7 @@ func TestHandleAddCore(t *testing.T) {
 			Message: &models.Message{
 				Chat: models.Chat{ID: 12345},
 				From: &models.User{ID: userID},
-				Text: "/add 5.50 Coffee",
+				Text: addFiveFiftyCoffeeCoreTest,
 			},
 		}
 
@@ -156,14 +184,14 @@ func TestHandleStartCore(t *testing.T) {
 		update := &models.Update{
 			Message: &models.Message{
 				Chat: models.Chat{ID: 12345},
-				From: &models.User{ID: 1, FirstName: "Alice"},
+				From: &models.User{ID: 1, FirstName: aliceNameCoreTest},
 			},
 		}
 		b.handleStartCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "Welcome")
-		require.Contains(t, msg.Text, "Alice")
+		require.Contains(t, msg.Text, welcomeTextCoreTest)
+		require.Contains(t, msg.Text, aliceNameCoreTest)
 	})
 
 	t.Run("sends welcome message without name", func(t *testing.T) {
@@ -177,7 +205,7 @@ func TestHandleStartCore(t *testing.T) {
 		b.handleStartCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "Welcome")
+		require.Contains(t, msg.Text, welcomeTextCoreTest)
 	})
 }
 
@@ -241,7 +269,7 @@ func TestHandleCategoriesCore(t *testing.T) {
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.Contains(t, msg.Text, "Expense Categories")
-		require.Contains(t, msg.Text, "Food")
+		require.Contains(t, msg.Text, foodTextCoreTest)
 	})
 }
 
@@ -276,7 +304,7 @@ func TestHandleListCore(t *testing.T) {
 		b.handleListCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "Recent Expenses")
+		require.Contains(t, msg.Text, recentExpensesTextCoreTest)
 		require.Contains(t, msg.Text, "No expenses found")
 	})
 
@@ -287,7 +315,7 @@ func TestHandleListCore(t *testing.T) {
 			UserID:      userID,
 			Amount:      mustParseDecimal("15.00"),
 			Currency:    "SGD",
-			Description: "Test Item",
+			Description: testItemCoreTest,
 		}
 		err := b.expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
@@ -301,9 +329,9 @@ func TestHandleListCore(t *testing.T) {
 		b.handleListCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "Recent Expenses")
+		require.Contains(t, msg.Text, recentExpensesTextCoreTest)
 		require.Contains(t, msg.Text, "$15.00")
-		require.Contains(t, msg.Text, "Test Item")
+		require.Contains(t, msg.Text, testItemCoreTest)
 	})
 }
 
@@ -349,7 +377,7 @@ func TestHandleTodayCore(t *testing.T) {
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.Contains(t, msg.Text, "Today's Expenses")
-		require.Contains(t, msg.Text, "Total:")
+		require.Contains(t, msg.Text, totalLabelCoreTest)
 		require.Contains(t, msg.Text, "$20.00")
 	})
 }
@@ -396,7 +424,7 @@ func TestHandleWeekCore(t *testing.T) {
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.Contains(t, msg.Text, "This Week's Expenses")
-		require.Contains(t, msg.Text, "Total:")
+		require.Contains(t, msg.Text, totalLabelCoreTest)
 		require.Contains(t, msg.Text, "$30.00")
 	})
 }
@@ -484,7 +512,7 @@ func TestSaveExpenseCore(t *testing.T) {
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.Contains(t, msg.Text, expenseAddedTextCore)
-		require.Contains(t, msg.Text, "Others")
+		require.Contains(t, msg.Text, othersTextCoreTest)
 	})
 
 	t.Run("ai can suggest and create a new category when unmatched", func(t *testing.T) {
@@ -499,13 +527,11 @@ func TestSaveExpenseCore(t *testing.T) {
 		require.NoError(t, err)
 
 		b.geminiClient = gemini.NewClientWithGenerator(&botTestGenerator{
-			response: makeBotCategorySuggestionResponse(`{
-				"category": "",
-				"confidence": 0.95,
-				"reasoning": "Recurring software subscription",
-				"matched": false,
-				"new_category_name": "AI Subscriptions"
-			}`),
+			response: makeBotCategorySuggestionResponse(makeCategorySuggestionPayload(
+				"Recurring software subscription",
+				false,
+				aiSubscriptionsCoreTest,
+			)),
 		})
 
 		categories, err := b.categoryRepo.GetAll(ctx)
@@ -520,9 +546,9 @@ func TestSaveExpenseCore(t *testing.T) {
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "AI Subscriptions")
+		require.Contains(t, msg.Text, aiSubscriptionsCoreTest)
 
-		createdCat, err := b.categoryRepo.GetByName(ctx, "AI Subscriptions")
+		createdCat, err := b.categoryRepo.GetByName(ctx, aiSubscriptionsCoreTest)
 		require.NoError(t, err)
 		require.NotNil(t, createdCat)
 	})
@@ -539,13 +565,11 @@ func TestSaveExpenseCore(t *testing.T) {
 		require.NoError(t, err)
 
 		b.geminiClient = gemini.NewClientWithGenerator(&botTestGenerator{
-			response: makeBotCategorySuggestionResponse(`{
-				"category": "",
-				"confidence": 0.95,
-				"reasoning": "Bad suggestion",
-				"matched": false,
-				"new_category_name": "\u0000"
-			}`),
+			response: makeBotCategorySuggestionResponse(makeCategorySuggestionPayload(
+				"Bad suggestion",
+				false,
+				"\u0000",
+			)),
 		})
 
 		categories, err := b.categoryRepo.GetAll(ctx)
@@ -560,7 +584,7 @@ func TestSaveExpenseCore(t *testing.T) {
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "Others")
+		require.Contains(t, msg.Text, othersTextCoreTest)
 	})
 
 	t.Run("empty description is handled", func(t *testing.T) {

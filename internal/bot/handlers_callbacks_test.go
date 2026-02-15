@@ -19,6 +19,24 @@ const (
 	expenseNotFoundTextCBT          = "Expense not found"
 	oldMerchantTextCBT              = "Old Merchant"
 	newRestaurantTextCBT            = "New Restaurant"
+	amountTypeCBT                   = "amount"
+	merchantTypeCBT                 = "merchant"
+	categoryTypeCBT                 = "category"
+	otherFirstNameCBT               = "Other"
+	amount25CBT                     = "25.00"
+	amount15CBT                     = "15.00"
+	amount10CBT                     = "10.00"
+	amount20CBT                     = "20.00"
+	myNewCategoryCBT                = "MyNewCategory"
+	newMerchantCBT                  = "New Merchant"
+	cannotBeEmptyCBT                = "cannot be empty"
+	selectCategoryTextCBT           = "Select Category"
+	editAmountTextCBT               = "Edit Amount"
+	clearTestTextCBT                = "Clear Test"
+	userMismatchReturnsSilentlyCBT  = "user mismatch returns silently"
+	editAmountCallbackFmtCBT        = "edit_amount_%d"
+	createNewCategoryTextCBT        = "Create New Category"
+	oldNameTextCBT                  = "Old Name"
 )
 
 func TestHandleEditCallbackCore(t *testing.T) {
@@ -78,7 +96,7 @@ func TestHandleEditCallbackCore(t *testing.T) {
 			CallbackQuery: &models.CallbackQuery{
 				ID:   callbackIDHandlers,
 				From: models.User{ID: userID},
-				Data: fmt.Sprintf("edit_amount_%d", expense.ID),
+				Data: fmt.Sprintf(editAmountCallbackFmtCBT, expense.ID),
 				Message: models.MaybeInaccessibleMessage{
 					Message: &models.Message{
 						ID:   100,
@@ -90,7 +108,7 @@ func TestHandleEditCallbackCore(t *testing.T) {
 		b.handleEditCallbackCore(ctx, mockBot, update)
 		require.Len(t, mockBot.AnsweredCallbacks, 1)
 		require.Len(t, mockBot.EditedMessages, 1)
-		require.Contains(t, mockBot.EditedMessages[0].Text, "Edit Amount")
+		require.Contains(t, mockBot.EditedMessages[0].Text, editAmountTextCBT)
 	})
 
 	t.Run("edit category action shows selection", func(t *testing.T) {
@@ -122,7 +140,7 @@ func TestHandleEditCallbackCore(t *testing.T) {
 		b.handleEditCallbackCore(ctx, mockBot, update)
 		require.Len(t, mockBot.AnsweredCallbacks, 1)
 		require.Len(t, mockBot.EditedMessages, 1)
-		require.Contains(t, mockBot.EditedMessages[0].Text, "Select Category")
+		require.Contains(t, mockBot.EditedMessages[0].Text, selectCategoryTextCBT)
 	})
 
 	t.Run("edit_expense callback is delegated to inline action handler", func(t *testing.T) {
@@ -165,7 +183,7 @@ func TestHandleEditCallbackCore(t *testing.T) {
 		err := b.userRepo.UpsertUser(ctx, &appmodels.User{
 			ID:        otherUserID,
 			Username:  "otheredituser",
-			FirstName: "Other",
+			FirstName: otherFirstNameCBT,
 		})
 		require.NoError(t, err)
 
@@ -183,7 +201,7 @@ func TestHandleEditCallbackCore(t *testing.T) {
 			CallbackQuery: &models.CallbackQuery{
 				ID:   callbackIDHandlers,
 				From: models.User{ID: userID},
-				Data: fmt.Sprintf("edit_amount_%d", expense.ID),
+				Data: fmt.Sprintf(editAmountCallbackFmtCBT, expense.ID),
 				Message: models.MaybeInaccessibleMessage{
 					Message: &models.Message{
 						ID:   100,
@@ -227,7 +245,7 @@ func TestPromptEditAmountCore(t *testing.T) {
 		b.promptEditAmountCore(ctx, mockBot, 12345, 100, expense)
 
 		require.Len(t, mockBot.EditedMessages, 1)
-		require.Contains(t, mockBot.EditedMessages[0].Text, "Edit Amount")
+		require.Contains(t, mockBot.EditedMessages[0].Text, editAmountTextCBT)
 		require.Contains(t, mockBot.EditedMessages[0].Text, "$25.50 SGD")
 
 		b.pendingEditsMu.RLock()
@@ -235,7 +253,7 @@ func TestPromptEditAmountCore(t *testing.T) {
 		b.pendingEditsMu.RUnlock()
 		require.True(t, exists)
 		require.Equal(t, expense.ID, pending.ExpenseID)
-		require.Equal(t, "amount", pending.EditType)
+		require.Equal(t, amountTypeCBT, pending.EditType)
 	})
 }
 
@@ -278,7 +296,7 @@ func TestHandlePendingEditCore(t *testing.T) {
 			Message: &models.Message{
 				Chat: models.Chat{ID: 99999},
 				From: &models.User{ID: userID},
-				Text: "25.00",
+				Text: amount25CBT,
 			},
 		}
 		result := b.handlePendingEditCore(ctx, mockBot, update)
@@ -290,7 +308,7 @@ func TestHandlePendingEditCore(t *testing.T) {
 
 		expense := &appmodels.Expense{
 			UserID:      userID,
-			Amount:      mustParseDecimal("10.00"),
+			Amount:      mustParseDecimal(amount10CBT),
 			Currency:    "SGD",
 			Description: "Original",
 			Status:      appmodels.ExpenseStatusDraft,
@@ -302,7 +320,7 @@ func TestHandlePendingEditCore(t *testing.T) {
 		b.pendingEditsMu.Lock()
 		b.pendingEdits[chatID] = &pendingEdit{
 			ExpenseID: expense.ID,
-			EditType:  "amount",
+			EditType:  amountTypeCBT,
 			MessageID: 100,
 		}
 		b.pendingEditsMu.Unlock()
@@ -339,7 +357,7 @@ func TestProcessAmountEditCore(t *testing.T) {
 
 	t.Run("invalid amount shows error", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		pending := &pendingEdit{ExpenseID: 1, EditType: "amount", MessageID: 100}
+		pending := &pendingEdit{ExpenseID: 1, EditType: amountTypeCBT, MessageID: 100}
 
 		b.pendingEditsMu.Lock()
 		b.pendingEdits[12345] = pending
@@ -353,37 +371,37 @@ func TestProcessAmountEditCore(t *testing.T) {
 
 	t.Run(expenseNotFoundShowsErrorCBT, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		pending := &pendingEdit{ExpenseID: 99999, EditType: "amount", MessageID: 100}
+		pending := &pendingEdit{ExpenseID: 99999, EditType: amountTypeCBT, MessageID: 100}
 
-		result := b.processAmountEditCore(ctx, mockBot, 12345, userID, pending, "25.00")
+		result := b.processAmountEditCore(ctx, mockBot, 12345, userID, pending, amount25CBT)
 		require.True(t, result)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		require.Contains(t, mockBot.LastSentMessage().Text, expenseNotFoundTextCBT)
 	})
 
-	t.Run("user mismatch returns silently", func(t *testing.T) {
+	t.Run(userMismatchReturnsSilentlyCBT, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		otherUserID := userID + 100
 
 		err := b.userRepo.UpsertUser(ctx, &appmodels.User{
 			ID:        otherUserID,
 			Username:  "otheramountuser",
-			FirstName: "Other",
+			FirstName: otherFirstNameCBT,
 		})
 		require.NoError(t, err)
 
 		expense := &appmodels.Expense{
 			UserID:      otherUserID,
-			Amount:      mustParseDecimal("15.00"),
+			Amount:      mustParseDecimal(amount15CBT),
 			Currency:    "SGD",
-			Description: "Other",
+			Description: otherFirstNameCBT,
 			Status:      appmodels.ExpenseStatusDraft,
 		}
 		err = b.expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
 
-		pending := &pendingEdit{ExpenseID: expense.ID, EditType: "amount", MessageID: 100}
-		result := b.processAmountEditCore(ctx, mockBot, 12345, userID, pending, "25.00")
+		pending := &pendingEdit{ExpenseID: expense.ID, EditType: amountTypeCBT, MessageID: 100}
+		result := b.processAmountEditCore(ctx, mockBot, 12345, userID, pending, amount25CBT)
 		require.True(t, result)
 		require.Equal(t, 0, mockBot.SentMessageCount())
 	})
@@ -393,7 +411,7 @@ func TestProcessAmountEditCore(t *testing.T) {
 
 		expense := &appmodels.Expense{
 			UserID:      userID,
-			Amount:      mustParseDecimal("20.00"),
+			Amount:      mustParseDecimal(amount20CBT),
 			Currency:    "SGD",
 			Description: "To Update",
 			Status:      appmodels.ExpenseStatusDraft,
@@ -401,7 +419,7 @@ func TestProcessAmountEditCore(t *testing.T) {
 		err := b.expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
 
-		pending := &pendingEdit{ExpenseID: expense.ID, EditType: "amount", MessageID: 100}
+		pending := &pendingEdit{ExpenseID: expense.ID, EditType: amountTypeCBT, MessageID: 100}
 		result := b.processAmountEditCore(ctx, mockBot, 12345, userID, pending, "$45.50")
 		require.True(t, result)
 
@@ -452,7 +470,7 @@ func TestHandleCancelEditCallbackCore(t *testing.T) {
 		b.pendingEditsMu.Lock()
 		b.pendingEdits[chatID] = &pendingEdit{
 			ExpenseID: expense.ID,
-			EditType:  "amount",
+			EditType:  amountTypeCBT,
 			MessageID: 100,
 		}
 		b.pendingEditsMu.Unlock()
@@ -512,7 +530,7 @@ func TestShowCategorySelectionCore(t *testing.T) {
 		b.showCategorySelectionCore(ctx, mockBot, 12345, 100, expense)
 
 		require.Len(t, mockBot.EditedMessages, 1)
-		require.Contains(t, mockBot.EditedMessages[0].Text, "Select Category")
+		require.Contains(t, mockBot.EditedMessages[0].Text, selectCategoryTextCBT)
 		require.NotNil(t, mockBot.EditedMessages[0].ReplyMarkup)
 	})
 }
@@ -596,17 +614,17 @@ func TestProcessCategoryCreateCore(t *testing.T) {
 
 	t.Run("empty name shows error", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		pending := &pendingEdit{ExpenseID: 1, EditType: "category", MessageID: 100}
+		pending := &pendingEdit{ExpenseID: 1, EditType: categoryTypeCBT, MessageID: 100}
 
 		result := b.processCategoryCreateCore(ctx, mockBot, 12345, userID, pending, "   ")
 		require.True(t, result)
 		require.Equal(t, 1, mockBot.SentMessageCount())
-		require.Contains(t, mockBot.LastSentMessage().Text, "cannot be empty")
+		require.Contains(t, mockBot.LastSentMessage().Text, cannotBeEmptyCBT)
 	})
 
 	t.Run("name too long shows error", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		pending := &pendingEdit{ExpenseID: 1, EditType: "category", MessageID: 100}
+		pending := &pendingEdit{ExpenseID: 1, EditType: categoryTypeCBT, MessageID: 100}
 
 		longName := "This category name is way too long and exceeds the fifty character limit"
 		result := b.processCategoryCreateCore(ctx, mockBot, 12345, userID, pending, longName)
@@ -617,7 +635,7 @@ func TestProcessCategoryCreateCore(t *testing.T) {
 
 	t.Run(expenseNotFoundShowsErrorCBT, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		pending := &pendingEdit{ExpenseID: 99999, EditType: "category", MessageID: 100}
+		pending := &pendingEdit{ExpenseID: 99999, EditType: categoryTypeCBT, MessageID: 100}
 
 		result := b.processCategoryCreateCore(ctx, mockBot, 12345, userID, pending, "NewCat")
 		require.True(t, result)
@@ -638,13 +656,13 @@ func TestProcessCategoryCreateCore(t *testing.T) {
 		err := b.expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
 
-		pending := &pendingEdit{ExpenseID: expense.ID, EditType: "category", MessageID: 100}
-		result := b.processCategoryCreateCore(ctx, mockBot, 12345, userID, pending, "MyNewCategory")
+		pending := &pendingEdit{ExpenseID: expense.ID, EditType: categoryTypeCBT, MessageID: 100}
+		result := b.processCategoryCreateCore(ctx, mockBot, 12345, userID, pending, myNewCategoryCBT)
 		require.True(t, result)
 
 		require.Len(t, mockBot.EditedMessages, 1)
 		require.Contains(t, mockBot.EditedMessages[0].Text, "Category Created")
-		require.Contains(t, mockBot.EditedMessages[0].Text, "MyNewCategory")
+		require.Contains(t, mockBot.EditedMessages[0].Text, myNewCategoryCBT)
 
 		updated, err := b.expenseRepo.GetByID(ctx, expense.ID)
 		require.NoError(t, err)
@@ -702,7 +720,7 @@ func TestHandleCreateCategoryCallbackCore(t *testing.T) {
 
 		require.Len(t, mockBot.AnsweredCallbacks, 1)
 		require.Len(t, mockBot.EditedMessages, 1)
-		require.Contains(t, mockBot.EditedMessages[0].Text, "Create New Category")
+		require.Contains(t, mockBot.EditedMessages[0].Text, createNewCategoryTextCBT)
 	})
 }
 
@@ -724,7 +742,7 @@ func TestPromptEditMerchantCore(t *testing.T) {
 
 		expense := &appmodels.Expense{
 			UserID:      userID,
-			Amount:      mustParseDecimal("15.00"),
+			Amount:      mustParseDecimal(amount15CBT),
 			Currency:    "SGD",
 			Description: oldMerchantTextCBT,
 			Merchant:    oldMerchantTextCBT,
@@ -745,7 +763,7 @@ func TestPromptEditMerchantCore(t *testing.T) {
 		b.pendingEditsMu.RUnlock()
 		require.True(t, exists)
 		require.Equal(t, expense.ID, pending.ExpenseID)
-		require.Equal(t, "merchant", pending.EditType)
+		require.Equal(t, merchantTypeCBT, pending.EditType)
 	})
 }
 
@@ -765,7 +783,7 @@ func TestProcessMerchantEditCore(t *testing.T) {
 	t.Run("empty merchant shows error", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		chatID := int64(33333)
-		pending := &pendingEdit{ExpenseID: 1, EditType: "merchant", MessageID: 100}
+		pending := &pendingEdit{ExpenseID: 1, EditType: merchantTypeCBT, MessageID: 100}
 
 		b.pendingEditsMu.Lock()
 		b.pendingEdits[chatID] = pending
@@ -774,33 +792,33 @@ func TestProcessMerchantEditCore(t *testing.T) {
 		result := b.processMerchantEditCore(ctx, mockBot, chatID, userID, pending, "   ")
 		require.True(t, result)
 		require.Equal(t, 1, mockBot.SentMessageCount())
-		require.Contains(t, mockBot.LastSentMessage().Text, "cannot be empty")
+		require.Contains(t, mockBot.LastSentMessage().Text, cannotBeEmptyCBT)
 	})
 
 	t.Run(expenseNotFoundShowsErrorCBT, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		pending := &pendingEdit{ExpenseID: 99999, EditType: "merchant", MessageID: 100}
+		pending := &pendingEdit{ExpenseID: 99999, EditType: merchantTypeCBT, MessageID: 100}
 
-		result := b.processMerchantEditCore(ctx, mockBot, 33334, userID, pending, "New Merchant")
+		result := b.processMerchantEditCore(ctx, mockBot, 33334, userID, pending, newMerchantCBT)
 		require.True(t, result)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		require.Contains(t, mockBot.LastSentMessage().Text, expenseNotFoundTextCBT)
 	})
 
-	t.Run("user mismatch returns silently", func(t *testing.T) {
+	t.Run(userMismatchReturnsSilentlyCBT, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		otherUserID := userID + 100
 
 		err := b.userRepo.UpsertUser(ctx, &appmodels.User{
 			ID:        otherUserID,
 			Username:  "othermerchantuser",
-			FirstName: "Other",
+			FirstName: otherFirstNameCBT,
 		})
 		require.NoError(t, err)
 
 		expense := &appmodels.Expense{
 			UserID:      otherUserID,
-			Amount:      mustParseDecimal("10.00"),
+			Amount:      mustParseDecimal(amount10CBT),
 			Currency:    "SGD",
 			Description: "Other Merchant",
 			Status:      appmodels.ExpenseStatusDraft,
@@ -808,8 +826,8 @@ func TestProcessMerchantEditCore(t *testing.T) {
 		err = b.expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
 
-		pending := &pendingEdit{ExpenseID: expense.ID, EditType: "merchant", MessageID: 100}
-		result := b.processMerchantEditCore(ctx, mockBot, 33335, userID, pending, "New Merchant")
+		pending := &pendingEdit{ExpenseID: expense.ID, EditType: merchantTypeCBT, MessageID: 100}
+		result := b.processMerchantEditCore(ctx, mockBot, 33335, userID, pending, newMerchantCBT)
 		require.True(t, result)
 		require.Equal(t, 0, mockBot.SentMessageCount())
 	})
@@ -819,16 +837,16 @@ func TestProcessMerchantEditCore(t *testing.T) {
 
 		expense := &appmodels.Expense{
 			UserID:      userID,
-			Amount:      mustParseDecimal("20.00"),
+			Amount:      mustParseDecimal(amount20CBT),
 			Currency:    "SGD",
-			Description: "Old Name",
-			Merchant:    "Old Name",
+			Description: oldNameTextCBT,
+			Merchant:    oldNameTextCBT,
 			Status:      appmodels.ExpenseStatusDraft,
 		}
 		err := b.expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
 
-		pending := &pendingEdit{ExpenseID: expense.ID, EditType: "merchant", MessageID: 100}
+		pending := &pendingEdit{ExpenseID: expense.ID, EditType: merchantTypeCBT, MessageID: 100}
 		result := b.processMerchantEditCore(ctx, mockBot, 33336, userID, pending, newRestaurantTextCBT)
 		require.True(t, result)
 
@@ -848,16 +866,16 @@ func TestProcessMerchantEditCore(t *testing.T) {
 
 		expense := &appmodels.Expense{
 			UserID:      userID,
-			Amount:      mustParseDecimal("15.00"),
+			Amount:      mustParseDecimal(amount15CBT),
 			Currency:    "SGD",
-			Description: "Clear Test",
-			Merchant:    "Clear Test",
+			Description: clearTestTextCBT,
+			Merchant:    clearTestTextCBT,
 			Status:      appmodels.ExpenseStatusDraft,
 		}
 		err := b.expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
 
-		pending := &pendingEdit{ExpenseID: expense.ID, EditType: "merchant", MessageID: 100}
+		pending := &pendingEdit{ExpenseID: expense.ID, EditType: merchantTypeCBT, MessageID: 100}
 		b.pendingEditsMu.Lock()
 		b.pendingEdits[chatID] = pending
 		b.pendingEditsMu.Unlock()
@@ -902,13 +920,13 @@ func TestPromptCreateCategoryCore(t *testing.T) {
 		b.promptCreateCategoryCore(ctx, mockBot, chatID, 100, expense)
 
 		require.Len(t, mockBot.EditedMessages, 1)
-		require.Contains(t, mockBot.EditedMessages[0].Text, "Create New Category")
+		require.Contains(t, mockBot.EditedMessages[0].Text, createNewCategoryTextCBT)
 
 		b.pendingEditsMu.RLock()
 		pending, exists := b.pendingEdits[chatID]
 		b.pendingEditsMu.RUnlock()
 		require.True(t, exists)
 		require.Equal(t, expense.ID, pending.ExpenseID)
-		require.Equal(t, "category", pending.EditType)
+		require.Equal(t, categoryTypeCBT, pending.EditType)
 	})
 }

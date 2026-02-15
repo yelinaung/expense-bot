@@ -11,8 +11,10 @@ import (
 )
 
 const (
-	callbackIDReceipt = "callback123"
-	testReceiptText   = "Test Receipt"
+	callbackIDReceipt   = "callback123"
+	testReceiptText     = "Test Receipt"
+	amount30ReceiptTest = "30.00"
+	usTestReceiptText   = "US Test Receipt"
 )
 
 func TestBuildReceiptConfirmationKeyboard(t *testing.T) {
@@ -184,10 +186,10 @@ func TestHandleConfirmReceiptCore(t *testing.T) {
 
 		expense := &appmodels.Expense{
 			UserID:      userID,
-			Amount:      mustParseDecimal("30.00"),
+			Amount:      mustParseDecimal(amount30ReceiptTest),
 			Currency:    "USD",
-			Description: "US Test Receipt",
-			Merchant:    "US Test Receipt",
+			Description: usTestReceiptText,
+			Merchant:    usTestReceiptText,
 			Status:      appmodels.ExpenseStatusDraft,
 		}
 		err := b.expenseRepo.Create(ctx, expense)
@@ -290,7 +292,7 @@ func TestHandleBackToReceiptCore(t *testing.T) {
 
 		expense := &appmodels.Expense{
 			UserID:      userID,
-			Amount:      mustParseDecimal("30.00"),
+			Amount:      mustParseDecimal(amount30ReceiptTest),
 			Currency:    "SGD",
 			Description: "Back Test",
 			Status:      appmodels.ExpenseStatusDraft,

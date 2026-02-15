@@ -14,9 +14,24 @@ import (
 )
 
 const (
-	editCancelText       = "⬅️ Cancel"
-	cancelEditCallback   = "cancel_edit_%d"
-	expenseNotFoundMsgCB = "❌ Expense not found."
+	editCancelText                 = "⬅️ Cancel"
+	cancelEditCallback             = "cancel_edit_%d"
+	expenseNotFoundMsgCB           = "❌ Expense not found."
+	backButtonTextCB               = "⬅️ Back"
+	logFieldExpenseIDCB            = "expense_id"
+	logFieldUserHashCB             = "user_hash"
+	logFieldCategoryIDCB           = "category_id"
+	logFieldCategoryCB             = "category"
+	logFieldDataCB                 = "data"
+	actionEditExpenseCB            = "edit_expense"
+	actionDeleteExpenseCB          = "delete_expense"
+	backToExpenseCallbackFmtCB     = "back_to_expense_%d"
+	editTypeAmountCB               = "amount"
+	editTypeMerchantCB             = "merchant"
+	userMismatchOnEditMsgCB        = "User mismatch on edit"
+	userMismatchMsgCB              = "User mismatch"
+	expenseNotFoundForEditLogMsgCB = "Expense not found for edit"
+	expenseNotFoundLogMsgCB        = "Expense not found"
 )
 
 // handleEditCallback handles edit sub-menu button presses.
@@ -64,13 +79,13 @@ func (b *Bot) handleEditCallbackCore(ctx context.Context, tg TelegramAPI, update
 	}
 
 	switch action {
-	case "amount":
+	case editTypeAmountCB:
 		b.promptEditAmountCore(ctx, tg, chatID, messageID, expense)
 
-	case "merchant":
+	case editTypeMerchantCB:
 		b.promptEditMerchantCore(ctx, tg, chatID, messageID, expense)
 
-	case "category":
+	case logFieldCategoryCB:
 		b.showCategorySelectionCore(ctx, tg, chatID, messageID, expense)
 	}
 }
@@ -87,7 +102,7 @@ func (b *Bot) promptEditAmountCore(
 	b.pendingEditsMu.Lock()
 	b.pendingEdits[chatID] = &pendingEdit{
 		ExpenseID: expense.ID,
-		EditType:  "amount",
+		EditType:  editTypeAmountCB,
 		MessageID: messageID,
 	}
 	b.pendingEditsMu.Unlock()
@@ -127,7 +142,7 @@ func (b *Bot) promptEditMerchantCore(
 	b.pendingEditsMu.Lock()
 	b.pendingEdits[chatID] = &pendingEdit{
 		ExpenseID: expense.ID,
-		EditType:  "merchant",
+		EditType:  editTypeMerchantCB,
 		MessageID: messageID,
 	}
 	b.pendingEditsMu.Unlock()
@@ -179,11 +194,11 @@ func (b *Bot) handlePendingEditCore(ctx context.Context, tg TelegramAPI, update 
 	}
 
 	switch pending.EditType {
-	case "amount":
+	case editTypeAmountCB:
 		return b.processAmountEditCore(ctx, tg, chatID, userID, pending, update.Message.Text)
-	case "merchant":
+	case editTypeMerchantCB:
 		return b.processMerchantEditCore(ctx, tg, chatID, userID, pending, update.Message.Text)
-	case "category":
+	case logFieldCategoryCB:
 		return b.processCategoryCreateCore(ctx, tg, chatID, userID, pending, update.Message.Text)
 	}
 
@@ -222,7 +237,7 @@ func (b *Bot) processAmountEditCore(
 	// Fetch and verify expense ownership.
 	expense, err := b.expenseRepo.GetByID(ctx, pending.ExpenseID)
 	if err != nil {
-		logger.Log.Error().Err(err).Int("expense_id", pending.ExpenseID).Msg("Expense not found for edit")
+		logger.Log.Error().Err(err).Int(logFieldExpenseIDCB, pending.ExpenseID).Msg(expenseNotFoundForEditLogMsgCB)
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   expenseNotFoundMsgCB,
@@ -231,14 +246,14 @@ func (b *Bot) processAmountEditCore(
 	}
 
 	if expense.UserID != userID {
-		logger.Log.Warn().Str("user_hash", logger.HashUserID(userID)).Int("expense_id", pending.ExpenseID).Msg("User mismatch on edit")
+		logger.Log.Warn().Str(logFieldUserHashCB, logger.HashUserID(userID)).Int(logFieldExpenseIDCB, pending.ExpenseID).Msg(userMismatchOnEditMsgCB)
 		return true
 	}
 
 	// Update the expense amount.
 	expense.Amount = amount
 	if err := b.expenseRepo.Update(ctx, expense); err != nil {
-		logger.Log.Error().Err(err).Int("expense_id", expense.ID).Msg("Failed to update amount")
+		logger.Log.Error().Err(err).Int(logFieldExpenseIDCB, expense.ID).Msg("Failed to update amount")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Failed to update amount. Please try again.",
@@ -247,7 +262,7 @@ func (b *Bot) processAmountEditCore(
 	}
 
 	logger.Log.Info().
-		Int("expense_id", expense.ID).
+		Int(logFieldExpenseIDCB, expense.ID).
 		Str("new_amount", amount.String()).
 		Msg("Amount updated via pending edit")
 
@@ -311,7 +326,7 @@ func (b *Bot) processMerchantEditCore(
 
 	expense, err := b.expenseRepo.GetByID(ctx, pending.ExpenseID)
 	if err != nil {
-		logger.Log.Error().Err(err).Int("expense_id", pending.ExpenseID).Msg("Expense not found for edit")
+		logger.Log.Error().Err(err).Int(logFieldExpenseIDCB, pending.ExpenseID).Msg(expenseNotFoundForEditLogMsgCB)
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   expenseNotFoundMsgCB,
@@ -320,14 +335,14 @@ func (b *Bot) processMerchantEditCore(
 	}
 
 	if expense.UserID != userID {
-		logger.Log.Warn().Str("user_hash", logger.HashUserID(userID)).Int("expense_id", pending.ExpenseID).Msg("User mismatch on edit")
+		logger.Log.Warn().Str(logFieldUserHashCB, logger.HashUserID(userID)).Int(logFieldExpenseIDCB, pending.ExpenseID).Msg(userMismatchOnEditMsgCB)
 		return true
 	}
 
 	expense.Merchant = merchant
 	expense.Description = merchant
 	if err := b.expenseRepo.Update(ctx, expense); err != nil {
-		logger.Log.Error().Err(err).Int("expense_id", expense.ID).Msg("Failed to update merchant")
+		logger.Log.Error().Err(err).Int(logFieldExpenseIDCB, expense.ID).Msg("Failed to update merchant")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Failed to update merchant. Please try again.",
@@ -336,7 +351,7 @@ func (b *Bot) processMerchantEditCore(
 	}
 
 	logger.Log.Info().
-		Int("expense_id", expense.ID).
+		Int(logFieldExpenseIDCB, expense.ID).
 		Str("new_merchant", merchant).
 		Msg("Merchant updated via pending edit")
 
@@ -452,7 +467,7 @@ func (b *Bot) showCategorySelectionCore(
 
 	rows = append(rows, []models.InlineKeyboardButton{
 		{Text: "➕ Create New", CallbackData: fmt.Sprintf("create_category_%d", expense.ID)},
-		{Text: "⬅️ Back", CallbackData: fmt.Sprintf("receipt_edit_%d", expense.ID)},
+		{Text: backButtonTextCB, CallbackData: fmt.Sprintf("receipt_edit_%d", expense.ID)},
 	})
 
 	keyboard := &models.InlineKeyboardMarkup{
@@ -525,20 +540,20 @@ func (b *Bot) handleSetCategoryCallbackCore(ctx context.Context, tg TelegramAPI,
 
 	category, err := b.categoryRepo.GetByID(ctx, categoryID)
 	if err != nil {
-		logger.Log.Error().Err(err).Int("category_id", categoryID).Msg("Category not found")
+		logger.Log.Error().Err(err).Int(logFieldCategoryIDCB, categoryID).Msg("Category not found")
 		return
 	}
 
 	expense.CategoryID = &categoryID
 	expense.Category = category
 	if err := b.expenseRepo.Update(ctx, expense); err != nil {
-		logger.Log.Error().Err(err).Int("expense_id", expense.ID).Msg("Failed to update category")
+		logger.Log.Error().Err(err).Int(logFieldExpenseIDCB, expense.ID).Msg("Failed to update category")
 		return
 	}
 
 	logger.Log.Info().
-		Int("expense_id", expense.ID).
-		Str("category", category.Name).
+		Int(logFieldExpenseIDCB, expense.ID).
+		Str(logFieldCategoryCB, category.Name).
 		Msg("Category updated via callback")
 
 	keyboard := buildReceiptConfirmationKeyboard(expense.ID)
@@ -595,7 +610,7 @@ func (b *Bot) processCategoryCreateCore(
 
 	expense, err := b.expenseRepo.GetByID(ctx, pending.ExpenseID)
 	if err != nil {
-		logger.Log.Error().Err(err).Int("expense_id", pending.ExpenseID).Msg("Expense not found")
+		logger.Log.Error().Err(err).Int(logFieldExpenseIDCB, pending.ExpenseID).Msg(expenseNotFoundLogMsgCB)
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   expenseNotFoundMsgCB,
@@ -604,7 +619,7 @@ func (b *Bot) processCategoryCreateCore(
 	}
 
 	if expense.UserID != userID {
-		logger.Log.Warn().Str("user_hash", logger.HashUserID(userID)).Int("expense_id", pending.ExpenseID).Msg("User mismatch")
+		logger.Log.Warn().Str(logFieldUserHashCB, logger.HashUserID(userID)).Int(logFieldExpenseIDCB, pending.ExpenseID).Msg(userMismatchMsgCB)
 		return true
 	}
 
@@ -624,7 +639,7 @@ func (b *Bot) processCategoryCreateCore(
 	expense.CategoryID = &category.ID
 	expense.Category = category
 	if err := b.expenseRepo.Update(ctx, expense); err != nil {
-		logger.Log.Error().Err(err).Int("expense_id", expense.ID).Msg("Failed to update expense category")
+		logger.Log.Error().Err(err).Int(logFieldExpenseIDCB, expense.ID).Msg("Failed to update expense category")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Category created but failed to assign it. Please select it from the list.",
@@ -633,8 +648,8 @@ func (b *Bot) processCategoryCreateCore(
 	}
 
 	logger.Log.Info().
-		Int("expense_id", expense.ID).
-		Int("category_id", category.ID).
+		Int(logFieldExpenseIDCB, expense.ID).
+		Int(logFieldCategoryIDCB, category.ID).
 		Str("category_name", category.Name).
 		Msg("New category created and assigned")
 
@@ -711,7 +726,7 @@ func (b *Bot) promptCreateCategoryCore(
 	b.pendingEditsMu.Lock()
 	b.pendingEdits[chatID] = &pendingEdit{
 		ExpenseID: expense.ID,
-		EditType:  "category",
+		EditType:  logFieldCategoryCB,
 		MessageID: messageID,
 	}
 	b.pendingEditsMu.Unlock()
@@ -764,20 +779,20 @@ func (b *Bot) handleExpenseActionCallbackCore(ctx context.Context, tg TelegramAP
 
 	parts := strings.Split(data, "_")
 	if len(parts) < 3 {
-		logger.Log.Error().Str("data", data).Msg("Invalid callback data format")
+		logger.Log.Error().Str(logFieldDataCB, data).Msg("Invalid callback data format")
 		return
 	}
 
-	action := parts[0] + "_" + parts[1] // "edit_expense" or "delete_expense"
+	action := parts[0] + "_" + parts[1] // actionEditExpenseCB or actionDeleteExpenseCB
 	expenseID, err := strconv.Atoi(parts[2])
 	if err != nil {
-		logger.Log.Error().Err(err).Str("data", data).Msg("Failed to parse expense ID")
+		logger.Log.Error().Err(err).Str(logFieldDataCB, data).Msg("Failed to parse expense ID")
 		return
 	}
 
 	expense, err := b.expenseRepo.GetByID(ctx, expenseID)
 	if err != nil {
-		logger.Log.Error().Err(err).Int("expense_id", expenseID).Msg("Expense not found")
+		logger.Log.Error().Err(err).Int(logFieldExpenseIDCB, expenseID).Msg(expenseNotFoundLogMsgCB)
 		_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 			ChatID:    chatID,
 			MessageID: messageID,
@@ -787,7 +802,7 @@ func (b *Bot) handleExpenseActionCallbackCore(ctx context.Context, tg TelegramAP
 	}
 
 	if expense.UserID != userID {
-		logger.Log.Warn().Str("user_hash", logger.HashUserID(userID)).Int("expense_id", expenseID).Msg("User mismatch")
+		logger.Log.Warn().Str(logFieldUserHashCB, logger.HashUserID(userID)).Int(logFieldExpenseIDCB, expenseID).Msg(userMismatchMsgCB)
 		_, _ = tg.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 			CallbackQueryID: update.CallbackQuery.ID,
 			Text:            "❌ You can only modify your own expenses.",
@@ -797,9 +812,9 @@ func (b *Bot) handleExpenseActionCallbackCore(ctx context.Context, tg TelegramAP
 	}
 
 	switch action {
-	case "edit_expense":
+	case actionEditExpenseCB:
 		b.handleInlineEditExpenseCore(ctx, tg, chatID, messageID, expense)
-	case "delete_expense":
+	case actionDeleteExpenseCB:
 		b.handleInlineDeleteExpenseCore(ctx, tg, chatID, messageID, expense)
 	}
 }
@@ -842,7 +857,7 @@ What would you like to edit?`,
 				{Text: "📁 Category", CallbackData: fmt.Sprintf("edit_cat_%d", expense.ID)},
 			},
 			{
-				{Text: "⬅️ Back", CallbackData: fmt.Sprintf("back_to_expense_%d", expense.ID)},
+				{Text: backButtonTextCB, CallbackData: fmt.Sprintf(backToExpenseCallbackFmtCB, expense.ID)},
 			},
 		},
 	}
@@ -883,7 +898,7 @@ This action cannot be undone.`,
 				{Text: "✅ Yes, Delete", CallbackData: fmt.Sprintf("confirm_delete_%d", expense.ID)},
 			},
 			{
-				{Text: "❌ No, Keep It", CallbackData: fmt.Sprintf("back_to_expense_%d", expense.ID)},
+				{Text: "❌ No, Keep It", CallbackData: fmt.Sprintf(backToExpenseCallbackFmtCB, expense.ID)},
 			},
 		},
 	}
@@ -938,7 +953,7 @@ func (b *Bot) handleConfirmDeleteCallbackCore(ctx context.Context, tg TelegramAP
 	}
 
 	if err := b.expenseRepo.Delete(ctx, expenseID); err != nil {
-		logger.Log.Error().Err(err).Int("expense_id", expenseID).Msg("Failed to delete expense")
+		logger.Log.Error().Err(err).Int(logFieldExpenseIDCB, expenseID).Msg("Failed to delete expense")
 		_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 			ChatID:    chatID,
 			MessageID: messageID,
@@ -949,7 +964,7 @@ func (b *Bot) handleConfirmDeleteCallbackCore(ctx context.Context, tg TelegramAP
 
 	logger.Log.Debug().
 		Int64("chat_id", chatID).
-		Int("expense_id", expenseID).
+		Int(logFieldExpenseIDCB, expenseID).
 		Msg("Expense deleted via inline button")
 
 	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{

@@ -11,7 +11,18 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
 )
 
-const onlySuperadminsMsg = "⛔ Only superadmins can use this command."
+const (
+	onlySuperadminsMsg        = "⛔ Only superadmins can use this command."
+	superadminRevokeDeniedMsg = "Superadmins cannot be revoked via bot commands."
+	approveUserFailedMsg      = "Failed to approve user. Please try again."
+	revokeUserFailedMsg       = "Failed to revoke user. Please try again."
+	failedApproveUserLogMsg   = "Failed to approve user"
+	failedRevokeUserLogMsg    = "Failed to revoke user"
+	targetUsernameField       = "target_username"
+	targetIDField             = "target_id"
+	superadminIDLineFmt       = "  ID: <code>%d</code>\n"
+	superadminUsernameLineFmt = "  @%s\n"
+)
 
 // extractAdminArgs extracts command arguments while preserving @username args.
 // Unlike extractCommandArgs, it only strips the command word (and any bot mention
@@ -61,10 +72,10 @@ func (b *Bot) handleApproveCore(ctx context.Context, tg TelegramAPI, update *mod
 	// Try parsing as user ID first.
 	if targetID, err := strconv.ParseInt(args, 10, 64); err == nil {
 		if err := b.approvedUserRepo.Approve(ctx, targetID, "", userID); err != nil {
-			logger.Log.Error().Err(err).Int64("target_id", targetID).Msg("Failed to approve user")
+			logger.Log.Error().Err(err).Int64(targetIDField, targetID).Msg(failedApproveUserLogMsg)
 			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID: chatID,
-				Text:   "Failed to approve user. Please try again.",
+				Text:   approveUserFailedMsg,
 			})
 			return
 		}
@@ -79,10 +90,10 @@ func (b *Bot) handleApproveCore(ctx context.Context, tg TelegramAPI, update *mod
 	// Treat as username.
 	targetUsername := strings.TrimPrefix(args, "@")
 	if err := b.approvedUserRepo.ApproveByUsername(ctx, targetUsername, userID); err != nil {
-		logger.Log.Error().Err(err).Str("target_username", targetUsername).Msg("Failed to approve user")
+		logger.Log.Error().Err(err).Str(targetUsernameField, targetUsername).Msg(failedApproveUserLogMsg)
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "Failed to approve user. Please try again.",
+			Text:   approveUserFailedMsg,
 		})
 		return
 	}
@@ -131,15 +142,15 @@ func (b *Bot) handleRevokeCore(ctx context.Context, tg TelegramAPI, update *mode
 		if b.cfg.IsSuperAdmin(targetID, "") {
 			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID: chatID,
-				Text:   "Superadmins cannot be revoked via bot commands.",
+				Text:   superadminRevokeDeniedMsg,
 			})
 			return
 		}
 		if err := b.approvedUserRepo.Revoke(ctx, targetID); err != nil {
-			logger.Log.Error().Err(err).Int64("target_id", targetID).Msg("Failed to revoke user")
+			logger.Log.Error().Err(err).Int64(targetIDField, targetID).Msg(failedRevokeUserLogMsg)
 			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID: chatID,
-				Text:   "Failed to revoke user. Please try again.",
+				Text:   revokeUserFailedMsg,
 			})
 			return
 		}
@@ -156,15 +167,15 @@ func (b *Bot) handleRevokeCore(ctx context.Context, tg TelegramAPI, update *mode
 	if b.cfg.IsSuperAdmin(0, targetUsername) {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "Superadmins cannot be revoked via bot commands.",
+			Text:   superadminRevokeDeniedMsg,
 		})
 		return
 	}
 	if err := b.approvedUserRepo.RevokeByUsername(ctx, targetUsername); err != nil {
-		logger.Log.Error().Err(err).Str("target_username", targetUsername).Msg("Failed to revoke user")
+		logger.Log.Error().Err(err).Str(targetUsernameField, targetUsername).Msg(failedRevokeUserLogMsg)
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "Failed to revoke user. Please try again.",
+			Text:   revokeUserFailedMsg,
 		})
 		return
 	}
@@ -201,10 +212,10 @@ func (b *Bot) handleUsersCore(ctx context.Context, tg TelegramAPI, update *model
 	var sb strings.Builder
 	sb.WriteString("<b>Superadmins:</b>\n")
 	for _, id := range b.cfg.WhitelistedUserIDs {
-		sb.WriteString(fmt.Sprintf("  ID: <code>%d</code>\n", id))
+		sb.WriteString(fmt.Sprintf(superadminIDLineFmt, id))
 	}
 	for _, u := range b.cfg.WhitelistedUsernames {
-		sb.WriteString(fmt.Sprintf("  @%s\n", escapeHTML(u)))
+		sb.WriteString(fmt.Sprintf(superadminUsernameLineFmt, escapeHTML(u)))
 	}
 
 	approved, err := b.approvedUserRepo.GetAll(ctx)
@@ -226,9 +237,9 @@ func (b *Bot) handleUsersCore(ctx context.Context, tg TelegramAPI, update *model
 			case u.UserID != 0 && u.Username != "":
 				sb.WriteString(fmt.Sprintf("  ID: <code>%d</code> (@%s)\n", u.UserID, escapeHTML(u.Username)))
 			case u.UserID != 0:
-				sb.WriteString(fmt.Sprintf("  ID: <code>%d</code>\n", u.UserID))
+				sb.WriteString(fmt.Sprintf(superadminIDLineFmt, u.UserID))
 			default:
-				sb.WriteString(fmt.Sprintf("  @%s\n", escapeHTML(u.Username)))
+				sb.WriteString(fmt.Sprintf(superadminUsernameLineFmt, escapeHTML(u.Username)))
 			}
 		}
 	}
