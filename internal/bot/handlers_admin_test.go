@@ -11,13 +11,19 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
 )
 
+const (
+	superadminUsername  = "superadmin"
+	superadminFirstName = "Super"
+	superadminLastName  = "Admin"
+)
+
 func TestHandleApproveCore(t *testing.T) {
 	tx := database.TestTx(t)
 	ctx := context.Background()
 
 	cfg := &config.Config{
 		WhitelistedUserIDs:   []int64{100},
-		WhitelistedUsernames: []string{"superadmin"},
+		WhitelistedUsernames: []string{superadminUsername},
 	}
 	b := &Bot{
 		cfg:              cfg,
@@ -47,7 +53,7 @@ func TestHandleApproveCore(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := mocks.NewUpdateBuilder().
 			WithMessage(1, 100, "/approve").
-			WithFrom(100, "superadmin", "Super", "Admin").
+			WithFrom(100, superadminUsername, superadminFirstName, superadminLastName).
 			Build()
 		b.handleApproveCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
@@ -58,7 +64,7 @@ func TestHandleApproveCore(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := mocks.NewUpdateBuilder().
 			WithMessage(1, 100, "/approve 12345").
-			WithFrom(100, "superadmin", "Super", "Admin").
+			WithFrom(100, superadminUsername, superadminFirstName, superadminLastName).
 			Build()
 		b.handleApproveCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
@@ -74,7 +80,7 @@ func TestHandleApproveCore(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := mocks.NewUpdateBuilder().
 			WithMessage(1, 100, "/approve @newuser").
-			WithFrom(100, "superadmin", "Super", "Admin").
+			WithFrom(100, superadminUsername, superadminFirstName, superadminLastName).
 			Build()
 		b.handleApproveCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
@@ -93,7 +99,7 @@ func TestHandleRevokeCore(t *testing.T) {
 
 	cfg := &config.Config{
 		WhitelistedUserIDs:   []int64{100},
-		WhitelistedUsernames: []string{"superadmin"},
+		WhitelistedUsernames: []string{superadminUsername},
 	}
 	b := &Bot{
 		cfg:              cfg,
@@ -120,7 +126,7 @@ func TestHandleRevokeCore(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := mocks.NewUpdateBuilder().
 			WithMessage(1, 100, "/revoke 22222").
-			WithFrom(100, "superadmin", "Super", "Admin").
+			WithFrom(100, superadminUsername, superadminFirstName, superadminLastName).
 			Build()
 		b.handleRevokeCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
@@ -139,7 +145,7 @@ func TestHandleRevokeCore(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := mocks.NewUpdateBuilder().
 			WithMessage(1, 100, "/revoke @revokeuser").
-			WithFrom(100, "superadmin", "Super", "Admin").
+			WithFrom(100, superadminUsername, superadminFirstName, superadminLastName).
 			Build()
 		b.handleRevokeCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
@@ -151,7 +157,7 @@ func TestHandleRevokeCore(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := mocks.NewUpdateBuilder().
 			WithMessage(1, 100, "/revoke 100").
-			WithFrom(100, "superadmin", "Super", "Admin").
+			WithFrom(100, superadminUsername, superadminFirstName, superadminLastName).
 			Build()
 		b.handleRevokeCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
@@ -162,7 +168,7 @@ func TestHandleRevokeCore(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := mocks.NewUpdateBuilder().
 			WithMessage(1, 100, "/revoke @superadmin").
-			WithFrom(100, "superadmin", "Super", "Admin").
+			WithFrom(100, superadminUsername, superadminFirstName, superadminLastName).
 			Build()
 		b.handleRevokeCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
@@ -176,7 +182,7 @@ func TestHandleUsersCore(t *testing.T) {
 
 	cfg := &config.Config{
 		WhitelistedUserIDs:   []int64{100},
-		WhitelistedUsernames: []string{"superadmin"},
+		WhitelistedUsernames: []string{superadminUsername},
 	}
 	b := &Bot{
 		cfg:              cfg,
@@ -199,7 +205,7 @@ func TestHandleUsersCore(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := mocks.NewUpdateBuilder().
 			WithMessage(1, 100, "/users").
-			WithFrom(100, "superadmin", "Super", "Admin").
+			WithFrom(100, superadminUsername, superadminFirstName, superadminLastName).
 			Build()
 		b.handleUsersCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
@@ -217,7 +223,7 @@ func TestHandleUsersCore(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := mocks.NewUpdateBuilder().
 			WithMessage(1, 100, "/users").
-			WithFrom(100, "superadmin", "Super", "Admin").
+			WithFrom(100, superadminUsername, superadminFirstName, superadminLastName).
 			Build()
 		b.handleUsersCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())

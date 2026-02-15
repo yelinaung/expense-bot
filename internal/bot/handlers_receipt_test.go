@@ -10,6 +10,8 @@ import (
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
+const callbackIDReceipt = "callback123"
+
 func TestBuildReceiptConfirmationKeyboard(t *testing.T) {
 	t.Parallel()
 
@@ -56,7 +58,7 @@ func TestHandleReceiptCallbackCore(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := &models.Update{
 			CallbackQuery: &models.CallbackQuery{
-				ID:   "callback123",
+				ID:   callbackIDReceipt,
 				From: models.User{ID: userID},
 				Data: "invalid",
 				Message: models.MaybeInaccessibleMessage{
@@ -75,7 +77,7 @@ func TestHandleReceiptCallbackCore(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := &models.Update{
 			CallbackQuery: &models.CallbackQuery{
-				ID:   "callback123",
+				ID:   callbackIDReceipt,
 				From: models.User{ID: userID},
 				Data: "receipt_confirm_99999",
 				Message: models.MaybeInaccessibleMessage{
@@ -114,7 +116,7 @@ func TestHandleReceiptCallbackCore(t *testing.T) {
 
 		update := &models.Update{
 			CallbackQuery: &models.CallbackQuery{
-				ID:   "callback123",
+				ID:   callbackIDReceipt,
 				From: models.User{ID: userID},
 				Data: "receipt_confirm_" + string(rune(expense.ID+'0')),
 				Message: models.MaybeInaccessibleMessage{

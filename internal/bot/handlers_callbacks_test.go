@@ -11,6 +11,8 @@ import (
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
+const callbackIDHandlers = "callback123"
+
 func TestHandleEditCallbackCore(t *testing.T) {
 	pool := TestDB(t)
 	b := setupTestBot(t, pool)
@@ -35,7 +37,7 @@ func TestHandleEditCallbackCore(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := &models.Update{
 			CallbackQuery: &models.CallbackQuery{
-				ID:   "callback123",
+				ID:   callbackIDHandlers,
 				From: models.User{ID: userID},
 				Data: "edit",
 				Message: models.MaybeInaccessibleMessage{
@@ -66,7 +68,7 @@ func TestHandleEditCallbackCore(t *testing.T) {
 
 		update := &models.Update{
 			CallbackQuery: &models.CallbackQuery{
-				ID:   "callback123",
+				ID:   callbackIDHandlers,
 				From: models.User{ID: userID},
 				Data: fmt.Sprintf("edit_amount_%d", expense.ID),
 				Message: models.MaybeInaccessibleMessage{
@@ -98,7 +100,7 @@ func TestHandleEditCallbackCore(t *testing.T) {
 
 		update := &models.Update{
 			CallbackQuery: &models.CallbackQuery{
-				ID:   "callback123",
+				ID:   callbackIDHandlers,
 				From: models.User{ID: userID},
 				Data: fmt.Sprintf("edit_category_%d", expense.ID),
 				Message: models.MaybeInaccessibleMessage{
@@ -171,7 +173,7 @@ func TestHandleEditCallbackCore(t *testing.T) {
 
 		update := &models.Update{
 			CallbackQuery: &models.CallbackQuery{
-				ID:   "callback123",
+				ID:   callbackIDHandlers,
 				From: models.User{ID: userID},
 				Data: fmt.Sprintf("edit_amount_%d", expense.ID),
 				Message: models.MaybeInaccessibleMessage{
@@ -449,7 +451,7 @@ func TestHandleCancelEditCallbackCore(t *testing.T) {
 
 		update := &models.Update{
 			CallbackQuery: &models.CallbackQuery{
-				ID:   "callback123",
+				ID:   callbackIDHandlers,
 				From: models.User{ID: userID},
 				Data: fmt.Sprintf("cancel_edit_%d", expense.ID),
 				Message: models.MaybeInaccessibleMessage{
@@ -546,7 +548,7 @@ func TestHandleSetCategoryCallbackCore(t *testing.T) {
 
 		update := &models.Update{
 			CallbackQuery: &models.CallbackQuery{
-				ID:   "callback123",
+				ID:   callbackIDHandlers,
 				From: models.User{ID: userID},
 				Data: fmt.Sprintf("set_category_%d_%d", expense.ID, categories[0].ID),
 				Message: models.MaybeInaccessibleMessage{
@@ -677,7 +679,7 @@ func TestHandleCreateCategoryCallbackCore(t *testing.T) {
 
 		update := &models.Update{
 			CallbackQuery: &models.CallbackQuery{
-				ID:   "callback123",
+				ID:   callbackIDHandlers,
 				From: models.User{ID: userID},
 				Data: fmt.Sprintf("create_category_%d", expense.ID),
 				Message: models.MaybeInaccessibleMessage{

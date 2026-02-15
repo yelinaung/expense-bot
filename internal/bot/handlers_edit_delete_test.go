@@ -16,6 +16,8 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
 )
 
+const notFoundTextEditDelete = "not found"
+
 // TestHandleEdit tests the /edit command handler.
 func TestHandleEdit(t *testing.T) {
 	tx := database.TestTx(t)
@@ -65,7 +67,7 @@ func TestHandleEdit(t *testing.T) {
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.NotNil(t, msg)
-		require.Contains(t, msg.Text, "not found")
+		require.Contains(t, msg.Text, notFoundTextEditDelete)
 	})
 
 	t.Run("edits expense successfully", func(t *testing.T) {
@@ -160,7 +162,7 @@ func TestHandleEdit(t *testing.T) {
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.NotNil(t, msg)
-		require.Contains(t, msg.Text, "not found")
+		require.Contains(t, msg.Text, notFoundTextEditDelete)
 	})
 }
 
@@ -369,7 +371,7 @@ func TestHandleDelete(t *testing.T) {
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.NotNil(t, msg)
-		require.Contains(t, msg.Text, "not found")
+		require.Contains(t, msg.Text, notFoundTextEditDelete)
 	})
 
 	t.Run("deletes expense successfully", func(t *testing.T) {
@@ -422,7 +424,7 @@ func TestHandleDelete(t *testing.T) {
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.NotNil(t, msg)
-		require.Contains(t, msg.Text, "not found")
+		require.Contains(t, msg.Text, notFoundTextEditDelete)
 	})
 }
 

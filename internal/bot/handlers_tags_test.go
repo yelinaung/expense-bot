@@ -11,6 +11,11 @@ import (
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
+const (
+	nilMessageReturnsEarlyTags = "nil message returns early"
+	notFoundTextTags           = "not found"
+)
+
 func TestHandleTagCore(t *testing.T) {
 	pool := TestDB(t)
 	b := setupTestBot(t, pool)
@@ -24,7 +29,7 @@ func TestHandleTagCore(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	t.Run("nil message returns early", func(t *testing.T) {
+	t.Run(nilMessageReturnsEarlyTags, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := &models.Update{Message: nil}
 		b.handleTagCore(ctx, mockBot, update)
@@ -64,7 +69,7 @@ func TestHandleTagCore(t *testing.T) {
 		b.handleTagCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "not found")
+		require.Contains(t, msg.Text, notFoundTextTags)
 	})
 
 	t.Run("adds single tag successfully", func(t *testing.T) {
@@ -198,7 +203,7 @@ func TestHandleUntagCore(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	t.Run("nil message returns early", func(t *testing.T) {
+	t.Run(nilMessageReturnsEarlyTags, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := &models.Update{Message: nil}
 		b.handleUntagCore(ctx, mockBot, update)
@@ -256,7 +261,7 @@ func TestHandleUntagCore(t *testing.T) {
 		b.handleUntagCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "not found")
+		require.Contains(t, msg.Text, notFoundTextTags)
 	})
 }
 
@@ -273,7 +278,7 @@ func TestHandleTagsCore(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	t.Run("nil message returns early", func(t *testing.T) {
+	t.Run(nilMessageReturnsEarlyTags, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := &models.Update{Message: nil}
 		b.handleTagsCore(ctx, mockBot, update)
@@ -371,7 +376,7 @@ func TestHandleTagsCore(t *testing.T) {
 		b.handleTagsCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "not found")
+		require.Contains(t, msg.Text, notFoundTextTags)
 	})
 }
 

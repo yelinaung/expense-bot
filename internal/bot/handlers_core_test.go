@@ -13,12 +13,14 @@ import (
 	"google.golang.org/genai"
 )
 
+const nilMessageReturnsEarlyCore = "nil message returns early"
+
 func TestHandleAddCore(t *testing.T) {
 	pool := TestDB(t)
 	b := setupTestBot(t, pool)
 	ctx := context.Background()
 
-	t.Run("nil message returns early", func(t *testing.T) {
+	t.Run(nilMessageReturnsEarlyCore, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := &models.Update{Message: nil}
 		b.handleAddCore(ctx, mockBot, update)
@@ -139,7 +141,7 @@ func TestHandleStartCore(t *testing.T) {
 	b := setupTestBot(t, pool)
 	ctx := context.Background()
 
-	t.Run("nil message returns early", func(t *testing.T) {
+	t.Run(nilMessageReturnsEarlyCore, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := &models.Update{Message: nil}
 		b.handleStartCore(ctx, mockBot, update)
@@ -181,7 +183,7 @@ func TestHandleHelpCore(t *testing.T) {
 	b := setupTestBot(t, pool)
 	ctx := context.Background()
 
-	t.Run("nil message returns early", func(t *testing.T) {
+	t.Run(nilMessageReturnsEarlyCore, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := &models.Update{Message: nil}
 		b.handleHelpCore(ctx, mockBot, update)
@@ -217,7 +219,7 @@ func TestHandleCategoriesCore(t *testing.T) {
 	b := setupTestBot(t, pool)
 	ctx := context.Background()
 
-	t.Run("nil message returns early", func(t *testing.T) {
+	t.Run(nilMessageReturnsEarlyCore, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := &models.Update{Message: nil}
 		b.handleCategoriesCore(ctx, mockBot, update)
@@ -253,7 +255,7 @@ func TestHandleListCore(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	t.Run("nil message returns early", func(t *testing.T) {
+	t.Run(nilMessageReturnsEarlyCore, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := &models.Update{Message: nil}
 		b.handleListCore(ctx, mockBot, update)
@@ -315,7 +317,7 @@ func TestHandleTodayCore(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	t.Run("nil message returns early", func(t *testing.T) {
+	t.Run(nilMessageReturnsEarlyCore, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := &models.Update{Message: nil}
 		b.handleTodayCore(ctx, mockBot, update)
@@ -362,7 +364,7 @@ func TestHandleWeekCore(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	t.Run("nil message returns early", func(t *testing.T) {
+	t.Run(nilMessageReturnsEarlyCore, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		update := &models.Update{Message: nil}
 		b.handleWeekCore(ctx, mockBot, update)
