@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.6.2] - 2026-02-15 - Currency Conversion, Security Hardening & CI Quality
+
 ### Added
 - **Automatic Currency Conversion to User Default**:
   - When an expense is entered in a different currency than the user's default, the bot converts and stores it in the default currency.

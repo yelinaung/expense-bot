@@ -255,7 +255,9 @@ $10 Lunch                      # USD
    - Example: "5.9 vegetables" → automatically categorized as "Food - Grocery"
    - Example: "15 taxi" → automatically categorized as "Transportation"
    - Only applies suggestions with >50% confidence
-3. **Uncategorized**: If neither manual nor AI categorization works, expense is saved as "Uncategorized"
+3. **Fallback Category**:
+   - If no strong match is found and an `Others` category exists, expense defaults to `Others`
+   - Otherwise, expense is saved as "Uncategorized"
 
 ### Receipt OCR
 
@@ -332,8 +334,9 @@ When you add an expense without specifying a category, the bot uses Gemini AI to
 
 **Features:**
 - Smart distinction between "Food - Dining Out" (prepared meals) and "Food - Grocery" (ingredients)
+- Can suggest and auto-create a new category for unmatched expenses when confidence is high
 - Comprehensive logging for debugging
-- Fallback to uncategorized if AI fails or confidence is low
+- Falls back to `Others` (if available) or "Uncategorized" when AI fails or confidence is low
 
 ### Category Matching
 
@@ -519,7 +522,7 @@ openssl rand -hex 32
    - Response truncated: Check MaxOutputTokens (should be 500)
    - Preamble responses: extractJSON() should handle this
    - Low confidence: Only applies if confidence >50%
-4. Expenses will be saved as "Uncategorized" if AI fails
+4. Expenses fall back to `Others` (if available) or "Uncategorized" if AI fails
 
 ## Contributing
 
