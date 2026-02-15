@@ -29,15 +29,19 @@ jobs:
   sast:
     name: SAST (Semgrep)
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
+    container:
+      image: semgrep/semgrep
     permissions:
+      contents: read
       security-events: write
+    if: github.actor != 'dependabot[bot]'
     steps:
       - uses: actions/checkout@v6
 
       - name: Run Semgrep
-        uses: returntocorp/semgrep-action@v1
-        with:
-          config: auto
+        run: semgrep ci
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
   gosec:
     name: Gosec Security Check
