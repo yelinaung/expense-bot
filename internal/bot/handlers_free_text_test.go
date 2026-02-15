@@ -141,7 +141,7 @@ func callHandleFreeTextExpense(
 		}
 	}
 
-	if err := expenseRepo.Create(ctx, expense); err != nil {
+	if expenseRepo.Create(ctx, expense) != nil {
 		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Failed to save expense. Please try again.",

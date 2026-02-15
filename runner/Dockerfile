@@ -1,4 +1,4 @@
-FROM myoung34/github-runner:latest
+FROM myoung34/github-runner:ubuntu-jammy
 
 ARG GO_VERSION=1.25.7
 ARG GOLANGCI_LINT_VERSION=2.8.0
@@ -8,9 +8,8 @@ ARG GITLEAKS_VERSION=8.30.0
 USER root
 
 RUN apt-get update && apt-get install -y --no-install-recommends jq && \
-    rm -rf /var/lib/apt/lists/*
-
-RUN mkdir -p "/opt/hostedtoolcache/go/${GO_VERSION}/x64" && \
+    rm -rf /var/lib/apt/lists/* && \
+    mkdir -p "/opt/hostedtoolcache/go/${GO_VERSION}/x64" && \
     curl --proto "=https" --tlsv1.2 -sSf -L "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" | \
     tar -xz -C "/opt/hostedtoolcache/go/${GO_VERSION}/x64" --strip-components=1 && \
     touch "/opt/hostedtoolcache/go/${GO_VERSION}/x64.complete"

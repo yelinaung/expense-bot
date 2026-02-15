@@ -129,7 +129,7 @@ func TestCommandHandlerWrappers(t *testing.T) {
 		t.Parallel()
 		// Valid expense text will call saveExpense which panics with nil bot
 		defer func() {
-			if r := recover(); r == nil {
+			if recover() == nil {
 				t.Error("expected panic when calling saveExpense with nil bot")
 			}
 		}()
@@ -146,7 +146,7 @@ func TestCommandHandlerWrappers(t *testing.T) {
 		t.Parallel()
 		// saveExpense has no early return, so we accept a panic
 		defer func() {
-			if r := recover(); r == nil {
+			if recover() == nil {
 				t.Error("expected panic with nil bot")
 			}
 		}()
