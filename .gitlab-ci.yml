@@ -53,6 +53,7 @@ gosec:
     - playground-bravo
   extends: .go-cache
   before_script:
+    - export PATH="$GOPATH/bin:$PATH"
     - go install github.com/securego/gosec/v2/cmd/gosec@latest
   script:
     - gosec ./...
