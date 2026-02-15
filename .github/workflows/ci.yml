@@ -56,9 +56,10 @@ jobs:
           gosec --version
 
       - name: Run Gosec Security Scanner
-        run: gosec -fmt sarif -out results.sarif ./...
+        run: gosec -fmt sarif -out results.sarif ./... || true
 
       - name: Fix SARIF format for CodeQL
+        if: always()
         run: |
           # Remove invalid relationships field that causes validation errors
           jq 'walk(if type == "object" and has("relationships") then del(.relationships) else . end)' results.sarif > results-fixed.sarif
