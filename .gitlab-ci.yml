@@ -186,6 +186,7 @@ test:
     expire_in: 1 week
   coverage: '/total:\s+\(statements\)\s+(\d+\.\d+)%/'
 
+
 # === DEPLOY STAGE ===
 
 deploy:
