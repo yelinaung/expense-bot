@@ -105,8 +105,8 @@ func (c *FrankfurterClient) Convert(
 	if err != nil {
 		return ConversionResult{}, fmt.Errorf("failed to parse conversion rate: %w", err)
 	}
-	if !rate.IsPositive() {
-		return ConversionResult{}, errors.New("conversion rate must be positive")
+	if err := validateConversionRate(rate); err != nil {
+		return ConversionResult{}, err
 	}
 
 	rateDate, err := time.Parse("2006-01-02", payload.Date)

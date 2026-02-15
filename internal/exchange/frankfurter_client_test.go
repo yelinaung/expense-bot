@@ -62,6 +62,19 @@ func TestFrankfurterClient_Convert(t *testing.T) {
 		require.ErrorIs(t, err, errRateMissing)
 	})
 
+	t.Run("returns error when target rate is non-positive", func(t *testing.T) {
+		t.Parallel()
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(`{"amount":1,"base":"USD","date":"2026-02-14","rates":{"SGD":0}}`))
+		}))
+		defer server.Close()
+
+		client := NewFrankfurterClient(server.URL, time.Second)
+		_, err := client.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
+		require.ErrorIs(t, err, errInvalidNonPositiveRate)
+	})
+
 	t.Run("returns same amount for same currency", func(t *testing.T) {
 		t.Parallel()
 
