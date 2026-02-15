@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -233,7 +234,7 @@ func TestGetEditableExpense(t *testing.T) {
 	require.False(t, ok)
 	require.Nil(t, got)
 	require.Equal(t, 1, mockBot.SentMessageCount())
-	require.Contains(t, mockBot.LastSentMessage().Text, "You can only edit your own expenses")
+	require.Contains(t, mockBot.LastSentMessage().Text, "not found")
 
 	got, ok = b.getEditableExpense(ctx, mockBot, 100, ownerID, 99999)
 	require.False(t, ok)
@@ -260,4 +261,147 @@ func TestParseEditExpenseValues(t *testing.T) {
 	require.Equal(t, "Food", parsed.CategoryName)
 	require.NotNil(t, expense.Category)
 	require.Equal(t, "Transport", expense.Category.Name)
+}
+
+func TestSendEmptyExpenseList(t *testing.T) {
+	t.Parallel()
+
+	b := &Bot{}
+	mockBot := mocks.NewMockBot()
+
+	b.sendEmptyExpenseList(context.Background(), mockBot, 99, "Header")
+	require.Equal(t, 1, mockBot.SentMessageCount())
+	require.Contains(t, mockBot.LastSentMessage().Text, "Header")
+	require.Contains(t, mockBot.LastSentMessage().Text, "No expenses found")
+}
+
+func TestIsValidAutoCreatedCategoryName(t *testing.T) {
+	t.Parallel()
+
+	require.False(t, isValidAutoCreatedCategoryName(""))
+	require.False(t, isValidAutoCreatedCategoryName(" \t "))
+	require.False(t, isValidAutoCreatedCategoryName("bad\nname"))
+	require.True(t, isValidAutoCreatedCategoryName("Travel"))
+}
+
+func TestApplyNewCategorySuggestion(t *testing.T) {
+	pool := TestDB(t)
+	b := setupTestBot(t, pool)
+	ctx := context.Background()
+
+	expense := &appmodels.Expense{}
+	ok := b.applyNewCategorySuggestion(ctx, expense, "desc", &gemini.CategorySuggestion{
+		NewCategoryName: "bad\nname",
+		Confidence:      0.95,
+	}, nil)
+	require.False(t, ok)
+	require.Nil(t, expense.CategoryID)
+
+	categories := []appmodels.Category{{ID: 42, Name: "Food"}}
+	expense = &appmodels.Expense{}
+	ok = b.applyNewCategorySuggestion(ctx, expense, "desc", &gemini.CategorySuggestion{
+		NewCategoryName: "food",
+		Confidence:      0.95,
+	}, categories)
+	require.True(t, ok)
+	require.NotNil(t, expense.CategoryID)
+	require.Equal(t, 42, *expense.CategoryID)
+
+	expense = &appmodels.Expense{}
+	ok = b.applyNewCategorySuggestion(ctx, expense, "desc", &gemini.CategorySuggestion{
+		NewCategoryName: "NewCategory",
+		Confidence:      0.95,
+	}, nil)
+	require.True(t, ok)
+	require.NotNil(t, expense.Category)
+	require.Equal(t, "NewCategory", expense.Category.Name)
+}
+
+func TestSaveInlineTags(t *testing.T) {
+	pool := TestDB(t)
+	b := setupTestBot(t, pool)
+	ctx := context.Background()
+
+	const userID = int64(940001)
+	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+		ID:              userID,
+		Username:        "taguser",
+		FirstName:       "Tag",
+		DefaultCurrency: "SGD",
+	})
+	require.NoError(t, err)
+
+	exp := &appmodels.Expense{
+		UserID:      userID,
+		Amount:      decimal.RequireFromString("3.50"),
+		Currency:    "SGD",
+		Description: "snack",
+		Merchant:    "snack",
+	}
+	require.NoError(t, b.expenseRepo.Create(ctx, exp))
+
+	b.saveInlineTags(ctx, exp.ID, []string{"food", "snack"})
+	tags, err := b.tagRepo.GetByExpenseID(ctx, exp.ID)
+	require.NoError(t, err)
+	require.Len(t, tags, 2)
+}
+
+func TestHandlePhotoCore_GeminiNotConfigured(t *testing.T) {
+	t.Parallel()
+
+	b := &Bot{}
+	mockBot := mocks.NewMockBot()
+	update := mocks.PhotoUpdate(123, 456, "file-id")
+
+	b.handlePhotoCore(context.Background(), mockBot, update)
+
+	require.Equal(t, 1, mockBot.SentMessageCount())
+	require.Contains(t, mockBot.LastSentMessage().Text, "Receipt OCR is not configured")
+}
+
+func TestHandleVoiceCore_GeminiNotConfigured(t *testing.T) {
+	t.Parallel()
+
+	b := &Bot{}
+	mockBot := mocks.NewMockBot()
+	update := mocks.VoiceUpdate(123, 456, "voice-file", 2)
+
+	b.handleVoiceCore(context.Background(), mockBot, update)
+
+	require.Equal(t, 1, mockBot.SentMessageCount())
+	require.Contains(t, mockBot.LastSentMessage().Text, "Voice expense input is not configured")
+}
+
+func TestSaveInlineTags_NoTags(t *testing.T) {
+	t.Parallel()
+	b := &Bot{}
+	b.saveInlineTags(context.Background(), 1, nil)
+}
+
+func TestApplyNewCategorySuggestion_CreateError(t *testing.T) {
+	pool := TestDB(t)
+	b := setupTestBot(t, pool)
+	ctx := context.Background()
+
+	// Seed an existing category to force duplicate create path.
+	_, err := b.categoryRepo.Create(ctx, "DupCat")
+	require.NoError(t, err)
+
+	expense := &appmodels.Expense{}
+	ok := b.applyNewCategorySuggestion(ctx, expense, "desc", &gemini.CategorySuggestion{
+		NewCategoryName: "DupCat",
+		Confidence:      0.95,
+	}, nil)
+	require.False(t, ok)
+	require.Nil(t, expense.Category)
+	require.Nil(t, expense.CategoryID)
+}
+
+func TestSendVoiceParseError_Default(t *testing.T) {
+	t.Parallel()
+
+	mockBot := mocks.NewMockBot()
+	sendVoiceParseError(context.Background(), mockBot, 123, errors.New("x"))
+	require.Equal(t, 1, mockBot.SentMessageCount())
+	require.Contains(t, mockBot.LastSentMessage().Text, "Failed to process voice message")
 }
