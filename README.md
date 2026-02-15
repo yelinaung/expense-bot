@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/yelinaung/expense-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/yelinaung/expense-bot/actions/workflows/ci.yml)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yelinaung_expense-bot&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yelinaung_expense-bot)
-[![codecov](https://codecov.io/github/yelinaung/expense-bot/graph/badge.svg?token=DX2lbjFjkD)](https://codecov.io/github/yelinaung/expense-bot)
+[![codecov](https://codecov.io/github/yelinaung/expense-bot/branch/master/graph/badge.svg?token=DX2lbjFjkD)](https://codecov.io/github/yelinaung/expense-bot)
 
 > **Disclaimer**: This application was developed primarily by AI coding agents (Claude/Amp) as an experimental project. While functional, **quality is not guaranteed**. If you choose to use or deploy this bot, please do so with caution, review the code yourself, and understand that it may contain bugs or security issues. Use at your own risk.
 
