@@ -46,6 +46,17 @@ semgrep-sast:
     - if: $CI_COMMIT_BRANCH
     - if: $CI_COMMIT_TAG
 
+gosec:
+  stage: security
+  image: golang:1.26-alpine
+  tags:
+    - playground-bravo
+  extends: .go-cache
+  before_script:
+    - go install github.com/securego/gosec/v2/cmd/gosec@latest
+  script:
+    - gosec ./...
+
 # === QUALITY STAGE ===
 # All quality checks run in parallel
 
@@ -143,6 +154,7 @@ test:
     - job: check_secrets
     - job: lint
     - job: check_sast
+    - job: gosec
   services:
     - name: postgres:18-alpine
       alias: postgres
@@ -186,6 +198,7 @@ deploy:
     - job: test
     - job: check_sast
     - job: lint
+    - job: gosec
   before_script:
     # OPTIMIZED: Only install openssh-client (git already included)
     - apk add --no-cache openssh-client
@@ -217,6 +230,7 @@ release:
     - job: test
     - job: check_sast
     - job: lint
+    - job: gosec
   variables:
     GIT_DEPTH: 0
     GOTOOLCHAIN: auto
