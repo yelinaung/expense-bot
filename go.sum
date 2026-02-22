@@ -26,6 +26,8 @@ github.com/go-analyze/charts v0.5.24 h1:HamvYWEgbANbLb/P6uijygtG9qeSYev34ki1RelA
 github.com/go-analyze/charts v0.5.24/go.mod h1:s1YvQhjiSwtLx1f2dOKfiV9x2TT49nVSL6v2rlRpTbY=
 github.com/go-telegram/bot v1.18.0 h1:yQzv437DY42SYTPBY48RinAvwbmf1ox5QICskIYWCD8=
 github.com/go-telegram/bot v1.18.0/go.mod h1:i2TRs7fXWIeaceF3z7KzsMt/he0TwkVC680mvdTFYeM=
+github.com/go-telegram/bot v1.19.0 h1:tuvTQhgNietHFRN0HUDhuXsgfgkGSaO8WWwZQW3DMQg=
+github.com/go-telegram/bot v1.19.0/go.mod h1:i2TRs7fXWIeaceF3z7KzsMt/he0TwkVC680mvdTFYeM=
 github.com/godbus/dbus/v5 v5.0.4/go.mod h1:xhWf0FNVPg57R7Z0UbKHbJfkEywrmjJnf7w5xrFpKfA=
 github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 h1:DACJavvAHhabrF08vX0COfcOBJRhZ8lUbR+ZWIs0Y5g=
 github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0/go.mod h1:E/TSTwGwJL78qG/PmXZO1EjYhfJinVAhrmmHX6Z8B9k=
