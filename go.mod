@@ -4,7 +4,7 @@ go 1.25.7
 
 require (
 	github.com/go-analyze/charts v0.5.24
-	github.com/go-telegram/bot v1.18.0
+	github.com/go-telegram/bot v1.19.0
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/joho/godotenv v1.5.1
 	github.com/rs/zerolog v1.34.0
