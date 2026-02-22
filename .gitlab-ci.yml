@@ -116,7 +116,7 @@ check_sast:
 
 lint:
   stage: quality
-  image: golangci/golangci-lint:v2.9-alpine
+  image: golangci/golangci-lint:v2.10-alpine
   tags:
     - playground-bravo
   extends: .go-cache
