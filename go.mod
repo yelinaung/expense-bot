@@ -10,7 +10,7 @@ require (
 	github.com/rs/zerolog v1.34.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/stretchr/testify v1.11.1
-	google.golang.org/genai v1.46.0
+	google.golang.org/genai v1.47.0
 )
 
 require (
