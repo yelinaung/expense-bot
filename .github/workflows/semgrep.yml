@@ -22,5 +22,5 @@ jobs:
     container:
       image: semgrep/semgrep:1.152.0
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - run: semgrep ci
