@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
@@ -86,19 +85,15 @@ func (r *UserRepository) GetAllUsers(ctx context.Context) ([]models.User, error)
 	return users, nil
 }
 
-// GetUsersNeedingReminder returns authorized users who have no confirmed expenses
-// in the given time range. Authorization means the user is either a superadmin
-// (by ID or username) or exists in the approved_users table.
-func (r *UserRepository) GetUsersNeedingReminder(
+// GetAuthorizedUsersForReminder returns authorized users. Authorization means
+// the user is either a superadmin (by ID or username) or exists in the
+// approved_users table.
+func (r *UserRepository) GetAuthorizedUsersForReminder(
 	ctx context.Context,
 	superAdminIDs []int64,
 	superAdminUsernames []string,
-	startOfDay, endOfDay time.Time,
 ) ([]models.User, error) {
-	lowered := make([]string, len(superAdminUsernames))
-	for i, u := range superAdminUsernames {
-		lowered[i] = strings.ToLower(u)
-	}
+	lowered := lowercaseUsernames(superAdminUsernames)
 
 	rows, err := r.db.Query(ctx, `
 		SELECT u.id, u.username, u.first_name, u.last_name
@@ -109,16 +104,29 @@ func (r *UserRepository) GetUsersNeedingReminder(
 			OR EXISTS (SELECT 1 FROM approved_users au WHERE au.user_id = u.id AND au.user_id != 0)
 			OR EXISTS (SELECT 1 FROM approved_users au WHERE LOWER(au.username) = LOWER(u.username) AND u.username != '' AND au.username != '')
 		)
-		AND NOT EXISTS (
-			SELECT 1 FROM expenses e
-			WHERE e.user_id = u.id AND e.created_at >= $3 AND e.created_at < $4 AND e.status = 'confirmed'
-		)
-	`, superAdminIDs, lowered, startOfDay, endOfDay)
+	`, superAdminIDs, lowered)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query users needing reminder: %w", err)
+		return nil, fmt.Errorf("failed to query authorized users for reminder: %w", err)
 	}
 	defer rows.Close()
 
+	return scanReminderUsers(rows)
+}
+
+func lowercaseUsernames(usernames []string) []string {
+	lowered := make([]string, len(usernames))
+	for i, u := range usernames {
+		lowered[i] = strings.ToLower(u)
+	}
+	return lowered
+}
+
+func scanReminderUsers(rows interface {
+	Next() bool
+	Scan(dest ...any) error
+	Err() error
+},
+) ([]models.User, error) {
 	var users []models.User
 	for rows.Next() {
 		var u models.User
