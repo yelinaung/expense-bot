@@ -95,7 +95,8 @@ func (b *Bot) checkAndSendReminders(ctx context.Context, loc *time.Location, rem
 		return
 	}
 
-	for _, user := range users {
+	for i := range users {
+		user := &users[i]
 		if reminded[user.ID] == todayStr {
 			continue
 		}
@@ -113,7 +114,7 @@ func (b *Bot) checkAndSendReminders(ctx context.Context, loc *time.Location, rem
 
 func (b *Bot) sendReminderOrDailySummary(
 	ctx context.Context,
-	user appmodels.User,
+	user *appmodels.User,
 	startOfDay, endOfDay time.Time,
 ) error {
 	expenses, err := b.expenseRepo.GetByUserIDAndDateRange(ctx, user.ID, startOfDay, endOfDay)
@@ -130,7 +131,7 @@ func (b *Bot) sendReminderOrDailySummary(
 	return b.sendTodaySummary(ctx, user.ID, expenses, header)
 }
 
-func (b *Bot) sendNoExpenseReminder(ctx context.Context, user appmodels.User) error {
+func (b *Bot) sendNoExpenseReminder(ctx context.Context, user *appmodels.User) error {
 	firstName := user.FirstName
 	if firstName == "" {
 		firstName = "there"
