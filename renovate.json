@@ -2,5 +2,38 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["^runner/Dockerfile$"],
+      "matchStrings": ["ARG GO_VERSION=(?<currentValue>\\S+)"],
+      "depNameTemplate": "golang",
+      "datasourceTemplate": "golang-version"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^runner/Dockerfile$"],
+      "matchStrings": ["ARG GOLANGCI_LINT_VERSION=(?<currentValue>\\S+)"],
+      "depNameTemplate": "golangci/golangci-lint",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^runner/Dockerfile$"],
+      "matchStrings": ["ARG GORELEASER_VERSION=(?<currentValue>\\S+)"],
+      "depNameTemplate": "goreleaser/goreleaser",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^runner/Dockerfile$"],
+      "matchStrings": ["ARG GITLEAKS_VERSION=(?<currentValue>\\S+)"],
+      "depNameTemplate": "gitleaks/gitleaks",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    }
   ]
 }
