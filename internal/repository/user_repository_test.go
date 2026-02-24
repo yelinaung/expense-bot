@@ -86,6 +86,25 @@ func TestUserRepository_GetAuthorizedUsersForReminder(t *testing.T) {
 	userRepo := NewUserRepository(tx)
 	approvedRepo := NewApprovedUserRepository(tx)
 
+	t.Run("returns approved user when no superadmin whitelist is provided", func(t *testing.T) {
+		err := userRepo.UpsertUser(ctx, &models.User{ID: 3100, Username: "approvedonly", FirstName: "Approved"})
+		require.NoError(t, err)
+		err = approvedRepo.Approve(ctx, 3100, "approvedonly", 1)
+		require.NoError(t, err)
+
+		users, err := userRepo.GetAuthorizedUsersForReminder(ctx, nil, nil)
+		require.NoError(t, err)
+
+		var found bool
+		for _, u := range users {
+			if u.ID == 3100 {
+				found = true
+				break
+			}
+		}
+		require.True(t, found, "approved user should be included even without superadmin whitelist")
+	})
+
 	t.Run("returns superadmin and approved users", func(t *testing.T) {
 		err := userRepo.UpsertUser(ctx, &models.User{ID: 3101, Username: "adminuser", FirstName: "Admin"})
 		require.NoError(t, err)
