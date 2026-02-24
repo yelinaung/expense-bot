@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"strconv"
 	"testing"
 
 	"github.com/go-telegram/bot/models"
@@ -123,7 +124,7 @@ func TestHandleReceiptCallbackCore(t *testing.T) {
 			CallbackQuery: &models.CallbackQuery{
 				ID:   callbackIDReceipt,
 				From: models.User{ID: userID},
-				Data: "receipt_confirm_" + string(rune(expense.ID+'0')),
+				Data: "receipt_confirm_" + strconv.Itoa(expense.ID),
 				Message: models.MaybeInaccessibleMessage{
 					Message: &models.Message{
 						ID:   100,

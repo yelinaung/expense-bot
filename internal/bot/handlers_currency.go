@@ -129,7 +129,7 @@ func (b *Bot) buildCurrencyListMessage() string {
 
 	for _, code := range codes {
 		symbol := appmodels.SupportedCurrencies[code]
-		sb.WriteString(fmt.Sprintf("• %s (%s)\n", code, symbol))
+		fmt.Fprintf(&sb, "• %s (%s)\n", code, symbol)
 	}
 
 	sb.WriteString("\n<b>Tip:</b> You can also use currency symbols:\n")

@@ -212,10 +212,10 @@ func (b *Bot) handleUsersCore(ctx context.Context, tg TelegramAPI, update *model
 	var sb strings.Builder
 	sb.WriteString("<b>Superadmins:</b>\n")
 	for _, id := range b.cfg.WhitelistedUserIDs {
-		sb.WriteString(fmt.Sprintf(superadminIDLineFmt, id))
+		fmt.Fprintf(&sb, superadminIDLineFmt, id)
 	}
 	for _, u := range b.cfg.WhitelistedUsernames {
-		sb.WriteString(fmt.Sprintf(superadminUsernameLineFmt, escapeHTML(u)))
+		fmt.Fprintf(&sb, superadminUsernameLineFmt, escapeHTML(u))
 	}
 
 	approved, err := b.approvedUserRepo.GetAll(ctx)
@@ -235,11 +235,11 @@ func (b *Bot) handleUsersCore(ctx context.Context, tg TelegramAPI, update *model
 		for _, u := range approved {
 			switch {
 			case u.UserID != 0 && u.Username != "":
-				sb.WriteString(fmt.Sprintf("  ID: <code>%d</code> (@%s)\n", u.UserID, escapeHTML(u.Username)))
+				fmt.Fprintf(&sb, "  ID: <code>%d</code> (@%s)\n", u.UserID, escapeHTML(u.Username))
 			case u.UserID != 0:
-				sb.WriteString(fmt.Sprintf(superadminIDLineFmt, u.UserID))
+				fmt.Fprintf(&sb, superadminIDLineFmt, u.UserID)
 			default:
-				sb.WriteString(fmt.Sprintf(superadminUsernameLineFmt, escapeHTML(u.Username)))
+				fmt.Fprintf(&sb, superadminUsernameLineFmt, escapeHTML(u.Username))
 			}
 		}
 	}

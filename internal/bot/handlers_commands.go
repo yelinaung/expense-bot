@@ -188,7 +188,7 @@ func (b *Bot) handleCategoriesCore(ctx context.Context, tg TelegramAPI, update *
 	var sb strings.Builder
 	sb.WriteString("📁 <b>Expense Categories</b>\n\n")
 	for i, cat := range categories {
-		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, escapeHTML(cat.Name)))
+		fmt.Fprintf(&sb, "%d. %s\n", i+1, escapeHTML(cat.Name))
 	}
 
 	logger.Log.Debug().Int64("chat_id", update.Message.Chat.ID).Msg("Sending /categories response")

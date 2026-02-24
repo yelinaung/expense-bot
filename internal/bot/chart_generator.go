@@ -39,7 +39,7 @@ func GenerateExpenseChart(expenses []models.Expense, period string) ([]byte, err
 	opt.Padding = charts.NewBoxEqual(5)
 	opt.Legend = charts.LegendOption{
 		SeriesNames: categoryNames,
-		Vertical:    charts.Ptr(true),
+		Vertical:    new(true),
 		Offset: charts.OffsetStr{
 			Left: "80%",
 			Top:  charts.PositionBottom,
