@@ -6,34 +6,55 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["^runner/Dockerfile$"],
-      "matchStrings": ["ARG GO_VERSION=(?<currentValue>\\S+)"],
-      "depNameTemplate": "golang",
-      "datasourceTemplate": "golang-version"
+      "managerFilePatterns": [
+        "/^runner\\/Dockerfile$/"
+      ],
+      "matchStrings": [
+        "(?m)^ARG\\s+GO_VERSION=(?<currentValue>[0-9A-Za-z._-]+)\\s*$"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "golang/go",
+      "extractVersionTemplate": "^go(?<version>.*)$",
+      "versioningTemplate": "semver"
     },
     {
       "customType": "regex",
-      "fileMatch": ["^runner/Dockerfile$"],
-      "matchStrings": ["ARG GOLANGCI_LINT_VERSION=(?<currentValue>\\S+)"],
+      "managerFilePatterns": [
+        "/^runner\\/Dockerfile$/"
+      ],
+      "matchStrings": [
+        "(?m)^ARG\\s+GOLANGCI_LINT_VERSION=(?<currentValue>[0-9A-Za-z._-]+)\\s*$"
+      ],
+      "datasourceTemplate": "github-releases",
       "depNameTemplate": "golangci/golangci-lint",
-      "datasourceTemplate": "github-releases",
-      "extractVersionTemplate": "^v(?<version>.*)$"
+      "extractVersionTemplate": "^v?(?<version>.*)$",
+      "versioningTemplate": "semver"
     },
     {
       "customType": "regex",
-      "fileMatch": ["^runner/Dockerfile$"],
-      "matchStrings": ["ARG GORELEASER_VERSION=(?<currentValue>\\S+)"],
+      "managerFilePatterns": [
+        "/^runner\\/Dockerfile$/"
+      ],
+      "matchStrings": [
+        "(?m)^ARG\\s+GORELEASER_VERSION=(?<currentValue>[0-9A-Za-z._-]+)\\s*$"
+      ],
+      "datasourceTemplate": "github-releases",
       "depNameTemplate": "goreleaser/goreleaser",
-      "datasourceTemplate": "github-releases",
-      "extractVersionTemplate": "^v(?<version>.*)$"
+      "extractVersionTemplate": "^v?(?<version>.*)$",
+      "versioningTemplate": "semver"
     },
     {
       "customType": "regex",
-      "fileMatch": ["^runner/Dockerfile$"],
-      "matchStrings": ["ARG GITLEAKS_VERSION=(?<currentValue>\\S+)"],
-      "depNameTemplate": "gitleaks/gitleaks",
+      "managerFilePatterns": [
+        "/^runner\\/Dockerfile$/"
+      ],
+      "matchStrings": [
+        "(?m)^ARG\\s+GITLEAKS_VERSION=(?<currentValue>[0-9A-Za-z._-]+)\\s*$"
+      ],
       "datasourceTemplate": "github-releases",
-      "extractVersionTemplate": "^v(?<version>.*)$"
+      "depNameTemplate": "gitleaks/gitleaks",
+      "extractVersionTemplate": "^v?(?<version>.*)$",
+      "versioningTemplate": "semver"
     }
   ]
 }
