@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -591,7 +592,7 @@ func downloadPhotoFromURL(ctx context.Context, url string) ([]byte, error) {
 		return nil, err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec // test-only helper; URL comes from httptest.Server
 	if err != nil {
 		return nil, err
 	}
@@ -614,7 +615,7 @@ type httpError struct {
 }
 
 func (e *httpError) Error() string {
-	return "download failed with status: " + http.StatusText(e.statusCode) + " (status code " + string(rune('0'+e.statusCode/100)) + string(rune('0'+(e.statusCode/10)%10)) + string(rune('0'+e.statusCode%10)) + ")"
+	return fmt.Sprintf("download failed with status: %s (status code %d)", http.StatusText(e.statusCode), e.statusCode)
 }
 
 // TestPendingEditStruct tests the pendingEdit struct fields.

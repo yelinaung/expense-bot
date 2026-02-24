@@ -328,7 +328,7 @@ func (b *Bot) handleTagsCore(ctx context.Context, tg TelegramAPI, update *models
 		var sb strings.Builder
 		sb.WriteString("🏷️ <b>Tags</b>\n\n")
 		for i, tag := range tags {
-			sb.WriteString(fmt.Sprintf("%d. #%s\n", i+1, escapeHTML(tag.Name)))
+			fmt.Fprintf(&sb, "%d. #%s\n", i+1, escapeHTML(tag.Name))
 		}
 
 		_, err = tg.SendMessage(ctx, &bot.SendMessageParams{
