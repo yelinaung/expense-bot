@@ -6,7 +6,10 @@ import (
 	"time"
 
 	tgbot "github.com/go-telegram/bot"
+	tgmodels "github.com/go-telegram/bot/models"
+	"github.com/shopspring/decimal"
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
+	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
 const (
@@ -16,6 +19,8 @@ const (
 	ReminderTimeout = 2 * time.Minute
 )
 
+var reminderLocationGMTPlus8 = time.FixedZone("GMT+8", 8*60*60)
+
 // startDailyReminderLoop runs a periodic loop that sends daily reminders to users
 // who haven't logged any expenses for the current day.
 func (b *Bot) startDailyReminderLoop(ctx context.Context) {
@@ -24,15 +29,11 @@ func (b *Bot) startDailyReminderLoop(ctx context.Context) {
 		return
 	}
 
-	loc, err := time.LoadLocation(b.cfg.ReminderTimezone)
-	if err != nil {
-		logger.Log.Error().Err(err).Str("timezone", b.cfg.ReminderTimezone).Msg("Failed to load reminder timezone, disabling reminders")
-		return
-	}
+	loc := reminderLocationGMTPlus8
 
 	logger.Log.Info().
 		Int("hour", b.cfg.ReminderHour).
-		Str("timezone", b.cfg.ReminderTimezone).
+		Str("timezone", "GMT+8").
 		Msg("Daily reminder loop started")
 
 	reminded := make(map[int64]string)
@@ -84,11 +85,10 @@ func (b *Bot) checkAndSendReminders(ctx context.Context, loc *time.Location, rem
 	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 	endOfDay := startOfDay.AddDate(0, 0, 1)
 
-	users, err := b.userRepo.GetUsersNeedingReminder(
+	users, err := b.userRepo.GetAuthorizedUsersForReminder(
 		checkCtx,
 		b.cfg.WhitelistedUserIDs,
 		b.cfg.WhitelistedUsernames,
-		startOfDay, endOfDay,
 	)
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to fetch users for daily reminder")
@@ -100,20 +100,7 @@ func (b *Bot) checkAndSendReminders(ctx context.Context, loc *time.Location, rem
 			continue
 		}
 
-		firstName := user.FirstName
-		if firstName == "" {
-			firstName = "there"
-		}
-
-		text := fmt.Sprintf(
-			"Hey %s! You haven't recorded any expenses today. Don't forget to track your spending!\n\nSend an expense like `5.50 Coffee` to get started.",
-			firstName,
-		)
-
-		_, err = b.messageSender.SendMessage(checkCtx, &tgbot.SendMessageParams{
-			ChatID: user.ID,
-			Text:   text,
-		})
+		err = b.sendReminderOrDailySummary(checkCtx, user, startOfDay, endOfDay)
 		if err != nil {
 			logger.Log.Warn().Err(err).Str("user_hash", logger.HashUserID(user.ID)).Msg("Failed to send daily reminder")
 			continue
@@ -122,4 +109,84 @@ func (b *Bot) checkAndSendReminders(ctx context.Context, loc *time.Location, rem
 		reminded[user.ID] = todayStr
 		logger.Log.Debug().Str("user_hash", logger.HashUserID(user.ID)).Msg("Sent daily reminder")
 	}
+}
+
+func (b *Bot) sendReminderOrDailySummary(
+	ctx context.Context,
+	user appmodels.User,
+	startOfDay, endOfDay time.Time,
+) error {
+	expenses, err := b.expenseRepo.GetByUserIDAndDateRange(ctx, user.ID, startOfDay, endOfDay)
+	if err != nil {
+		return fmt.Errorf("failed to fetch today's expenses: %w", err)
+	}
+
+	if len(expenses) == 0 {
+		return b.sendNoExpenseReminder(ctx, user)
+	}
+
+	total := sumExpenseAmounts(expenses)
+	header := fmt.Sprintf("📅 <b>Today's Expenses</b> (Total: $%s)", total.StringFixed(2))
+	return b.sendTodaySummary(ctx, user.ID, expenses, header)
+}
+
+func (b *Bot) sendNoExpenseReminder(ctx context.Context, user appmodels.User) error {
+	firstName := user.FirstName
+	if firstName == "" {
+		firstName = "there"
+	}
+
+	text := fmt.Sprintf(
+		"Hey %s! You haven't recorded any expenses today. Don't forget to track your spending!\n\nSend an expense like `5.50 Coffee` to get started.",
+		firstName,
+	)
+
+	_, err := b.messageSender.SendMessage(ctx, &tgbot.SendMessageParams{
+		ChatID: user.ID,
+		Text:   text,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to send no-expense reminder: %w", err)
+	}
+	return nil
+}
+
+func (b *Bot) sendTodaySummary(
+	ctx context.Context,
+	userID int64,
+	expenses []appmodels.Expense,
+	header string,
+) error {
+	expenseIDs := make([]int, len(expenses))
+	for i := range expenses {
+		expenseIDs[i] = expenses[i].ID
+	}
+
+	tagsByExpense := map[int][]appmodels.Tag{}
+	if b.tagRepo != nil {
+		var err error
+		tagsByExpense, err = b.tagRepo.GetByExpenseIDs(ctx, expenseIDs)
+		if err != nil {
+			logger.Log.Warn().Err(err).Msg("Failed to batch-load tags for daily summary")
+		}
+	}
+
+	text := b.buildExpenseListMessage(header, expenses, tagsByExpense)
+	_, err := b.messageSender.SendMessage(ctx, &tgbot.SendMessageParams{
+		ChatID:    userID,
+		Text:      text,
+		ParseMode: tgmodels.ParseModeHTML,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to send daily summary: %w", err)
+	}
+	return nil
+}
+
+func sumExpenseAmounts(expenses []appmodels.Expense) decimal.Decimal {
+	total := decimal.Zero
+	for i := range expenses {
+		total = total.Add(expenses[i].Amount)
+	}
+	return total
 }

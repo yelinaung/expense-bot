@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	tgmodels "github.com/go-telegram/bot/models"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/bot/mocks"
@@ -13,7 +14,7 @@ import (
 )
 
 func TestCheckAndSendReminders(t *testing.T) {
-	loc := time.UTC
+	loc := reminderLocationGMTPlus8
 	now := time.Date(2026, 2, 11, 14, 30, 0, 0, loc)
 	todayStr := now.Format("2006-01-02")
 
@@ -93,7 +94,7 @@ func TestCheckAndSendReminders(t *testing.T) {
 		require.Equal(t, 0, mockBot.SentMessageCount(), "should not send reminder to unapproved user")
 	})
 
-	t.Run("skips user with expenses today", func(t *testing.T) {
+	t.Run("sends summary to user with expenses today", func(t *testing.T) {
 		pool := TestDB(t)
 		b := setupTestBot(t, pool)
 		ctx := context.Background()
@@ -124,7 +125,94 @@ func TestCheckAndSendReminders(t *testing.T) {
 		reminded := make(map[int64]string)
 		b.checkAndSendReminders(ctx, loc, reminded, now)
 
-		require.Equal(t, 0, mockBot.SentMessageCount(), "should not send reminder to user with expenses")
+		require.Equal(t, 1, mockBot.SentMessageCount(), "should send daily summary to user with expenses")
+		msg := mockBot.LastSentMessage()
+		require.Equal(t, int64(2002), msg.ChatID)
+		require.Contains(t, msg.Text, "Today's Expenses")
+		require.Contains(t, msg.Text, "Lunch")
+		require.Equal(t, tgmodels.ParseModeHTML, msg.ParseMode)
+		require.Equal(t, todayStr, reminded[2002])
+	})
+
+	t.Run("uses GMT+8 day window when deciding summary", func(t *testing.T) {
+		pool := TestDB(t)
+		b := setupTestBot(t, pool)
+		ctx := context.Background()
+		mockBot := mocks.NewMockBot()
+		b.messageSender = mockBot
+		b.cfg.ReminderHour = 0
+		b.cfg.WhitelistedUserIDs = []int64{2012}
+
+		nowAtBoundary := time.Date(2026, 2, 11, 0, 30, 0, 0, loc)
+
+		err := b.userRepo.UpsertUser(ctx, &models.User{
+			ID:        2012,
+			Username:  "gmtplus8user",
+			FirstName: "Grace",
+		})
+		require.NoError(t, err)
+
+		expense := &models.Expense{
+			UserID:      2012,
+			Amount:      decimal.NewFromFloat(12.00),
+			Currency:    "SGD",
+			Description: "Breakfast",
+			Status:      models.ExpenseStatusConfirmed,
+		}
+		err = b.expenseRepo.Create(ctx, expense)
+		require.NoError(t, err)
+
+		createdAtUTC := time.Date(2026, 2, 10, 16, 45, 0, 0, time.UTC) // 2026-02-11 00:45 GMT+8
+		_, err = b.db.Exec(ctx, `UPDATE expenses SET created_at = $2 WHERE id = $1`, expense.ID, createdAtUTC)
+		require.NoError(t, err)
+
+		reminded := make(map[int64]string)
+		b.checkAndSendReminders(ctx, loc, reminded, nowAtBoundary)
+
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		msg := mockBot.LastSentMessage()
+		require.Contains(t, msg.Text, "Today's Expenses")
+		require.Contains(t, msg.Text, "Breakfast")
+		require.Equal(t, nowAtBoundary.Format("2006-01-02"), reminded[2012])
+	})
+
+	t.Run("sends summary even when tag repository is nil", func(t *testing.T) {
+		pool := TestDB(t)
+		b := setupTestBot(t, pool)
+		ctx := context.Background()
+		mockBot := mocks.NewMockBot()
+		b.messageSender = mockBot
+		b.tagRepo = nil
+		b.cfg.ReminderHour = 14
+		b.cfg.WhitelistedUserIDs = []int64{2013}
+
+		err := b.userRepo.UpsertUser(ctx, &models.User{
+			ID:        2013,
+			Username:  "niltagrepo",
+			FirstName: "Nina",
+		})
+		require.NoError(t, err)
+
+		expense := &models.Expense{
+			UserID:      2013,
+			Amount:      decimal.NewFromFloat(7.25),
+			Currency:    "SGD",
+			Description: "Tea",
+			Status:      models.ExpenseStatusConfirmed,
+		}
+		err = b.expenseRepo.Create(ctx, expense)
+		require.NoError(t, err)
+		_, err = b.db.Exec(ctx, `UPDATE expenses SET created_at = $2 WHERE id = $1`, expense.ID, now)
+		require.NoError(t, err)
+
+		reminded := make(map[int64]string)
+		b.checkAndSendReminders(ctx, loc, reminded, now)
+
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		msg := mockBot.LastSentMessage()
+		require.Contains(t, msg.Text, "Today's Expenses")
+		require.Contains(t, msg.Text, "Tea")
+		require.Equal(t, todayStr, reminded[2013])
 	})
 
 	t.Run("skips user already reminded today", func(t *testing.T) {
@@ -230,8 +318,7 @@ func TestStartDailyReminderLoop_RunsImmediateCheck(t *testing.T) {
 	mockBot := mocks.NewMockBot()
 	b.messageSender = mockBot
 	b.cfg.DailyReminderEnabled = true
-	b.cfg.ReminderTimezone = "UTC"
-	b.cfg.ReminderHour = time.Now().UTC().Hour()
+	b.cfg.ReminderHour = time.Now().In(reminderLocationGMTPlus8).Hour()
 	b.cfg.WhitelistedUserIDs = []int64{2100}
 
 	err := b.userRepo.UpsertUser(ctx, &models.User{
