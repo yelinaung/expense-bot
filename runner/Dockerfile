@@ -5,8 +5,10 @@ ARG GOLANGCI_LINT_VERSION=2.10.1
 ARG GORELEASER_VERSION=2.14.0
 ARG GITLEAKS_VERSION=8.30.0
 
-USER root
+# Use bash with pipefail for RUN steps that use curl|tar pipelines.
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends jq && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir -p "/opt/hostedtoolcache/go/${GO_VERSION}/x64" && \
@@ -28,5 +30,3 @@ RUN go install mvdan.cc/gofumpt@latest && \
     curl --proto "=https" --tlsv1.2 -sSf -L "https://github.com/goreleaser/goreleaser/releases/download/v${GORELEASER_VERSION}/goreleaser_Linux_x86_64.tar.gz" | \
     tar -xz -C /usr/local/bin goreleaser && \
     go clean -modcache
-
-USER runner

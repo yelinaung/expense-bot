@@ -19,6 +19,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 # Run stage
 FROM alpine:3
 
+# hadolint ignore=DL3018
 RUN apk --no-cache add ca-certificates \
     && addgroup -S appgroup \
     && adduser -S appuser -G appgroup
