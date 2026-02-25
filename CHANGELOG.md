@@ -40,6 +40,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Linting and Static Analysis**:
   - Fixed `gocritic` large-parameter warnings in reminder flow by passing users
     by pointer where appropriate.
+- **Timezone-Safe Period Boundaries and File Naming**:
+  - Reworked day/week/month range helpers to use calendar boundaries safely
+    across DST transitions.
+  - Aligned chart/report period selection and generated filenames to the
+    configured display timezone, avoiding host-local timezone drift.
+  - Added deterministic clock injection usage across handlers/reminders and
+    expanded timezone boundary coverage for `/today`, `/week`, and `/report`.
 
 ## [v0.6.3] - 2026-02-15 - Runtime FX/AI Fixes
 
