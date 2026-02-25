@@ -1145,6 +1145,7 @@ func (b *Bot) handleReportCore(ctx context.Context, tg TelegramAPI, update *mode
 
 	chatID := update.Message.Chat.ID
 	userID := update.Message.From.ID
+	now := b.now()
 
 	args := strings.TrimSpace(strings.TrimPrefix(update.Message.Text, "/report"))
 	if args == "" {
@@ -1161,12 +1162,12 @@ func (b *Bot) handleReportCore(ctx context.Context, tg TelegramAPI, update *mode
 
 	switch strings.ToLower(args) {
 	case periodWeek:
-		startDate, endDate = getWeekDateRangeAt(b.displayLocation, b.now())
+		startDate, endDate = getWeekDateRangeAt(b.displayLocation, now)
 		period = periodWeek
 		title = fmt.Sprintf("Weekly Expenses (%s to %s)",
 			startDate.Format("Jan 2"), endDate.AddDate(0, 0, -1).Format("Jan 2, 2006"))
 	case periodMonth:
-		startDate, endDate = getMonthDateRangeAt(b.displayLocation, b.now())
+		startDate, endDate = getMonthDateRangeAt(b.displayLocation, now)
 		period = periodMonth
 		title = fmt.Sprintf("Monthly Expenses (%s)", startDate.Format("January 2006"))
 	default:
@@ -1227,7 +1228,7 @@ func (b *Bot) handleReportCore(ctx context.Context, tg TelegramAPI, update *mode
 	}
 
 	// Send CSV file
-	filename := generateReportFilename(period, b.displayLocation, b.now())
+	filename := generateReportFilename(period, b.displayLocation, now)
 	caption := fmt.Sprintf("📊 <b>%s</b>\n\nTotal Expenses: $%s SGD\nCount: %d",
 		title, total.StringFixed(2), len(expenses))
 

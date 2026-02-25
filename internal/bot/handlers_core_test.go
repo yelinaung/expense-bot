@@ -515,6 +515,83 @@ func TestHandleWeekCore(t *testing.T) {
 		require.Contains(t, msg.Text, totalLabelCoreTest)
 		require.Contains(t, msg.Text, "$30.00")
 	})
+
+	t.Run("uses display timezone boundaries for week", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+		originalDisplayLocation := b.displayLocation
+		b.displayLocation = time.FixedZone("GMT+8", 8*60*60)
+		t.Cleanup(func() {
+			b.displayLocation = originalDisplayLocation
+		})
+		fixedNow := time.Date(2026, 2, 25, 10, 0, 0, 0, b.displayLocation)
+		originalNowFunc := b.nowFunc
+		b.nowFunc = func() time.Time {
+			return fixedNow
+		}
+		t.Cleanup(func() {
+			b.nowFunc = originalNowFunc
+		})
+
+		weekUserID := int64(300005)
+		err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+			ID:        weekUserID,
+			Username:  "weektzuser",
+			FirstName: "WeekTZ",
+		})
+		require.NoError(t, err)
+
+		sundayExpense := &appmodels.Expense{
+			UserID:      weekUserID,
+			Amount:      mustParseDecimal("5.00"),
+			Currency:    "SGD",
+			Description: "Sunday Local",
+		}
+		err = b.expenseRepo.Create(ctx, sundayExpense)
+		require.NoError(t, err)
+
+		mondayExpense := &appmodels.Expense{
+			UserID:      weekUserID,
+			Amount:      mustParseDecimal("12.00"),
+			Currency:    "SGD",
+			Description: "Monday Local",
+		}
+		err = b.expenseRepo.Create(ctx, mondayExpense)
+		require.NoError(t, err)
+
+		sundayLateLocal := time.Date(2026, 2, 22, 23, 59, 0, 0, b.displayLocation)
+		mondayEarlyLocal := time.Date(2026, 2, 23, 0, 1, 0, 0, b.displayLocation)
+
+		_, err = b.db.Exec(
+			ctx,
+			"UPDATE expenses SET created_at = $1 WHERE id = $2",
+			sundayLateLocal,
+			sundayExpense.ID,
+		)
+		require.NoError(t, err)
+		_, err = b.db.Exec(
+			ctx,
+			"UPDATE expenses SET created_at = $1 WHERE id = $2",
+			mondayEarlyLocal,
+			mondayExpense.ID,
+		)
+		require.NoError(t, err)
+
+		update := &models.Update{
+			Message: &models.Message{
+				Chat: models.Chat{ID: 12345},
+				From: &models.User{ID: weekUserID},
+			},
+		}
+		b.handleWeekCore(ctx, mockBot, update)
+		require.Equal(t, 1, mockBot.SentMessageCount())
+
+		msg := mockBot.LastSentMessage()
+		require.Contains(t, msg.Text, "This Week's Expenses")
+		require.Contains(t, msg.Text, "Monday Local")
+		require.NotContains(t, msg.Text, "Sunday Local")
+		require.Contains(t, msg.Text, "$12.00")
+		require.NotContains(t, msg.Text, "$17.00")
+	})
 }
 
 func TestSaveExpenseCore(t *testing.T) {
