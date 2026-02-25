@@ -87,15 +87,18 @@ func aggregateByCategory(expenses []models.Expense) map[string]decimal.Decimal {
 }
 
 // generateChartFilename creates filename like "chart_week_2026-01-31.png".
-func generateChartFilename(period string) string {
-	now := time.Now()
+func generateChartFilename(period string, loc *time.Location, now time.Time) string {
+	safeLoc := normalizeLocation(loc)
+	current := now.In(safeLoc)
+
 	switch period {
 	case periodWeek:
-		start, _ := getWeekDateRange()
+		start, _ := getWeekDateRangeAt(safeLoc, current)
 		return fmt.Sprintf("chart_week_%s.png", start.Format("2006-01-02"))
 	case periodMonth:
-		return fmt.Sprintf("chart_month_%s.png", now.Format("2006-01"))
+		start, _ := getMonthDateRangeAt(safeLoc, current)
+		return fmt.Sprintf("chart_month_%s.png", start.Format("2006-01"))
 	default:
-		return fmt.Sprintf("chart_%s.png", now.Format("2006-01-02"))
+		return fmt.Sprintf("chart_%s.png", current.Format("2006-01-02"))
 	}
 }

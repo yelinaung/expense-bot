@@ -242,7 +242,9 @@ func TestGenerateChartFilename(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			filename := generateChartFilename(tt.period)
+			loc := time.UTC
+			now := time.Date(2026, 1, 14, 10, 30, 0, 0, loc)
+			filename := generateChartFilename(tt.period, loc, now)
 
 			if filename == "" {
 				t.Errorf("expected non-empty filename")
@@ -268,9 +270,11 @@ func TestGenerateChartFilenameFormat(t *testing.T) {
 	// Test that filenames follow the expected format
 
 	t.Run("week format", func(t *testing.T) {
-		filename := generateChartFilename(periodWeek)
+		loc := time.UTC
+		now := time.Date(2026, 1, 14, 10, 30, 0, 0, loc)
+		filename := generateChartFilename(periodWeek, loc, now)
 		// Should be like: chart_week_2026-01-27.png
-		start, _ := getWeekDateRange()
+		start, _ := getWeekDateRangeAt(loc, now)
 		expected := "chart_week_" + start.Format("2006-01-02") + ".png"
 		if filename != expected {
 			t.Errorf("expected %s, got %s", expected, filename)
@@ -278,9 +282,10 @@ func TestGenerateChartFilenameFormat(t *testing.T) {
 	})
 
 	t.Run("month format", func(t *testing.T) {
-		filename := generateChartFilename(periodMonth)
+		loc := time.UTC
+		now := time.Date(2026, 1, 14, 10, 30, 0, 0, loc)
+		filename := generateChartFilename(periodMonth, loc, now)
 		// Should be like: chart_month_2026-01.png
-		now := time.Now()
 		expected := "chart_month_" + now.Format("2006-01") + ".png"
 		if filename != expected {
 			t.Errorf("expected %s, got %s", expected, filename)

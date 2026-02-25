@@ -49,6 +49,7 @@ type Bot struct {
 	messageSender   TelegramAPI
 	exchangeService exchange.Converter
 	displayLocation *time.Location
+	nowFunc         func() time.Time
 
 	pendingEdits   map[int64]*pendingEdit // key is chatID
 	pendingEditsMu sync.RWMutex
@@ -118,10 +119,20 @@ func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 		loc = time.UTC
 	}
 	b.displayLocation = loc
+	b.nowFunc = time.Now
 
 	b.registerHandlers()
 
 	return b, nil
+}
+
+// now returns the current time and allows tests to inject a deterministic clock.
+func (b *Bot) now() time.Time {
+	if b.nowFunc != nil {
+		return b.nowFunc()
+	}
+
+	return time.Now()
 }
 
 func newExchangeService(cfg *config.Config) exchange.Converter {
@@ -490,7 +501,7 @@ func (b *Bot) downloadFile(ctx context.Context, tg TelegramAPI, fileID string) (
 func (b *Bot) getCategoriesWithCache(ctx context.Context) ([]models.Category, error) {
 	// Try reading from cache first.
 	b.categoryCacheMu.RLock()
-	if time.Now().Before(b.categoryCacheExpiry) && b.categoryCache != nil {
+	if b.now().Before(b.categoryCacheExpiry) && b.categoryCache != nil {
 		categories := b.categoryCache
 		b.categoryCacheMu.RUnlock()
 		logger.Log.Debug().Msg("Categories served from cache")
@@ -503,7 +514,7 @@ func (b *Bot) getCategoriesWithCache(ctx context.Context) ([]models.Category, er
 	defer b.categoryCacheMu.Unlock()
 
 	// Double-check after acquiring write lock (another goroutine might have updated it).
-	if time.Now().Before(b.categoryCacheExpiry) && b.categoryCache != nil {
+	if b.now().Before(b.categoryCacheExpiry) && b.categoryCache != nil {
 		logger.Log.Debug().Msg("Categories served from cache after lock")
 		return b.categoryCache, nil
 	}
@@ -515,7 +526,7 @@ func (b *Bot) getCategoriesWithCache(ctx context.Context) ([]models.Category, er
 
 	// Update cache.
 	b.categoryCache = categories
-	b.categoryCacheExpiry = time.Now().Add(CategoryCacheTTL)
+	b.categoryCacheExpiry = b.now().Add(CategoryCacheTTL)
 	logger.Log.Debug().Int("count", len(categories)).Msg("Categories cached")
 
 	return categories, nil

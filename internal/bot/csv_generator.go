@@ -74,36 +74,19 @@ func GenerateExpensesCSV(expenses []models.Expense) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// getWeekDateRange returns start and end dates for the current week.
-func getWeekDateRange() (time.Time, time.Time) {
-	now := time.Now()
-	weekday := int(now.Weekday())
-	if weekday == 0 {
-		weekday = 7
-	}
-	startOfWeek := time.Date(now.Year(), now.Month(), now.Day()-weekday+1, 0, 0, 0, 0, now.Location())
-	endOfWeek := startOfWeek.Add(7 * 24 * time.Hour)
-	return startOfWeek, endOfWeek
-}
-
-// getMonthDateRange returns start and end dates for the current month.
-func getMonthDateRange() (time.Time, time.Time) {
-	now := time.Now()
-	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	endOfMonth := startOfMonth.AddDate(0, 1, 0)
-	return startOfMonth, endOfMonth
-}
-
 // generateReportFilename creates a descriptive filename for the CSV report.
-func generateReportFilename(period string) string {
-	now := time.Now()
+func generateReportFilename(period string, loc *time.Location, now time.Time) string {
+	safeLoc := normalizeLocation(loc)
+	current := now.In(safeLoc)
+
 	switch period {
 	case periodWeek:
-		start, _ := getWeekDateRange()
+		start, _ := getWeekDateRangeAt(safeLoc, current)
 		return fmt.Sprintf("expenses_week_%s.csv", start.Format("2006-01-02"))
 	case periodMonth:
-		return fmt.Sprintf("expenses_month_%s.csv", now.Format("2006-01"))
+		start, _ := getMonthDateRangeAt(safeLoc, current)
+		return fmt.Sprintf("expenses_month_%s.csv", start.Format("2006-01"))
 	default:
-		return fmt.Sprintf("expenses_%s.csv", now.Format("2006-01-02"))
+		return fmt.Sprintf("expenses_%s.csv", current.Format("2006-01-02"))
 	}
 }
