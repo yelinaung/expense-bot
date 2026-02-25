@@ -195,7 +195,7 @@ func TestGetWeekDateRangeAt(t *testing.T) {
 		t.Parallel()
 		loc := time.UTC
 		now := time.Date(2026, 1, 14, 10, 30, 0, 0, loc) // Wednesday
-		start, end := getWeekDateRangeAt(loc, now)
+		start, end := getWeekDateRangeAt(now.In(loc))
 
 		// Start should be Monday at 00:00:00
 		require.Equal(t, time.Monday, start.Weekday())
@@ -215,7 +215,7 @@ func TestGetMonthDateRangeAt(t *testing.T) {
 		t.Parallel()
 		loc := time.UTC
 		now := time.Date(2026, 1, 14, 10, 30, 0, 0, loc)
-		start, end := getMonthDateRangeAt(loc, now)
+		start, end := getMonthDateRangeAt(now.In(loc))
 
 		// Start should be first day of month at 00:00:00
 		require.Equal(t, 1, start.Day())
@@ -276,7 +276,7 @@ func TestGetDayDateRangeAtDSTSafe(t *testing.T) {
 	require.NoError(t, err)
 
 	now := time.Date(2026, 3, 8, 12, 0, 0, 0, loc) // DST start day.
-	start, end := getDayDateRangeAt(loc, now)
+	start, end := getDayDateRangeAt(now.In(loc))
 
 	require.Equal(t, 0, start.Hour())
 	require.Equal(t, 0, end.Hour())
@@ -290,7 +290,7 @@ func TestGetWeekDateRangeAtDSTSafe(t *testing.T) {
 	require.NoError(t, err)
 
 	now := time.Date(2026, 3, 11, 12, 0, 0, 0, loc) // Week contains DST shift.
-	start, end := getWeekDateRangeAt(loc, now)
+	start, end := getWeekDateRangeAt(now.In(loc))
 
 	require.Equal(t, time.Monday, start.Weekday())
 	require.Equal(t, start.AddDate(0, 0, 7), end)

@@ -28,6 +28,8 @@ func (b *Bot) handleChartCore(ctx context.Context, tg TelegramAPI, update *model
 	chatID := update.Message.Chat.ID
 	userID := update.Message.From.ID
 	now := b.now()
+	safeLoc := normalizeLocation(b.displayLocation)
+	current := now.In(safeLoc)
 
 	args := strings.TrimSpace(strings.TrimPrefix(update.Message.Text, "/chart"))
 	if args == "" {
@@ -44,12 +46,12 @@ func (b *Bot) handleChartCore(ctx context.Context, tg TelegramAPI, update *model
 
 	switch strings.ToLower(args) {
 	case periodWeek:
-		startDate, endDate = getWeekDateRangeAt(b.displayLocation, now)
+		startDate, endDate = getWeekDateRangeAt(current)
 		period = "Week"
 		title = fmt.Sprintf("Weekly Expenses (%s to %s)",
 			startDate.Format("Jan 2"), endDate.AddDate(0, 0, -1).Format("Jan 2, 2006"))
 	case periodMonth:
-		startDate, endDate = getMonthDateRangeAt(b.displayLocation, now)
+		startDate, endDate = getMonthDateRangeAt(current)
 		period = "Month"
 		title = fmt.Sprintf("Monthly Expenses (%s)", startDate.Format("January 2006"))
 	default:
