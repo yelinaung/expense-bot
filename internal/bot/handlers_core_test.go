@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/go-telegram/bot/models"
 	"github.com/stretchr/testify/require"
@@ -379,6 +380,93 @@ func TestHandleTodayCore(t *testing.T) {
 		require.Contains(t, msg.Text, "Today's Expenses")
 		require.Contains(t, msg.Text, totalLabelCoreTest)
 		require.Contains(t, msg.Text, "$20.00")
+	})
+
+	t.Run("uses display timezone boundaries for today", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+		originalDisplayLocation := b.displayLocation
+		b.displayLocation = time.FixedZone("GMT+8", 8*60*60)
+		t.Cleanup(func() {
+			b.displayLocation = originalDisplayLocation
+		})
+		fixedNow := time.Date(2026, 2, 25, 10, 0, 0, 0, b.displayLocation)
+		originalNowFunc := b.nowFunc
+		b.nowFunc = func() time.Time {
+			return fixedNow
+		}
+		t.Cleanup(func() {
+			b.nowFunc = originalNowFunc
+		})
+
+		todayUserID := int64(300004)
+		err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+			ID:        todayUserID,
+			Username:  "todaytzuser",
+			FirstName: "TodayTZ",
+		})
+		require.NoError(t, err)
+
+		yesterdayExpense := &appmodels.Expense{
+			UserID:      todayUserID,
+			Amount:      mustParseDecimal("9.00"),
+			Currency:    "SGD",
+			Description: "Yesterday Local",
+		}
+		err = b.expenseRepo.Create(ctx, yesterdayExpense)
+		require.NoError(t, err)
+
+		todayExpense := &appmodels.Expense{
+			UserID:      todayUserID,
+			Amount:      mustParseDecimal("7.00"),
+			Currency:    "SGD",
+			Description: "Today Local",
+		}
+		err = b.expenseRepo.Create(ctx, todayExpense)
+		require.NoError(t, err)
+
+		nowLocal := fixedNow.In(b.displayLocation)
+		todayMorningLocal := time.Date(
+			nowLocal.Year(),
+			nowLocal.Month(),
+			nowLocal.Day(),
+			7,
+			30,
+			0,
+			0,
+			b.displayLocation,
+		)
+		yesterdayLateLocal := todayMorningLocal.Add(-8 * time.Hour)
+
+		_, err = b.db.Exec(
+			ctx,
+			"UPDATE expenses SET created_at = $1 WHERE id = $2",
+			yesterdayLateLocal,
+			yesterdayExpense.ID,
+		)
+		require.NoError(t, err)
+		_, err = b.db.Exec(
+			ctx,
+			"UPDATE expenses SET created_at = $1 WHERE id = $2",
+			todayMorningLocal,
+			todayExpense.ID,
+		)
+		require.NoError(t, err)
+
+		update := &models.Update{
+			Message: &models.Message{
+				Chat: models.Chat{ID: 12345},
+				From: &models.User{ID: todayUserID},
+			},
+		}
+		b.handleTodayCore(ctx, mockBot, update)
+		require.Equal(t, 1, mockBot.SentMessageCount())
+
+		msg := mockBot.LastSentMessage()
+		require.Contains(t, msg.Text, "Today's Expenses")
+		require.Contains(t, msg.Text, "Today Local")
+		require.NotContains(t, msg.Text, "Yesterday Local")
+		require.Contains(t, msg.Text, "$7.00")
+		require.NotContains(t, msg.Text, "$16.00")
 	})
 }
 
