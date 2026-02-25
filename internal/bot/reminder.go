@@ -49,7 +49,7 @@ func (b *Bot) startDailyReminderLoop(ctx context.Context) {
 
 	// Run one check immediately so reminders aren't skipped when the process
 	// starts during the configured reminder hour.
-	b.checkAndSendReminders(ctx, loc, reminded, time.Now().In(loc))
+	b.checkAndSendReminders(ctx, loc, reminded, b.now().In(loc))
 
 	for {
 		select {
@@ -57,7 +57,7 @@ func (b *Bot) startDailyReminderLoop(ctx context.Context) {
 			logger.Log.Info().Msg("Daily reminder loop stopped")
 			return
 		case <-ticker.C:
-			b.checkAndSendReminders(ctx, loc, reminded, time.Now().In(loc))
+			b.checkAndSendReminders(ctx, loc, reminded, b.now().In(loc))
 		}
 	}
 }

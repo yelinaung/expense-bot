@@ -41,6 +41,7 @@ func setupTestBot(t *testing.T, db database.PGXDB) *Bot {
 		exchangeService:  &testExchangeService{},
 		messageSender:    nil, // Tests that need it will inject a mock
 		displayLocation:  time.UTC,
+		nowFunc:          time.Now,
 		pendingEdits:     make(map[int64]*pendingEdit),
 	}
 
