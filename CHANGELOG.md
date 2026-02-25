@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.7.0] - 2026-02-24 - Reminder Summary, Runner Tooling Automation & CI Hardening
+
+### Added
+- **Reminder Summary Fallback**:
+  - Daily reminder flow now sends a "Today's Expenses" summary to users who
+    have already recorded confirmed expenses for the day.
+  - Keeps one-notification-per-user-per-day behavior while improving reminder
+    usefulness.
+  - Uses GMT+8 day boundaries for reminder window evaluation.
+- **Runner Tooling Renovate Automation**:
+  - Added regex custom managers for `runner/Dockerfile` ARG versions:
+    `GO_VERSION`, `GOLANGCI_LINT_VERSION`, `GORELEASER_VERSION`, and
+    `GITLEAKS_VERSION`.
+
+### Changed
+- **Reminder Authorization Path**:
+  - Reminder selection now operates over authorized users and branches per user
+    to either reminder prompt or daily summary.
+- **Reminder Performance/Safety**:
+  - Removed per-user total DB query in reminder summary path by summing fetched
+    expenses in-memory.
+  - Hardened summary rendering for `nil` tag repository fallback in tests.
+- **Dockerfile Quality**:
+  - Added shell `pipefail` handling for runner image build pipeline commands.
+  - Addressed hadolint findings with explicit, scoped lint annotations.
+
+### Fixed
+- **Repository Tests/Authorization Coverage**:
+  - Added dedicated test coverage for approved-only reminder authorization path
+    (no superadmin whitelist).
+- **Linting and Static Analysis**:
+  - Fixed `gocritic` large-parameter warnings in reminder flow by passing users
+    by pointer where appropriate.
+
 ## [v0.6.3] - 2026-02-15 - Runtime FX/AI Fixes
 
 ### Fixed
