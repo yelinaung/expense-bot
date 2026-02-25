@@ -274,7 +274,7 @@ func TestGenerateChartFilenameFormat(t *testing.T) {
 		now := time.Date(2026, 1, 14, 10, 30, 0, 0, loc)
 		filename := generateChartFilename(periodWeek, loc, now)
 		// Should be like: chart_week_2026-01-27.png
-		start, _ := getWeekDateRangeAt(loc, now)
+		start, _ := getWeekDateRangeAt(now.In(loc))
 		expected := "chart_week_" + start.Format("2006-01-02") + ".png"
 		if filename != expected {
 			t.Errorf("expected %s, got %s", expected, filename)

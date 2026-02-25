@@ -81,10 +81,10 @@ func generateReportFilename(period string, loc *time.Location, now time.Time) st
 
 	switch period {
 	case periodWeek:
-		start, _ := getWeekDateRangeAt(safeLoc, current)
+		start, _ := getWeekDateRangeAt(current)
 		return fmt.Sprintf("expenses_week_%s.csv", start.Format("2006-01-02"))
 	case periodMonth:
-		start, _ := getMonthDateRangeAt(safeLoc, current)
+		start, _ := getMonthDateRangeAt(current)
 		return fmt.Sprintf("expenses_month_%s.csv", start.Format("2006-01"))
 	default:
 		return fmt.Sprintf("expenses_%s.csv", current.Format("2006-01-02"))

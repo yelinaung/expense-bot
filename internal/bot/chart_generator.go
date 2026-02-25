@@ -93,10 +93,10 @@ func generateChartFilename(period string, loc *time.Location, now time.Time) str
 
 	switch period {
 	case periodWeek:
-		start, _ := getWeekDateRangeAt(safeLoc, current)
+		start, _ := getWeekDateRangeAt(current)
 		return fmt.Sprintf("chart_week_%s.png", start.Format("2006-01-02"))
 	case periodMonth:
-		start, _ := getMonthDateRangeAt(safeLoc, current)
+		start, _ := getMonthDateRangeAt(current)
 		return fmt.Sprintf("chart_month_%s.png", start.Format("2006-01"))
 	default:
 		return fmt.Sprintf("chart_%s.png", current.Format("2006-01-02"))
