@@ -884,9 +884,7 @@ func (b *Bot) handleTodayCore(ctx context.Context, tg TelegramAPI, update *model
 	chatID := update.Message.Chat.ID
 	userID := update.Message.From.ID
 
-	now := time.Now()
-	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	endOfDay := startOfDay.Add(24 * time.Hour)
+	startOfDay, endOfDay := getDayDateRangeAt(b.displayLocation, b.now())
 
 	expenses, err := b.expenseRepo.GetByUserIDAndDateRange(ctx, userID, startOfDay, endOfDay)
 	if err != nil {
@@ -925,13 +923,7 @@ func (b *Bot) handleWeekCore(ctx context.Context, tg TelegramAPI, update *models
 	chatID := update.Message.Chat.ID
 	userID := update.Message.From.ID
 
-	now := time.Now()
-	weekday := int(now.Weekday())
-	if weekday == 0 {
-		weekday = 7
-	}
-	startOfWeek := time.Date(now.Year(), now.Month(), now.Day()-weekday+1, 0, 0, 0, 0, now.Location())
-	endOfWeek := startOfWeek.Add(7 * 24 * time.Hour)
+	startOfWeek, endOfWeek := getWeekDateRangeAt(b.displayLocation, b.now())
 
 	expenses, err := b.expenseRepo.GetByUserIDAndDateRange(ctx, userID, startOfWeek, endOfWeek)
 	if err != nil {
@@ -1169,12 +1161,12 @@ func (b *Bot) handleReportCore(ctx context.Context, tg TelegramAPI, update *mode
 
 	switch strings.ToLower(args) {
 	case periodWeek:
-		startDate, endDate = getWeekDateRange()
+		startDate, endDate = getWeekDateRangeAt(b.displayLocation, b.now())
 		period = periodWeek
 		title = fmt.Sprintf("Weekly Expenses (%s to %s)",
-			startDate.Format("Jan 2"), endDate.Add(-24*time.Hour).Format("Jan 2, 2006"))
+			startDate.Format("Jan 2"), endDate.AddDate(0, 0, -1).Format("Jan 2, 2006"))
 	case periodMonth:
-		startDate, endDate = getMonthDateRange()
+		startDate, endDate = getMonthDateRangeAt(b.displayLocation, b.now())
 		period = periodMonth
 		title = fmt.Sprintf("Monthly Expenses (%s)", startDate.Format("January 2006"))
 	default:
@@ -1235,7 +1227,7 @@ func (b *Bot) handleReportCore(ctx context.Context, tg TelegramAPI, update *mode
 	}
 
 	// Send CSV file
-	filename := generateReportFilename(period)
+	filename := generateReportFilename(period, b.displayLocation, b.now())
 	caption := fmt.Sprintf("📊 <b>%s</b>\n\nTotal Expenses: $%s SGD\nCount: %d",
 		title, total.StringFixed(2), len(expenses))
 

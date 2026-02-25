@@ -188,9 +188,14 @@ func TestSanitizeCSVCell(t *testing.T) {
 	}
 }
 
-func TestGetWeekDateRange(t *testing.T) {
+func TestGetWeekDateRangeAt(t *testing.T) {
+	t.Parallel()
+
 	t.Run("returns Monday to Sunday range", func(t *testing.T) {
-		start, end := getWeekDateRange()
+		t.Parallel()
+		loc := time.UTC
+		now := time.Date(2026, 1, 14, 10, 30, 0, 0, loc) // Wednesday
+		start, end := getWeekDateRangeAt(loc, now)
 
 		// Start should be Monday at 00:00:00
 		require.Equal(t, time.Monday, start.Weekday())
@@ -198,14 +203,19 @@ func TestGetWeekDateRange(t *testing.T) {
 		require.Equal(t, 0, start.Minute())
 		require.Equal(t, 0, start.Second())
 
-		// End should be 7 days after start
-		require.Equal(t, 7*24*time.Hour, end.Sub(start))
+		// End should be next Monday.
+		require.Equal(t, start.AddDate(0, 0, 7), end)
 	})
 }
 
-func TestGetMonthDateRange(t *testing.T) {
+func TestGetMonthDateRangeAt(t *testing.T) {
+	t.Parallel()
+
 	t.Run("returns first day of month to first day of next month", func(t *testing.T) {
-		start, end := getMonthDateRange()
+		t.Parallel()
+		loc := time.UTC
+		now := time.Date(2026, 1, 14, 10, 30, 0, 0, loc)
+		start, end := getMonthDateRangeAt(loc, now)
 
 		// Start should be first day of month at 00:00:00
 		require.Equal(t, 1, start.Day())
@@ -231,7 +241,9 @@ func TestGenerateReportFilename(t *testing.T) {
 
 	t.Run("generates week filename with start date", func(t *testing.T) {
 		t.Parallel()
-		filename := generateReportFilename("week")
+		loc := time.UTC
+		now := time.Date(2026, 1, 14, 10, 30, 0, 0, loc)
+		filename := generateReportFilename("week", loc, now)
 		require.Contains(t, filename, "expenses_week_")
 		require.Contains(t, filename, ".csv")
 		require.Regexp(t, `expenses_week_\d{4}-\d{2}-\d{2}\.csv`, filename)
@@ -239,7 +251,9 @@ func TestGenerateReportFilename(t *testing.T) {
 
 	t.Run("generates month filename with year-month", func(t *testing.T) {
 		t.Parallel()
-		filename := generateReportFilename("month")
+		loc := time.UTC
+		now := time.Date(2026, 1, 14, 10, 30, 0, 0, loc)
+		filename := generateReportFilename("month", loc, now)
 		require.Contains(t, filename, "expenses_")
 		require.Contains(t, filename, ".csv")
 		require.Regexp(t, `expenses_month_\d{4}-\d{2}\.csv`, filename)
@@ -247,8 +261,37 @@ func TestGenerateReportFilename(t *testing.T) {
 
 	t.Run("generates default filename for unknown period", func(t *testing.T) {
 		t.Parallel()
-		filename := generateReportFilename("unknown")
+		loc := time.UTC
+		now := time.Date(2026, 1, 14, 10, 30, 0, 0, loc)
+		filename := generateReportFilename("unknown", loc, now)
 		require.Contains(t, filename, "expenses_")
 		require.Contains(t, filename, ".csv")
 	})
+}
+
+func TestGetDayDateRangeAtDSTSafe(t *testing.T) {
+	t.Parallel()
+
+	loc, err := time.LoadLocation("America/New_York")
+	require.NoError(t, err)
+
+	now := time.Date(2026, 3, 8, 12, 0, 0, 0, loc) // DST start day.
+	start, end := getDayDateRangeAt(loc, now)
+
+	require.Equal(t, 0, start.Hour())
+	require.Equal(t, 0, end.Hour())
+	require.Equal(t, start.AddDate(0, 0, 1), end)
+}
+
+func TestGetWeekDateRangeAtDSTSafe(t *testing.T) {
+	t.Parallel()
+
+	loc, err := time.LoadLocation("America/New_York")
+	require.NoError(t, err)
+
+	now := time.Date(2026, 3, 11, 12, 0, 0, 0, loc) // Week contains DST shift.
+	start, end := getWeekDateRangeAt(loc, now)
+
+	require.Equal(t, time.Monday, start.Weekday())
+	require.Equal(t, start.AddDate(0, 0, 7), end)
 }

@@ -43,12 +43,12 @@ func (b *Bot) handleChartCore(ctx context.Context, tg TelegramAPI, update *model
 
 	switch strings.ToLower(args) {
 	case periodWeek:
-		startDate, endDate = getWeekDateRange()
+		startDate, endDate = getWeekDateRangeAt(b.displayLocation, b.now())
 		period = "Week"
 		title = fmt.Sprintf("Weekly Expenses (%s to %s)",
-			startDate.Format("Jan 2"), endDate.Add(-24*time.Hour).Format("Jan 2, 2006"))
+			startDate.Format("Jan 2"), endDate.AddDate(0, 0, -1).Format("Jan 2, 2006"))
 	case periodMonth:
-		startDate, endDate = getMonthDateRange()
+		startDate, endDate = getMonthDateRangeAt(b.displayLocation, b.now())
 		period = "Month"
 		title = fmt.Sprintf("Monthly Expenses (%s)", startDate.Format("January 2006"))
 	default:
@@ -112,13 +112,13 @@ func (b *Bot) handleChartCore(ctx context.Context, tg TelegramAPI, update *model
 	var periodRange string
 	if period == "Week" {
 		periodRange = fmt.Sprintf("%s to %s",
-			startDate.Format("Jan 2"), endDate.Add(-24*time.Hour).Format("Jan 2, 2006"))
+			startDate.Format("Jan 2"), endDate.AddDate(0, 0, -1).Format("Jan 2, 2006"))
 	} else {
 		periodRange = startDate.Format("January 2006")
 	}
 
 	// Send chart as document
-	filename := generateChartFilename(strings.ToLower(args))
+	filename := generateChartFilename(strings.ToLower(args), b.displayLocation, b.now())
 	caption := fmt.Sprintf("📊 <b>%s</b>\n\nTotal: $%s SGD\nCount: %d expenses\nPeriod: %s",
 		title, total.StringFixed(2), len(expenses), periodRange)
 
