@@ -11,6 +11,8 @@ import (
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 )
 
 // handleVoice handles voice messages for expense input.
@@ -47,8 +49,12 @@ func (b *Bot) handleVoiceCore(ctx context.Context, tg TelegramAPI, update *model
 		Text:   "🎙️ Processing voice message...",
 	})
 
-	audioBytes, err := b.downloadFile(ctx, tg, update.Message.Voice.FileID)
+	dlCtx, dlSpan := otel.Tracer("expense-bot/telegram").Start(ctx, "telegram.download_file")
+	audioBytes, err := b.downloadFile(dlCtx, tg, update.Message.Voice.FileID)
 	if err != nil {
+		dlSpan.RecordError(err)
+		dlSpan.SetStatus(codes.Error, err.Error())
+		dlSpan.End()
 		logger.Log.Error().Err(err).
 			Int64("chat_id", chatID).
 			Int64("user_id", userID).
@@ -59,6 +65,7 @@ func (b *Bot) handleVoiceCore(ctx context.Context, tg TelegramAPI, update *model
 		})
 		return
 	}
+	dlSpan.End()
 
 	logger.Log.Info().
 		Int64("chat_id", chatID).

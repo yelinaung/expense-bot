@@ -14,6 +14,8 @@ import (
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 )
 
 // buildReceiptConfirmationKeyboard creates the inline keyboard for receipt confirmation.
@@ -73,8 +75,12 @@ func (b *Bot) handlePhotoCore(ctx context.Context, tg TelegramAPI, update *model
 		Text:   "📷 Processing receipt...",
 	})
 
-	imageBytes, err := b.downloadFile(ctx, tg, largestPhoto.FileID)
+	dlCtx, dlSpan := otel.Tracer("expense-bot/telegram").Start(ctx, "telegram.download_file")
+	imageBytes, err := b.downloadFile(dlCtx, tg, largestPhoto.FileID)
 	if err != nil {
+		dlSpan.RecordError(err)
+		dlSpan.SetStatus(codes.Error, err.Error())
+		dlSpan.End()
 		logger.Log.Error().Err(err).
 			Int64("chat_id", chatID).
 			Int64("user_id", userID).
@@ -85,6 +91,7 @@ func (b *Bot) handlePhotoCore(ctx context.Context, tg TelegramAPI, update *model
 		})
 		return
 	}
+	dlSpan.End()
 
 	logger.Log.Info().
 		Int64("chat_id", chatID).

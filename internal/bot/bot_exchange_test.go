@@ -17,6 +17,6 @@ func TestNewExchangeService(t *testing.T) {
 		ExchangeRateCacheTTL: time.Hour,
 	}
 
-	svc := newExchangeService(cfg)
+	svc := newExchangeService(cfg, nil)
 	require.NotNil(t, svc)
 }

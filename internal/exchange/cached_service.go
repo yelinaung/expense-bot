@@ -8,7 +8,30 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	otelmetric "go.opentelemetry.io/otel/metric"
 )
+
+var (
+	exchangeMeter     = otel.Meter("expense-bot/exchange")
+	exchangeCacheHits otelmetric.Int64Counter
+	exchangeCacheMiss otelmetric.Int64Counter
+)
+
+func init() {
+	var err error
+	exchangeCacheHits, err = exchangeMeter.Int64Counter("cache.hits",
+		otelmetric.WithDescription("Exchange rate cache hits"))
+	if err != nil {
+		exchangeCacheHits, _ = exchangeMeter.Int64Counter("cache.hits")
+	}
+	exchangeCacheMiss, err = exchangeMeter.Int64Counter("cache.misses",
+		otelmetric.WithDescription("Exchange rate cache misses"))
+	if err != nil {
+		exchangeCacheMiss, _ = exchangeMeter.Int64Counter("cache.misses")
+	}
+}
 
 type cachedRateEntry struct {
 	Rate      decimal.Decimal
@@ -68,10 +91,13 @@ func (s *CachedService) Convert(
 	key := normalizePair(fromCurrency, toCurrency)
 	now := time.Now()
 
+	cacheAttr := otelmetric.WithAttributes(attribute.String("cache", "exchange_rate"))
+
 	s.mu.RLock()
 	entry, ok := s.rates[key]
 	s.mu.RUnlock()
 	if ok && now.Before(entry.ExpiresAt) {
+		exchangeCacheHits.Add(ctx, 1, cacheAttr)
 		return applyCachedRate(amount, entry), nil
 	}
 
@@ -80,8 +106,10 @@ func (s *CachedService) Convert(
 	entry, ok = s.rates[key]
 	if ok && now.Before(entry.ExpiresAt) {
 		s.mu.Unlock()
+		exchangeCacheHits.Add(ctx, 1, cacheAttr)
 		return applyCachedRate(amount, entry), nil
 	}
+	exchangeCacheMiss.Add(ctx, 1, cacheAttr)
 	if ok && !now.Before(entry.ExpiresAt) {
 		delete(s.rates, key)
 	}

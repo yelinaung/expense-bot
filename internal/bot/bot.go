@@ -18,11 +18,10 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
+	"gitlab.com/yelinaung/expense-bot/internal/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	otelmetric "go.opentelemetry.io/otel/metric"
 )
-
-var downloadClient = &http.Client{
-	Timeout: 30 * time.Second,
-}
 
 const maxDownloadBytes = 10 << 20
 
@@ -58,6 +57,10 @@ type Bot struct {
 	categoryCache       []models.Category
 	categoryCacheExpiry time.Time
 	categoryCacheMu     sync.RWMutex
+
+	// OTel instrumentation (nil when disabled).
+	metrics    *telemetry.BotMetrics
+	httpClient *http.Client
 }
 
 // New creates a new Bot instance.
@@ -78,6 +81,11 @@ func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 		logger.Log.Info().Int("count", len(bindings)).Msg("Loaded superadmin bindings from DB")
 	}
 
+	transport := http.DefaultTransport
+	if cfg.OTelEnabled {
+		transport = telemetry.InstrumentedTransport(nil)
+	}
+
 	b := &Bot{
 		cfg:              cfg,
 		db:               db,
@@ -88,7 +96,17 @@ func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 		approvedUserRepo: repository.NewApprovedUserRepository(db),
 		bindingRepo:      bindingRepo,
 		pendingEdits:     make(map[int64]*pendingEdit),
-		exchangeService:  newExchangeService(cfg),
+		exchangeService:  newExchangeService(cfg, transport),
+		httpClient:       &http.Client{Timeout: 30 * time.Second, Transport: transport},
+	}
+
+	if cfg.OTelEnabled {
+		metrics, err := telemetry.NewBotMetrics()
+		if err != nil {
+			logger.Log.Warn().Err(err).Msg("Failed to create OTel metrics, continuing without metrics")
+		} else {
+			b.metrics = metrics
+		}
 	}
 
 	if cfg.GeminiAPIKey != "" {
@@ -101,8 +119,13 @@ func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 		}
 	}
 
+	middlewares := []bot.Middleware{b.whitelistMiddleware}
+	if b.metrics != nil {
+		middlewares = []bot.Middleware{telemetry.TracingMiddleware(b.metrics), b.whitelistMiddleware}
+	}
+
 	opts := []bot.Option{
-		bot.WithMiddlewares(b.whitelistMiddleware),
+		bot.WithMiddlewares(middlewares...),
 		bot.WithDefaultHandler(b.defaultHandler),
 	}
 
@@ -135,8 +158,8 @@ func (b *Bot) now() time.Time {
 	return time.Now()
 }
 
-func newExchangeService(cfg *config.Config) exchange.Converter {
-	client := exchange.NewFrankfurterClient(cfg.ExchangeRateBaseURL, cfg.ExchangeRateTimeout)
+func newExchangeService(cfg *config.Config, transport http.RoundTripper) exchange.Converter {
+	client := exchange.NewFrankfurterClient(cfg.ExchangeRateBaseURL, cfg.ExchangeRateTimeout, transport)
 	return exchange.NewCachedService(client, cfg.ExchangeRateCacheTTL)
 }
 
@@ -171,13 +194,25 @@ func (b *Bot) Start(ctx context.Context) {
 
 // cleanupExpiredDrafts removes draft expenses older than DraftExpirationTimeout.
 func (b *Bot) cleanupExpiredDrafts(ctx context.Context) {
+	start := time.Now()
 	count, err := b.expenseRepo.DeleteExpiredDrafts(ctx, DraftExpirationTimeout)
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to cleanup expired drafts")
+		if b.metrics != nil {
+			b.metrics.BackgroundJobRuns.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("job", "draft_cleanup"), attribute.String("status", "error")))
+			b.metrics.BackgroundJobDuration.Record(ctx, time.Since(start).Seconds(), otelmetric.WithAttributes(attribute.String("job", "draft_cleanup")))
+		}
 		return
 	}
 	if count > 0 {
 		logger.Log.Info().Int("count", count).Msg("Cleaned up expired draft expenses")
+		if b.metrics != nil {
+			b.metrics.DraftsCleaned.Add(ctx, int64(count))
+		}
+	}
+	if b.metrics != nil {
+		b.metrics.BackgroundJobRuns.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("job", "draft_cleanup"), attribute.String("status", "ok")))
+		b.metrics.BackgroundJobDuration.Record(ctx, time.Since(start).Seconds(), otelmetric.WithAttributes(attribute.String("job", "draft_cleanup")))
 	}
 }
 
@@ -476,7 +511,11 @@ func (b *Bot) downloadFile(ctx context.Context, tg TelegramAPI, fileID string) (
 		return nil, fmt.Errorf("failed to create download request: %w", err)
 	}
 
-	resp, err := downloadClient.Do(req) // #nosec G704 -- URL comes from Telegram's FileDownloadLink API, not user input.
+	client := b.httpClient
+	if client == nil {
+		client = http.DefaultClient
+	}
+	resp, err := client.Do(req) // #nosec G704 -- URL comes from Telegram's FileDownloadLink API, not user input.
 	if err != nil {
 		return nil, fmt.Errorf("failed to download file: %w", err)
 	}
@@ -505,6 +544,9 @@ func (b *Bot) getCategoriesWithCache(ctx context.Context) ([]models.Category, er
 		categories := b.categoryCache
 		b.categoryCacheMu.RUnlock()
 		logger.Log.Debug().Msg("Categories served from cache")
+		if b.metrics != nil {
+			b.metrics.CacheHits.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("cache", "categories")))
+		}
 		return categories, nil
 	}
 	b.categoryCacheMu.RUnlock()
@@ -516,7 +558,14 @@ func (b *Bot) getCategoriesWithCache(ctx context.Context) ([]models.Category, er
 	// Double-check after acquiring write lock (another goroutine might have updated it).
 	if b.now().Before(b.categoryCacheExpiry) && b.categoryCache != nil {
 		logger.Log.Debug().Msg("Categories served from cache after lock")
+		if b.metrics != nil {
+			b.metrics.CacheHits.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("cache", "categories")))
+		}
 		return b.categoryCache, nil
+	}
+
+	if b.metrics != nil {
+		b.metrics.CacheMisses.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("cache", "categories")))
 	}
 
 	categories, err := b.categoryRepo.GetAll(ctx)

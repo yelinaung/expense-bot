@@ -19,7 +19,7 @@ func TestDB(t *testing.T) *pgxpool.Pool {
 	}
 
 	ctx := context.Background()
-	pool, err := Connect(ctx, dbURL)
+	pool, err := Connect(ctx, dbURL, false)
 	if err != nil {
 		t.Fatalf("failed to connect to test database: %v", err)
 	}

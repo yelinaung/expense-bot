@@ -111,7 +111,7 @@ func TestConnect_WithTimeout(t *testing.T) {
 	defer cancel()
 
 	// Try to connect to unreachable host with very short timeout
-	pool, err := Connect(ctx, "postgres://localhost:59999/nonexistent?connect_timeout=1")
+	pool, err := Connect(ctx, "postgres://localhost:59999/nonexistent?connect_timeout=1", false)
 	require.Error(t, err)
 	require.Nil(t, pool)
 }
@@ -151,7 +151,7 @@ func TestConnect_WithMalformedURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
-			pool, err := Connect(ctx, tt.url)
+			pool, err := Connect(ctx, tt.url, false)
 
 			// All of these should fail
 			require.Error(t, err)
@@ -255,13 +255,13 @@ func TestConnect_WithValidConnectionPooled(t *testing.T) {
 	ctx := context.Background()
 
 	// Create first connection
-	pool1, err := Connect(ctx, dbURL)
+	pool1, err := Connect(ctx, dbURL, false)
 	require.NoError(t, err)
 	require.NotNil(t, pool1)
 	defer pool1.Close()
 
 	// Create second connection
-	pool2, err := Connect(ctx, dbURL)
+	pool2, err := Connect(ctx, dbURL, false)
 	require.NoError(t, err)
 	require.NotNil(t, pool2)
 	defer pool2.Close()

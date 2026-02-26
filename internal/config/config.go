@@ -29,6 +29,15 @@ type Config struct {
 	ReminderHour         int
 	ReminderTimezone     string
 
+	// OpenTelemetry configuration.
+	OTelEnabled         bool
+	OTelServiceName     string
+	OTelEnvironment     string
+	OTelExporterType    string // "otlp-grpc", "otlp-http", "stdout"
+	OTelEndpoint        string
+	OTelInsecure        bool
+	OTelTraceSampleRate float64
+
 	// resolvedSuperadmins maps normalized username → bound user_id.
 	// Once a whitelisted username is seen with a real user_id, the
 	// binding is recorded and only that user_id is accepted for the
@@ -47,6 +56,7 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 	applyReminderConfig(cfg)
+	applyOTelConfig(cfg)
 	cfg.WhitelistedUserIDs = parseWhitelistedUserIDs(os.Getenv("WHITELISTED_USER_IDS"))
 	cfg.WhitelistedUsernames = parseWhitelistedUsernames(os.Getenv("WHITELISTED_USERNAMES"))
 
@@ -107,6 +117,30 @@ func applyReminderConfig(cfg *Config) {
 	if tz := os.Getenv("REMINDER_TIMEZONE"); tz != "" {
 		if _, err := time.LoadLocation(tz); err == nil {
 			cfg.ReminderTimezone = tz
+		}
+	}
+}
+
+func applyOTelConfig(cfg *Config) {
+	cfg.OTelEnabled = os.Getenv("OTEL_ENABLED") == "true"
+	cfg.OTelServiceName = "expense-bot"
+	if name := os.Getenv("OTEL_SERVICE_NAME"); name != "" {
+		cfg.OTelServiceName = name
+	}
+	cfg.OTelEnvironment = "production"
+	if env := os.Getenv("OTEL_ENVIRONMENT"); env != "" {
+		cfg.OTelEnvironment = env
+	}
+	cfg.OTelExporterType = "otlp-grpc"
+	if t := os.Getenv("OTEL_EXPORTER_TYPE"); t != "" {
+		cfg.OTelExporterType = t
+	}
+	cfg.OTelEndpoint = os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	cfg.OTelInsecure = os.Getenv("OTEL_EXPORTER_OTLP_INSECURE") != "false" // default true
+	cfg.OTelTraceSampleRate = 1.0
+	if rateStr := os.Getenv("OTEL_TRACE_SAMPLE_RATE"); rateStr != "" {
+		if rate, err := strconv.ParseFloat(rateStr, 64); err == nil && rate >= 0 && rate <= 1 {
+			cfg.OTelTraceSampleRate = rate
 		}
 	}
 }
