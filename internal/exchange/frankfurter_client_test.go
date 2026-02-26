@@ -27,7 +27,7 @@ func TestFrankfurterClient_Convert(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewFrankfurterClient(server.URL, time.Second)
+		client := NewFrankfurterClient(server.URL, time.Second, nil)
 		got, err := client.Convert(context.Background(), decimal.RequireFromString("10"), "usd", "sgd")
 		require.NoError(t, err)
 		require.Equal(t, decimal.RequireFromString("13.50"), got.Amount)
@@ -43,7 +43,7 @@ func TestFrankfurterClient_Convert(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewFrankfurterClient(server.URL, time.Second)
+		client := NewFrankfurterClient(server.URL, time.Second, nil)
 		_, err := client.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "status 502")
@@ -57,7 +57,7 @@ func TestFrankfurterClient_Convert(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewFrankfurterClient(server.URL, time.Second)
+		client := NewFrankfurterClient(server.URL, time.Second, nil)
 		_, err := client.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
 		require.ErrorIs(t, err, errRateMissing)
 	})
@@ -70,7 +70,7 @@ func TestFrankfurterClient_Convert(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewFrankfurterClient(server.URL, time.Second)
+		client := NewFrankfurterClient(server.URL, time.Second, nil)
 		_, err := client.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
 		require.ErrorIs(t, err, errInvalidNonPositiveRate)
 	})
@@ -78,7 +78,7 @@ func TestFrankfurterClient_Convert(t *testing.T) {
 	t.Run("returns same amount for same currency", func(t *testing.T) {
 		t.Parallel()
 
-		client := NewFrankfurterClient("https://api.frankfurter.app", time.Second)
+		client := NewFrankfurterClient("https://api.frankfurter.app", time.Second, nil)
 		got, err := client.Convert(context.Background(), decimal.RequireFromString("12.34"), "SGD", "SGD")
 		require.NoError(t, err)
 		require.Equal(t, decimal.RequireFromString("12.34"), got.Amount)
@@ -88,7 +88,7 @@ func TestFrankfurterClient_Convert(t *testing.T) {
 	t.Run("returns validation error for non-positive amount", func(t *testing.T) {
 		t.Parallel()
 
-		client := NewFrankfurterClient("https://api.frankfurter.app", time.Second)
+		client := NewFrankfurterClient("https://api.frankfurter.app", time.Second, nil)
 		_, err := client.Convert(context.Background(), decimal.Zero, "USD", "SGD")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "positive")
@@ -103,7 +103,7 @@ func TestFrankfurterClient_Convert(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewFrankfurterClient(server.URL, time.Second)
+		client := NewFrankfurterClient(server.URL, time.Second, nil)
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 		defer cancel()
 

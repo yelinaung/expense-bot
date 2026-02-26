@@ -10,14 +10,14 @@ import (
 func TestConnect(t *testing.T) {
 	t.Run("fails with invalid connection string", func(t *testing.T) {
 		ctx := context.Background()
-		pool, err := Connect(ctx, "invalid://connection")
+		pool, err := Connect(ctx, "invalid://connection", false)
 		require.Error(t, err)
 		require.Nil(t, pool)
 	})
 
 	t.Run("fails with unreachable host", func(t *testing.T) {
 		ctx := context.Background()
-		pool, err := Connect(ctx, "postgres://localhost:59999/nonexistent?connect_timeout=1")
+		pool, err := Connect(ctx, "postgres://localhost:59999/nonexistent?connect_timeout=1", false)
 		require.Error(t, err)
 		require.Nil(t, pool)
 	})

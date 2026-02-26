@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/genai"
 )
 
@@ -59,6 +62,15 @@ func (c *Client) ParseVoiceExpense(
 		mimeType = "audio/ogg"
 	}
 
+	ctx, span := receiptTracer.Start(ctx, "gemini.generate_content",
+		trace.WithAttributes(
+			attribute.String("gemini.model", ModelName),
+			attribute.String("gemini.operation", "parse_voice"),
+			attribute.Int("gemini.input_size_bytes", len(audioBytes)),
+		),
+	)
+	defer span.End()
+
 	timeoutCtx, cancel := context.WithTimeout(ctx, ParseVoiceTimeout)
 	defer cancel()
 
@@ -73,6 +85,8 @@ func (c *Client) ParseVoiceExpense(
 		},
 	}, nil)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		if errors.Is(err, context.DeadlineExceeded) {
 			return nil, ErrVoiceParseTimeout
 		}

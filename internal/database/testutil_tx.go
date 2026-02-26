@@ -29,7 +29,7 @@ func TestPool(t *testing.T) *pgxpool.Pool {
 
 	testPoolOnce.Do(func() {
 		ctx := context.Background()
-		testPool, testPoolErr = Connect(ctx, dbURL)
+		testPool, testPoolErr = Connect(ctx, dbURL, false)
 		if testPoolErr != nil {
 			return
 		}

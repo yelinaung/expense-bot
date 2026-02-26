@@ -7,11 +7,13 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"gitlab.com/yelinaung/expense-bot/internal/bot"
 	"gitlab.com/yelinaung/expense-bot/internal/config"
 	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
+	"gitlab.com/yelinaung/expense-bot/internal/telemetry"
 )
 
 var (
@@ -36,7 +38,28 @@ func main() {
 	logger.SetLevel(cfg.LogLevel)
 	logger.InitHashSalt()
 
-	pool, err := database.Connect(ctx, cfg.DatabaseURL)
+	otelProviders, err := telemetry.Init(ctx, &telemetry.Config{
+		Enabled:         cfg.OTelEnabled,
+		ServiceName:     cfg.OTelServiceName,
+		ServiceVersion:  version,
+		Environment:     cfg.OTelEnvironment,
+		ExporterType:    cfg.OTelExporterType,
+		Endpoint:        cfg.OTelEndpoint,
+		Insecure:        cfg.OTelInsecure,
+		TraceSampleRate: cfg.OTelTraceSampleRate,
+	})
+	if err != nil {
+		logger.Log.Fatal().Err(err).Msg("Failed to initialize OpenTelemetry")
+	}
+	defer func() {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer shutdownCancel()
+		if err := otelProviders.Shutdown(shutdownCtx); err != nil {
+			logger.Log.Error().Err(err).Msg("Failed to shutdown OpenTelemetry")
+		}
+	}()
+
+	pool, err := database.Connect(ctx, cfg.DatabaseURL, cfg.OTelEnabled)
 	if err != nil {
 		logger.Log.Fatal().Err(err).Msg("Failed to connect to database")
 	}

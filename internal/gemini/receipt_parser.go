@@ -9,8 +9,14 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/genai"
 )
+
+var receiptTracer = otel.Tracer("expense-bot/gemini")
 
 // ParseReceiptTimeout is the timeout for Gemini API calls.
 const ParseReceiptTimeout = 30 * time.Second
@@ -92,6 +98,15 @@ func (c *Client) ParseReceipt(ctx context.Context, imageBytes []byte, mimeType s
 		mimeType = "image/jpeg"
 	}
 
+	ctx, span := receiptTracer.Start(ctx, "gemini.generate_content",
+		trace.WithAttributes(
+			attribute.String("gemini.model", ModelName),
+			attribute.String("gemini.operation", "parse_receipt"),
+			attribute.Int("gemini.input_size_bytes", len(imageBytes)),
+		),
+	)
+	defer span.End()
+
 	// Apply timeout to the Gemini API call.
 	timeoutCtx, cancel := context.WithTimeout(ctx, ParseReceiptTimeout)
 	defer cancel()
@@ -107,6 +122,8 @@ func (c *Client) ParseReceipt(ctx context.Context, imageBytes []byte, mimeType s
 		},
 	}, nil)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		if errors.Is(err, context.DeadlineExceeded) {
 			return nil, ErrParseTimeout
 		}

@@ -12,6 +12,9 @@ import (
 
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/genai"
 )
 
@@ -105,8 +108,20 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 		},
 	}
 
+	ctx, span := receiptTracer.Start(ctx, "gemini.generate_content",
+		trace.WithAttributes(
+			attribute.String("gemini.model", ModelName),
+			attribute.String("gemini.operation", "suggest_category"),
+			attribute.Int("gemini.input_size_bytes", len(description)),
+		),
+	)
+	defer span.End()
+	_ = ctx // timeoutCtx is already derived from the original ctx
+
 	fullText, err := c.callSuggestCategory(timeoutCtx, contents, config, descHash)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 	suggestion, err := parseSuggestionFromText(fullText, descHash)

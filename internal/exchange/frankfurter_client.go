@@ -27,8 +27,10 @@ type frankfurterResponse struct {
 	Rates map[string]json.Number `json:"rates"`
 }
 
-// NewFrankfurterClient creates a Frankfurter API client.
-func NewFrankfurterClient(baseURL string, timeout time.Duration) *FrankfurterClient {
+// NewFrankfurterClient creates a Frankfurter API client. An optional
+// http.RoundTripper can be provided for OTel instrumentation; nil uses
+// http.DefaultTransport.
+func NewFrankfurterClient(baseURL string, timeout time.Duration, transport http.RoundTripper) *FrankfurterClient {
 	trimmed := strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	if trimmed == "" {
 		trimmed = "https://api.frankfurter.app"
@@ -40,7 +42,8 @@ func NewFrankfurterClient(baseURL string, timeout time.Duration) *FrankfurterCli
 	return &FrankfurterClient{
 		baseURL: trimmed,
 		httpClient: &http.Client{
-			Timeout: timeout,
+			Timeout:   timeout,
+			Transport: transport,
 		},
 	}
 }

@@ -10,6 +10,9 @@ import (
 	"github.com/shopspring/decimal"
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	otelmetric "go.opentelemetry.io/otel/metric"
 )
 
 const (
@@ -70,6 +73,10 @@ func (b *Bot) checkAndSendReminders(ctx context.Context, loc *time.Location, rem
 		return
 	}
 
+	ctx, span := otel.Tracer("expense-bot/background").Start(ctx, "background.reminder_check")
+	defer span.End()
+	start := time.Now()
+
 	checkCtx, cancel := context.WithTimeout(ctx, ReminderTimeout)
 	defer cancel()
 
@@ -92,6 +99,10 @@ func (b *Bot) checkAndSendReminders(ctx context.Context, loc *time.Location, rem
 	)
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to fetch users for daily reminder")
+		if b.metrics != nil {
+			b.metrics.BackgroundJobRuns.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("job", "reminder"), attribute.String("status", "error")))
+			b.metrics.BackgroundJobDuration.Record(ctx, time.Since(start).Seconds(), otelmetric.WithAttributes(attribute.String("job", "reminder")))
+		}
 		return
 	}
 
@@ -109,6 +120,11 @@ func (b *Bot) checkAndSendReminders(ctx context.Context, loc *time.Location, rem
 
 		reminded[user.ID] = todayStr
 		logger.Log.Debug().Str("user_hash", logger.HashUserID(user.ID)).Msg("Sent daily reminder")
+	}
+
+	if b.metrics != nil {
+		b.metrics.BackgroundJobRuns.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("job", "reminder"), attribute.String("status", "ok")))
+		b.metrics.BackgroundJobDuration.Record(ctx, time.Since(start).Seconds(), otelmetric.WithAttributes(attribute.String("job", "reminder")))
 	}
 }
 

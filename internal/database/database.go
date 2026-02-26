@@ -5,12 +5,23 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Connect establishes a connection pool to the PostgreSQL database.
-func Connect(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
-	pool, err := pgxpool.New(ctx, databaseURL)
+// When otelEnabled is true, automatic query tracing via otelpgx is attached.
+func Connect(ctx context.Context, databaseURL string, otelEnabled bool) (*pgxpool.Pool, error) {
+	cfg, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse database URL: %w", err)
+	}
+
+	if otelEnabled {
+		cfg.ConnConfig.Tracer = otelpgx.NewTracer()
+	}
+
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create connection pool: %w", err)
 	}

@@ -16,6 +16,8 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
+	"go.opentelemetry.io/otel/attribute"
+	otelmetric "go.opentelemetry.io/otel/metric"
 )
 
 const (
@@ -598,11 +600,21 @@ func (b *Bot) saveExpenseCore(
 
 	if err := b.expenseRepo.Create(ctx, expense); err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to create expense")
+		if b.metrics != nil {
+			b.metrics.ExpenseOps.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("operation", "add"), attribute.String("status", "error")))
+		}
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Failed to save expense. Please try again.",
 		})
 		return
+	}
+
+	if b.metrics != nil {
+		b.metrics.ExpenseOps.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("operation", "add"), attribute.String("status", "ok")))
+		if f, exact := expense.Amount.Float64(); exact {
+			b.metrics.ExpenseAmount.Record(ctx, f, otelmetric.WithAttributes(attribute.String("currency", expense.Currency)))
+		}
 	}
 
 	b.saveInlineTags(ctx, expense.ID, parsed.Tags)
@@ -1310,11 +1322,18 @@ func (b *Bot) handleEditCore(ctx context.Context, tg TelegramAPI, update *models
 
 	if err := b.expenseRepo.Update(ctx, expense); err != nil {
 		logger.Log.Error().Err(err).Int64("expense_num", expenseNum).Msg("Failed to update expense")
+		if b.metrics != nil {
+			b.metrics.ExpenseOps.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("operation", "edit"), attribute.String("status", "error")))
+		}
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Failed to update expense. Please try again.",
 		})
 		return
+	}
+
+	if b.metrics != nil {
+		b.metrics.ExpenseOps.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("operation", "edit"), attribute.String("status", "ok")))
 	}
 
 	logger.Log.Debug().
@@ -1493,11 +1512,18 @@ func (b *Bot) handleDelete(ctx context.Context, tgBot *bot.Bot, update *models.U
 
 	if err := b.expenseRepo.Delete(ctx, expense.ID); err != nil {
 		logger.Log.Error().Err(err).Int64("expense_num", expenseNum).Msg("Failed to delete expense")
+		if b.metrics != nil {
+			b.metrics.ExpenseOps.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("operation", "delete"), attribute.String("status", "error")))
+		}
 		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "❌ Failed to delete expense. Please try again.",
 		})
 		return
+	}
+
+	if b.metrics != nil {
+		b.metrics.ExpenseOps.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("operation", "delete"), attribute.String("status", "ok")))
 	}
 
 	logger.Log.Debug().
