@@ -7,7 +7,7 @@
 > [!IMPORTANT]
 > **Disclaimer**: This application was developed primarily by AI coding agents (Claude/Amp) as an experimental project. While functional, **quality is not guaranteed**. If you choose to use or deploy this bot, please do so with caution, review the code yourself, and understand that it may contain bugs or security issues. Use at your own risk.
 
-A Telegram bot for tracking personal expenses with multi-currency support, AI-powered receipt OCR, and automatic categorization using Google Gemini AI.
+A Telegram bot for tracking personal expenses with multi-currency support, AI-powered receipt OCR, automatic categorization using Google Gemini AI, and optional OpenTelemetry observability.
 
 ## Features
 
@@ -19,6 +19,7 @@ A Telegram bot for tracking personal expenses with multi-currency support, AI-po
 - **Voice Expense Input**: Send voice messages like "spent five fifty on coffee" for hands-free expense entry via Gemini AI
 - **Visual Charts**: Generate pie charts showing expense breakdown by category
 - **CSV Report Generation**: Export weekly or monthly expense reports in CSV format
+- **Timezone-Accurate Periods**: `/today`, `/week`, `/report`, and `/chart` use the configured display timezone for date ranges and filenames
 - **Category Management**: Organize expenses with predefined or custom categories
 - **Expense Queries**: View expenses by time period (today, this week, recent)
 - **Expense Editing**: Modify or delete existing expenses with inline buttons
@@ -28,33 +29,39 @@ A Telegram bot for tracking personal expenses with multi-currency support, AI-po
 - **GitLab Releases**: Automated cross-platform releases via GoReleaser on both GitHub and GitLab
 - **Draft Management**: Automatic cleanup of unconfirmed draft expenses
 - **Category Caching**: Performance-optimized category lookups
+- **OpenTelemetry Support**: Optional tracing and metrics for handlers, background jobs, DB calls, and external APIs
 
 ## Architecture
 
 ```
 expense-bot/
-├── docs/                   # Documentation
-│   ├── examples/          # Sample files
-│   ├── PRIVACY.md         # Privacy policy
-│   ├── SCALABILITY.md     # Scaling guide
-│   └── ...                # Other docs
+├── docs/                   # Documentation (privacy, scalability, testing, OTel)
+│   ├── examples/           # Sample files
+│   ├── OTEL_INTEGRATION.md # OpenTelemetry integration notes
+│   ├── PRIVACY.md          # Privacy policy
+│   └── SCALABILITY.md      # Scaling guide
 ├── internal/
-│   ├── bot/               # Telegram bot handlers and logic
-│   │   ├── handlers_commands.go    # Command handlers (/start, /add, /list, etc.)
-│   │   ├── handlers_receipt.go     # Receipt/photo processing
-│   │   ├── handlers_callbacks.go   # Callback query handlers
-│   │   ├── handlers_tags.go         # Tag management commands
-│   │   ├── parser.go              # Expense input parsing
-│   │   └── category_matcher.go    # Smart category matching
-│   ├── config/            # Configuration management
-│   ├── database/          # Database schema and migrations
-│   ├── gemini/            # Google Gemini API integration
-│   ├── logger/            # Structured logging
-│   ├── models/            # Domain models
-│   └── repository/        # Data access layer
-├── .gitlab-ci.yml         # CI/CD pipeline
-├── Makefile              # Development commands
-└── docker-compose.test.yml # Test database setup
+│   ├── bot/                # Telegram bot core, handlers, parsers, report/chart generators
+│   │   ├── bot.go
+│   │   ├── handlers_commands.go
+│   │   ├── handlers_receipt.go
+│   │   ├── handlers_voice.go
+│   │   ├── handlers_chart.go
+│   │   ├── parser.go
+│   │   ├── csv_generator.go
+│   │   └── date_range.go
+│   ├── config/             # Environment config parsing and validation
+│   ├── database/           # DB connection and migrations
+│   ├── exchange/           # FX client + cached conversion service
+│   ├── gemini/             # Gemini client, receipt/voice parsing, category suggestion
+│   ├── logger/             # Structured logging + privacy-safe hashing
+│   ├── models/             # Domain models
+│   ├── repository/         # Data access layer
+│   └── telemetry/          # OpenTelemetry init, middleware, metrics, HTTP transport
+├── main.go                 # Application entrypoint
+├── Makefile                # Development commands
+├── docker-compose.test.yml # Test database setup
+└── .gitlab-ci.yml          # CI/CD pipeline
 ```
 
 ### Technology Stack
@@ -131,6 +138,18 @@ EXCHANGE_RATE_CACHE_TTL=12h
 DAILY_REMINDER_ENABLED=false
 REMINDER_HOUR=20
 REMINDER_TIMEZONE=Asia/Singapore
+
+# OpenTelemetry settings (optional)
+OTEL_ENABLED=false
+OTEL_SERVICE_NAME=expense-bot
+OTEL_ENVIRONMENT=production
+OTEL_EXPORTER_TYPE=otlp-grpc
+# Leave empty to use defaults:
+# - otlp-grpc: localhost:4317
+# - otlp-http: http://localhost:4318
+OTEL_EXPORTER_OTLP_ENDPOINT=
+OTEL_EXPORTER_OTLP_INSECURE=false
+OTEL_TRACE_SAMPLE_RATE=1.0
 ```
 
 ### 4. Set Up Database
@@ -296,7 +315,7 @@ Export your expenses as CSV files for analysis in Excel, Google Sheets, or other
 Reports include:
 - Expense ID, Date, Amount, Currency, Description, Category
 - Total expenses and count in caption
-- Filename with date range (e.g., `expenses_month_2026-01.csv`)
+- Filename with date range in your configured display timezone (e.g., `expenses_month_2026-01.csv`)
 
 ### Visual Expense Charts
 
@@ -316,6 +335,7 @@ Charts include:
 - Percentage distribution for each category
 - Total expenses and count in caption
 - PNG image format for easy sharing
+- Filename period aligned with the same timezone/date range used for chart data
 
 ### AI Auto-Categorization
 
@@ -444,6 +464,13 @@ The project uses:
 | `DAILY_REMINDER_ENABLED` | No | Enable daily reminders for users without expenses (`true`/`false`) | false |
 | `REMINDER_HOUR` | No | Hour of day to send reminders (0-23) | 20 |
 | `REMINDER_TIMEZONE` | No | IANA timezone for reminder scheduling and display | Asia/Singapore |
+| `OTEL_ENABLED` | No | Enable OpenTelemetry tracing/metrics (`true`/`false`) | false |
+| `OTEL_SERVICE_NAME` | No | OTel `service.name` resource attribute | `expense-bot` |
+| `OTEL_ENVIRONMENT` | No | OTel deployment environment attribute | `production` |
+| `OTEL_EXPORTER_TYPE` | No | Exporter type: `otlp-grpc`, `otlp-http`, or `stdout` | `otlp-grpc` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | No | OTLP endpoint (empty uses exporter defaults) | empty |
+| `OTEL_EXPORTER_OTLP_INSECURE` | No | Use insecure OTLP transport (`true`/`false`) | false |
+| `OTEL_TRACE_SAMPLE_RATE` | No | Trace sampling ratio (0.0 to 1.0) | `1.0` |
 
 *At least one of `WHITELISTED_USER_IDS` or `WHITELISTED_USERNAMES` is required.
 
@@ -457,6 +484,7 @@ openssl rand -hex 32
 - **Draft Expiration**: 10 minutes (auto-cleanup)
 - **Draft Cleanup Interval**: 5 minutes
 - **Category Cache TTL**: 5 minutes
+- **Period Boundaries**: Day/week/month calculations are timezone-aware and DST-safe
 
 ## Database Schema
 
