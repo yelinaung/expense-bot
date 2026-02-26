@@ -86,6 +86,23 @@ func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 		transport = telemetry.InstrumentedTransport(nil)
 	}
 
+	var metrics *telemetry.BotMetrics
+	if cfg.OTelEnabled {
+		var err error
+		metrics, err = telemetry.NewBotMetrics()
+		if err != nil {
+			logger.Log.Warn().Err(err).Msg("Failed to create OTel metrics, continuing without metrics")
+		}
+	}
+
+	var cacheMetrics *exchange.CacheMetrics
+	if metrics != nil {
+		cacheMetrics = &exchange.CacheMetrics{
+			Hits:   metrics.CacheHits,
+			Misses: metrics.CacheMisses,
+		}
+	}
+
 	b := &Bot{
 		cfg:              cfg,
 		db:               db,
@@ -96,17 +113,9 @@ func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 		approvedUserRepo: repository.NewApprovedUserRepository(db),
 		bindingRepo:      bindingRepo,
 		pendingEdits:     make(map[int64]*pendingEdit),
-		exchangeService:  newExchangeService(cfg, transport),
+		exchangeService:  newExchangeService(cfg, transport, cacheMetrics),
 		httpClient:       &http.Client{Timeout: 30 * time.Second, Transport: transport},
-	}
-
-	if cfg.OTelEnabled {
-		metrics, err := telemetry.NewBotMetrics()
-		if err != nil {
-			logger.Log.Warn().Err(err).Msg("Failed to create OTel metrics, continuing without metrics")
-		} else {
-			b.metrics = metrics
-		}
+		metrics:          metrics,
 	}
 
 	if cfg.GeminiAPIKey != "" {
@@ -158,9 +167,9 @@ func (b *Bot) now() time.Time {
 	return time.Now()
 }
 
-func newExchangeService(cfg *config.Config, transport http.RoundTripper) exchange.Converter {
+func newExchangeService(cfg *config.Config, transport http.RoundTripper, cacheMetrics *exchange.CacheMetrics) exchange.Converter {
 	client := exchange.NewFrankfurterClient(cfg.ExchangeRateBaseURL, cfg.ExchangeRateTimeout, transport)
-	return exchange.NewCachedService(client, cfg.ExchangeRateCacheTTL)
+	return exchange.NewCachedService(client, cfg.ExchangeRateCacheTTL, cacheMetrics)
 }
 
 const (

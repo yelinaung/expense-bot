@@ -44,7 +44,7 @@ func TestCachedService_Convert(t *testing.T) {
 			rate: decimal.RequireFromString("1.35"),
 			date: time.Date(2026, 2, 14, 0, 0, 0, 0, time.UTC),
 		}
-		svc := NewCachedService(upstream, time.Hour)
+		svc := NewCachedService(upstream, time.Hour, nil)
 
 		got1, err := svc.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
 		require.NoError(t, err)
@@ -63,7 +63,7 @@ func TestCachedService_Convert(t *testing.T) {
 			rate: decimal.RequireFromString("1.2"),
 			date: time.Date(2026, 2, 14, 0, 0, 0, 0, time.UTC),
 		}
-		svc := NewCachedService(upstream, time.Hour)
+		svc := NewCachedService(upstream, time.Hour, nil)
 
 		_, err := svc.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
 		require.NoError(t, err)
@@ -78,7 +78,7 @@ func TestCachedService_Convert(t *testing.T) {
 			rate: decimal.RequireFromString("1.1"),
 			date: time.Date(2026, 2, 14, 0, 0, 0, 0, time.UTC),
 		}
-		svc := NewCachedService(upstream, time.Nanosecond)
+		svc := NewCachedService(upstream, time.Nanosecond, nil)
 
 		_, err := svc.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
 		require.NoError(t, err)
@@ -95,7 +95,7 @@ func TestCachedService_Convert(t *testing.T) {
 			date:  time.Date(2026, 2, 14, 0, 0, 0, 0, time.UTC),
 			delay: 20 * time.Millisecond,
 		}
-		svc := NewCachedService(upstream, 10*time.Millisecond)
+		svc := NewCachedService(upstream, 10*time.Millisecond, nil)
 
 		_, err := svc.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
 		require.NoError(t, err)
@@ -114,7 +114,7 @@ func TestCachedService_Convert(t *testing.T) {
 			date:  time.Date(2026, 2, 14, 0, 0, 0, 0, time.UTC),
 			delay: 20 * time.Millisecond,
 		}
-		svc := NewCachedService(upstream, time.Nanosecond)
+		svc := NewCachedService(upstream, time.Nanosecond, nil)
 
 		_, err := svc.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
 		require.NoError(t, err)
@@ -138,7 +138,7 @@ func TestCachedService_Convert(t *testing.T) {
 			rate: decimal.RequireFromString("1.1"),
 			date: time.Date(2026, 2, 14, 0, 0, 0, 0, time.UTC),
 		}
-		svc := NewCachedService(upstream, time.Nanosecond)
+		svc := NewCachedService(upstream, time.Nanosecond, nil)
 
 		_, err := svc.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
 		require.NoError(t, err)
@@ -161,7 +161,7 @@ func TestCachedService_RejectsNonPositiveRate(t *testing.T) {
 	t.Parallel()
 
 	upstream := &negativeRateService{}
-	svc := NewCachedService(upstream, time.Hour)
+	svc := NewCachedService(upstream, time.Hour, nil)
 	_, err := svc.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
 	require.ErrorIs(t, err, errInvalidNonPositiveRate)
 }
@@ -177,7 +177,7 @@ func TestCachedService_CoalescingContextSemantics(t *testing.T) {
 			date:  time.Date(2026, 2, 14, 0, 0, 0, 0, time.UTC),
 			delay: 40 * time.Millisecond,
 		}
-		svc := NewCachedService(upstream, time.Nanosecond)
+		svc := NewCachedService(upstream, time.Nanosecond, nil)
 
 		_, err := svc.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
 		require.NoError(t, err)
@@ -215,7 +215,7 @@ func TestCachedService_CoalescingContextSemantics(t *testing.T) {
 			date:  time.Date(2026, 2, 14, 0, 0, 0, 0, time.UTC),
 			delay: 100 * time.Millisecond,
 		}
-		svc := NewCachedService(upstream, time.Nanosecond)
+		svc := NewCachedService(upstream, time.Nanosecond, nil)
 
 		_, err := svc.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
 		require.NoError(t, err)

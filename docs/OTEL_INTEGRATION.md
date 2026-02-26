@@ -69,7 +69,7 @@ Add OTel fields to `Config` struct + env var parsing in `Load()`:
 | `OTEL_ENVIRONMENT` | `production` | `OTelEnvironment` |
 | `OTEL_EXPORTER_TYPE` | `otlp-grpc` | `OTelExporterType` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | per-exporter (see below) | `OTelEndpoint` |
-| `OTEL_EXPORTER_OTLP_INSECURE` | `true` | `OTelInsecure` |
+| `OTEL_EXPORTER_OTLP_INSECURE` | `false` | `OTelInsecure` |
 | `OTEL_TRACE_SAMPLE_RATE` | `1.0` | `OTelTraceSampleRate` |
 
 **Endpoint defaults by exporter type:**
