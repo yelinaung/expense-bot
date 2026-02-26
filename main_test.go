@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 	"os"
-	"os/exec"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -33,7 +33,8 @@ func TestMainVersionCommand(t *testing.T) {
 	require.NoError(t, err)
 	os.Stdout = w
 
-	main()
+	err = run(context.Background(), os.Args, os.Stdout)
+	require.NoError(t, err)
 
 	require.NoError(t, w.Close())
 	out, err := io.ReadAll(r)
@@ -42,52 +43,36 @@ func TestMainVersionCommand(t *testing.T) {
 }
 
 func TestMainExitsWhenTelemetryInitFails(t *testing.T) {
-	if os.Getenv("TEST_MAIN_TELEMETRY_FAIL") == "1" {
-		main()
-		return
-	}
-
-	cmd := exec.CommandContext( //nolint:gosec // Controlled test harness invocation.
-		context.Background(),
-		os.Args[0],
-		"-test.run=TestMainExitsWhenTelemetryInitFails",
-	)
-	cmd.Env = append(
-		os.Environ(),
-		"TEST_MAIN_TELEMETRY_FAIL=1",
+	for _, kv := range []string{
 		"TELEGRAM_BOT_TOKEN=test-token",
 		"DATABASE_URL=postgres://user:pass@localhost:5432/db?sslmode=disable", //gitleaks:allow
 		"WHITELISTED_USER_IDS=1",
 		"LOG_HASH_SALT=test-salt-for-main-tests-1234567890",
 		"OTEL_ENABLED=true",
 		"OTEL_EXPORTER_TYPE=invalid-exporter",
-	)
-	out, err := cmd.CombinedOutput()
+	} {
+		key, value, _ := strings.Cut(kv, "=")
+		t.Setenv(key, value)
+	}
+
+	err := run(context.Background(), []string{"expense-bot"}, io.Discard)
 	require.Error(t, err)
-	require.Contains(t, string(out), "Failed to initialize OpenTelemetry")
+	require.Contains(t, err.Error(), "Failed to initialize OpenTelemetry")
 }
 
 func TestMainExitsWhenDatabaseConnectFails(t *testing.T) {
-	if os.Getenv("TEST_MAIN_DB_FAIL") == "1" {
-		main()
-		return
-	}
-
-	cmd := exec.CommandContext( //nolint:gosec // Controlled test harness invocation.
-		context.Background(),
-		os.Args[0],
-		"-test.run=TestMainExitsWhenDatabaseConnectFails",
-	)
-	cmd.Env = append(
-		os.Environ(),
-		"TEST_MAIN_DB_FAIL=1",
+	for _, kv := range []string{
 		"TELEGRAM_BOT_TOKEN=test-token",
 		"DATABASE_URL=postgres://invalid-connection-string",
 		"WHITELISTED_USER_IDS=1",
 		"LOG_HASH_SALT=test-salt-for-main-tests-1234567890",
 		"OTEL_ENABLED=false",
-	)
-	out, err := cmd.CombinedOutput()
+	} {
+		key, value, _ := strings.Cut(kv, "=")
+		t.Setenv(key, value)
+	}
+
+	err := run(context.Background(), []string{"expense-bot"}, io.Discard)
 	require.Error(t, err)
-	require.Contains(t, string(out), "Failed to connect to database")
+	require.Contains(t, err.Error(), "Failed to connect to database")
 }

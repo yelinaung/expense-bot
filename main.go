@@ -3,7 +3,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -22,23 +24,60 @@ var (
 	date    = "unknown"
 )
 
+type runError struct {
+	logMessage string
+	err        error
+}
+
+func (e *runError) Error() string {
+	return fmt.Sprintf("%s: %v", e.logMessage, e.err)
+}
+
+func (e *runError) Unwrap() error {
+	return e.err
+}
+
+func wrapRunError(logMessage string, err error) error {
+	return &runError{
+		logMessage: logMessage,
+		err:        err,
+	}
+}
+
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "version" {
-		fmt.Printf("expense-bot %s (commit: %s, built: %s)\n", version, commit, date)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err := run(ctx, os.Args, os.Stdout)
+	if err == nil {
 		return
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+
+	var re *runError
+	if errors.As(err, &re) {
+		logger.Log.Fatal().Err(err).Msg(re.logMessage)
+	}
+	logger.Log.Fatal().Err(err).Msg("Application failed")
+}
+
+func run(ctx context.Context, args []string, stdout io.Writer) error {
+	if len(args) > 1 && args[1] == "version" {
+		_, _ = fmt.Fprintf(stdout, "expense-bot %s (commit: %s, built: %s)\n", version, commit, date)
+		return nil
+	}
+
+	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	cfg, err := config.Load()
 	if err != nil {
-		logger.Log.Fatal().Err(err).Msg("Failed to load config")
+		return wrapRunError("Failed to load config", err)
 	}
 
 	logger.SetLevel(cfg.LogLevel)
 	logger.InitHashSalt()
 
-	otelProviders, err := telemetry.Init(ctx, &telemetry.Config{
+	otelProviders, err := telemetry.Init(runCtx, &telemetry.Config{
 		Enabled:         cfg.OTelEnabled,
 		ServiceName:     cfg.OTelServiceName,
 		ServiceVersion:  version,
@@ -49,7 +88,7 @@ func main() {
 		TraceSampleRate: cfg.OTelTraceSampleRate,
 	})
 	if err != nil {
-		logger.Log.Fatal().Err(err).Msg("Failed to initialize OpenTelemetry")
+		return wrapRunError("Failed to initialize OpenTelemetry", err)
 	}
 	defer func() {
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -59,25 +98,25 @@ func main() {
 		}
 	}()
 
-	pool, err := database.Connect(ctx, cfg.DatabaseURL, cfg.OTelEnabled)
+	pool, err := database.Connect(runCtx, cfg.DatabaseURL, cfg.OTelEnabled)
 	if err != nil {
-		logger.Log.Fatal().Err(err).Msg("Failed to connect to database")
+		return wrapRunError("Failed to connect to database", err)
 	}
 	defer pool.Close()
 
-	if err := database.RunMigrations(ctx, pool); err != nil {
-		logger.Log.Fatal().Err(err).Msg("Failed to run migrations")
+	if err := database.RunMigrations(runCtx, pool); err != nil {
+		return wrapRunError("Failed to run migrations", err)
 	}
 
-	if err := database.SeedCategories(ctx, pool); err != nil {
-		logger.Log.Fatal().Err(err).Msg("Failed to seed categories")
+	if err := database.SeedCategories(runCtx, pool); err != nil {
+		return wrapRunError("Failed to seed categories", err)
 	}
 
 	logger.Log.Info().Msg("Database initialized successfully")
 
 	telegramBot, err := bot.New(cfg, pool)
 	if err != nil {
-		logger.Log.Fatal().Err(err).Msg("Failed to create bot")
+		return wrapRunError("Failed to create bot", err)
 	}
 
 	go func() {
@@ -88,5 +127,6 @@ func main() {
 		cancel()
 	}()
 
-	telegramBot.Start(ctx)
+	telegramBot.Start(runCtx)
+	return nil
 }
