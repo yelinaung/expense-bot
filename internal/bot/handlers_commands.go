@@ -1464,6 +1464,11 @@ func sendEditConfirmation(ctx context.Context, tg TelegramAPI, chatID int64, exp
 
 // handleDelete handles the /delete command to remove an expense.
 func (b *Bot) handleDelete(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.handleDeleteCore(ctx, tgBot, update)
+}
+
+// handleDeleteCore is the testable implementation of handleDelete.
+func (b *Bot) handleDeleteCore(ctx context.Context, tgBot TelegramAPI, update *models.Update) {
 	if update.Message == nil {
 		return
 	}

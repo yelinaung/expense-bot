@@ -347,3 +347,32 @@ func TestStartDailyReminderLoop_RunsImmediateCheck(t *testing.T) {
 
 	require.Equal(t, 1, mockBot.SentMessageCount(), "should send reminder on immediate startup check")
 }
+
+func TestSendReminderOrDailySummary_FetchError(t *testing.T) {
+	pool := TestDB(t)
+	b := setupTestBot(t, pool)
+
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := b.sendReminderOrDailySummary(
+		canceledCtx,
+		&models.User{ID: 2200, FirstName: "Err"},
+		time.Now().Add(-time.Hour),
+		time.Now(),
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to fetch today's expenses")
+}
+
+func TestSendNoExpenseReminder_EmptyFirstNameFallback(t *testing.T) {
+	t.Parallel()
+
+	mockBot := mocks.NewMockBot()
+	b := &Bot{messageSender: mockBot}
+
+	err := b.sendNoExpenseReminder(context.Background(), &models.User{ID: 2300, FirstName: ""})
+	require.NoError(t, err)
+	require.Equal(t, 1, mockBot.SentMessageCount())
+	require.Contains(t, mockBot.LastSentMessage().Text, "Hey there!")
+}

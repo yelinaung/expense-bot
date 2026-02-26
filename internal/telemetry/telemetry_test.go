@@ -52,6 +52,55 @@ func TestInitDisabledReturnsNoopProviders(t *testing.T) {
 	require.NoError(t, providers.Shutdown(context.Background()))
 }
 
+func TestInitEnabled(t *testing.T) {
+	t.Parallel()
+
+	t.Run("initializes stdout providers", func(t *testing.T) {
+		t.Parallel()
+		providers, err := Init(context.Background(), &Config{
+			Enabled:         true,
+			ServiceName:     "expense-bot-test",
+			ServiceVersion:  "test",
+			Environment:     "test",
+			ExporterType:    ExporterStdout,
+			TraceSampleRate: 1.0,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, providers)
+		require.NoError(t, providers.Shutdown(context.Background()))
+	})
+
+	t.Run("rejects invalid otlp grpc endpoint", func(t *testing.T) {
+		t.Parallel()
+		providers, err := Init(context.Background(), &Config{
+			Enabled:         true,
+			ServiceName:     "expense-bot-test",
+			ServiceVersion:  "test",
+			Environment:     "test",
+			ExporterType:    ExporterOTLPGRPC,
+			Endpoint:        "http://localhost:4317",
+			TraceSampleRate: 1.0,
+		})
+		require.Error(t, err)
+		require.Nil(t, providers)
+	})
+
+	t.Run("rejects invalid otlp http endpoint", func(t *testing.T) {
+		t.Parallel()
+		providers, err := Init(context.Background(), &Config{
+			Enabled:         true,
+			ServiceName:     "expense-bot-test",
+			ServiceVersion:  "test",
+			Environment:     "test",
+			ExporterType:    ExporterOTLPHTTP,
+			Endpoint:        "localhost:4318",
+			TraceSampleRate: 1.0,
+		})
+		require.Error(t, err)
+		require.Nil(t, providers)
+	})
+}
+
 func TestNewTraceExporter(t *testing.T) {
 	t.Parallel()
 
@@ -67,6 +116,20 @@ func TestNewTraceExporter(t *testing.T) {
 		exp, err := newTraceExporter(context.Background(), "invalid", "", false)
 		require.Error(t, err)
 		require.Nil(t, exp)
+	})
+
+	t.Run("creates otlp grpc exporter", func(t *testing.T) {
+		t.Parallel()
+		exp, err := newTraceExporter(context.Background(), ExporterOTLPGRPC, "localhost:4317", true)
+		require.NoError(t, err)
+		require.NotNil(t, exp)
+	})
+
+	t.Run("creates otlp http exporter", func(t *testing.T) {
+		t.Parallel()
+		exp, err := newTraceExporter(context.Background(), ExporterOTLPHTTP, "localhost:4318", true)
+		require.NoError(t, err)
+		require.NotNil(t, exp)
 	})
 }
 
@@ -85,5 +148,19 @@ func TestNewMetricExporter(t *testing.T) {
 		exp, err := newMetricExporter(context.Background(), "invalid", "", false)
 		require.Error(t, err)
 		require.Nil(t, exp)
+	})
+
+	t.Run("creates otlp grpc exporter", func(t *testing.T) {
+		t.Parallel()
+		exp, err := newMetricExporter(context.Background(), ExporterOTLPGRPC, "localhost:4317", true)
+		require.NoError(t, err)
+		require.NotNil(t, exp)
+	})
+
+	t.Run("creates otlp http exporter", func(t *testing.T) {
+		t.Parallel()
+		exp, err := newMetricExporter(context.Background(), ExporterOTLPHTTP, "localhost:4318", true)
+		require.NoError(t, err)
+		require.NotNil(t, exp)
 	})
 }
