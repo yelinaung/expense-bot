@@ -17,14 +17,16 @@ type mockGenerator struct {
 	err      error
 
 	lastConfig *genai.GenerateContentConfig
+	lastCtx    context.Context
 }
 
 func (m *mockGenerator) GenerateContent(
-	_ context.Context,
+	ctx context.Context,
 	_ string,
 	_ []*genai.Content,
 	config *genai.GenerateContentConfig,
 ) (*genai.GenerateContentResponse, error) {
+	m.lastCtx = ctx
 	m.lastConfig = config
 	return m.response, m.err
 }
