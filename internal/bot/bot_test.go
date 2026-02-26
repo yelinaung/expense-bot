@@ -114,6 +114,50 @@ func TestExtractUsername(t *testing.T) {
 	})
 }
 
+func TestExtractChatID(t *testing.T) {
+	t.Parallel()
+
+	t.Run("extracts from message", func(t *testing.T) {
+		t.Parallel()
+		update := &tgmodels.Update{
+			Message: &tgmodels.Message{
+				Chat: tgmodels.Chat{ID: 12345},
+			},
+		}
+		require.Equal(t, int64(12345), extractChatID(update))
+	})
+
+	t.Run("extracts from callback query", func(t *testing.T) {
+		t.Parallel()
+		update := &tgmodels.Update{
+			CallbackQuery: &tgmodels.CallbackQuery{
+				Message: tgmodels.MaybeInaccessibleMessage{
+					Message: &tgmodels.Message{
+						Chat: tgmodels.Chat{ID: 67890},
+					},
+				},
+			},
+		}
+		require.Equal(t, int64(67890), extractChatID(update))
+	})
+
+	t.Run("extracts from edited message", func(t *testing.T) {
+		t.Parallel()
+		update := &tgmodels.Update{
+			EditedMessage: &tgmodels.Message{
+				Chat: tgmodels.Chat{ID: 11111},
+			},
+		}
+		require.Equal(t, int64(11111), extractChatID(update))
+	})
+
+	t.Run("returns zero for empty update", func(t *testing.T) {
+		t.Parallel()
+		update := &tgmodels.Update{}
+		require.Equal(t, int64(0), extractChatID(update))
+	})
+}
+
 func TestLogUserAction(t *testing.T) {
 	t.Parallel()
 
@@ -344,6 +388,78 @@ func TestWhitelistMiddleware(t *testing.T) {
 		middleware(ctx, nil, update)
 
 		require.False(t, nextCalled, "next handler should NOT be called for non-whitelisted callback")
+	})
+
+	t.Run("blocks disallowed chat for message", func(t *testing.T) {
+		cfg := &config.Config{
+			WhitelistedUserIDs: []int64{12345},
+			AllowedChatIDs:     []int64{777},
+		}
+		b := &Bot{
+			cfg:              cfg,
+			userRepo:         repository.NewUserRepository(tx),
+			approvedUserRepo: repository.NewApprovedUserRepository(tx),
+			pendingEdits:     make(map[int64]*pendingEdit),
+		}
+
+		nextCalled := false
+		next := func(_ context.Context, _ *bot.Bot, _ *tgmodels.Update) {
+			nextCalled = true
+		}
+
+		update := mocks.MessageUpdate(999, 12345, testMessage)
+		middleware := b.whitelistMiddleware(next)
+		middleware(ctx, nil, update)
+
+		require.False(t, nextCalled, "next handler should NOT be called for disallowed chat")
+	})
+
+	t.Run("allows configured chat for whitelisted user", func(t *testing.T) {
+		cfg := &config.Config{
+			WhitelistedUserIDs: []int64{12345},
+			AllowedChatIDs:     []int64{999},
+		}
+		b := &Bot{
+			cfg:              cfg,
+			userRepo:         repository.NewUserRepository(tx),
+			approvedUserRepo: repository.NewApprovedUserRepository(tx),
+			pendingEdits:     make(map[int64]*pendingEdit),
+		}
+
+		nextCalled := false
+		next := func(_ context.Context, _ *bot.Bot, _ *tgmodels.Update) {
+			nextCalled = true
+		}
+
+		update := mocks.MessageUpdate(999, 12345, testMessage)
+		middleware := b.whitelistMiddleware(next)
+		middleware(ctx, nil, update)
+
+		require.True(t, nextCalled, "next handler should be called for allowed chat")
+	})
+
+	t.Run("blocks disallowed chat for callback query", func(t *testing.T) {
+		cfg := &config.Config{
+			WhitelistedUserIDs: []int64{12345},
+			AllowedChatIDs:     []int64{555},
+		}
+		b := &Bot{
+			cfg:              cfg,
+			userRepo:         repository.NewUserRepository(tx),
+			approvedUserRepo: repository.NewApprovedUserRepository(tx),
+			pendingEdits:     make(map[int64]*pendingEdit),
+		}
+
+		nextCalled := false
+		next := func(_ context.Context, _ *bot.Bot, _ *tgmodels.Update) {
+			nextCalled = true
+		}
+
+		update := mocks.CallbackQueryUpdate(999, 12345, 1, "receipt_confirm_1")
+		middleware := b.whitelistMiddleware(next)
+		middleware(ctx, nil, update)
+
+		require.False(t, nextCalled, "next handler should NOT be called for disallowed callback chat")
 	})
 }
 

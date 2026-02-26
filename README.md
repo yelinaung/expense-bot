@@ -121,6 +121,10 @@ WHITELISTED_USER_IDS=123456789,987654321
 # Alternative to user IDs, accepts with or without @ prefix
 WHITELISTED_USERNAMES=alice,bob,@charlie
 
+# Allowed chat/group IDs (optional). If set, bot only responds in these chats.
+# Supergroup IDs are typically negative, e.g. -1001234567890
+ALLOWED_CHAT_IDS=-1001234567890
+
 # Hash salt for privacy-preserving logging (generate with: openssl rand -hex 32)
 # Must be at least 32 characters
 LOG_HASH_SALT=generate_random_64_char_hex_string_here
@@ -455,6 +459,7 @@ The project uses:
 | `DATABASE_URL` | Yes | PostgreSQL connection string | - |
 | `WHITELISTED_USER_IDS` | Yes* | Comma-separated Telegram user IDs | - |
 | `WHITELISTED_USERNAMES` | Yes* | Comma-separated Telegram usernames | - |
+| `ALLOWED_CHAT_IDS` | No | Comma-separated allowed chat IDs (bot is blocked elsewhere when set) | empty |
 | `LOG_HASH_SALT` | Yes | Random string for privacy-preserving logging (min 32 chars) | - |
 | `GEMINI_API_KEY` | No | Google Gemini API key for OCR and auto-categorization | - |
 | `EXCHANGE_RATE_BASE_URL` | No | Base URL for exchange rate API | `https://api.frankfurter.app` |

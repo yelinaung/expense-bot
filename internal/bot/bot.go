@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"sync"
 	"time"
 
@@ -362,9 +363,23 @@ func (b *Bot) isAuthorized(ctx context.Context, userID int64, username string) b
 	return approved
 }
 
-// whitelistMiddleware checks if the user is whitelisted before processing.
+// whitelistMiddleware checks chat allowlist and user authorization before processing.
 func (b *Bot) whitelistMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 	return func(ctx context.Context, tgBot *bot.Bot, update *tgmodels.Update) {
+		chatID := extractChatID(update)
+		if chatID != 0 && !b.isChatAllowed(chatID) {
+			logger.Log.Warn().
+				Int64("chat_id", chatID).
+				Msg("Blocked message from disallowed chat")
+			if tgBot != nil {
+				_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+					ChatID: chatID,
+					Text:   "⛔ Sorry, this bot is not enabled in this chat.",
+				})
+			}
+			return
+		}
+
 		userID := extractUserID(update)
 		if userID == 0 {
 			return
@@ -378,9 +393,9 @@ func (b *Bot) whitelistMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 				Int64("user_id", userID).
 				Str("username", username).
 				Msg("Blocked non-whitelisted user")
-			if update.Message != nil {
+			if chatID != 0 && tgBot != nil {
 				_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
-					ChatID: update.Message.Chat.ID,
+					ChatID: chatID,
 					Text:   "⛔ Sorry, you are not authorized to use this bot.",
 				})
 			}
@@ -396,6 +411,13 @@ func (b *Bot) whitelistMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 
 		next(ctx, tgBot, update)
 	}
+}
+
+func (b *Bot) isChatAllowed(chatID int64) bool {
+	if len(b.cfg.AllowedChatIDs) == 0 {
+		return true
+	}
+	return slices.Contains(b.cfg.AllowedChatIDs, chatID)
 }
 
 // logUserAction logs the user's input/action.
@@ -496,6 +518,20 @@ func extractUserID(update *tgmodels.Update) int64 {
 	}
 	if update.EditedMessage != nil && update.EditedMessage.From != nil {
 		return update.EditedMessage.From.ID
+	}
+	return 0
+}
+
+// extractChatID gets the chat ID from various update types.
+func extractChatID(update *tgmodels.Update) int64 {
+	if update.Message != nil {
+		return update.Message.Chat.ID
+	}
+	if update.CallbackQuery != nil && update.CallbackQuery.Message.Message != nil {
+		return update.CallbackQuery.Message.Message.Chat.ID
+	}
+	if update.EditedMessage != nil {
+		return update.EditedMessage.Chat.ID
 	}
 	return 0
 }

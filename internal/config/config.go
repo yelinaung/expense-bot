@@ -27,6 +27,7 @@ type Config struct {
 	LogLevel             string
 	WhitelistedUserIDs   []int64
 	WhitelistedUsernames []string
+	AllowedChatIDs       []int64
 	DailyReminderEnabled bool
 	ReminderHour         int
 	ReminderTimezone     string
@@ -61,6 +62,7 @@ func Load() (*Config, error) {
 	applyOTelConfig(cfg)
 	cfg.WhitelistedUserIDs = parseWhitelistedUserIDs(os.Getenv("WHITELISTED_USER_IDS"))
 	cfg.WhitelistedUsernames = parseWhitelistedUsernames(os.Getenv("WHITELISTED_USERNAMES"))
+	cfg.AllowedChatIDs = parseAllowedChatIDs(os.Getenv("ALLOWED_CHAT_IDS"))
 
 	// Validate required configuration.
 	if err := cfg.validate(); err != nil {
@@ -148,6 +150,14 @@ func applyOTelConfig(cfg *Config) {
 }
 
 func parseWhitelistedUserIDs(raw string) []int64 {
+	return parseInt64List(raw)
+}
+
+func parseAllowedChatIDs(raw string) []int64 {
+	return parseInt64List(raw)
+}
+
+func parseInt64List(raw string) []int64 {
 	var ids []int64
 	for idStr := range strings.SplitSeq(raw, ",") {
 		idStr = strings.TrimSpace(idStr)

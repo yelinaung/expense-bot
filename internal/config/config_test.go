@@ -14,6 +14,7 @@ const (
 	envDatabaseURL                           = "DATABASE_URL"
 	envWhitelistedUserIDs                    = "WHITELISTED_USER_IDS"
 	envWhitelistedUsernames                  = "WHITELISTED_USERNAMES"
+	envAllowedChatIDs                        = "ALLOWED_CHAT_IDS"
 	envReminderHour                          = "REMINDER_HOUR"
 	envReminderTimezone                      = "REMINDER_TIMEZONE"
 	adminUsernameConfigTest                  = "admin"
@@ -164,6 +165,28 @@ func TestLoad(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, []int64{123, 456}, cfg.WhitelistedUserIDs)
 		require.Equal(t, []string{aliceUsernameConfigTest, "bob"}, cfg.WhitelistedUsernames)
+	})
+
+	t.Run("parses allowed chat IDs", func(t *testing.T) {
+		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
+		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
+		t.Setenv(envWhitelistedUserIDs, "123")
+		t.Setenv(envAllowedChatIDs, "-100123,-200,300")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Equal(t, []int64{-100123, -200, 300}, cfg.AllowedChatIDs)
+	})
+
+	t.Run("skips invalid allowed chat IDs", func(t *testing.T) {
+		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
+		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
+		t.Setenv(envWhitelistedUserIDs, "123")
+		t.Setenv(envAllowedChatIDs, "-100,invalid,200")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Equal(t, []int64{-100, 200}, cfg.AllowedChatIDs)
 	})
 }
 
