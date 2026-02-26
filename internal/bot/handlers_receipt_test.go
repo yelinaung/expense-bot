@@ -2,13 +2,19 @@ package bot
 
 import (
 	"context"
+	"errors"
+	"io"
+	"net/http"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/go-telegram/bot/models"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/bot/mocks"
+	"gitlab.com/yelinaung/expense-bot/internal/gemini"
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
+	"google.golang.org/genai"
 )
 
 const (
@@ -97,6 +103,26 @@ func TestHandleReceiptCallbackCore(t *testing.T) {
 		b.handleReceiptCallbackCore(ctx, mockBot, update)
 		require.Len(t, mockBot.EditedMessages, 1)
 		require.Contains(t, mockBot.EditedMessages[0].Text, "Expense not found")
+	})
+
+	t.Run("invalid expense id returns early", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+		update := &models.Update{
+			CallbackQuery: &models.CallbackQuery{
+				ID:   callbackIDReceipt,
+				From: models.User{ID: userID},
+				Data: "receipt_confirm_not-a-number",
+				Message: models.MaybeInaccessibleMessage{
+					Message: &models.Message{
+						ID:   100,
+						Chat: models.Chat{ID: 12345},
+					},
+				},
+			},
+		}
+		b.handleReceiptCallbackCore(ctx, mockBot, update)
+		require.Len(t, mockBot.AnsweredCallbacks, 1)
+		require.Zero(t, mockBot.EditedMessageCount())
 	})
 
 	t.Run("user mismatch returns early", func(t *testing.T) {
@@ -333,4 +359,98 @@ func TestHandleBackToReceiptCore(t *testing.T) {
 		require.Len(t, mockBot.EditedMessages, 1)
 		require.Contains(t, mockBot.EditedMessages[0].Text, categories[0].Name)
 	})
+}
+
+type receiptRoundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f receiptRoundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
+}
+
+func TestHandlePhotoCore_DownloadError(t *testing.T) {
+	t.Parallel()
+
+	b := &Bot{
+		geminiClient: gemini.NewClientWithGenerator(&botTestGenerator{}),
+	}
+	mockBot := mocks.NewMockBot()
+	mockBot.GetFileError = errors.New("get file failed")
+
+	update := mocks.PhotoUpdate(12345, 100, "photo-file-id")
+
+	b.handlePhotoCore(context.Background(), mockBot, update)
+
+	require.Equal(t, 2, mockBot.SentMessageCount())
+	require.Contains(t, mockBot.SentMessages[0].Text, "Processing receipt")
+	require.Contains(t, mockBot.SentMessages[1].Text, "Failed to download photo")
+}
+
+func TestHandlePhotoCore_ParseError(t *testing.T) {
+	t.Parallel()
+
+	b := &Bot{
+		geminiClient: gemini.NewClientWithGenerator(&botTestGenerator{
+			err: errors.New("parse failed"),
+		}),
+		httpClient: &http.Client{
+			Transport: receiptRoundTripperFunc(func(*http.Request) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader("fake-image-bytes")),
+					Header:     make(http.Header),
+				}, nil
+			}),
+		},
+	}
+	mockBot := mocks.NewMockBot()
+	update := mocks.PhotoUpdate(12345, 100, "photo-file-id")
+
+	b.handlePhotoCore(context.Background(), mockBot, update)
+
+	require.Equal(t, 2, mockBot.SentMessageCount())
+	require.Contains(t, mockBot.SentMessages[0].Text, "Processing receipt")
+	require.Contains(t, mockBot.SentMessages[1].Text, "Could not read this receipt")
+}
+
+func TestHandlePhotoCore_Success(t *testing.T) {
+	pool := TestDB(t)
+	b := setupTestBot(t, pool)
+	ctx := context.Background()
+	require.NoError(t, b.userRepo.UpsertUser(ctx, &appmodels.User{
+		ID:        100,
+		Username:  "photo-success-user",
+		FirstName: "Photo",
+	}))
+	b.geminiClient = gemini.NewClientWithGenerator(&botTestGenerator{
+		response: &genai.GenerateContentResponse{
+			Candidates: []*genai.Candidate{
+				{
+					Content: &genai.Content{
+						Parts: []*genai.Part{
+							{
+								Text: `{"amount":"12.50","currency":"SGD","merchant":"Cafe","date":"2026-02-26","suggested_category":"Food - Dining Out","confidence":0.95}`,
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+	b.httpClient = &http.Client{
+		Transport: receiptRoundTripperFunc(func(*http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("fake-image-bytes")),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+	mockBot := mocks.NewMockBot()
+	update := mocks.PhotoUpdate(12345, 100, "photo-file-id")
+
+	b.handlePhotoCore(ctx, mockBot, update)
+
+	require.Equal(t, 2, mockBot.SentMessageCount())
+	require.Contains(t, mockBot.SentMessages[0].Text, "Processing receipt")
+	require.Contains(t, mockBot.SentMessages[1].Text, "Receipt Scanned")
 }
