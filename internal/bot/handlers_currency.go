@@ -102,9 +102,9 @@ To change it, use:
 <code>/setcurrency USD</code>
 
 You can also specify currency per expense:
-• <code>$10 Coffee</code> (USD)
+• <code>$10 Coffee</code> (your default currency)
 • <code>€5 Lunch</code> (EUR)
-• <code>50 THB Taxi</code>`, currency, symbol)
+• <code>USD 50 Taxi</code> (explicit code)`, currency, symbol)
 
 	_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    chatID,
@@ -133,9 +133,9 @@ func (b *Bot) buildCurrencyListMessage() string {
 	}
 
 	sb.WriteString("\n<b>Tip:</b> You can also use currency symbols:\n")
-	sb.WriteString("• <code>$10 Coffee</code> → USD\n")
+	sb.WriteString("• <code>$10 Coffee</code> → your default currency\n")
 	sb.WriteString("• <code>€5.50 Lunch</code> → EUR\n")
-	sb.WriteString("• <code>50 THB Taxi</code> → THB\n")
+	sb.WriteString("• <code>USD 10 Coffee</code> → USD (explicit code)\n")
 
 	return sb.String()
 }
