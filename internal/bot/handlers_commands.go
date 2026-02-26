@@ -612,9 +612,8 @@ func (b *Bot) saveExpenseCore(
 
 	if b.metrics != nil {
 		b.metrics.ExpenseOps.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("operation", "add"), attribute.String("status", "ok")))
-		if f, exact := expense.Amount.Float64(); exact {
-			b.metrics.ExpenseAmount.Record(ctx, f, otelmetric.WithAttributes(attribute.String("currency", expense.Currency)))
-		}
+		f, _ := expense.Amount.Float64()
+		b.metrics.ExpenseAmount.Record(ctx, f, otelmetric.WithAttributes(attribute.String("currency", expense.Currency)))
 	}
 
 	b.saveInlineTags(ctx, expense.ID, parsed.Tags)

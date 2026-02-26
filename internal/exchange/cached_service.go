@@ -8,30 +8,9 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	otelmetric "go.opentelemetry.io/otel/metric"
 )
-
-var (
-	exchangeMeter     = otel.Meter("expense-bot/exchange")
-	exchangeCacheHits otelmetric.Int64Counter
-	exchangeCacheMiss otelmetric.Int64Counter
-)
-
-func init() {
-	var err error
-	exchangeCacheHits, err = exchangeMeter.Int64Counter("cache.hits",
-		otelmetric.WithDescription("Exchange rate cache hits"))
-	if err != nil {
-		exchangeCacheHits, _ = exchangeMeter.Int64Counter("cache.hits")
-	}
-	exchangeCacheMiss, err = exchangeMeter.Int64Counter("cache.misses",
-		otelmetric.WithDescription("Exchange rate cache misses"))
-	if err != nil {
-		exchangeCacheMiss, _ = exchangeMeter.Int64Counter("cache.misses")
-	}
-}
 
 type cachedRateEntry struct {
 	Rate      decimal.Decimal
@@ -47,11 +26,19 @@ type inFlightCall struct {
 
 const maxCleanupInterval = 5 * time.Minute
 
+// CacheMetrics holds optional OTel counters for cache hit/miss tracking.
+// When nil, no metrics are recorded.
+type CacheMetrics struct {
+	Hits   otelmetric.Int64Counter
+	Misses otelmetric.Int64Counter
+}
+
 // CachedService wraps an exchange Converter with in-memory TTL caching.
 // Cache entries are keyed by normalized "FROM->TO" currency pair.
 type CachedService struct {
-	inner Converter
-	ttl   time.Duration
+	inner   Converter
+	ttl     time.Duration
+	metrics *CacheMetrics
 
 	mu          sync.RWMutex
 	rates       map[string]cachedRateEntry
@@ -60,13 +47,15 @@ type CachedService struct {
 }
 
 // NewCachedService returns a converter that caches exchange rates in memory.
-func NewCachedService(inner Converter, ttl time.Duration) *CachedService {
+// The metrics parameter is optional; pass nil to disable cache metrics.
+func NewCachedService(inner Converter, ttl time.Duration, metrics *CacheMetrics) *CachedService {
 	if ttl <= 0 {
 		ttl = 12 * time.Hour
 	}
 	return &CachedService{
 		inner:    inner,
 		ttl:      ttl,
+		metrics:  metrics,
 		rates:    make(map[string]cachedRateEntry),
 		inFlight: make(map[string]*inFlightCall),
 	}
@@ -97,7 +86,9 @@ func (s *CachedService) Convert(
 	entry, ok := s.rates[key]
 	s.mu.RUnlock()
 	if ok && now.Before(entry.ExpiresAt) {
-		exchangeCacheHits.Add(ctx, 1, cacheAttr)
+		if s.metrics != nil {
+			s.metrics.Hits.Add(ctx, 1, cacheAttr)
+		}
 		return applyCachedRate(amount, entry), nil
 	}
 
@@ -106,10 +97,14 @@ func (s *CachedService) Convert(
 	entry, ok = s.rates[key]
 	if ok && now.Before(entry.ExpiresAt) {
 		s.mu.Unlock()
-		exchangeCacheHits.Add(ctx, 1, cacheAttr)
+		if s.metrics != nil {
+			s.metrics.Hits.Add(ctx, 1, cacheAttr)
+		}
 		return applyCachedRate(amount, entry), nil
 	}
-	exchangeCacheMiss.Add(ctx, 1, cacheAttr)
+	if s.metrics != nil {
+		s.metrics.Misses.Add(ctx, 1, cacheAttr)
+	}
 	if ok && !now.Before(entry.ExpiresAt) {
 		delete(s.rates, key)
 	}

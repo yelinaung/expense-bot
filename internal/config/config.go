@@ -14,6 +14,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const envTrue = "true"
+
 // Config holds all configuration for the application.
 type Config struct {
 	TelegramBotToken     string
@@ -106,7 +108,7 @@ func applyExchangeRateConfig(cfg *Config) error {
 }
 
 func applyReminderConfig(cfg *Config) {
-	cfg.DailyReminderEnabled = os.Getenv("DAILY_REMINDER_ENABLED") == "true"
+	cfg.DailyReminderEnabled = os.Getenv("DAILY_REMINDER_ENABLED") == envTrue
 	cfg.ReminderHour = 20
 	if hourStr := os.Getenv("REMINDER_HOUR"); hourStr != "" {
 		if h, err := strconv.Atoi(hourStr); err == nil && h >= 0 && h <= 23 {
@@ -122,7 +124,7 @@ func applyReminderConfig(cfg *Config) {
 }
 
 func applyOTelConfig(cfg *Config) {
-	cfg.OTelEnabled = os.Getenv("OTEL_ENABLED") == "true"
+	cfg.OTelEnabled = os.Getenv("OTEL_ENABLED") == envTrue
 	cfg.OTelServiceName = "expense-bot"
 	if name := os.Getenv("OTEL_SERVICE_NAME"); name != "" {
 		cfg.OTelServiceName = name
@@ -136,7 +138,7 @@ func applyOTelConfig(cfg *Config) {
 		cfg.OTelExporterType = t
 	}
 	cfg.OTelEndpoint = os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-	cfg.OTelInsecure = os.Getenv("OTEL_EXPORTER_OTLP_INSECURE") != "false" // default true
+	cfg.OTelInsecure = os.Getenv("OTEL_EXPORTER_OTLP_INSECURE") == envTrue // default false (secure-by-default)
 	cfg.OTelTraceSampleRate = 1.0
 	if rateStr := os.Getenv("OTEL_TRACE_SAMPLE_RATE"); rateStr != "" {
 		if rate, err := strconv.ParseFloat(rateStr, 64); err == nil && rate >= 0 && rate <= 1 {

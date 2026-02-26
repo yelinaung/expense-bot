@@ -56,10 +56,6 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 		Int("category_count", len(cleanedCategories)).
 		Msg("SuggestCategory: sending prompt to Gemini")
 
-	// Set timeout for API call
-	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
 	contents := []*genai.Content{
 		{
 			Role: "user",
@@ -116,7 +112,10 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 		),
 	)
 	defer span.End()
-	_ = ctx // timeoutCtx is already derived from the original ctx
+
+	// Derive timeout from the traced context so downstream calls are parented correctly.
+	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
 
 	fullText, err := c.callSuggestCategory(timeoutCtx, contents, config, descHash)
 	if err != nil {
