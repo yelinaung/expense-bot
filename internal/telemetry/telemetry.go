@@ -19,6 +19,8 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
+const unsupportedExporterTypeFmt = "unsupported exporter type: %q"
+
 // Providers holds the initialized OTel providers. Its Shutdown method is
 // always safe to call, even when OTel is disabled (no-op).
 type Providers struct {
@@ -125,7 +127,7 @@ func validateEndpoint(exporterType, endpoint string) error {
 	case ExporterStdout:
 		// no validation needed
 	default:
-		return fmt.Errorf("unsupported exporter type: %q", exporterType)
+		return fmt.Errorf(unsupportedExporterTypeFmt, exporterType)
 	}
 	return nil
 }
@@ -147,7 +149,7 @@ func newTraceExporter(ctx context.Context, exporterType, endpoint string, insecu
 	case ExporterStdout:
 		return stdouttrace.New(stdouttrace.WithPrettyPrint())
 	default:
-		return nil, fmt.Errorf("unsupported exporter type: %q", exporterType)
+		return nil, fmt.Errorf(unsupportedExporterTypeFmt, exporterType)
 	}
 }
 
@@ -168,7 +170,7 @@ func newMetricExporter(ctx context.Context, exporterType, endpoint string, insec
 	case ExporterStdout:
 		return stdoutmetric.New(stdoutmetric.WithPrettyPrint())
 	default:
-		return nil, fmt.Errorf("unsupported exporter type: %q", exporterType)
+		return nil, fmt.Errorf(unsupportedExporterTypeFmt, exporterType)
 	}
 }
 
