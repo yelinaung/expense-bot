@@ -16,6 +16,11 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+const (
+	telegramChatId = "telegram.chat_id"
+	telegramUserId = "telegram.user_id"
+)
+
 var tracer = otel.Tracer("expense-bot/telegram")
 
 // TracingMiddleware returns a bot middleware that creates a root span per
@@ -127,29 +132,29 @@ func updateAttributes(update *models.Update) []attribute.KeyValue {
 	switch {
 	case update.Message != nil:
 		attrs = append(attrs,
-			attribute.String("telegram.chat_id", logger.HashChatID(update.Message.Chat.ID)),
+			attribute.String(telegramChatId, logger.HashChatID(update.Message.Chat.ID)),
 		)
 		if update.Message.From != nil {
 			attrs = append(attrs,
-				attribute.String("telegram.user_id", logger.HashUserID(update.Message.From.ID)),
+				attribute.String(telegramUserId, logger.HashUserID(update.Message.From.ID)),
 			)
 		}
 	case update.CallbackQuery != nil:
 		attrs = append(attrs,
-			attribute.String("telegram.user_id", logger.HashUserID(update.CallbackQuery.From.ID)),
+			attribute.String(telegramUserId, logger.HashUserID(update.CallbackQuery.From.ID)),
 		)
 		if update.CallbackQuery.Message.Message != nil {
 			attrs = append(attrs,
-				attribute.String("telegram.chat_id", logger.HashChatID(update.CallbackQuery.Message.Message.Chat.ID)),
+				attribute.String(telegramChatId, logger.HashChatID(update.CallbackQuery.Message.Message.Chat.ID)),
 			)
 		}
 	case update.EditedMessage != nil:
 		attrs = append(attrs,
-			attribute.String("telegram.chat_id", logger.HashChatID(update.EditedMessage.Chat.ID)),
+			attribute.String(telegramChatId, logger.HashChatID(update.EditedMessage.Chat.ID)),
 		)
 		if update.EditedMessage.From != nil {
 			attrs = append(attrs,
-				attribute.String("telegram.user_id", logger.HashUserID(update.EditedMessage.From.ID)),
+				attribute.String(telegramUserId, logger.HashUserID(update.EditedMessage.From.ID)),
 			)
 		}
 	}
