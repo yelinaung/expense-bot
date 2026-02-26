@@ -4,7 +4,7 @@ FROM myoung34/github-runner:ubuntu-jammy # NOSONAR
 
 ARG GO_VERSION=1.26.0
 ARG GOLANGCI_LINT_VERSION=2.10.1
-ARG GORELEASER_VERSION=2.14.0
+ARG GORELEASER_VERSION=2.14.1
 ARG GITLEAKS_VERSION=8.30.0
 
 # Use bash with pipefail for RUN steps that use curl|tar pipelines.
