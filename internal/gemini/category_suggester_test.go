@@ -8,6 +8,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/genai"
 )
 
@@ -148,6 +152,35 @@ func TestSuggestCategory(t *testing.T) {
 		require.Nil(t, suggestion)
 		require.Contains(t, err.Error(), "no text content")
 	})
+}
+
+func TestSuggestCategory_PropagatesSpanContextToGenerator(t *testing.T) {
+	mockGen := &mockGenerator{
+		response: createMockCategoryResponse("Transportation", 0.98, "Taxi is a transportation expense"),
+	}
+	client := NewClientWithGenerator(mockGen)
+	traceProvider := sdktrace.NewTracerProvider(sdktrace.WithSampler(sdktrace.AlwaysSample()))
+	otel.SetTracerProvider(traceProvider)
+	t.Cleanup(func() {
+		otel.SetTracerProvider(noop.NewTracerProvider())
+		_ = traceProvider.Shutdown(context.Background())
+	})
+
+	suggestion, err := client.SuggestCategory(
+		context.Background(),
+		"taxi to airport",
+		[]string{"Transportation"},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, suggestion)
+	require.NotNil(t, mockGen.lastCtx)
+
+	_, hasDeadline := mockGen.lastCtx.Deadline()
+	require.True(t, hasDeadline, "expected timeout context to be passed to generator")
+
+	span := trace.SpanFromContext(mockGen.lastCtx)
+	spanCtx := span.SpanContext()
+	require.True(t, spanCtx.IsValid(), "expected active span context in generator call")
 }
 
 func TestBuildCategorySuggestionPrompt(t *testing.T) {
