@@ -18,11 +18,11 @@ func TestParseExpenseInput_Currency(t *testing.T) {
 		wantCurrency string
 	}{
 		{
-			name:         "dollar sign prefix",
+			name:         "dollar sign prefix is ambiguous and uses default currency",
 			input:        "$10 Coffee",
 			wantAmt:      "10.00",
 			wantDesc:     "Coffee",
-			wantCurrency: "USD",
+			wantCurrency: "",
 		},
 		{
 			name:         "euro sign prefix",
@@ -95,11 +95,11 @@ func TestParseExpenseInput_Currency(t *testing.T) {
 			wantCurrency: "JPY",
 		},
 		{
-			name:         "amount only with currency",
+			name:         "amount only with dollar prefix remains ambiguous",
 			input:        "$50",
 			wantAmt:      "50.00",
 			wantDesc:     "",
-			wantCurrency: "USD",
+			wantCurrency: "",
 		},
 		{
 			name:         "Malaysian Ringgit",

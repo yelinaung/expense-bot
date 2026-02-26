@@ -45,7 +45,7 @@ var bracketCategoryRegex = regexp.MustCompile(`\s*\[([^\]]+)\]\s*$`)
 
 // currencySymbolToCode maps currency symbols to currency codes.
 var currencySymbolToCode = map[string]string{
-	"$":   "USD", // Default $ to USD; user can override with explicit code
+	"$":   "USD", // Mapped here for trailing-$ lookup; leading $ is treated as ambiguous
 	"€":   "EUR",
 	"£":   "GBP",
 	"¥":   "JPY",
@@ -170,6 +170,11 @@ func parseCurrencyPrefix(input string) (currency string, remaining string) {
 
 	prefix := prefixMatch[1]
 	if code, ok := currencySymbolToCode[prefix]; ok {
+		// Treat leading "$" as ambiguous (same as trailing "$"): strip symbol
+		// and leave currency unset so user default currency applies.
+		if prefix == "$" {
+			return "", strings.TrimSpace(input[len(prefixMatch[0]):])
+		}
 		currency = code
 	} else if _, ok := models.SupportedCurrencies[prefix]; ok {
 		currency = prefix
