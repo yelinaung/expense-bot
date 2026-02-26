@@ -583,3 +583,54 @@ func TestConfig_CheckSuperAdmin(t *testing.T) {
 		require.Nil(t, binding, "pre-loaded binding should not produce a new binding")
 	})
 }
+
+func TestLoad_OTelConfig(t *testing.T) {
+	t.Run("uses secure-by-default OTel settings", func(t *testing.T) {
+		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
+		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
+		t.Setenv(envWhitelistedUserIDs, "123")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.False(t, cfg.OTelEnabled)
+		require.Equal(t, "otlp-grpc", cfg.OTelExporterType)
+		require.Equal(t, "expense-bot", cfg.OTelServiceName)
+		require.Equal(t, "production", cfg.OTelEnvironment)
+		require.False(t, cfg.OTelInsecure)
+		require.InEpsilon(t, 1.0, cfg.OTelTraceSampleRate, 1e-12)
+	})
+
+	t.Run("parses OTel env overrides", func(t *testing.T) {
+		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
+		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
+		t.Setenv(envWhitelistedUserIDs, "123")
+		t.Setenv("OTEL_ENABLED", "true")
+		t.Setenv("OTEL_SERVICE_NAME", "expense-bot-test")
+		t.Setenv("OTEL_ENVIRONMENT", "staging")
+		t.Setenv("OTEL_EXPORTER_TYPE", "otlp-http")
+		t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
+		t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
+		t.Setenv("OTEL_TRACE_SAMPLE_RATE", "0.25")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.True(t, cfg.OTelEnabled)
+		require.Equal(t, "expense-bot-test", cfg.OTelServiceName)
+		require.Equal(t, "staging", cfg.OTelEnvironment)
+		require.Equal(t, "otlp-http", cfg.OTelExporterType)
+		require.Equal(t, "http://localhost:4318", cfg.OTelEndpoint)
+		require.True(t, cfg.OTelInsecure)
+		require.InEpsilon(t, 0.25, cfg.OTelTraceSampleRate, 1e-12)
+	})
+
+	t.Run("keeps default sample rate for invalid OTel rate", func(t *testing.T) {
+		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
+		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
+		t.Setenv(envWhitelistedUserIDs, "123")
+		t.Setenv("OTEL_TRACE_SAMPLE_RATE", "2.0")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.InEpsilon(t, 1.0, cfg.OTelTraceSampleRate, 1e-12)
+	})
+}
