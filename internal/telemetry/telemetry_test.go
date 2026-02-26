@@ -51,3 +51,39 @@ func TestInitDisabledReturnsNoopProviders(t *testing.T) {
 	require.NotNil(t, providers)
 	require.NoError(t, providers.Shutdown(context.Background()))
 }
+
+func TestNewTraceExporter(t *testing.T) {
+	t.Parallel()
+
+	t.Run("creates stdout exporter", func(t *testing.T) {
+		t.Parallel()
+		exp, err := newTraceExporter(context.Background(), ExporterStdout, "", false)
+		require.NoError(t, err)
+		require.NotNil(t, exp)
+	})
+
+	t.Run("returns error for unsupported exporter", func(t *testing.T) {
+		t.Parallel()
+		exp, err := newTraceExporter(context.Background(), "invalid", "", false)
+		require.Error(t, err)
+		require.Nil(t, exp)
+	})
+}
+
+func TestNewMetricExporter(t *testing.T) {
+	t.Parallel()
+
+	t.Run("creates stdout exporter", func(t *testing.T) {
+		t.Parallel()
+		exp, err := newMetricExporter(context.Background(), ExporterStdout, "", false)
+		require.NoError(t, err)
+		require.NotNil(t, exp)
+	})
+
+	t.Run("returns error for unsupported exporter", func(t *testing.T) {
+		t.Parallel()
+		exp, err := newMetricExporter(context.Background(), "invalid", "", false)
+		require.Error(t, err)
+		require.Nil(t, exp)
+	})
+}
