@@ -56,7 +56,7 @@ func TestMainExitsWhenTelemetryInitFails(t *testing.T) {
 		os.Environ(),
 		"TEST_MAIN_TELEMETRY_FAIL=1",
 		"TELEGRAM_BOT_TOKEN=test-token",
-		"DATABASE_URL=postgres://user:pass@localhost:5432/db?sslmode=disable",
+		"DATABASE_URL=postgres://user:pass@localhost:5432/db?sslmode=disable", //gitleaks:allow
 		"WHITELISTED_USER_IDS=1",
 		"LOG_HASH_SALT=test-salt-for-main-tests-1234567890",
 		"OTEL_ENABLED=true",
