@@ -76,4 +76,19 @@ func TestUpdateAttributes(t *testing.T) {
 		require.Equal(t, logger.HashUserID(77), attrs["telegram.user_id"])
 		require.Equal(t, logger.HashChatID(88), attrs["telegram.chat_id"])
 	})
+
+	t.Run("extracts edited message user and chat attributes", func(t *testing.T) {
+		t.Parallel()
+		update := &models.Update{
+			EditedMessage: &models.Message{
+				Chat: models.Chat{ID: 66},
+				From: &models.User{ID: 55},
+			},
+		}
+
+		attrs := attrsToMap(updateAttributes(update))
+		require.Equal(t, "telegram", attrs["messaging.system"])
+		require.Equal(t, logger.HashUserID(55), attrs["telegram.user_id"])
+		require.Equal(t, logger.HashChatID(66), attrs["telegram.chat_id"])
+	})
 }
