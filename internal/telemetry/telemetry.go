@@ -3,6 +3,7 @@ package telemetry
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"go.opentelemetry.io/otel"
@@ -141,8 +142,12 @@ func newTraceExporter(ctx context.Context, exporterType, endpoint string, insecu
 		}
 		return otlptracegrpc.New(ctx, opts...)
 	case ExporterOTLPHTTP:
-		opts := []otlptracehttp.Option{otlptracehttp.WithEndpoint(endpoint)}
-		if insecure {
+		httpEndpoint, httpInsecure, err := normalizeOTLPHTTPEndpoint(endpoint, insecure)
+		if err != nil {
+			return nil, err
+		}
+		opts := []otlptracehttp.Option{otlptracehttp.WithEndpoint(httpEndpoint)}
+		if httpInsecure {
 			opts = append(opts, otlptracehttp.WithInsecure())
 		}
 		return otlptracehttp.New(ctx, opts...)
@@ -162,8 +167,12 @@ func newMetricExporter(ctx context.Context, exporterType, endpoint string, insec
 		}
 		return otlpmetricgrpc.New(ctx, opts...)
 	case ExporterOTLPHTTP:
-		opts := []otlpmetrichttp.Option{otlpmetrichttp.WithEndpoint(endpoint)}
-		if insecure {
+		httpEndpoint, httpInsecure, err := normalizeOTLPHTTPEndpoint(endpoint, insecure)
+		if err != nil {
+			return nil, err
+		}
+		opts := []otlpmetrichttp.Option{otlpmetrichttp.WithEndpoint(httpEndpoint)}
+		if httpInsecure {
 			opts = append(opts, otlpmetrichttp.WithInsecure())
 		}
 		return otlpmetrichttp.New(ctx, opts...)
@@ -172,6 +181,21 @@ func newMetricExporter(ctx context.Context, exporterType, endpoint string, insec
 	default:
 		return nil, fmt.Errorf(unsupportedExporterTypeFmt, exporterType)
 	}
+}
+
+// normalizeOTLPHTTPEndpoint converts a URL-style endpoint into host:port as
+// expected by OTLP HTTP exporters and derives transport security from scheme.
+func normalizeOTLPHTTPEndpoint(endpoint string, insecure bool) (string, bool, error) {
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return "", false, fmt.Errorf("invalid otlp-http endpoint %q: %w", endpoint, err)
+	}
+	if u.Host == "" {
+		return "", false, fmt.Errorf("invalid otlp-http endpoint %q: host is required", endpoint)
+	}
+
+	httpInsecure := insecure || u.Scheme == "http"
+	return u.Host, httpInsecure, nil
 }
 
 func buildSampler(rate float64) trace.Sampler {

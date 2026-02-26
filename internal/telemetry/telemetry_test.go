@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
 )
 
 func TestValidateEndpoint(t *testing.T) {
@@ -44,7 +45,14 @@ func TestBuildSampler(t *testing.T) {
 }
 
 func TestInitDisabledReturnsNoopProviders(t *testing.T) {
-	t.Parallel()
+	prevTP := otel.GetTracerProvider()
+	prevMP := otel.GetMeterProvider()
+	prevProp := otel.GetTextMapPropagator()
+	t.Cleanup(func() {
+		otel.SetTracerProvider(prevTP)
+		otel.SetMeterProvider(prevMP)
+		otel.SetTextMapPropagator(prevProp)
+	})
 
 	providers, err := Init(context.Background(), &Config{Enabled: false})
 	require.NoError(t, err)
@@ -53,10 +61,16 @@ func TestInitDisabledReturnsNoopProviders(t *testing.T) {
 }
 
 func TestInitEnabled(t *testing.T) {
-	t.Parallel()
+	prevTP := otel.GetTracerProvider()
+	prevMP := otel.GetMeterProvider()
+	prevProp := otel.GetTextMapPropagator()
+	t.Cleanup(func() {
+		otel.SetTracerProvider(prevTP)
+		otel.SetMeterProvider(prevMP)
+		otel.SetTextMapPropagator(prevProp)
+	})
 
 	t.Run("initializes stdout providers", func(t *testing.T) {
-		t.Parallel()
 		providers, err := Init(context.Background(), &Config{
 			Enabled:         true,
 			ServiceName:     "expense-bot-test",
@@ -71,7 +85,6 @@ func TestInitEnabled(t *testing.T) {
 	})
 
 	t.Run("rejects invalid otlp grpc endpoint", func(t *testing.T) {
-		t.Parallel()
 		providers, err := Init(context.Background(), &Config{
 			Enabled:         true,
 			ServiceName:     "expense-bot-test",
@@ -86,7 +99,6 @@ func TestInitEnabled(t *testing.T) {
 	})
 
 	t.Run("rejects invalid otlp http endpoint", func(t *testing.T) {
-		t.Parallel()
 		providers, err := Init(context.Background(), &Config{
 			Enabled:         true,
 			ServiceName:     "expense-bot-test",
@@ -98,6 +110,38 @@ func TestInitEnabled(t *testing.T) {
 		})
 		require.Error(t, err)
 		require.Nil(t, providers)
+	})
+
+	t.Run("uses default endpoint for otlp grpc when endpoint is empty", func(t *testing.T) {
+		providers, err := Init(context.Background(), &Config{
+			Enabled:         true,
+			ServiceName:     "expense-bot-test",
+			ServiceVersion:  "test",
+			Environment:     "test",
+			ExporterType:    ExporterOTLPGRPC,
+			Endpoint:        "",
+			Insecure:        true,
+			TraceSampleRate: 1.0,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, providers)
+		_ = providers.Shutdown(context.Background())
+	})
+
+	t.Run("uses default endpoint for otlp http when endpoint is empty", func(t *testing.T) {
+		providers, err := Init(context.Background(), &Config{
+			Enabled:         true,
+			ServiceName:     "expense-bot-test",
+			ServiceVersion:  "test",
+			Environment:     "test",
+			ExporterType:    ExporterOTLPHTTP,
+			Endpoint:        "",
+			Insecure:        true,
+			TraceSampleRate: 1.0,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, providers)
+		_ = providers.Shutdown(context.Background())
 	})
 }
 
@@ -127,7 +171,7 @@ func TestNewTraceExporter(t *testing.T) {
 
 	t.Run("creates otlp http exporter", func(t *testing.T) {
 		t.Parallel()
-		exp, err := newTraceExporter(context.Background(), ExporterOTLPHTTP, "localhost:4318", true)
+		exp, err := newTraceExporter(context.Background(), ExporterOTLPHTTP, "http://localhost:4318", true)
 		require.NoError(t, err)
 		require.NotNil(t, exp)
 	})
@@ -159,7 +203,7 @@ func TestNewMetricExporter(t *testing.T) {
 
 	t.Run("creates otlp http exporter", func(t *testing.T) {
 		t.Parallel()
-		exp, err := newMetricExporter(context.Background(), ExporterOTLPHTTP, "localhost:4318", true)
+		exp, err := newMetricExporter(context.Background(), ExporterOTLPHTTP, "http://localhost:4318", true)
 		require.NoError(t, err)
 		require.NotNil(t, exp)
 	})
