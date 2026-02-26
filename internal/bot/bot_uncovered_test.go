@@ -3,6 +3,7 @@ package bot
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,6 +12,8 @@ import (
 
 	tgbot "github.com/go-telegram/bot"
 	tgmodels "github.com/go-telegram/bot/models"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/bot/mocks"
@@ -275,6 +278,37 @@ func TestNew_LoadsPersistedSuperadminBindings(t *testing.T) {
 
 	require.True(t, cfg.IsSuperAdmin(42, "alice"))
 	require.False(t, cfg.IsSuperAdmin(777, "alice"))
+}
+
+type failingBindingsDB struct{}
+
+func (f *failingBindingsDB) Exec(_ context.Context, _ string, _ ...any) (pgconn.CommandTag, error) {
+	return pgconn.CommandTag{}, nil
+}
+
+func (f *failingBindingsDB) Query(_ context.Context, _ string, _ ...any) (pgx.Rows, error) {
+	return nil, errors.New("load bindings failed")
+}
+
+func (f *failingBindingsDB) QueryRow(_ context.Context, _ string, _ ...any) pgx.Row {
+	return failingRow{}
+}
+
+type failingRow struct{}
+
+func (f failingRow) Scan(dest ...any) error {
+	return fmt.Errorf("unexpected QueryRow call in failingBindingsDB with %d dests", len(dest))
+}
+
+func TestNew_ContinuesWhenSuperadminBindingsLoadFails(t *testing.T) {
+	cfg := &config.Config{
+		TelegramBotToken: "",
+		ReminderTimezone: "UTC",
+	}
+
+	b, err := New(cfg, &failingBindingsDB{})
+	require.Error(t, err)
+	require.Nil(t, b)
 }
 
 func TestHandleAdminAndTagWrappers_NilMessage(t *testing.T) {
