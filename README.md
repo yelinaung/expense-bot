@@ -647,11 +647,44 @@ This application has undergone security hardening. See the [Security Documentati
 
 ## Monitoring
 
-The bot uses structured logging with zerolog. All operations log:
+### Structured Logging
+
+The bot uses zerolog for structured logging. All operations log:
 - User actions with user_id and username
 - Command execution with parameters
 - Errors with full context
 - Performance metrics (cache hits, query times)
+
+### OpenTelemetry (Optional)
+
+Set `OTEL_ENABLED=true` to enable distributed tracing and metrics via OpenTelemetry. Supports exporting to any OTLP-compatible backend (Jaeger, Grafana Tempo, Datadog, etc.).
+
+**Traces:**
+- Root span per Telegram update (commands, callbacks, voice, photos)
+- Child spans for database queries (automatic via otelpgx)
+- Child spans for external API calls (Gemini AI, Frankfurter FX, Telegram file downloads)
+- Background job spans (draft cleanup, daily reminders)
+
+**Metrics:**
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `telegram.handler.count` | Counter | Handled Telegram updates by handler and status |
+| `telegram.handler.duration` | Histogram | Update handling duration (seconds) |
+| `telegram.handler.in_flight` | UpDownCounter | Updates currently being processed |
+| `expense.operations` | Counter | Expense CRUD operations by type and status |
+| `expense.amount` | Histogram | Recorded expense amounts |
+| `external.api.duration` | Histogram | External API call duration (seconds) |
+| `external.api.errors` | Counter | External API error count |
+| `background.job.runs` | Counter | Background job executions by job and status |
+| `background.job.duration` | Histogram | Background job duration (seconds) |
+| `cache.hits` / `cache.misses` | Counter | Cache hit/miss rates (categories, exchange rates) |
+
+**Log Correlation:** When OTel is enabled, error-level logs include `trace_id` and `span_id` fields for correlating logs with traces.
+
+**Privacy:** All Telegram user and chat IDs are hashed (SHA256, salted) before embedding in span attributes.
+
+See [OTEL_INTEGRATION.md](./docs/OTEL_INTEGRATION.md) for full details and configuration.
 
 ## License
 
