@@ -65,43 +65,8 @@ type Bot struct {
 
 // New creates a new Bot instance.
 func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
-	bindingRepo := repository.NewSuperadminBindingRepository(db)
-	bindings, err := bindingRepo.LoadAll(context.Background())
-	if err != nil {
-		logger.Log.Warn().Err(err).Msg("Failed to load superadmin bindings from DB")
-	} else if len(bindings) > 0 {
-		configBindings := make([]config.SuperadminBinding, len(bindings))
-		for i, b := range bindings {
-			configBindings[i] = config.SuperadminBinding{
-				Username: b.Username,
-				UserID:   b.UserID,
-			}
-		}
-		cfg.LoadSuperadminBindings(configBindings)
-		logger.Log.Info().Int("count", len(bindings)).Msg("Loaded superadmin bindings from DB")
-	}
-
-	transport := http.DefaultTransport
-	if cfg.OTelEnabled {
-		transport = telemetry.InstrumentedTransport(nil)
-	}
-
-	var metrics *telemetry.BotMetrics
-	if cfg.OTelEnabled {
-		var err error
-		metrics, err = telemetry.NewBotMetrics()
-		if err != nil {
-			logger.Log.Warn().Err(err).Msg("Failed to create OTel metrics, continuing without metrics")
-		}
-	}
-
-	var cacheMetrics *exchange.CacheMetrics
-	if metrics != nil {
-		cacheMetrics = &exchange.CacheMetrics{
-			Hits:   metrics.CacheHits,
-			Misses: metrics.CacheMisses,
-		}
-	}
+	bindingRepo := loadSuperadminBindings(cfg, db)
+	transport, metrics := newOTelInstrumentation(cfg)
 
 	b := &Bot{
 		cfg:              cfg,
@@ -113,25 +78,13 @@ func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 		approvedUserRepo: repository.NewApprovedUserRepository(db),
 		bindingRepo:      bindingRepo,
 		pendingEdits:     make(map[int64]*pendingEdit),
-		exchangeService:  newExchangeService(cfg, transport, cacheMetrics),
+		exchangeService:  newExchangeService(cfg, transport, cacheMetricsFrom(metrics)),
 		httpClient:       &http.Client{Timeout: 30 * time.Second, Transport: transport},
 		metrics:          metrics,
+		geminiClient:     initGeminiClient(cfg.GeminiAPIKey),
 	}
 
-	if cfg.GeminiAPIKey != "" {
-		geminiClient, err := gemini.NewClient(context.Background(), cfg.GeminiAPIKey)
-		if err != nil {
-			logger.Log.Warn().Err(err).Msg("Failed to create Gemini client, receipt OCR disabled")
-		} else {
-			b.geminiClient = geminiClient
-			logger.Log.Info().Msg("Gemini client initialized for receipt OCR")
-		}
-	}
-
-	middlewares := []bot.Middleware{b.whitelistMiddleware}
-	if b.metrics != nil {
-		middlewares = []bot.Middleware{telemetry.TracingMiddleware(b.metrics), b.whitelistMiddleware}
-	}
+	middlewares := buildMiddlewares(b.whitelistMiddleware, b.metrics)
 
 	opts := []bot.Option{
 		bot.WithMiddlewares(middlewares...),
@@ -145,17 +98,102 @@ func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 
 	b.bot = telegramBot
 	b.messageSender = telegramBot
-
-	loc, err := time.LoadLocation(cfg.ReminderTimezone)
-	if err != nil {
-		loc = time.UTC
-	}
-	b.displayLocation = loc
+	b.displayLocation = loadDisplayLocation(cfg.ReminderTimezone)
 	b.nowFunc = time.Now
 
 	b.registerHandlers()
 
 	return b, nil
+}
+
+// loadSuperadminBindings loads persisted username→user_id bindings from the
+// database and applies them to the config. Returns the binding repository.
+func loadSuperadminBindings(cfg *config.Config, db database.PGXDB) *repository.SuperadminBindingRepository {
+	bindingRepo := repository.NewSuperadminBindingRepository(db)
+	bindings, err := bindingRepo.LoadAll(context.Background())
+	if err != nil {
+		logger.Log.Warn().Err(err).Msg("Failed to load superadmin bindings from DB")
+		return bindingRepo
+	}
+
+	if len(bindings) == 0 {
+		return bindingRepo
+	}
+
+	configBindings := make([]config.SuperadminBinding, len(bindings))
+	for i, b := range bindings {
+		configBindings[i] = config.SuperadminBinding{
+			Username: b.Username,
+			UserID:   b.UserID,
+		}
+	}
+	cfg.LoadSuperadminBindings(configBindings)
+	logger.Log.Info().Int("count", len(bindings)).Msg("Loaded superadmin bindings from DB")
+
+	return bindingRepo
+}
+
+// newOTelInstrumentation returns the HTTP transport and bot metrics when OTel
+// is enabled. When disabled both are safe defaults (DefaultTransport, nil).
+func newOTelInstrumentation(cfg *config.Config) (http.RoundTripper, *telemetry.BotMetrics) {
+	if !cfg.OTelEnabled {
+		return http.DefaultTransport, nil
+	}
+
+	transport := telemetry.InstrumentedTransport(nil)
+
+	metrics, err := telemetry.NewBotMetrics()
+	if err != nil {
+		logger.Log.Warn().Err(err).Msg("Failed to create OTel metrics, continuing without metrics")
+		return transport, nil
+	}
+
+	return transport, metrics
+}
+
+// cacheMetricsFrom builds exchange CacheMetrics from BotMetrics.
+// Returns nil when metrics are disabled.
+func cacheMetricsFrom(metrics *telemetry.BotMetrics) *exchange.CacheMetrics {
+	if metrics == nil {
+		return nil
+	}
+	return &exchange.CacheMetrics{
+		Hits:   metrics.CacheHits,
+		Misses: metrics.CacheMisses,
+	}
+}
+
+// initGeminiClient creates a Gemini client when an API key is provided.
+// Returns nil if the key is empty or client creation fails.
+func initGeminiClient(apiKey string) *gemini.Client {
+	if apiKey == "" {
+		return nil
+	}
+	client, err := gemini.NewClient(context.Background(), apiKey)
+	if err != nil {
+		logger.Log.Warn().Err(err).Msg("Failed to create Gemini client, receipt OCR disabled")
+		return nil
+	}
+	logger.Log.Info().Msg("Gemini client initialized for receipt OCR")
+	return client
+}
+
+// buildMiddlewares assembles the bot middleware chain. When metrics are
+// available the tracing middleware is prepended before the whitelist.
+func buildMiddlewares(whitelist bot.Middleware, metrics *telemetry.BotMetrics) []bot.Middleware {
+	if metrics != nil {
+		return []bot.Middleware{telemetry.TracingMiddleware(metrics), whitelist}
+	}
+	return []bot.Middleware{whitelist}
+}
+
+// loadDisplayLocation parses the timezone name and falls back to UTC.
+func loadDisplayLocation(timezone string) *time.Location {
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		return time.UTC
+	}
+	return loc
 }
 
 // now returns the current time and allows tests to inject a deterministic clock.
