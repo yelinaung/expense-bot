@@ -231,6 +231,7 @@ func (b *Bot) Start(ctx context.Context) {
 		logger.Log.Warn().Err(err).Msg("Failed to clear webhook (may be expected)")
 	}
 
+	b.registerCommands(ctx)
 	b.cleanupExpiredDrafts(ctx)
 
 	go b.startDraftCleanupLoop(ctx)
@@ -238,6 +239,40 @@ func (b *Bot) Start(ctx context.Context) {
 
 	logger.Log.Info().Msg("Bot started polling")
 	b.bot.Start(ctx)
+}
+
+// registerCommands registers bot commands with Telegram so they appear in the menu.
+func (b *Bot) registerCommands(ctx context.Context) {
+	commands := []tgmodels.BotCommand{
+		{Command: "add", Description: "Add an expense"},
+		{Command: "list", Description: "Show recent expenses"},
+		{Command: "today", Description: "Show today's expenses"},
+		{Command: "week", Description: "Show this week's expenses"},
+		{Command: "category", Description: "Filter expenses by category"},
+		{Command: "report", Description: "Generate CSV report (week/month)"},
+		{Command: "chart", Description: "Generate expense chart (week/month)"},
+		{Command: "categories", Description: "List all categories"},
+		{Command: "addcategory", Description: "Create a new category"},
+		{Command: "renamecategory", Description: "Rename a category"},
+		{Command: "deletecategory", Description: "Delete a category"},
+		{Command: "edit", Description: "Edit an expense"},
+		{Command: "delete", Description: "Delete an expense"},
+		{Command: "currency", Description: "Show your default currency"},
+		{Command: "setcurrency", Description: "Set default currency (e.g. USD, EUR)"},
+		{Command: "tag", Description: "Add tags to an expense"},
+		{Command: "untag", Description: "Remove a tag from an expense"},
+		{Command: "tags", Description: "List all tags or filter by tag"},
+		{Command: "help", Description: "Show all available commands"},
+	}
+
+	_, err := b.bot.SetMyCommands(ctx, &bot.SetMyCommandsParams{
+		Commands: commands,
+	})
+	if err != nil {
+		logger.Log.Warn().Err(err).Msg("Failed to register bot commands")
+		return
+	}
+	logger.Log.Info().Int("count", len(commands)).Msg("Bot commands registered")
 }
 
 // cleanupExpiredDrafts removes draft expenses older than DraftExpirationTimeout.
