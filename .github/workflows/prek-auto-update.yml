@@ -1,0 +1,38 @@
+name: Prek Auto-update
+
+on:
+  schedule:
+    # Run weekly on Mondays at 09:00 UTC
+    - cron: "0 9 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-update:
+    name: Update pre-commit hooks
+    runs-on: [self-hosted, Linux, X64, playground-ubuntu]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: j178/prek-action@v1
+        with:
+          install-only: true
+
+      - name: Run prek auto-update
+        run: prek auto-update --cooldown-days 3
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: chore/prek-auto-update
+          title: "chore: auto-update pre-commit hooks"
+          body: |
+            Automated update of pre-commit hook versions via `prek auto-update`.
+
+            Review the changes to `.pre-commit-config.yaml` and merge if CI passes.
+          commit-message: "chore: auto-update pre-commit hooks"
+          labels: dependencies
