@@ -402,16 +402,7 @@ func (b *Bot) isAuthorized(ctx context.Context, userID int64, username string) b
 func (b *Bot) whitelistMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 	return func(ctx context.Context, tgBot *bot.Bot, update *tgmodels.Update) {
 		chatID := extractChatID(update)
-		if chatID != 0 && !b.isChatAllowed(chatID) {
-			logger.Log.Warn().
-				Int64("chat_id", chatID).
-				Msg("Blocked message from disallowed chat")
-			if tgBot != nil {
-				_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
-					ChatID: chatID,
-					Text:   "⛔ Sorry, this bot is not enabled in this chat.",
-				})
-			}
+		if b.blockDisallowedChat(ctx, tgBot, chatID) {
 			return
 		}
 
@@ -423,17 +414,7 @@ func (b *Bot) whitelistMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 		username := extractUsername(update)
 		logUserAction(userID, username, update)
 
-		if !b.isAuthorized(ctx, userID, username) {
-			logger.Log.Warn().
-				Int64("user_id", userID).
-				Str("username", username).
-				Msg("Blocked non-whitelisted user")
-			if chatID != 0 && tgBot != nil {
-				_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
-					ChatID: chatID,
-					Text:   "⛔ Sorry, you are not authorized to use this bot.",
-				})
-			}
+		if b.blockUnauthorizedUser(ctx, tgBot, chatID, userID, username) {
 			return
 		}
 
@@ -446,6 +427,46 @@ func (b *Bot) whitelistMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 
 		next(ctx, tgBot, update)
 	}
+}
+
+func (b *Bot) blockDisallowedChat(ctx context.Context, tgBot *bot.Bot, chatID int64) bool {
+	if chatID == 0 || b.isChatAllowed(chatID) {
+		return false
+	}
+
+	logger.Log.Warn().
+		Int64("chat_id", chatID).
+		Msg("Blocked message from disallowed chat")
+	if tgBot != nil {
+		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "⛔ Sorry, this bot is not enabled in this chat.",
+		})
+	}
+	return true
+}
+
+func (b *Bot) blockUnauthorizedUser(
+	ctx context.Context,
+	tgBot *bot.Bot,
+	chatID, userID int64,
+	username string,
+) bool {
+	if b.isAuthorized(ctx, userID, username) {
+		return false
+	}
+
+	logger.Log.Warn().
+		Int64("user_id", userID).
+		Str("username", username).
+		Msg("Blocked non-whitelisted user")
+	if chatID != 0 && tgBot != nil {
+		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "⛔ Sorry, you are not authorized to use this bot.",
+		})
+	}
+	return true
 }
 
 func (b *Bot) isChatAllowed(chatID int64) bool {
