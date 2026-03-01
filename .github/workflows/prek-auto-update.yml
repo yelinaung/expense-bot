@@ -2,8 +2,8 @@ name: Prek Auto-update
 
 on:
   schedule:
-    # Run weekly on Mondays at 09:00 UTC
-    - cron: "0 9 * * 1"
+    # Run daily at 09:00 UTC
+    - cron: "0 9 * * *"
   workflow_dispatch: {}
 
 permissions:
