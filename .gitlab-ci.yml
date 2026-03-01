@@ -130,7 +130,8 @@ prek:
   before_script:
     - apk add --no-cache curl git
     - curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/download/v0.3.4/prek-installer.sh | sh
-    - export PATH="$HOME/.local/bin:$PATH"
+    - export PATH="$HOME/.local/bin:$GOPATH/bin:$PATH"
+    - go install golang.org/x/tools/cmd/goimports@latest
   script:
     - prek run --all-files --show-diff-on-failure --color always
 

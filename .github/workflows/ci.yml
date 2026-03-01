@@ -98,8 +98,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install prek
-        run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/latest/download/prek-installer.sh | sh
+      - name: Install tools
+        run: |
+          curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/latest/download/prek-installer.sh | sh
+          go install golang.org/x/tools/cmd/goimports@latest
 
       - name: Run prek
         run: prek run --all-files --show-diff-on-failure --color always
