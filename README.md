@@ -564,8 +564,8 @@ openssl rand -hex 32
 
 1. Install pre-commit hooks:
    ```bash
-   pip install pre-commit
-   pre-commit install
+   curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/latest/download/prek-installer.sh | sh
+   prek install
    ```
 
 2. Run tests before committing:
