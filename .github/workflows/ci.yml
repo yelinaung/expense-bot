@@ -102,6 +102,7 @@ jobs:
         run: |
           curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/latest/download/prek-installer.sh | sh
           go install golang.org/x/tools/cmd/goimports@latest
+          curl --proto '=https' --tlsv1.2 -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b "$(go env GOPATH)/bin"
 
       - name: Run prek
         run: prek run --all-files --show-diff-on-failure --color always
