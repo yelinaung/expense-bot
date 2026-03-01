@@ -4,6 +4,16 @@
     "config:recommended"
   ],
   "minimumReleaseAge": "3 days",
+  "packageRules": [
+    {
+      "matchManagers": [
+        "gomod"
+      ],
+      "postUpdateOptions": [
+        "gomodTidy"
+      ]
+    }
+  ],
   "customManagers": [
     {
       "customType": "regex",
