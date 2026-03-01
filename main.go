@@ -91,7 +91,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		return wrapRunError("Failed to initialize OpenTelemetry", err)
 	}
 	defer func() {
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		shutdownCtx, shutdownCancel := context.WithTimeout(ctx, 10*time.Second)
 		defer shutdownCancel()
 		if err := otelProviders.Shutdown(shutdownCtx); err != nil {
 			logger.Log.Error().Err(err).Msg("Failed to shutdown OpenTelemetry")
