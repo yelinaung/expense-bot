@@ -120,6 +120,13 @@ prek:
   tags:
     - playground-bravo
   extends: .go-cache
+  needs:
+    - job: secret_detection
+      artifacts: false
+    - job: semgrep-sast
+      artifacts: false
+    - job: gosec
+      artifacts: false
   before_script:
     - apk add --no-cache curl git
     - curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/download/v0.3.4/prek-installer.sh | sh
@@ -169,6 +176,8 @@ test:
     - job: lint
     - job: check_sast
     - job: gosec
+    - job: prek
+      artifacts: false
   services:
     - name: postgres:18-alpine
       alias: postgres
