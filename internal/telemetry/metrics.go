@@ -16,10 +16,6 @@ type BotMetrics struct {
 	ExpenseOps    otelmetric.Int64Counter
 	ExpenseAmount otelmetric.Float64Histogram
 
-	// External API metrics
-	ExternalAPIDuration otelmetric.Float64Histogram
-	ExternalAPIErrors   otelmetric.Int64Counter
-
 	// Background job metrics
 	BackgroundJobRuns     otelmetric.Int64Counter
 	BackgroundJobDuration otelmetric.Float64Histogram
@@ -65,19 +61,6 @@ func NewBotMetrics() (*BotMetrics, error) {
 		return nil, err
 	}
 
-	externalAPIDuration, err := meter.Float64Histogram("external.api.duration",
-		otelmetric.WithDescription("Duration of external API calls in seconds"),
-		otelmetric.WithUnit("s"))
-	if err != nil {
-		return nil, err
-	}
-
-	externalAPIErrors, err := meter.Int64Counter("external.api.errors",
-		otelmetric.WithDescription("Number of external API errors"))
-	if err != nil {
-		return nil, err
-	}
-
 	backgroundJobRuns, err := meter.Int64Counter("background.job.runs",
 		otelmetric.WithDescription("Number of background job runs"))
 	if err != nil {
@@ -115,8 +98,6 @@ func NewBotMetrics() (*BotMetrics, error) {
 		HandlersInFlight:      handlersInFlight,
 		ExpenseOps:            expenseOps,
 		ExpenseAmount:         expenseAmount,
-		ExternalAPIDuration:   externalAPIDuration,
-		ExternalAPIErrors:     externalAPIErrors,
 		BackgroundJobRuns:     backgroundJobRuns,
 		BackgroundJobDuration: backgroundJobDuration,
 		DraftsCleaned:         draftsCleaned,

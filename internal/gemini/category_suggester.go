@@ -104,7 +104,7 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 		},
 	}
 
-	ctx, span := receiptTracer.Start(ctx, "gemini.generate_content",
+	ctx, span := geminiTracer.Start(ctx, "gemini.generate_content",
 		trace.WithAttributes(
 			attribute.String("gemini.model", ModelName),
 			attribute.String("gemini.operation", "suggest_category"),

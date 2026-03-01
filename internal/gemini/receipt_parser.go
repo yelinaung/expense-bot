@@ -16,7 +16,7 @@ import (
 	"google.golang.org/genai"
 )
 
-var receiptTracer = otel.Tracer("expense-bot/gemini")
+var geminiTracer = otel.Tracer("expense-bot/gemini")
 
 // ParseReceiptTimeout is the timeout for Gemini API calls.
 const ParseReceiptTimeout = 30 * time.Second
@@ -98,7 +98,7 @@ func (c *Client) ParseReceipt(ctx context.Context, imageBytes []byte, mimeType s
 		mimeType = "image/jpeg"
 	}
 
-	ctx, span := receiptTracer.Start(ctx, "gemini.generate_content",
+	ctx, span := geminiTracer.Start(ctx, "gemini.generate_content",
 		trace.WithAttributes(
 			attribute.String("gemini.model", ModelName),
 			attribute.String("gemini.operation", "parse_receipt"),
