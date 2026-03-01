@@ -46,7 +46,7 @@ func TestRegisterCommands_CommandsAreValid(t *testing.T) {
 	)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "setMyCommands") {
-			if err := r.ParseMultipartForm(1 << 20); err == nil {
+			if r.ParseMultipartForm(1<<20) == nil {
 				if vals, ok := r.MultipartForm.Value["commands"]; ok && len(vals) > 0 {
 					mu.Lock()
 					capturedCommands = vals[0]
