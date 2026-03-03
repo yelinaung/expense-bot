@@ -11,8 +11,8 @@ import (
 
 func attrsToMap(attrs []attribute.KeyValue) map[string]string {
 	out := make(map[string]string, len(attrs))
-	for _, kv := range attrs {
-		out[string(kv.Key)] = kv.Value.AsString()
+	for i := range attrs {
+		out[string(attrs[i].Key)] = attrs[i].Value.AsString()
 	}
 	return out
 }

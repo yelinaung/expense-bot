@@ -178,7 +178,7 @@ func (r *TagRepository) Delete(ctx context.Context, id int) error {
 }
 
 // GetExpensesByTagID retrieves confirmed expenses that have a specific tag.
-func (r *TagRepository) GetExpensesByTagID(ctx context.Context, userID int64, tagID int, limit int) ([]models.Expense, error) {
+func (r *TagRepository) GetExpensesByTagID(ctx context.Context, userID int64, tagID, limit int) ([]models.Expense, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT e.id, e.user_expense_number, e.user_id, e.amount, e.currency, e.description, e.merchant, e.category_id,
 		       e.receipt_file_id, e.status, e.created_at, e.updated_at,

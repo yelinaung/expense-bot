@@ -232,7 +232,8 @@ func (b *Bot) handleUsersCore(ctx context.Context, tg TelegramAPI, update *model
 	if len(approved) == 0 {
 		sb.WriteString("  (none)\n")
 	} else {
-		for _, u := range approved {
+		for i := range approved {
+			u := approved[i]
 			switch {
 			case u.UserID != 0 && u.Username != "":
 				fmt.Fprintf(&sb, "  ID: <code>%d</code> (@%s)\n", u.UserID, escapeHTML(u.Username))

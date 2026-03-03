@@ -25,6 +25,6 @@ type TxBeginner interface {
 // Ensure types implement the interface at compile time.
 var (
 	_ PGXDB      = (*pgxpool.Pool)(nil)
-	_ PGXDB      = (pgx.Tx)(nil)
+	_ PGXDB      = pgx.Tx(nil)
 	_ TxBeginner = (*pgxpool.Pool)(nil)
 )

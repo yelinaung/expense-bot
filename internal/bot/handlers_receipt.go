@@ -448,12 +448,12 @@ func (b *Bot) handleCancelReceiptCore(
 
 	logger.Log.Info().
 		Int("expense_id", expense.ID).
-		Msg("Expense cancelled via callback")
+		Msg("Expense canceled via callback")
 
 	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:    chatID,
 		MessageID: messageID,
-		Text:      "🗑️ Receipt scan cancelled. The expense was not saved.",
+		Text:      "🗑️ Receipt scan canceled. The expense was not saved.",
 	})
 }
 
