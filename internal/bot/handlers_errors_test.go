@@ -16,8 +16,8 @@ import (
 func setupHandlerErrorTest(t *testing.T) (*Bot, context.Context, database.PGXDB) {
 	t.Helper()
 
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	// Create bot instance
 	expenseRepo := repository.NewExpenseRepository(tx)

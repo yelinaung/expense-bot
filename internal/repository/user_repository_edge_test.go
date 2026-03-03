@@ -11,8 +11,8 @@ import (
 
 // TestUserRepository_UpsertUserEdgeCases tests edge cases for user upsert.
 func TestUserRepository_UpsertUserEdgeCases(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewUserRepository(tx)
 
@@ -120,8 +120,8 @@ func TestUserRepository_UpsertUserEdgeCases(t *testing.T) {
 	t.Run("upsert with unicode characters", func(t *testing.T) {
 		user := &models.User{
 			ID:        333,
-			Username:  "用户名",
-			FirstName: "名前",
+			Username:  "用户名", //nolint:gosmopolitan // Intentional Unicode coverage.
+			FirstName: "名前",  //nolint:gosmopolitan // Intentional Unicode coverage.
 			LastName:  "Фамилия",
 		}
 
@@ -225,8 +225,8 @@ func TestUserRepository_UpsertUserEdgeCases(t *testing.T) {
 
 // TestUserRepository_GetUserByIDEdgeCases tests edge cases for GetUserByID.
 func TestUserRepository_GetUserByIDEdgeCases(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewUserRepository(tx)
 

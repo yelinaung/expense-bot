@@ -9,8 +9,8 @@ import (
 )
 
 func TestCategoryRepository_CRUD(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewCategoryRepository(tx)
 
@@ -75,8 +75,8 @@ func TestCategoryRepository_CRUD(t *testing.T) {
 }
 
 func TestCategoryRepository_GetByID_NonExistent(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewCategoryRepository(tx)
 
@@ -85,8 +85,8 @@ func TestCategoryRepository_GetByID_NonExistent(t *testing.T) {
 }
 
 func TestCategoryRepository_GetByName_NonExistent(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewCategoryRepository(tx)
 
@@ -95,8 +95,8 @@ func TestCategoryRepository_GetByName_NonExistent(t *testing.T) {
 }
 
 func TestCategoryRepository_UpdateNonExistent(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewCategoryRepository(tx)
 
@@ -106,8 +106,8 @@ func TestCategoryRepository_UpdateNonExistent(t *testing.T) {
 }
 
 func TestCategoryRepository_DeleteNonExistent(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewCategoryRepository(tx)
 
@@ -117,8 +117,8 @@ func TestCategoryRepository_DeleteNonExistent(t *testing.T) {
 }
 
 func TestCategoryRepository_GetAll_Empty(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewCategoryRepository(tx)
 
@@ -132,8 +132,8 @@ func TestCategoryRepository_GetAll_Empty(t *testing.T) {
 }
 
 func TestCategoryRepository_CreateDuplicate(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewCategoryRepository(tx)
 

@@ -48,9 +48,9 @@ func makeCategorySuggestionPayload(reason string, matched bool, newCategoryName 
 }
 
 func TestHandleAddCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	t.Run(nilMessageReturnsEarlyCore, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
@@ -169,9 +169,9 @@ func TestHandleAddCore(t *testing.T) {
 }
 
 func TestHandleStartCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	t.Run(nilMessageReturnsEarlyCore, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
@@ -211,9 +211,9 @@ func TestHandleStartCore(t *testing.T) {
 }
 
 func TestHandleHelpCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	t.Run(nilMessageReturnsEarlyCore, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
@@ -247,9 +247,9 @@ func TestHandleHelpCore(t *testing.T) {
 }
 
 func TestHandleCategoriesCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	t.Run(nilMessageReturnsEarlyCore, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
@@ -275,9 +275,9 @@ func TestHandleCategoriesCore(t *testing.T) {
 }
 
 func TestHandleListCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	userID := int64(300001)
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -337,9 +337,9 @@ func TestHandleListCore(t *testing.T) {
 }
 
 func TestHandleTodayCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	userID := int64(300002)
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -471,9 +471,9 @@ func TestHandleTodayCore(t *testing.T) {
 }
 
 func TestHandleWeekCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	userID := int64(300003)
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -595,9 +595,9 @@ func TestHandleWeekCore(t *testing.T) {
 }
 
 func TestSaveExpenseCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	t.Run("expense without category is saved as uncategorized", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()

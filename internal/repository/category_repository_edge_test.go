@@ -14,7 +14,7 @@ func TestCategoryRepository_CreateEdgeCases(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("create duplicate category", func(t *testing.T) {
-		tx := database.TestTx(t)
+		tx := database.TestTx(ctx, t)
 		repo := NewCategoryRepository(tx)
 		// Create first category with unique name
 		cat1, err := repo.Create(ctx, "Unique Duplicate Test Category")
@@ -29,7 +29,7 @@ func TestCategoryRepository_CreateEdgeCases(t *testing.T) {
 	})
 
 	t.Run("create with empty name", func(t *testing.T) {
-		tx := database.TestTx(t)
+		tx := database.TestTx(ctx, t)
 		repo := NewCategoryRepository(tx)
 
 		cat, err := repo.Create(ctx, "")
@@ -39,7 +39,7 @@ func TestCategoryRepository_CreateEdgeCases(t *testing.T) {
 	})
 
 	t.Run("create with very long name", func(t *testing.T) {
-		tx := database.TestTx(t)
+		tx := database.TestTx(ctx, t)
 		repo := NewCategoryRepository(tx)
 
 		longName := string(make([]byte, 500))
@@ -54,7 +54,7 @@ func TestCategoryRepository_CreateEdgeCases(t *testing.T) {
 	})
 
 	t.Run("create with special characters", func(t *testing.T) {
-		tx := database.TestTx(t)
+		tx := database.TestTx(ctx, t)
 		repo := NewCategoryRepository(tx)
 
 		specialName := "Food & Drink ☕🍔 (café)"
@@ -66,7 +66,7 @@ func TestCategoryRepository_CreateEdgeCases(t *testing.T) {
 	})
 
 	t.Run("create with leading/trailing spaces", func(t *testing.T) {
-		tx := database.TestTx(t)
+		tx := database.TestTx(ctx, t)
 		repo := NewCategoryRepository(tx)
 
 		cat, err := repo.Create(ctx, "  Spaced  ")
@@ -76,7 +76,7 @@ func TestCategoryRepository_CreateEdgeCases(t *testing.T) {
 	})
 
 	t.Run("create with newlines", func(t *testing.T) {
-		tx := database.TestTx(t)
+		tx := database.TestTx(ctx, t)
 		repo := NewCategoryRepository(tx)
 
 		cat, err := repo.Create(ctx, "Line1\nLine2")
@@ -87,8 +87,8 @@ func TestCategoryRepository_CreateEdgeCases(t *testing.T) {
 
 // TestCategoryRepository_GetByIDEdgeCases tests edge cases for GetByID.
 func TestCategoryRepository_GetByIDEdgeCases(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewCategoryRepository(tx)
 
@@ -113,8 +113,8 @@ func TestCategoryRepository_GetByIDEdgeCases(t *testing.T) {
 
 // TestCategoryRepository_GetByNameEdgeCases tests edge cases for GetByName.
 func TestCategoryRepository_GetByNameEdgeCases(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewCategoryRepository(tx)
 
@@ -155,7 +155,7 @@ func TestCategoryRepository_UpdateEdgeCases(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("update non-existent category", func(t *testing.T) {
-		tx := database.TestTx(t)
+		tx := database.TestTx(ctx, t)
 		repo := NewCategoryRepository(tx)
 
 		// Update doesn't check rows affected, so it succeeds silently
@@ -164,7 +164,7 @@ func TestCategoryRepository_UpdateEdgeCases(t *testing.T) {
 	})
 
 	t.Run("update to duplicate name", func(t *testing.T) {
-		tx := database.TestTx(t)
+		tx := database.TestTx(ctx, t)
 		repo := NewCategoryRepository(tx)
 
 		// Create two categories
@@ -179,7 +179,7 @@ func TestCategoryRepository_UpdateEdgeCases(t *testing.T) {
 	})
 
 	t.Run("update to empty name", func(t *testing.T) {
-		tx := database.TestTx(t)
+		tx := database.TestTx(ctx, t)
 		repo := NewCategoryRepository(tx)
 
 		cat, err := repo.Create(ctx, "ToBeEmptied")
@@ -195,7 +195,7 @@ func TestCategoryRepository_UpdateEdgeCases(t *testing.T) {
 	})
 
 	t.Run("update to same name", func(t *testing.T) {
-		tx := database.TestTx(t)
+		tx := database.TestTx(ctx, t)
 		repo := NewCategoryRepository(tx)
 
 		cat, err := repo.Create(ctx, "SameName")
@@ -209,8 +209,8 @@ func TestCategoryRepository_UpdateEdgeCases(t *testing.T) {
 
 // TestCategoryRepository_DeleteEdgeCases tests edge cases for category deletion.
 func TestCategoryRepository_DeleteEdgeCases(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewCategoryRepository(tx)
 
@@ -251,7 +251,7 @@ func TestCategoryRepository_GetAllEdgeCases(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("get all when empty", func(t *testing.T) {
-		tx := database.TestTx(t)
+		tx := database.TestTx(ctx, t)
 		repo := NewCategoryRepository(tx)
 
 		// Delete all categories to test empty state
@@ -264,7 +264,7 @@ func TestCategoryRepository_GetAllEdgeCases(t *testing.T) {
 	})
 
 	t.Run("get all with many categories", func(t *testing.T) {
-		tx := database.TestTx(t)
+		tx := database.TestTx(ctx, t)
 		repo := NewCategoryRepository(tx)
 
 		// Get initial count (includes seeded categories)

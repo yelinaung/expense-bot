@@ -11,9 +11,9 @@ import (
 )
 
 func TestHandleDeleteCategoryCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	userID := int64(910001)
 	chatID := int64(910001)

@@ -2,12 +2,10 @@ package bot
 
 import "time"
 
-// normalizeLocation returns loc, or time.Local when loc is nil to preserve
-// runtime-local behavior. Callers that need deterministic behavior should pass
-// an explicit location.
+// normalizeLocation returns loc, or UTC when loc is nil.
 func normalizeLocation(loc *time.Location) *time.Location {
 	if loc == nil {
-		return time.Local
+		return time.UTC
 	}
 
 	return loc

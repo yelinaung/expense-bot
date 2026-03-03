@@ -25,7 +25,7 @@ func TestTestTx_ReturnsUsableTx(t *testing.T) {
 		t.Skip("TEST_DATABASE_URL not set")
 	}
 
-	db := TestTx(t)
+	db := TestTx(context.Background(), t)
 	require.NotNil(t, db)
 
 	var n int

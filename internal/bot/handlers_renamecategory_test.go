@@ -12,9 +12,9 @@ import (
 )
 
 func TestHandleRenameCategoryCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	userID := int64(900001)
 	chatID := int64(900001)

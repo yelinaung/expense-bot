@@ -50,7 +50,7 @@ func TestSeedCategories(t *testing.T) {
 	err := RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
-	CleanupTables(t, pool)
+	CleanupTables(ctx, t, pool)
 
 	err = SeedCategories(ctx, pool)
 	require.NoError(t, err)

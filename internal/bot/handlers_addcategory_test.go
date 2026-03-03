@@ -13,9 +13,9 @@ import (
 )
 
 func TestHandleAddCategoryCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	userID := int64(800001)
 	chatID := int64(800001)
@@ -74,9 +74,9 @@ func TestHandleAddCategoryCore(t *testing.T) {
 }
 
 func TestHandleAddCategoryCoreDuplicate(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	userID := int64(800002)
 	chatID := int64(800002)
@@ -104,9 +104,9 @@ func TestHandleAddCategoryCoreDuplicate(t *testing.T) {
 }
 
 func TestHandleAddCategoryCoreValidation(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	userID := int64(800003)
 	chatID := int64(800003)

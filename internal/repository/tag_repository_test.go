@@ -13,8 +13,8 @@ import (
 func setupTagTest(t *testing.T) (*TagRepository, *ExpenseRepository, *UserRepository, context.Context) {
 	t.Helper()
 
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	return NewTagRepository(tx),
 		NewExpenseRepository(tx),

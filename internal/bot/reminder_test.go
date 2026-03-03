@@ -19,9 +19,9 @@ func TestCheckAndSendReminders(t *testing.T) {
 	todayStr := now.Format("2006-01-02")
 
 	t.Run("sends reminder when user has no expenses today", func(t *testing.T) {
-		pool := TestDB(t)
-		b := setupTestBot(t, pool)
 		ctx := context.Background()
+		pool := TestDB(ctx, t)
+		b := setupTestBot(t, pool)
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 14
@@ -46,9 +46,9 @@ func TestCheckAndSendReminders(t *testing.T) {
 	})
 
 	t.Run("sends reminder to approved user", func(t *testing.T) {
-		pool := TestDB(t)
-		b := setupTestBot(t, pool)
 		ctx := context.Background()
+		pool := TestDB(ctx, t)
+		b := setupTestBot(t, pool)
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 14
@@ -73,9 +73,9 @@ func TestCheckAndSendReminders(t *testing.T) {
 	})
 
 	t.Run("skips unapproved user", func(t *testing.T) {
-		pool := TestDB(t)
-		b := setupTestBot(t, pool)
 		ctx := context.Background()
+		pool := TestDB(ctx, t)
+		b := setupTestBot(t, pool)
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 14
@@ -95,9 +95,9 @@ func TestCheckAndSendReminders(t *testing.T) {
 	})
 
 	t.Run("sends summary to user with expenses today", func(t *testing.T) {
-		pool := TestDB(t)
-		b := setupTestBot(t, pool)
 		ctx := context.Background()
+		pool := TestDB(ctx, t)
+		b := setupTestBot(t, pool)
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 14
@@ -135,9 +135,9 @@ func TestCheckAndSendReminders(t *testing.T) {
 	})
 
 	t.Run("uses GMT+8 day window when deciding summary", func(t *testing.T) {
-		pool := TestDB(t)
-		b := setupTestBot(t, pool)
 		ctx := context.Background()
+		pool := TestDB(ctx, t)
+		b := setupTestBot(t, pool)
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 0
@@ -177,9 +177,9 @@ func TestCheckAndSendReminders(t *testing.T) {
 	})
 
 	t.Run("sends summary even when tag repository is nil", func(t *testing.T) {
-		pool := TestDB(t)
-		b := setupTestBot(t, pool)
 		ctx := context.Background()
+		pool := TestDB(ctx, t)
+		b := setupTestBot(t, pool)
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.tagRepo = nil
@@ -216,9 +216,9 @@ func TestCheckAndSendReminders(t *testing.T) {
 	})
 
 	t.Run("skips user already reminded today", func(t *testing.T) {
-		pool := TestDB(t)
-		b := setupTestBot(t, pool)
 		ctx := context.Background()
+		pool := TestDB(ctx, t)
+		b := setupTestBot(t, pool)
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 14
@@ -240,9 +240,9 @@ func TestCheckAndSendReminders(t *testing.T) {
 	})
 
 	t.Run("skips when current hour doesn't match ReminderHour", func(t *testing.T) {
-		pool := TestDB(t)
-		b := setupTestBot(t, pool)
 		ctx := context.Background()
+		pool := TestDB(ctx, t)
+		b := setupTestBot(t, pool)
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 20 // now is hour 14, won't match
@@ -262,9 +262,9 @@ func TestCheckAndSendReminders(t *testing.T) {
 	})
 
 	t.Run("handles send failure gracefully", func(t *testing.T) {
-		pool := TestDB(t)
-		b := setupTestBot(t, pool)
 		ctx := context.Background()
+		pool := TestDB(ctx, t)
+		b := setupTestBot(t, pool)
 		mockBot := mocks.NewMockBot()
 		mockBot.SendMessageError = errors.New("user blocked bot")
 		b.messageSender = mockBot
@@ -286,9 +286,9 @@ func TestCheckAndSendReminders(t *testing.T) {
 	})
 
 	t.Run("prunes stale entries from reminded map", func(t *testing.T) {
-		pool := TestDB(t)
-		b := setupTestBot(t, pool)
 		ctx := context.Background()
+		pool := TestDB(ctx, t)
+		b := setupTestBot(t, pool)
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 14
@@ -310,10 +310,10 @@ func TestCheckAndSendReminders(t *testing.T) {
 }
 
 func TestStartDailyReminderLoop_RunsImmediateCheck(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	mockBot := mocks.NewMockBot()
 	b.messageSender = mockBot
@@ -349,10 +349,11 @@ func TestStartDailyReminderLoop_RunsImmediateCheck(t *testing.T) {
 }
 
 func TestSendReminderOrDailySummary_FetchError(t *testing.T) {
-	pool := TestDB(t)
+	ctx := context.Background()
+	pool := TestDB(ctx, t)
 	b := setupTestBot(t, pool)
 
-	canceledCtx, cancel := context.WithCancel(context.Background())
+	canceledCtx, cancel := context.WithCancel(ctx)
 	cancel()
 
 	err := b.sendReminderOrDailySummary(

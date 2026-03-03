@@ -10,8 +10,8 @@ import (
 )
 
 func TestUserRepository_UpsertUser(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewUserRepository(tx)
 
@@ -52,8 +52,8 @@ func TestUserRepository_UpsertUser(t *testing.T) {
 }
 
 func TestUserRepository_GetAllUsers(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewUserRepository(tx)
 
@@ -80,8 +80,8 @@ func TestUserRepository_GetAllUsers(t *testing.T) {
 }
 
 func TestUserRepository_GetAuthorizedUsersForReminder(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	userRepo := NewUserRepository(tx)
 	approvedRepo := NewApprovedUserRepository(tx)
@@ -143,8 +143,8 @@ func TestUserRepository_GetAuthorizedUsersForReminder(t *testing.T) {
 }
 
 func TestUserRepository_GetUserByID(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewUserRepository(tx)
 
@@ -155,8 +155,8 @@ func TestUserRepository_GetUserByID(t *testing.T) {
 }
 
 func TestUserRepository_UpsertUser_WithEmptyFields(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewUserRepository(tx)
 
@@ -179,8 +179,8 @@ func TestUserRepository_UpsertUser_WithEmptyFields(t *testing.T) {
 }
 
 func TestUserRepository_UpsertUser_UpdateToEmpty(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewUserRepository(tx)
 
@@ -209,8 +209,8 @@ func TestUserRepository_UpsertUser_UpdateToEmpty(t *testing.T) {
 }
 
 func TestUserRepository_UpdateDefaultCurrency(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewUserRepository(tx)
 
@@ -250,8 +250,8 @@ func TestUserRepository_UpdateDefaultCurrency(t *testing.T) {
 }
 
 func TestUserRepository_GetDefaultCurrency(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewUserRepository(tx)
 

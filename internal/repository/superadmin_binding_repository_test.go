@@ -9,8 +9,8 @@ import (
 )
 
 func TestSuperadminBindingRepository_SaveAndLoad(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewSuperadminBindingRepository(tx)
 

@@ -201,9 +201,9 @@ func TestSendEditConfirmation(t *testing.T) {
 }
 
 func TestGetEditableExpense(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	const ownerID = int64(930001)
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -285,9 +285,9 @@ func TestIsValidAutoCreatedCategoryName(t *testing.T) {
 }
 
 func TestApplyNewCategorySuggestion(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	expense := &appmodels.Expense{}
 	ok := b.applyNewCategorySuggestion(ctx, expense, "desc", &gemini.CategorySuggestion{
@@ -318,9 +318,9 @@ func TestApplyNewCategorySuggestion(t *testing.T) {
 }
 
 func TestSaveInlineTags(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	const userID = int64(940001)
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -379,9 +379,9 @@ func TestSaveInlineTags_NoTags(t *testing.T) {
 }
 
 func TestApplyNewCategorySuggestion_CreateError(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	// Seed an existing category to force duplicate create path.
 	_, err := b.categoryRepo.Create(ctx, "DupCat")

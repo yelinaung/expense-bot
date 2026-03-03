@@ -14,8 +14,8 @@ import (
 func setupExpenseTest(t *testing.T) (*ExpenseRepository, *UserRepository, *CategoryRepository, context.Context) {
 	t.Helper()
 
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	return NewExpenseRepository(tx),
 		NewUserRepository(tx),
