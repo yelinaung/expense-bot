@@ -16,8 +16,8 @@ import (
 )
 
 func TestHandleExpenseActionCallbackCore(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	categoryRepo := repository.NewCategoryRepository(tx)
@@ -131,8 +131,8 @@ func TestHandleExpenseActionCallbackCore(t *testing.T) {
 }
 
 func TestHandleConfirmDeleteCallbackCore(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	categoryRepo := repository.NewCategoryRepository(tx)
@@ -193,8 +193,8 @@ func TestHandleConfirmDeleteCallbackCore(t *testing.T) {
 }
 
 func TestHandleBackToExpenseCallbackCore(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	categoryRepo := repository.NewCategoryRepository(tx)
@@ -254,8 +254,8 @@ func TestHandleBackToExpenseCallbackCore(t *testing.T) {
 func TestInlineActionWrappers(t *testing.T) {
 	t.Parallel()
 
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	categoryRepo := repository.NewCategoryRepository(tx)

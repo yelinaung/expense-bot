@@ -9,9 +9,9 @@ import (
 )
 
 func TestIsAuthorized(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	t.Run("allows configured superadmin", func(t *testing.T) {
 		b.cfg.WhitelistedUserIDs = []int64{9001}

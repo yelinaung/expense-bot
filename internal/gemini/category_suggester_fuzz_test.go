@@ -167,7 +167,7 @@ func FuzzSanitizeReasoning(f *testing.F) {
 	f.Add("\t\n\r")
 
 	// Unicode.
-	f.Add("日本語の理由")
+	f.Add("日本語の理由") //nolint:gosmopolitan // Intentional Unicode fuzz seed.
 	f.Add("Emoji reasoning 🍕☕")
 
 	f.Fuzz(func(t *testing.T, input string) {

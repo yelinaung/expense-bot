@@ -29,9 +29,9 @@ func histogramDataPointCount(resourceMetrics metricdata.ResourceMetrics, metricN
 }
 
 func TestSaveExpenseCore_RecordsAmountMetricForInexactFloat(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	userID := int64(310001)
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{

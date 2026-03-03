@@ -14,8 +14,8 @@ import (
 )
 
 func TestHandleSetCurrencyCore(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	categoryRepo := repository.NewCategoryRepository(tx)
@@ -127,8 +127,8 @@ func TestHandleSetCurrencyCore(t *testing.T) {
 }
 
 func TestHandleShowCurrencyCore(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	categoryRepo := repository.NewCategoryRepository(tx)
@@ -220,8 +220,8 @@ func TestBuildCurrencyListMessage(t *testing.T) {
 func TestCurrencyHandlerWrappers(t *testing.T) {
 	t.Parallel()
 
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	categoryRepo := repository.NewCategoryRepository(tx)

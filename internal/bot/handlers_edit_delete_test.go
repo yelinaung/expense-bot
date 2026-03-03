@@ -20,8 +20,8 @@ const notFoundTextEditDelete = "not found"
 
 // TestHandleEdit tests the /edit command handler.
 func TestHandleEdit(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	categoryRepo := repository.NewCategoryRepository(tx)
@@ -325,8 +325,8 @@ func callHandleEdit(
 
 // TestHandleDelete tests the /delete command handler.
 func TestHandleDelete(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	expenseRepo := repository.NewExpenseRepository(tx)
@@ -437,8 +437,8 @@ func TestHandleDelete(t *testing.T) {
 func TestEditDeleteHandlerWrappers(t *testing.T) {
 	t.Parallel()
 
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	categoryRepo := repository.NewCategoryRepository(tx)

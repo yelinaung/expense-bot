@@ -114,7 +114,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 
 	logger.Log.Info().Msg("Database initialized successfully")
 
-	telegramBot, err := bot.New(cfg, pool)
+	telegramBot, err := bot.New(runCtx, cfg, pool)
 	if err != nil {
 		return wrapRunError("Failed to create bot", err)
 	}

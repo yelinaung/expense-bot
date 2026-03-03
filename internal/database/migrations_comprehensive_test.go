@@ -159,7 +159,7 @@ func TestMigrations_ForeignKeyConstraints(t *testing.T) {
 	err := RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
-	CleanupTables(t, pool)
+	CleanupTables(ctx, t, pool)
 
 	t.Run("cannot insert expense without user", func(t *testing.T) {
 		_, err := pool.Exec(ctx, `
@@ -187,7 +187,7 @@ func TestMigrations_ForeignKeyConstraints(t *testing.T) {
 	})
 
 	t.Run("can insert expense with valid category", func(t *testing.T) {
-		CleanupTables(t, pool)
+		CleanupTables(ctx, t, pool)
 
 		// Insert user
 		_, err := pool.Exec(ctx, `
@@ -220,7 +220,7 @@ func TestMigrations_DefaultValues(t *testing.T) {
 	err := RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
-	CleanupTables(t, pool)
+	CleanupTables(ctx, t, pool)
 
 	t.Run("expenses.status defaults to 'confirmed'", func(t *testing.T) {
 		// Insert user
@@ -249,7 +249,7 @@ func TestMigrations_DefaultValues(t *testing.T) {
 	})
 
 	t.Run("expenses.currency defaults to 'SGD'", func(t *testing.T) {
-		CleanupTables(t, pool)
+		CleanupTables(ctx, t, pool)
 
 		// Insert user
 		_, err := pool.Exec(ctx, `
@@ -277,7 +277,7 @@ func TestMigrations_DefaultValues(t *testing.T) {
 	})
 
 	t.Run("timestamps are automatically set", func(t *testing.T) {
-		CleanupTables(t, pool)
+		CleanupTables(ctx, t, pool)
 
 		// Insert user
 		var userID int64
@@ -311,7 +311,7 @@ func TestSeedCategories_DuplicateHandling(t *testing.T) {
 	err := RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
-	CleanupTables(t, pool)
+	CleanupTables(ctx, t, pool)
 
 	// Manually insert one of the categories
 	_, err = pool.Exec(ctx, `INSERT INTO categories (name) VALUES ('Food - Dining Out')`)
@@ -376,7 +376,7 @@ func TestSeedCategories_CategoryOrder(t *testing.T) {
 	err := RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
-	CleanupTables(t, pool)
+	CleanupTables(ctx, t, pool)
 
 	err = SeedCategories(ctx, pool)
 	require.NoError(t, err)

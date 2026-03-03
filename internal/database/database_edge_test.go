@@ -59,7 +59,7 @@ func TestSeedCategories_AlreadySeeded(t *testing.T) {
 	err := RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
-	CleanupTables(t, pool)
+	CleanupTables(ctx, t, pool)
 
 	// First seed
 	err = SeedCategories(ctx, pool)
@@ -94,7 +94,7 @@ func TestSeedCategories_WithContextCancellation(t *testing.T) {
 	err := RunMigrations(context.Background(), pool)
 	require.NoError(t, err)
 
-	CleanupTables(t, pool)
+	CleanupTables(context.Background(), t, pool)
 
 	// Create already-cancelled context
 	ctx, cancel := context.WithCancel(context.Background())
@@ -169,7 +169,7 @@ func TestCleanupTables_EmptyDatabase(t *testing.T) {
 	require.NoError(t, err)
 
 	// Clean empty tables
-	CleanupTables(t, pool)
+	CleanupTables(ctx, t, pool)
 
 	// Verify tables are empty
 	var count int
@@ -213,7 +213,7 @@ func TestCleanupTables_WithData(t *testing.T) {
 	require.Positive(t, categoryCount)
 
 	// Cleanup
-	CleanupTables(t, pool)
+	CleanupTables(ctx, t, pool)
 
 	// Verify all data removed
 	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM expenses").Scan(&userCount)
@@ -285,7 +285,7 @@ func TestSeedCategories_CategoryNames(t *testing.T) {
 	err := RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
-	CleanupTables(t, pool)
+	CleanupTables(ctx, t, pool)
 
 	err = SeedCategories(ctx, pool)
 	require.NoError(t, err)

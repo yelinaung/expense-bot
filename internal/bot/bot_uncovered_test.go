@@ -137,7 +137,7 @@ func TestBotStart_PanicsWithNilBot(t *testing.T) {
 }
 
 func TestBotStart_CanceledContext_NoPanic(t *testing.T) {
-	pool := TestDB(t)
+	pool := TestDB(context.Background(), t)
 	b := setupTestBot(t, pool)
 
 	client := &fakeHTTPClient{}
@@ -162,7 +162,7 @@ func TestBotStart_CanceledContext_NoPanic(t *testing.T) {
 }
 
 func TestCleanupExpiredDrafts_DeletesOnlyExpired(t *testing.T) {
-	pool := TestDB(t)
+	pool := TestDB(context.Background(), t)
 	b := setupTestBot(t, pool)
 	ctx := context.Background()
 	user := &appmodels.User{
@@ -209,7 +209,7 @@ func TestCleanupExpiredDrafts_DeletesOnlyExpired(t *testing.T) {
 }
 
 func TestCleanupExpiredDrafts_CanceledContext_NoDelete(t *testing.T) {
-	pool := TestDB(t)
+	pool := TestDB(context.Background(), t)
 	b := setupTestBot(t, pool)
 	baseCtx := context.Background()
 	user := &appmodels.User{
@@ -245,20 +245,20 @@ func TestCleanupExpiredDrafts_CanceledContext_NoDelete(t *testing.T) {
 }
 
 func TestNew_InvalidTokenReturnsError(t *testing.T) {
-	db := TestDB(t)
+	db := TestDB(context.Background(), t)
 
 	cfg := &config.Config{
 		TelegramBotToken: "",
 		ReminderTimezone: "UTC",
 	}
 
-	b, err := New(cfg, db)
+	b, err := New(context.Background(), cfg, db)
 	require.Error(t, err)
 	require.Nil(t, b)
 }
 
 func TestNew_LoadsPersistedSuperadminBindings(t *testing.T) {
-	db := TestDB(t)
+	db := TestDB(context.Background(), t)
 	ctx := context.Background()
 
 	bindingRepo := repository.NewSuperadminBindingRepository(db)
@@ -272,7 +272,7 @@ func TestNew_LoadsPersistedSuperadminBindings(t *testing.T) {
 		GeminiAPIKey:         "test-key",
 	}
 
-	b, err := New(cfg, db)
+	b, err := New(context.Background(), cfg, db)
 	require.Error(t, err)
 	require.Nil(t, b)
 
@@ -306,7 +306,7 @@ func TestNew_ContinuesWhenSuperadminBindingsLoadFails(t *testing.T) {
 		ReminderTimezone: "UTC",
 	}
 
-	b, err := New(cfg, &failingBindingsDB{})
+	b, err := New(context.Background(), cfg, &failingBindingsDB{})
 	require.Error(t, err)
 	require.Nil(t, b)
 }

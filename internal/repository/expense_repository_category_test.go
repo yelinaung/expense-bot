@@ -11,11 +11,11 @@ import (
 )
 
 func TestExpenseRepository_GetByUserIDAndCategory(t *testing.T) {
-	tx := database.TestTx(t)
+	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 	repo := NewExpenseRepository(tx)
 	catRepo := NewCategoryRepository(tx)
 	userRepo := NewUserRepository(tx)
-	ctx := context.Background()
 
 	// Create test user
 	userID := int64(800001)
@@ -112,11 +112,11 @@ func TestExpenseRepository_GetByUserIDAndCategory(t *testing.T) {
 }
 
 func TestExpenseRepository_GetTotalByUserIDAndCategory(t *testing.T) {
-	tx := database.TestTx(t)
+	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 	repo := NewExpenseRepository(tx)
 	catRepo := NewCategoryRepository(tx)
 	userRepo := NewUserRepository(tx)
-	ctx := context.Background()
 
 	// Create test user
 	userID := int64(800003)
@@ -185,11 +185,11 @@ func TestExpenseRepository_GetTotalByUserIDAndCategory(t *testing.T) {
 }
 
 func TestExpenseRepository_CategoryFilterEdgeCases(t *testing.T) {
-	tx := database.TestTx(t)
+	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 	repo := NewExpenseRepository(tx)
 	catRepo := NewCategoryRepository(tx)
 	userRepo := NewUserRepository(tx)
-	ctx := context.Background()
 
 	// Create test user
 	userID := int64(800005)

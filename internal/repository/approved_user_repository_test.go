@@ -9,8 +9,8 @@ import (
 )
 
 func TestApprovedUserRepository_ApproveAndRevoke(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewApprovedUserRepository(tx)
 
@@ -67,8 +67,8 @@ func TestApprovedUserRepository_ApproveAndRevoke(t *testing.T) {
 }
 
 func TestApprovedUserRepository_IsApproved(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewApprovedUserRepository(tx)
 
@@ -133,8 +133,8 @@ func TestApprovedUserRepository_IsApproved(t *testing.T) {
 }
 
 func TestApprovedUserRepository_UpdateUserID(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewApprovedUserRepository(tx)
 
@@ -157,8 +157,8 @@ func TestApprovedUserRepository_UpdateUserID(t *testing.T) {
 }
 
 func TestApprovedUserRepository_GetAll(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewApprovedUserRepository(tx)
 
@@ -181,8 +181,8 @@ func TestApprovedUserRepository_GetAll(t *testing.T) {
 }
 
 func TestApprovedUserRepository_RecycledUsernameDoesNotInheritAccess(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewApprovedUserRepository(tx)
 
@@ -207,8 +207,8 @@ func TestApprovedUserRepository_RecycledUsernameDoesNotInheritAccess(t *testing.
 }
 
 func TestApprovedUserRepository_ApproveDuplicate(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	repo := NewApprovedUserRepository(tx)
 

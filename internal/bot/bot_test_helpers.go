@@ -13,9 +13,9 @@ import (
 )
 
 // TestDB is a convenience wrapper around database.TestTx for bot tests.
-func TestDB(t *testing.T) database.PGXDB {
+func TestDB(ctx context.Context, t *testing.T) database.PGXDB {
 	t.Helper()
-	return database.TestTx(t)
+	return database.TestTx(ctx, t)
 }
 
 // setupTestBot creates a Bot instance for testing with database.

@@ -17,9 +17,9 @@ const (
 )
 
 func TestHandleTagCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	userID := int64(700001)
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -191,9 +191,9 @@ func TestHandleTagCore(t *testing.T) {
 }
 
 func TestHandleUntagCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	userID := int64(700002)
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -266,9 +266,9 @@ func TestHandleUntagCore(t *testing.T) {
 }
 
 func TestHandleTagsCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	userID := int64(700003)
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -381,9 +381,9 @@ func TestHandleTagsCore(t *testing.T) {
 }
 
 func TestInlineTagsOnExpenseCreation(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	userID := int64(700004)
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{

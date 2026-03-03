@@ -18,9 +18,9 @@ import (
 func TestCallbackHandlerWrappers(t *testing.T) {
 	t.Parallel()
 
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	// Create a user for tests that need it
 	userID := int64(900002)

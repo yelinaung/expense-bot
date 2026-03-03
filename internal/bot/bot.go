@@ -65,8 +65,8 @@ type Bot struct {
 }
 
 // New creates a new Bot instance.
-func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
-	bindingRepo := loadSuperadminBindings(cfg, db)
+func New(ctx context.Context, cfg *config.Config, db database.PGXDB) (*Bot, error) {
+	bindingRepo := loadSuperadminBindings(ctx, cfg, db)
 	transport, metrics := newOTelInstrumentation(cfg)
 
 	b := &Bot{
@@ -82,7 +82,7 @@ func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 		exchangeService:  newExchangeService(cfg, transport, cacheMetricsFrom(metrics)),
 		httpClient:       &http.Client{Timeout: 30 * time.Second, Transport: transport},
 		metrics:          metrics,
-		geminiClient:     initGeminiClient(cfg.GeminiAPIKey),
+		geminiClient:     initGeminiClient(ctx, cfg.GeminiAPIKey),
 	}
 
 	middlewares := buildMiddlewares(b.whitelistMiddleware, b.metrics)
@@ -109,9 +109,9 @@ func New(cfg *config.Config, db database.PGXDB) (*Bot, error) {
 
 // loadSuperadminBindings loads persisted username→user_id bindings from the
 // database and applies them to the config. Returns the binding repository.
-func loadSuperadminBindings(cfg *config.Config, db database.PGXDB) *repository.SuperadminBindingRepository {
+func loadSuperadminBindings(ctx context.Context, cfg *config.Config, db database.PGXDB) *repository.SuperadminBindingRepository {
 	bindingRepo := repository.NewSuperadminBindingRepository(db)
-	bindings, err := bindingRepo.LoadAll(context.Background())
+	bindings, err := bindingRepo.LoadAll(ctx)
 	if err != nil {
 		logger.Log.Warn().Err(err).Msg("Failed to load superadmin bindings from DB")
 		return bindingRepo
@@ -166,11 +166,11 @@ func cacheMetricsFrom(metrics *telemetry.BotMetrics) *exchange.CacheMetrics {
 
 // initGeminiClient creates a Gemini client when an API key is provided.
 // Returns nil if the key is empty or client creation fails.
-func initGeminiClient(apiKey string) *gemini.Client {
+func initGeminiClient(ctx context.Context, apiKey string) *gemini.Client {
 	if apiKey == "" {
 		return nil
 	}
-	client, err := gemini.NewClient(context.Background(), apiKey)
+	client, err := gemini.NewClient(ctx, apiKey)
 	if err != nil {
 		logger.Log.Warn().Err(err).Msg("Failed to create Gemini client, receipt OCR disabled")
 		return nil

@@ -20,6 +20,10 @@ var (
 // Migrations are run once when the pool is first created.
 // Skips the test if TEST_DATABASE_URL is not set.
 func TestPool(t *testing.T) *pgxpool.Pool {
+	return testPoolWithContext(context.Background(), t)
+}
+
+func testPoolWithContext(ctx context.Context, t *testing.T) *pgxpool.Pool {
 	t.Helper()
 
 	dbURL := os.Getenv("TEST_DATABASE_URL")
@@ -28,7 +32,6 @@ func TestPool(t *testing.T) *pgxpool.Pool {
 	}
 
 	testPoolOnce.Do(func() {
-		ctx := context.Background()
 		testPool, testPoolErr = Connect(ctx, dbURL, false)
 		if testPoolErr != nil {
 			return
@@ -60,7 +63,7 @@ func TestPool(t *testing.T) *pgxpool.Pool {
 //
 // Usage:
 //
-//	tx := database.TestTx(t)
+//	tx := database.TestTx(ctx, t)
 //	userRepo := repository.NewUserRepository(tx)
 //	// Use repositories normally - all operations are in a transaction
 //	// Transaction is automatically rolled back after test completes
@@ -73,11 +76,10 @@ func TestPool(t *testing.T) *pgxpool.Pool {
 //
 // Note: This function returns PGXDB interface. Repositories must be updated
 // to accept PGXDB instead of *pgxpool.Pool.
-func TestTx(t *testing.T) PGXDB {
+func TestTx(ctx context.Context, t *testing.T) PGXDB {
 	t.Helper()
 
-	pool := TestPool(t)
-	ctx := context.Background()
+	pool := testPoolWithContext(ctx, t)
 
 	tx, err := pool.Begin(ctx)
 	if err != nil {
@@ -85,7 +87,7 @@ func TestTx(t *testing.T) PGXDB {
 	}
 
 	t.Cleanup(func() {
-		_ = tx.Rollback(context.Background())
+		_ = tx.Rollback(context.WithoutCancel(ctx))
 	})
 
 	return tx

@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"net/http"
 	"testing"
 	"time"
@@ -61,7 +62,7 @@ func TestInitGeminiClient(t *testing.T) {
 
 	t.Run("returns nil for empty API key", func(t *testing.T) {
 		t.Parallel()
-		require.Nil(t, initGeminiClient(""))
+		require.Nil(t, initGeminiClient(context.Background(), ""))
 	})
 
 	t.Run("returns nil for invalid API key", func(t *testing.T) {
@@ -70,7 +71,7 @@ func TestInitGeminiClient(t *testing.T) {
 		// without panicking. The genai client may or may not fail at
 		// construction time depending on the SDK version, so we just assert
 		// no panic and the result is handled gracefully.
-		client := initGeminiClient("invalid-key-that-should-not-work")
+		client := initGeminiClient(context.Background(), "invalid-key-that-should-not-work")
 		// Either nil (creation failed) or non-nil (lazy validation) is acceptable.
 		_ = client
 	})

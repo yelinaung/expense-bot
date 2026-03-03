@@ -29,8 +29,8 @@ const (
 )
 
 func TestHandleApproveCore(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	cfg := &config.Config{
 		WhitelistedUserIDs:   []int64{100},
@@ -105,8 +105,8 @@ func TestHandleApproveCore(t *testing.T) {
 }
 
 func TestHandleRevokeCore(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	cfg := &config.Config{
 		WhitelistedUserIDs:   []int64{100},
@@ -188,8 +188,8 @@ func TestHandleRevokeCore(t *testing.T) {
 }
 
 func TestHandleUsersCore(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	cfg := &config.Config{
 		WhitelistedUserIDs:   []int64{100},

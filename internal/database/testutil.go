@@ -32,10 +32,8 @@ func TestDB(t *testing.T) *pgxpool.Pool {
 }
 
 // CleanupTables truncates all tables for a clean test state.
-func CleanupTables(t *testing.T, pool *pgxpool.Pool) {
+func CleanupTables(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
-
-	ctx := context.Background()
 
 	_, err := pool.Exec(ctx, "TRUNCATE TABLE expenses, users, categories CASCADE")
 	if err != nil {

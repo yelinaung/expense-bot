@@ -40,9 +40,9 @@ const (
 )
 
 func TestHandleEditCallbackCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	userID := int64(500001)
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -217,9 +217,9 @@ func TestHandleEditCallbackCore(t *testing.T) {
 }
 
 func TestPromptEditAmountCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	userID := int64(500002)
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -258,9 +258,9 @@ func TestPromptEditAmountCore(t *testing.T) {
 }
 
 func TestHandlePendingEditCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	userID := int64(500003)
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -343,9 +343,9 @@ func TestHandlePendingEditCore(t *testing.T) {
 }
 
 func TestProcessAmountEditCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	userID := int64(500004)
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -434,9 +434,9 @@ func TestProcessAmountEditCore(t *testing.T) {
 }
 
 func TestHandleCancelEditCallbackCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	userID := int64(500005)
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -502,9 +502,9 @@ func TestHandleCancelEditCallbackCore(t *testing.T) {
 }
 
 func TestShowCategorySelectionCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	userID := int64(500006)
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -536,9 +536,9 @@ func TestShowCategorySelectionCore(t *testing.T) {
 }
 
 func TestHandleSetCategoryCallbackCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	userID := int64(500007)
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -600,9 +600,9 @@ func TestHandleSetCategoryCallbackCore(t *testing.T) {
 }
 
 func TestProcessCategoryCreateCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	userID := int64(500008)
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -671,9 +671,9 @@ func TestProcessCategoryCreateCore(t *testing.T) {
 }
 
 func TestHandleCreateCategoryCallbackCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	userID := int64(500009)
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -725,9 +725,9 @@ func TestHandleCreateCategoryCallbackCore(t *testing.T) {
 }
 
 func TestPromptEditMerchantCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	userID := int64(500020)
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -768,9 +768,9 @@ func TestPromptEditMerchantCore(t *testing.T) {
 }
 
 func TestProcessMerchantEditCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	userID := int64(500021)
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -891,9 +891,9 @@ func TestProcessMerchantEditCore(t *testing.T) {
 }
 
 func TestPromptCreateCategoryCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	userID := int64(500010)
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{

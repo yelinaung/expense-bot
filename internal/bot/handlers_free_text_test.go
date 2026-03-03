@@ -17,8 +17,8 @@ import (
 
 // TestHandleFreeTextExpense tests free-text expense parsing and creation.
 func TestHandleFreeTextExpense(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	categoryRepo := repository.NewCategoryRepository(tx)

@@ -47,9 +47,9 @@ func TestBuildReceiptConfirmationKeyboard(t *testing.T) {
 }
 
 func TestHandleReceiptCallbackCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	userID := int64(400001)
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -164,9 +164,9 @@ func TestHandleReceiptCallbackCore(t *testing.T) {
 }
 
 func TestHandleConfirmReceiptCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	userID := int64(400002)
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -231,9 +231,9 @@ func TestHandleConfirmReceiptCore(t *testing.T) {
 }
 
 func TestHandleCancelReceiptCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	userID := int64(400003)
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -267,9 +267,9 @@ func TestHandleCancelReceiptCore(t *testing.T) {
 }
 
 func TestHandleEditReceiptCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	userID := int64(400004)
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -302,9 +302,9 @@ func TestHandleEditReceiptCore(t *testing.T) {
 }
 
 func TestHandleBackToReceiptCore(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	userID := int64(400005)
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -413,9 +413,9 @@ func TestHandlePhotoCore_ParseError(t *testing.T) {
 }
 
 func TestHandlePhotoCore_Success(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 	require.NoError(t, b.userRepo.UpsertUser(ctx, &appmodels.User{
 		ID:        100,
 		Username:  "photo-success-user",

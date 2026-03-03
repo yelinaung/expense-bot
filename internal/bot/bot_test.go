@@ -224,8 +224,8 @@ func TestLogUserAction(t *testing.T) {
 
 // TestWhitelistMiddleware tests the whitelist middleware behavior.
 func TestWhitelistMiddleware(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 	const testMessage = "test message"
 
 	t.Run("allows whitelisted user", func(t *testing.T) {
@@ -493,8 +493,8 @@ func (w *middlewareBotWrapper) runMiddleware(
 
 // TestEnsureUserRegistered tests user registration from various update types.
 func TestEnsureUserRegistered(t *testing.T) {
-	tx := database.TestTx(t)
 	ctx := context.Background()
+	tx := database.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	b := &Bot{
@@ -758,9 +758,9 @@ func TestDraftConstants(t *testing.T) {
 }
 
 func TestCleanupExpiredDrafts(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	userID := int64(800001)
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -796,9 +796,9 @@ func TestCleanupExpiredDrafts(t *testing.T) {
 }
 
 func TestDeleteCategorySequential(t *testing.T) {
-	pool := TestDB(t)
-	b := setupTestBot(t, pool)
 	ctx := context.Background()
+	pool := TestDB(ctx, t)
+	b := setupTestBot(t, pool)
 
 	userID := int64(800002)
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
