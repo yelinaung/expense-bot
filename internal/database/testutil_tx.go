@@ -20,10 +20,6 @@ var (
 // Migrations are run once when the pool is first created.
 // Skips the test if TEST_DATABASE_URL is not set.
 func TestPool(t *testing.T) *pgxpool.Pool {
-	return testPoolWithContext(context.Background(), t)
-}
-
-func testPoolWithContext(ctx context.Context, t *testing.T) *pgxpool.Pool {
 	t.Helper()
 
 	dbURL := os.Getenv("TEST_DATABASE_URL")
@@ -32,6 +28,7 @@ func testPoolWithContext(ctx context.Context, t *testing.T) *pgxpool.Pool {
 	}
 
 	testPoolOnce.Do(func() {
+		ctx := context.Background()
 		testPool, testPoolErr = Connect(ctx, dbURL, false)
 		if testPoolErr != nil {
 			return
@@ -79,7 +76,7 @@ func testPoolWithContext(ctx context.Context, t *testing.T) *pgxpool.Pool {
 func TestTx(ctx context.Context, t *testing.T) PGXDB {
 	t.Helper()
 
-	pool := testPoolWithContext(ctx, t)
+	pool := TestPool(t) //nolint:contextcheck // Shared pool setup is intentionally decoupled from caller context.
 
 	tx, err := pool.Begin(ctx)
 	if err != nil {

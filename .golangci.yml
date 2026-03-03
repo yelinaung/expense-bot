@@ -22,11 +22,48 @@ linters:
     - durationcheck
     - errchkjson
     - errorlint
+    - nilerr
+    - nilnil
+    - unconvert
+    - unparam
+    - forcetypeassert
     - exhaustive
+
+    - copyloopvar
+    - wastedassign
+    - fatcontext
+    - durationcheck
+    - reassign
+    - recvcheck
+    - nilnesserr
+
     - forbidigo
     - gocheckcompilerdirectives
     - gochecksumtype
     - gosec
+
+    - bodyclose
+    - bidichk
+
+    # Performance.
+    - prealloc
+    - perfsprint
+
+    # Context and network.
+    - noctx
+
+    # Go module hygiene.
+    - gomoddirectives
+
+    # Printf function naming.
+    - goprintffuncname
+
+    # Lint suppression hygiene.
+    - nolintlint
+
+    # Spelling.
+    - misspell
+
     - gosmopolitan
     - loggercheck
     - makezero
@@ -40,9 +77,32 @@ linters:
     - recvcheck
     - rowserrcheck
     - spancheck
+
+    # Logging.
+    - sloglint
+
+    # Modernization.
+    - modernize
+
+    # Style (low-noise).
+    - godot
+    - nakedret
+    - whitespace
+    - goconst
+
+    # SQL (pgx-compatible).
     - sqlclosecheck
     - unparam
     - zerologlint
+
+    # Test-specific.
+    - tparallel
+    - thelper
+    - usetesting
+    - testifylint
+
+    # Diagnostics and performance via gocritic.
+    - gocritic
   settings:
     cyclop:
       max-complexity: 10
@@ -52,7 +112,7 @@ linters:
     dupl:
       threshold: 100
     errcheck:
-      check-type-assertions: false
+      check-type-assertions: true
       check-blank: false
     errorlint:
       errorf: true
@@ -296,6 +356,9 @@ severity:
         - dupl
       severity: info
 formatters:
+  enable:
+    - gofumpt
+    - goimports
   settings:
     gofmt:
       simplify: true
