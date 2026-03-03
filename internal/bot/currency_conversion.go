@@ -79,7 +79,7 @@ func (b *Bot) convertExpenseCurrency(
 	amount decimal.Decimal,
 	sourceCurrency string,
 	description string,
-) (convertedAmount decimal.Decimal, finalCurrency string, finalDescription string) {
+) (convertedAmount decimal.Decimal, finalCurrency, finalDescription string) {
 	defaultCurrency := b.getUserDefaultCurrency(ctx, userID)
 	source := normalizeCurrencyCode(sourceCurrency)
 	if source == "" {

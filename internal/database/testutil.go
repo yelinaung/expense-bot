@@ -35,7 +35,7 @@ func TestDB(t *testing.T) *pgxpool.Pool {
 func CleanupTables(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 
-	_, err := pool.Exec(ctx, "TRUNCATE TABLE expenses, users, categories CASCADE")
+	_, err := pool.Exec(context.WithoutCancel(ctx), "TRUNCATE TABLE expenses, users, categories CASCADE")
 	if err != nil {
 		t.Fatalf("failed to truncate tables: %v", err)
 	}
