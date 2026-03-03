@@ -1,123 +1,309 @@
 version: "2"
-
 run:
+  go: "1.24.5"
+  modules-download-mode: readonly
+  issues-exit-code: 1
   tests: true
-
+  allow-parallel-runners: false
+output:
+  formats:
+    text:
+      path: stdout
+      print-linter-name: true
+      print-issued-lines: true
+  path-prefix: ""
 linters:
   enable:
-    # Correctness baseline.
-    - errcheck
-    - govet
-    - ineffassign
-    - staticcheck
-    - unused
-
-    # Bug catchers.
-    - errorlint
-    - nilerr
-    - nilnil
-    - unconvert
-    - unparam
-    - forcetypeassert
-    - exhaustive
-    - copyloopvar
-    - wastedassign
-    - fatcontext
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - contextcheck
     - durationcheck
+    - errchkjson
+    - errorlint
+    - exhaustive
+    - forbidigo
+    - gocheckcompilerdirectives
+    - gochecksumtype
+    - gosec
+    - gosmopolitan
+    - loggercheck
+    - makezero
+    - musttag
+    - nilerr
+    - nilnesserr
+    - noctx
+    - prealloc
+    - protogetter
     - reassign
     - recvcheck
-    - nilnesserr
-
-    # Security.
-    - gosec
-    - bodyclose
-    - bidichk
-
-    # Performance.
-    - prealloc
-    - perfsprint
-
-    # Context and network.
-    - noctx
-
-    # Go module hygiene.
-    - gomoddirectives
-
-    # Printf function naming.
-    - goprintffuncname
-
-    # Lint suppression hygiene.
-    - nolintlint
-
-    # Spelling.
-    - misspell
-
-    # Struct tags.
-    - musttag
-    - tagliatelle
-
-    # Logging.
-    - sloglint
-
-    # Modernization.
-    - modernize
-
-    # Style (low-noise).
-    - godot
-    - nakedret
-    - whitespace
-    - goconst
-
-    # SQL (pgx-compatible).
+    - rowserrcheck
+    - spancheck
     - sqlclosecheck
-
-    # Test-specific.
-    - tparallel
-    - thelper
-    - usetesting
-    - testifylint
-
-    # Diagnostics and performance via gocritic.
-    - gocritic
-
+    - unparam
+    - zerologlint
   settings:
+    cyclop:
+      max-complexity: 10
+      package-average: 0
+    dogsled:
+      max-blank-identifiers: 2
+    dupl:
+      threshold: 100
     errcheck:
-      check-type-assertions: true
+      check-type-assertions: false
       check-blank: false
-
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+    exhaustive:
+      default-signifies-exhaustive: false
+    forbidigo:
+      forbid:
+        - pattern: ^print$
+        - pattern: ^fmt\.Print.*
+        - pattern: ^zap\.Error$
+        - pattern: ^grpc\.(Header|Trailer)$
+    funlen:
+      lines: 60
+      statements: 40
+    gocognit:
+      min-complexity: 10
+    goconst:
+      min-len: 3
+      min-occurrences: 3
     gocritic:
+      disabled-checks:
+        - regexpMust
       enabled-tags:
-        - diagnostic
         - performance
-
+        - diagnostic
+        - style
+      disabled-tags:
+        - experimental
+      settings:
+        captLocal:
+          paramsOnly: true
+        elseif:
+          skipBalanced: true
+        hugeParam:
+          sizeThreshold: 80
+        rangeExprCopy:
+          sizeThreshold: 512
+          skipTestFuncs: true
+        rangeValCopy:
+          sizeThreshold: 32
+          skipTestFuncs: true
+        underef:
+          skipRecvDeref: true
+    gocyclo:
+      min-complexity: 10
+    godot:
+      scope: declarations
+      capital: false
+    godox:
+      keywords:
+        - NOTE
+        - OPTIMIZE
+        - HACK
+    gomoddirectives:
+      replace-local: false
+      exclude-forbidden: false
+      retract-allow-no-explanation: false
+    gomodguard:
+      blocked:
+        local-replace-directives: false
+    govet:
+      enable:
+        - atomicalign
+      disable:
+        - shadow
+      enable-all: false
+      disable-all: false
+      settings:
+        printf:
+          funcs:
+            - (github.com/golangci/golangci-lint/pkg/logutils.Log).Infof
+            - (github.com/golangci/golangci-lint/pkg/logutils.Log).Warnf
+            - (github.com/golangci/golangci-lint/pkg/logutils.Log).Errorf
+            - (github.com/golangci/golangci-lint/pkg/logutils.Log).Fatalf
+    importas:
+      no-unaliased: true
+    lll:
+      line-length: 120
+      tab-width: 1
+    makezero:
+      always: false
+    misspell:
+      locale: US
+    nakedret:
+      max-func-lines: 30
+    nestif:
+      min-complexity: 4
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-unused: false
+    prealloc:
+      simple: true
+      range-loops: true
+      for-loops: false
+    promlinter:
+      strict: false
+    staticcheck:
+      checks:
+        - all
+      initialisms:
+        - ACL
+        - API
+        - ASCII
+        - CPU
+        - CSS
+        - DNS
+        - EOF
+        - GUID
+        - HTML
+        - HTTP
+        - HTTPS
+        - ID
+        - IP
+        - JSON
+        - QPS
+        - RAM
+        - RPC
+        - SLA
+        - SMTP
+        - SQL
+        - SSH
+        - TCP
+        - TLS
+        - TTL
+        - UDP
+        - UI
+        - GID
+        - UID
+        - UUID
+        - URI
+        - URL
+        - UTF8
+        - VM
+        - XML
+        - XMPP
+        - XSRF
+        - XSS
+      dot-import-whitelist:
+        - fmt
+      http-status-code-whitelist:
+        - "200"
+        - "400"
+        - "404"
+        - "500"
     tagliatelle:
       case:
         rules:
-          json: snake
-
-    nakedret:
-      max-func-lines: 0
-
-    sloglint:
-      attr-only: false
-      kv-only: false
-
+          avro: snake
+          bson: camel
+          json: camel
+          mapstructure: kebab
+          xml: camel
+          yaml: camel
+        use-field-name: true
+    thelper:
+      test:
+        first: true
+        name: true
+        begin: true
+      benchmark:
+        first: true
+        name: true
+        begin: true
+      tb:
+        first: true
+        name: true
+        begin: true
+    unparam:
+      check-exported: false
+    whitespace:
+      multi-if: false
+      multi-func: false
+    wrapcheck:
+      ignore-sigs:
+        - .Errorf(
+        - errors.New(
+        - errors.Unwrap(
+        - .Wrap(
+        - .Wrapf(
+        - .WithMessage(
+    wsl:
+      strict-append: true
+      allow-assign-and-call: true
+      allow-assign-and-anything: false
+      allow-multiline-assign: true
+      force-case-trailing-whitespace: 0
+      allow-trailing-comment: false
+      allow-separated-leading-comment: false
+      allow-cuddle-declarations: false
+      force-err-cuddling: false
+      force-short-decl-cuddling: false
   exclusions:
-    rules:
-      - text: '(slog|log)\.\w+'
-        linters:
-          - noctx
     generated: lax
-    presets:
-      - common-false-positives
-
+    rules:
+      - linters:
+          - bodyclose
+          - dupl
+          - errcheck
+          - gocyclo
+          - gosec
+          - musttag
+        path: _test\.go
+      - linters:
+          - lll
+        source: '^//go:generate '
+      - path: (.+)\.go$
+        text: 'require-error: for error assertions use require'
+      - path: (.+)\.go$
+        text: avoid direct access to proto field
+      - linters:
+          - gosec
+        text: 'G115:'
+      - linters:
+          - gosec
+        text: 'G117:'
+      - linters:
+          - gosec
+        text: 'G704:'
+      - linters:
+          - gosec
+        text: 'G705:'
+      - linters:
+          - gosec
+        text: 'G706:'
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
-
+  new: false
+  fix: false
+severity:
+  default: error
+  rules:
+    - linters:
+        - dupl
+      severity: info
 formatters:
-  enable:
-    - gofumpt
-    - goimports
+  settings:
+    gofmt:
+      simplify: true
+    gofumpt:
+      extra-rules: false
   exclusions:
     generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

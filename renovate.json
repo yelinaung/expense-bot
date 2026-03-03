@@ -66,6 +66,16 @@
       "depNameTemplate": "gitleaks/gitleaks",
       "extractVersionTemplate": "^v?(?<version>.*)$",
       "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github\\/workflows\\/.*\\.yml$/"
+      ],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>[^\\s]+)\\s+depName=(?<depName>[^\\s]+)\\n.*?(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)"
+      ],
+      "versioningTemplate": "semver"
     }
   ]
 }
