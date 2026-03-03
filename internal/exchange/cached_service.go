@@ -174,8 +174,8 @@ func (s *CachedService) cleanupExpiredLocked(now time.Time) {
 	if !s.lastCleanup.IsZero() && now.Sub(s.lastCleanup) < interval {
 		return
 	}
-	for pair, entry := range s.rates {
-		if !now.Before(entry.ExpiresAt) {
+	for pair := range s.rates {
+		if !now.Before(s.rates[pair].ExpiresAt) {
 			delete(s.rates, pair)
 		}
 	}

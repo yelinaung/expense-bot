@@ -112,8 +112,8 @@ func callHandleFreeTextExpense(
 	}
 
 	categoryNames := make([]string, len(categories))
-	for i, cat := range categories {
-		categoryNames[i] = cat.Name
+	for i := range categories {
+		categoryNames[i] = categories[i].Name
 	}
 
 	parsed := ParseExpenseInputWithCategories(text, categoryNames)
@@ -132,10 +132,10 @@ func callHandleFreeTextExpense(
 	}
 
 	if parsed.CategoryName != "" {
-		for _, cat := range categories {
-			if strings.EqualFold(cat.Name, parsed.CategoryName) {
-				expense.CategoryID = &cat.ID
-				expense.Category = &cat
+		for i := range categories {
+			if strings.EqualFold(categories[i].Name, parsed.CategoryName) {
+				expense.CategoryID = &categories[i].ID
+				expense.Category = &categories[i]
 				break
 			}
 		}

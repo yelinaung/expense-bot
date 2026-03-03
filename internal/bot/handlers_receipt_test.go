@@ -259,7 +259,7 @@ func TestHandleCancelReceiptCore(t *testing.T) {
 		b.handleCancelReceiptCore(ctx, mockBot, 12345, 100, expense)
 
 		require.Len(t, mockBot.EditedMessages, 1)
-		require.Contains(t, mockBot.EditedMessages[0].Text, "cancelled")
+		require.Contains(t, mockBot.EditedMessages[0].Text, "canceled")
 
 		_, err = b.expenseRepo.GetByID(ctx, expense.ID)
 		require.Error(t, err)

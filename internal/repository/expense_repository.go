@@ -61,7 +61,7 @@ func (r *ExpenseRepository) GetByID(ctx context.Context, id int) (*models.Expens
 }
 
 // GetByUserAndNumber retrieves an expense by user ID and per-user expense number.
-func (r *ExpenseRepository) GetByUserAndNumber(ctx context.Context, userID int64, number int64) (*models.Expense, error) {
+func (r *ExpenseRepository) GetByUserAndNumber(ctx context.Context, userID, number int64) (*models.Expense, error) {
 	var exp models.Expense
 	var categoryID *int
 	err := r.db.QueryRow(ctx, `

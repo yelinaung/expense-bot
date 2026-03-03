@@ -189,8 +189,8 @@ func (b *Bot) handleCategoriesCore(ctx context.Context, tg TelegramAPI, update *
 
 	var sb strings.Builder
 	sb.WriteString("📁 <b>Expense Categories</b>\n\n")
-	for i, cat := range categories {
-		fmt.Fprintf(&sb, "%d. %s\n", i+1, escapeHTML(cat.Name))
+	for i := range categories {
+		fmt.Fprintf(&sb, "%d. %s\n", i+1, escapeHTML(categories[i].Name))
 	}
 
 	logger.Log.Debug().Int64("chat_id", update.Message.Chat.ID).Msg("Sending /categories response")
@@ -507,8 +507,8 @@ func (b *Bot) handleAddCore(ctx context.Context, tg TelegramAPI, update *models.
 	}
 
 	categoryNames := make([]string, len(categories))
-	for i, cat := range categories {
-		categoryNames[i] = cat.Name
+	for i := range categories {
+		categoryNames[i] = categories[i].Name
 	}
 
 	parsed := ParseAddCommandWithCategories(update.Message.Text, categoryNames)
@@ -542,8 +542,8 @@ func (b *Bot) handleFreeTextExpense(ctx context.Context, tgBot *bot.Bot, update 
 	}
 
 	categoryNames := make([]string, len(categories))
-	for i, cat := range categories {
-		categoryNames[i] = cat.Name
+	for i := range categories {
+		categoryNames[i] = categories[i].Name
 	}
 
 	parsed := ParseExpenseInputWithCategories(text, categoryNames)
@@ -694,8 +694,8 @@ func (b *Bot) assignAICategorySuggestion(
 	}
 
 	categoryNames := make([]string, len(categories))
-	for i, cat := range categories {
-		categoryNames[i] = cat.Name
+	for i := range categories {
+		categoryNames[i] = categories[i].Name
 	}
 
 	suggestion, err := b.geminiClient.SuggestCategory(ctx, description, categoryNames)
@@ -1114,8 +1114,8 @@ func (b *Bot) formatExpenseListItem(exp *appmodels.Expense, tags []appmodels.Tag
 	tagText := ""
 	if len(tags) > 0 {
 		names := make([]string, len(tags))
-		for i, tag := range tags {
-			names[i] = "#" + escapeHTML(tag.Name)
+		for i := range tags {
+			names[i] = "#" + escapeHTML(tags[i].Name)
 		}
 		tagText = " " + strings.Join(names, " ")
 	}
@@ -1397,8 +1397,8 @@ func parseEditExpenseValues(
 		}
 	}
 	categoryNames := make([]string, len(categories))
-	for i, cat := range categories {
-		categoryNames[i] = cat.Name
+	for i := range categories {
+		categoryNames[i] = categories[i].Name
 	}
 	return ParseExpenseInputWithCategories(values, categoryNames)
 }

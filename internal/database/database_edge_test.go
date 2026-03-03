@@ -37,11 +37,11 @@ func TestRunMigrations_Idempotent(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestRunMigrations_WithContextCancellation tests migration behavior with cancelled context.
+// TestRunMigrations_WithContextCancellation tests migration behavior with canceled context.
 func TestRunMigrations_WithContextCancellation(t *testing.T) {
 	pool := TestDB(t)
 
-	// Create already-cancelled context
+	// Create already-canceled context
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
@@ -87,7 +87,7 @@ func TestSeedCategories_AlreadySeeded(t *testing.T) {
 	require.Equal(t, 16, count, "should not duplicate categories after multiple seeds")
 }
 
-// TestSeedCategories_WithContextCancellation tests seeding with cancelled context.
+// TestSeedCategories_WithContextCancellation tests seeding with canceled context.
 func TestSeedCategories_WithContextCancellation(t *testing.T) {
 	pool := TestDB(t)
 
@@ -96,7 +96,7 @@ func TestSeedCategories_WithContextCancellation(t *testing.T) {
 
 	CleanupTables(context.Background(), t, pool)
 
-	// Create already-cancelled context
+	// Create already-canceled context
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 

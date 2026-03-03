@@ -708,7 +708,7 @@ func downloadPhotoFromURL(ctx context.Context, url string) ([]byte, error) {
 		return nil, err
 	}
 
-	resp, err := http.DefaultClient.Do(req) //nolint:gosec // test-only helper; URL comes from httptest.Server
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

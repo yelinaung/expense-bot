@@ -162,7 +162,7 @@ func ParseExpenseInput(input string) *ParsedExpense {
 	}
 }
 
-func parseCurrencyPrefix(input string) (currency string, remaining string) {
+func parseCurrencyPrefix(input string) (currency, remaining string) {
 	prefixMatch := currencyPrefixRegex.FindStringSubmatch(input)
 	if len(prefixMatch) <= 1 {
 		return "", input

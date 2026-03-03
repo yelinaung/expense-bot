@@ -178,8 +178,8 @@ func buildTagConfirmationText(
 	}
 
 	currentNames := make([]string, 0, len(currentTags))
-	for _, tag := range currentTags {
-		currentNames = append(currentNames, "#"+escapeHTML(tag.Name))
+	for i := range currentTags {
+		currentNames = append(currentNames, "#"+escapeHTML(currentTags[i].Name))
 	}
 	return fmt.Sprintf("✅ Added %s to expense #%d.\n🏷️ Tags: %s",
 		strings.Join(addedNames, ", "),
@@ -327,8 +327,8 @@ func (b *Bot) handleTagsCore(ctx context.Context, tg TelegramAPI, update *models
 
 		var sb strings.Builder
 		sb.WriteString("🏷️ <b>Tags</b>\n\n")
-		for i, tag := range tags {
-			fmt.Fprintf(&sb, "%d. #%s\n", i+1, escapeHTML(tag.Name))
+		for i := range tags {
+			fmt.Fprintf(&sb, "%d. #%s\n", i+1, escapeHTML(tags[i].Name))
 		}
 
 		_, err = tg.SendMessage(ctx, &bot.SendMessageParams{

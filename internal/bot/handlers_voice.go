@@ -88,8 +88,8 @@ func (b *Bot) handleVoiceCore(ctx context.Context, tg TelegramAPI, update *model
 		return
 	}
 	categoryNames := make([]string, len(categories))
-	for i, cat := range categories {
-		categoryNames[i] = cat.Name
+	for i := range categories {
+		categoryNames[i] = categories[i].Name
 	}
 	if len(categoryNames) == 0 {
 		categoryNames = gemini.DefaultCategories

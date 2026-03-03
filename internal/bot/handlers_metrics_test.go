@@ -15,8 +15,9 @@ import (
 )
 
 func histogramDataPointCount(resourceMetrics metricdata.ResourceMetrics, metricName string) int {
-	for _, scopeMetric := range resourceMetrics.ScopeMetrics {
-		for _, metric := range scopeMetric.Metrics {
+	for i := range resourceMetrics.ScopeMetrics {
+		for j := range resourceMetrics.ScopeMetrics[i].Metrics {
+			metric := resourceMetrics.ScopeMetrics[i].Metrics[j]
 			if metric.Name != metricName {
 				continue
 			}

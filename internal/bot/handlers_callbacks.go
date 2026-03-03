@@ -450,7 +450,8 @@ func (b *Bot) showCategorySelectionCore(
 	var rows [][]models.InlineKeyboardButton
 	currentRow := make([]models.InlineKeyboardButton, 0, 2)
 
-	for _, cat := range categories {
+	for i := range categories {
+		cat := categories[i]
 		btn := models.InlineKeyboardButton{
 			Text:         cat.Name,
 			CallbackData: fmt.Sprintf("set_category_%d_%d", expense.ID, cat.ID),
