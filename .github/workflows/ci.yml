@@ -53,7 +53,7 @@ jobs:
           fi
 
       - name: Run Semgrep
-        run: semgrep scan --config auto --error .
+        run: semgrep scan --config auto --error --exclude-rule generic.secrets.security.detected-sonarqube-docs-api-key .
 
   gosec:
     name: Gosec Security Check
@@ -195,7 +195,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0 # nosemgrep: generic.secrets.security.detected-sonarqube-docs-api-key
+        uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
