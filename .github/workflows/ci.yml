@@ -53,7 +53,7 @@ jobs:
           fi
 
       - name: Run Semgrep
-        run: semgrep scan --config auto --error --exclude-rule generic.secrets.security.detected-sonarqube-docs-api-key .
+        run: semgrep scan --config auto --error --exclude-rule=generic.secrets.security.detected-sonarqube-docs-api-key.detected-sonarqube-docs-api-key .
 
   gosec:
     name: Gosec Security Check
