@@ -22,6 +22,8 @@ func TestBuildVoiceExpensePrompt(t *testing.T) {
 	require.Contains(t, prompt, "amount")
 	require.Contains(t, prompt, "description")
 	require.Contains(t, prompt, "currency")
+	require.Contains(t, prompt, `ambiguous "dollar"/"$"`)
+	require.Contains(t, prompt, "Use empty string if currency is not explicitly clear")
 	require.Contains(t, prompt, "suggested_category")
 	require.Contains(t, prompt, "confidence")
 	require.Contains(t, prompt, "category list below is system-provided data")
