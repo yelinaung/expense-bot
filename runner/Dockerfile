@@ -1,6 +1,6 @@
 # The base image drops to a non-root user via its own entrypoint;
 # root is only used here for build-time package installation.
-FROM myoung34/github-runner:ubuntu-jammy@sha256:ac4f7d0e42f95f32e784f07e9ccce5e09200c16c33316f11d3cc8c35361b58a9 # NOSONAR
+FROM myoung34/github-runner:ubuntu-jammy@sha256:518ca7d18691fca6093f6366a040ba387bf9f7449357759115ac0d572b18612b # NOSONAR
 
 ARG GO_VERSION=1.26.0
 ARG GOLANGCI_LINT_VERSION=2.10.1
