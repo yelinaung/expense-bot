@@ -7,14 +7,14 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
+	"gitlab.com/yelinaung/expense-bot/internal/testutil/dbtest"
 )
 
 // TestExpenseRepository_CreateEdgeCases tests edge cases for expense creation.
 func TestExpenseRepository_CreateEdgeCases(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	// Run migrations
 	// Cleanup
@@ -135,7 +135,7 @@ func TestExpenseRepository_CreateEdgeCases(t *testing.T) {
 // TestExpenseRepository_UpdateEdgeCases tests edge cases for expense updates.
 func TestExpenseRepository_UpdateEdgeCases(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	// Create test user
 	userRepo := NewUserRepository(tx)
@@ -214,7 +214,7 @@ func TestExpenseRepository_UpdateEdgeCases(t *testing.T) {
 // TestExpenseRepository_DeleteEdgeCases tests edge cases for expense deletion.
 func TestExpenseRepository_DeleteEdgeCases(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	// Create test user
 	userRepo := NewUserRepository(tx)
@@ -258,7 +258,7 @@ func TestExpenseRepository_DeleteEdgeCases(t *testing.T) {
 // TestExpenseRepository_GetByIDEdgeCases tests edge cases for GetByID.
 func TestExpenseRepository_GetByIDEdgeCases(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	repo := NewExpenseRepository(tx)
 
@@ -284,7 +284,7 @@ func TestExpenseRepository_GetByIDEdgeCases(t *testing.T) {
 // TestExpenseRepository_GetByUserIDAndDateRangeEdgeCases tests date range edge cases.
 func TestExpenseRepository_GetByUserIDAndDateRangeEdgeCases(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	// Create test user
 	userRepo := NewUserRepository(tx)
@@ -352,7 +352,7 @@ func TestExpenseRepository_GetByUserIDAndDateRangeEdgeCases(t *testing.T) {
 // TestExpenseRepository_DeleteExpiredDraftsEdgeCases tests draft cleanup edge cases.
 func TestExpenseRepository_DeleteExpiredDraftsEdgeCases(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	// Create test user
 	userRepo := NewUserRepository(tx)

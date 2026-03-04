@@ -11,9 +11,9 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/bot/mocks"
-	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
+	"gitlab.com/yelinaung/expense-bot/internal/testutil/dbtest"
 )
 
 const notFoundTextEditDelete = "not found"
@@ -21,7 +21,7 @@ const notFoundTextEditDelete = "not found"
 // TestHandleEdit tests the /edit command handler.
 func TestHandleEdit(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	categoryRepo := repository.NewCategoryRepository(tx)
@@ -326,7 +326,7 @@ func callHandleEdit(
 // TestHandleDelete tests the /delete command handler.
 func TestHandleDelete(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	expenseRepo := repository.NewExpenseRepository(tx)
@@ -438,7 +438,7 @@ func TestEditDeleteHandlerWrappers(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	categoryRepo := repository.NewCategoryRepository(tx)

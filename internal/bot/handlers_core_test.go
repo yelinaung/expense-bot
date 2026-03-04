@@ -49,7 +49,7 @@ func makeCategorySuggestionPayload(reason string, matched bool, newCategoryName 
 
 func TestHandleAddCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 
 	t.Run(nilMessageReturnsEarlyCore, func(t *testing.T) {
@@ -170,7 +170,7 @@ func TestHandleAddCore(t *testing.T) {
 
 func TestHandleStartCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 
 	t.Run(nilMessageReturnsEarlyCore, func(t *testing.T) {
@@ -212,7 +212,7 @@ func TestHandleStartCore(t *testing.T) {
 
 func TestHandleHelpCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 
 	t.Run(nilMessageReturnsEarlyCore, func(t *testing.T) {
@@ -248,7 +248,7 @@ func TestHandleHelpCore(t *testing.T) {
 
 func TestHandleCategoriesCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 
 	t.Run(nilMessageReturnsEarlyCore, func(t *testing.T) {
@@ -276,7 +276,7 @@ func TestHandleCategoriesCore(t *testing.T) {
 
 func TestHandleListCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(300001)
 
@@ -338,7 +338,7 @@ func TestHandleListCore(t *testing.T) {
 
 func TestHandleTodayCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(300002)
 
@@ -472,7 +472,7 @@ func TestHandleTodayCore(t *testing.T) {
 
 func TestHandleWeekCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(300003)
 
@@ -596,7 +596,7 @@ func TestHandleWeekCore(t *testing.T) {
 
 func TestSaveExpenseCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 
 	t.Run("expense without category is saved as uncategorized", func(t *testing.T) {

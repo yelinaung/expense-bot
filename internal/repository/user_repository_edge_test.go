@@ -5,14 +5,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
+	"gitlab.com/yelinaung/expense-bot/internal/testutil/dbtest"
 )
 
 // TestUserRepository_UpsertUserEdgeCases tests edge cases for user upsert.
 func TestUserRepository_UpsertUserEdgeCases(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	repo := NewUserRepository(tx)
 
@@ -226,7 +226,7 @@ func TestUserRepository_UpsertUserEdgeCases(t *testing.T) {
 // TestUserRepository_GetUserByIDEdgeCases tests edge cases for GetUserByID.
 func TestUserRepository_GetUserByIDEdgeCases(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	repo := NewUserRepository(tx)
 

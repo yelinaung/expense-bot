@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/bot/mocks"
 	"gitlab.com/yelinaung/expense-bot/internal/config"
-	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
+	"gitlab.com/yelinaung/expense-bot/internal/testutil/dbtest"
 )
 
 const (
@@ -30,7 +30,7 @@ const (
 
 func TestHandleApproveCore(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	cfg := &config.Config{
 		WhitelistedUserIDs:   []int64{100},
@@ -106,7 +106,7 @@ func TestHandleApproveCore(t *testing.T) {
 
 func TestHandleRevokeCore(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	cfg := &config.Config{
 		WhitelistedUserIDs:   []int64{100},
@@ -189,7 +189,7 @@ func TestHandleRevokeCore(t *testing.T) {
 
 func TestHandleUsersCore(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	cfg := &config.Config{
 		WhitelistedUserIDs:   []int64{100},

@@ -10,7 +10,7 @@ import (
 
 func TestIsAuthorized(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 
 	t.Run("allows configured superadmin", func(t *testing.T) {

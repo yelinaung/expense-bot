@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/bot/mocks"
 	"gitlab.com/yelinaung/expense-bot/internal/config"
-	"gitlab.com/yelinaung/expense-bot/internal/database"
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
+	"gitlab.com/yelinaung/expense-bot/internal/testutil/dbtest"
 )
 
 func TestExtractUserID(t *testing.T) {
@@ -225,7 +225,7 @@ func TestLogUserAction(t *testing.T) {
 // TestWhitelistMiddleware tests the whitelist middleware behavior.
 func TestWhitelistMiddleware(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 	const testMessage = "test message"
 
 	t.Run("allows whitelisted user", func(t *testing.T) {
@@ -494,7 +494,7 @@ func (w *middlewareBotWrapper) runMiddleware(
 // TestEnsureUserRegistered tests user registration from various update types.
 func TestEnsureUserRegistered(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	b := &Bot{
@@ -759,7 +759,7 @@ func TestDraftConstants(t *testing.T) {
 
 func TestCleanupExpiredDrafts(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 
 	userID := int64(800001)
@@ -797,7 +797,7 @@ func TestCleanupExpiredDrafts(t *testing.T) {
 
 func TestDeleteCategorySequential(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 
 	userID := int64(800002)

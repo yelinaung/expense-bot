@@ -5,12 +5,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/yelinaung/expense-bot/internal/database"
+	"gitlab.com/yelinaung/expense-bot/internal/testutil/dbtest"
 )
 
 func TestCategoryRepository_CRUD(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	repo := NewCategoryRepository(tx)
 
@@ -76,7 +76,7 @@ func TestCategoryRepository_CRUD(t *testing.T) {
 
 func TestCategoryRepository_GetByID_NonExistent(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	repo := NewCategoryRepository(tx)
 
@@ -86,7 +86,7 @@ func TestCategoryRepository_GetByID_NonExistent(t *testing.T) {
 
 func TestCategoryRepository_GetByName_NonExistent(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	repo := NewCategoryRepository(tx)
 
@@ -96,7 +96,7 @@ func TestCategoryRepository_GetByName_NonExistent(t *testing.T) {
 
 func TestCategoryRepository_UpdateNonExistent(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	repo := NewCategoryRepository(tx)
 
@@ -107,7 +107,7 @@ func TestCategoryRepository_UpdateNonExistent(t *testing.T) {
 
 func TestCategoryRepository_DeleteNonExistent(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	repo := NewCategoryRepository(tx)
 
@@ -118,7 +118,7 @@ func TestCategoryRepository_DeleteNonExistent(t *testing.T) {
 
 func TestCategoryRepository_GetAll_Empty(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	repo := NewCategoryRepository(tx)
 
@@ -133,7 +133,7 @@ func TestCategoryRepository_GetAll_Empty(t *testing.T) {
 
 func TestCategoryRepository_CreateDuplicate(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	repo := NewCategoryRepository(tx)
 

@@ -8,7 +8,7 @@ import (
 )
 
 func TestRunMigrations(t *testing.T) {
-	pool := TestDB(t)
+	pool := testDB(t)
 	ctx := context.Background()
 
 	err := RunMigrations(ctx, pool)
@@ -44,13 +44,13 @@ func TestRunMigrations(t *testing.T) {
 }
 
 func TestSeedCategories(t *testing.T) {
-	pool := TestDB(t)
+	pool := testDB(t)
 	ctx := context.Background()
 
 	err := RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
-	CleanupTables(ctx, t, pool)
+	cleanupTables(ctx, t, pool)
 
 	err = SeedCategories(ctx, pool)
 	require.NoError(t, err)

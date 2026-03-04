@@ -10,6 +10,7 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
+	"gitlab.com/yelinaung/expense-bot/internal/testutil/dbtest"
 )
 
 // setupHandlerErrorTest creates a test environment for handler error scenarios.
@@ -17,7 +18,7 @@ func setupHandlerErrorTest(t *testing.T) (*Bot, context.Context, database.PGXDB)
 	t.Helper()
 
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	// Create bot instance
 	expenseRepo := repository.NewExpenseRepository(tx)

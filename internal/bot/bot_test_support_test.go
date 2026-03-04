@@ -10,12 +10,13 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/exchange"
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
+	"gitlab.com/yelinaung/expense-bot/internal/testutil/dbtest"
 )
 
-// TestDB is a convenience wrapper around database.TestTx for bot tests.
-func TestDB(ctx context.Context, t *testing.T) database.PGXDB {
+// testDB is a convenience wrapper around dbtest.TestTx for bot tests.
+func testDB(ctx context.Context, t *testing.T) database.PGXDB {
 	t.Helper()
-	return database.TestTx(ctx, t)
+	return dbtest.TestTx(ctx, t)
 }
 
 // setupTestBot creates a Bot instance for testing with database.

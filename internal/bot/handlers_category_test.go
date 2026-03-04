@@ -16,7 +16,7 @@ func TestHandleCategoryCore(t *testing.T) {
 	// Note: Not using t.Parallel() to avoid database cleanup conflicts
 
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 
 	userID := int64(700999)

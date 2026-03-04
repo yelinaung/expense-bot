@@ -5,12 +5,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/yelinaung/expense-bot/internal/database"
+	"gitlab.com/yelinaung/expense-bot/internal/testutil/dbtest"
 )
 
 func TestApprovedUserRepository_ApproveAndRevoke(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	repo := NewApprovedUserRepository(tx)
 
@@ -68,7 +68,7 @@ func TestApprovedUserRepository_ApproveAndRevoke(t *testing.T) {
 
 func TestApprovedUserRepository_IsApproved(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	repo := NewApprovedUserRepository(tx)
 
@@ -134,7 +134,7 @@ func TestApprovedUserRepository_IsApproved(t *testing.T) {
 
 func TestApprovedUserRepository_UpdateUserID(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	repo := NewApprovedUserRepository(tx)
 
@@ -158,7 +158,7 @@ func TestApprovedUserRepository_UpdateUserID(t *testing.T) {
 
 func TestApprovedUserRepository_GetAll(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	repo := NewApprovedUserRepository(tx)
 
@@ -182,7 +182,7 @@ func TestApprovedUserRepository_GetAll(t *testing.T) {
 
 func TestApprovedUserRepository_RecycledUsernameDoesNotInheritAccess(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	repo := NewApprovedUserRepository(tx)
 
@@ -208,7 +208,7 @@ func TestApprovedUserRepository_RecycledUsernameDoesNotInheritAccess(t *testing.
 
 func TestApprovedUserRepository_ApproveDuplicate(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	repo := NewApprovedUserRepository(tx)
 

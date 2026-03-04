@@ -14,7 +14,7 @@ func TestGetCategoriesWithCache(t *testing.T) {
 	// NOTE: No t.Parallel() - database tests must run sequentially
 
 	t.Run("cache miss - fetches from DB", func(t *testing.T) {
-		pool := TestDB(context.Background(), t)
+		pool := testDB(context.Background(), t)
 		b := setupTestBot(t, pool)
 
 		// Ensure cache is empty
@@ -32,7 +32,7 @@ func TestGetCategoriesWithCache(t *testing.T) {
 	})
 
 	t.Run("cache hit - uses cached data", func(t *testing.T) {
-		pool := TestDB(context.Background(), t)
+		pool := testDB(context.Background(), t)
 		b := setupTestBot(t, pool)
 
 		// First call to populate cache
@@ -56,7 +56,7 @@ func TestGetCategoriesWithCache(t *testing.T) {
 	})
 
 	t.Run("cache expiry - refetches from DB", func(t *testing.T) {
-		pool := TestDB(context.Background(), t)
+		pool := testDB(context.Background(), t)
 		b := setupTestBot(t, pool)
 
 		// Populate cache with expired timestamp
@@ -73,7 +73,7 @@ func TestGetCategoriesWithCache(t *testing.T) {
 	})
 
 	t.Run("concurrent access - no race conditions", func(t *testing.T) {
-		pool := TestDB(context.Background(), t)
+		pool := testDB(context.Background(), t)
 		b := setupTestBot(t, pool)
 
 		// Clear cache
@@ -104,7 +104,7 @@ func TestInvalidateCategoryCache(t *testing.T) {
 	// NOTE: No t.Parallel() - database tests must run sequentially
 
 	t.Run("clears cache", func(t *testing.T) {
-		pool := TestDB(context.Background(), t)
+		pool := testDB(context.Background(), t)
 		b := setupTestBot(t, pool)
 
 		// Populate cache
@@ -120,7 +120,7 @@ func TestInvalidateCategoryCache(t *testing.T) {
 	})
 
 	t.Run("next access refetches from DB", func(t *testing.T) {
-		pool := TestDB(context.Background(), t)
+		pool := testDB(context.Background(), t)
 		b := setupTestBot(t, pool)
 
 		// Populate cache
