@@ -13,7 +13,7 @@ import (
 
 func TestHandleRenameCategoryCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 
 	userID := int64(900001)

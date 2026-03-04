@@ -48,7 +48,7 @@ func TestBuildReceiptConfirmationKeyboard(t *testing.T) {
 
 func TestHandleReceiptCallbackCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(400001)
 
@@ -165,7 +165,7 @@ func TestHandleReceiptCallbackCore(t *testing.T) {
 
 func TestHandleConfirmReceiptCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(400002)
 
@@ -232,7 +232,7 @@ func TestHandleConfirmReceiptCore(t *testing.T) {
 
 func TestHandleCancelReceiptCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(400003)
 
@@ -268,7 +268,7 @@ func TestHandleCancelReceiptCore(t *testing.T) {
 
 func TestHandleEditReceiptCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(400004)
 
@@ -303,7 +303,7 @@ func TestHandleEditReceiptCore(t *testing.T) {
 
 func TestHandleBackToReceiptCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(400005)
 
@@ -414,7 +414,7 @@ func TestHandlePhotoCore_ParseError(t *testing.T) {
 
 func TestHandlePhotoCore_Success(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	require.NoError(t, b.userRepo.UpsertUser(ctx, &appmodels.User{
 		ID:        100,

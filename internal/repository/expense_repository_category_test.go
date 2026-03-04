@@ -6,13 +6,13 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
+	"gitlab.com/yelinaung/expense-bot/internal/testutil/dbtest"
 )
 
 func TestExpenseRepository_GetByUserIDAndCategory(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 	repo := NewExpenseRepository(tx)
 	catRepo := NewCategoryRepository(tx)
 	userRepo := NewUserRepository(tx)
@@ -113,7 +113,7 @@ func TestExpenseRepository_GetByUserIDAndCategory(t *testing.T) {
 
 func TestExpenseRepository_GetTotalByUserIDAndCategory(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 	repo := NewExpenseRepository(tx)
 	catRepo := NewCategoryRepository(tx)
 	userRepo := NewUserRepository(tx)
@@ -186,7 +186,7 @@ func TestExpenseRepository_GetTotalByUserIDAndCategory(t *testing.T) {
 
 func TestExpenseRepository_CategoryFilterEdgeCases(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 	repo := NewExpenseRepository(tx)
 	catRepo := NewCategoryRepository(tx)
 	userRepo := NewUserRepository(tx)

@@ -19,7 +19,7 @@ func TestCommandHandlerWrappers(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 
 	// Create a user for tests that need it

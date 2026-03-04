@@ -137,7 +137,7 @@ func TestBotStart_PanicsWithNilBot(t *testing.T) {
 }
 
 func TestBotStart_CanceledContext_NoPanic(t *testing.T) {
-	pool := TestDB(context.Background(), t)
+	pool := testDB(context.Background(), t)
 	b := setupTestBot(t, pool)
 
 	client := &fakeHTTPClient{}
@@ -162,7 +162,7 @@ func TestBotStart_CanceledContext_NoPanic(t *testing.T) {
 }
 
 func TestCleanupExpiredDrafts_DeletesOnlyExpired(t *testing.T) {
-	pool := TestDB(context.Background(), t)
+	pool := testDB(context.Background(), t)
 	b := setupTestBot(t, pool)
 	ctx := context.Background()
 	user := &appmodels.User{
@@ -209,7 +209,7 @@ func TestCleanupExpiredDrafts_DeletesOnlyExpired(t *testing.T) {
 }
 
 func TestCleanupExpiredDrafts_CanceledContext_NoDelete(t *testing.T) {
-	pool := TestDB(context.Background(), t)
+	pool := testDB(context.Background(), t)
 	b := setupTestBot(t, pool)
 	baseCtx := context.Background()
 	user := &appmodels.User{
@@ -245,7 +245,7 @@ func TestCleanupExpiredDrafts_CanceledContext_NoDelete(t *testing.T) {
 }
 
 func TestNew_InvalidTokenReturnsError(t *testing.T) {
-	db := TestDB(context.Background(), t)
+	db := testDB(context.Background(), t)
 
 	cfg := &config.Config{
 		TelegramBotToken: "",
@@ -258,7 +258,7 @@ func TestNew_InvalidTokenReturnsError(t *testing.T) {
 }
 
 func TestNew_LoadsPersistedSuperadminBindings(t *testing.T) {
-	db := TestDB(context.Background(), t)
+	db := testDB(context.Background(), t)
 	ctx := context.Background()
 
 	bindingRepo := repository.NewSuperadminBindingRepository(db)

@@ -1,4 +1,4 @@
-package database
+package dbtest
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"gitlab.com/yelinaung/expense-bot/internal/database"
 )
 
 var (
@@ -14,6 +15,39 @@ var (
 	testPoolOnce sync.Once
 	testPoolErr  error
 )
+
+// TestDB returns a database connection pool for testing.
+// Skips the test if TEST_DATABASE_URL is not set.
+func TestDB(t *testing.T) *pgxpool.Pool {
+	t.Helper()
+
+	dbURL := os.Getenv("TEST_DATABASE_URL")
+	if dbURL == "" {
+		t.Skip("TEST_DATABASE_URL not set, skipping integration test")
+	}
+
+	ctx := context.Background()
+	pool, err := database.Connect(ctx, dbURL, false)
+	if err != nil {
+		t.Fatalf("failed to connect to test database: %v", err)
+	}
+
+	t.Cleanup(func() {
+		pool.Close()
+	})
+
+	return pool
+}
+
+// CleanupTables truncates all tables for a clean test state.
+func CleanupTables(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
+
+	_, err := pool.Exec(context.WithoutCancel(ctx), "TRUNCATE TABLE expenses, users, categories CASCADE")
+	if err != nil {
+		t.Fatalf("failed to truncate tables: %v", err)
+	}
+}
 
 // TestPool returns a shared database connection pool for testing.
 // The pool is created once and reused across all tests.
@@ -29,19 +63,19 @@ func TestPool(t *testing.T) *pgxpool.Pool {
 
 	testPoolOnce.Do(func() {
 		ctx := context.Background()
-		testPool, testPoolErr = Connect(ctx, dbURL, false)
+		testPool, testPoolErr = database.Connect(ctx, dbURL, false)
 		if testPoolErr != nil {
 			return
 		}
 
 		// Run migrations once for the shared pool.
-		testPoolErr = RunMigrations(ctx, testPool)
+		testPoolErr = database.RunMigrations(ctx, testPool)
 		if testPoolErr != nil {
 			return
 		}
 
 		// Seed categories once for the shared pool.
-		testPoolErr = SeedCategories(ctx, testPool)
+		testPoolErr = database.SeedCategories(ctx, testPool)
 	})
 
 	if testPoolErr != nil {
@@ -54,26 +88,7 @@ func TestPool(t *testing.T) *pgxpool.Pool {
 // TestTx returns a database transaction for testing.
 // The transaction is automatically rolled back when the test completes,
 // ensuring test isolation without the need for table cleanup.
-//
-// This approach allows tests to run in parallel safely, as each test
-// operates in its own transaction that doesn't affect others.
-//
-// Usage:
-//
-//	tx := database.TestTx(ctx, t)
-//	userRepo := repository.NewUserRepository(tx)
-//	// Use repositories normally - all operations are in a transaction
-//	// Transaction is automatically rolled back after test completes
-//
-// Benefits:
-//   - No need for CleanupTables() - automatic rollback
-//   - Tests can run in parallel safely (each has own transaction)
-//   - Faster than TRUNCATE-based cleanup
-//   - Requires repositories to accept PGXDB interface
-//
-// Note: This function returns PGXDB interface. Repositories must be updated
-// to accept PGXDB instead of *pgxpool.Pool.
-func TestTx(ctx context.Context, t *testing.T) PGXDB {
+func TestTx(ctx context.Context, t *testing.T) database.PGXDB {
 	t.Helper()
 
 	pool := TestPool(t) //nolint:contextcheck // Shared pool setup is intentionally decoupled from caller context.

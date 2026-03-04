@@ -14,7 +14,7 @@ import (
 
 func TestHandleEditCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(910001)
 	chatID := int64(910001)
@@ -95,7 +95,7 @@ func TestHandleEditCore(t *testing.T) {
 
 func TestHandleDeleteCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(910101)
 	chatID := int64(910101)

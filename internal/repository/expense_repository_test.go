@@ -7,15 +7,15 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
+	"gitlab.com/yelinaung/expense-bot/internal/testutil/dbtest"
 )
 
 func setupExpenseTest(t *testing.T) (*ExpenseRepository, *UserRepository, *CategoryRepository, context.Context) {
 	t.Helper()
 
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	return NewExpenseRepository(tx),
 		NewUserRepository(tx),

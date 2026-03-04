@@ -8,9 +8,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// TestDB returns a database connection pool for testing.
+// testDB returns a database connection pool for testing.
 // Skips the test if TEST_DATABASE_URL is not set.
-func TestDB(t *testing.T) *pgxpool.Pool {
+func testDB(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 
 	dbURL := os.Getenv("TEST_DATABASE_URL")
@@ -31,8 +31,8 @@ func TestDB(t *testing.T) *pgxpool.Pool {
 	return pool
 }
 
-// CleanupTables truncates all tables for a clean test state.
-func CleanupTables(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
+// cleanupTables truncates all tables for a clean test state.
+func cleanupTables(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 
 	_, err := pool.Exec(context.WithoutCancel(ctx), "TRUNCATE TABLE expenses, users, categories CASCADE")

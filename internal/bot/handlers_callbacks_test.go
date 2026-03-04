@@ -41,7 +41,7 @@ const (
 
 func TestHandleEditCallbackCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(500001)
 
@@ -218,7 +218,7 @@ func TestHandleEditCallbackCore(t *testing.T) {
 
 func TestPromptEditAmountCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(500002)
 
@@ -259,7 +259,7 @@ func TestPromptEditAmountCore(t *testing.T) {
 
 func TestHandlePendingEditCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(500003)
 
@@ -344,7 +344,7 @@ func TestHandlePendingEditCore(t *testing.T) {
 
 func TestProcessAmountEditCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(500004)
 
@@ -435,7 +435,7 @@ func TestProcessAmountEditCore(t *testing.T) {
 
 func TestHandleCancelEditCallbackCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(500005)
 
@@ -503,7 +503,7 @@ func TestHandleCancelEditCallbackCore(t *testing.T) {
 
 func TestShowCategorySelectionCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(500006)
 
@@ -537,7 +537,7 @@ func TestShowCategorySelectionCore(t *testing.T) {
 
 func TestHandleSetCategoryCallbackCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(500007)
 
@@ -601,7 +601,7 @@ func TestHandleSetCategoryCallbackCore(t *testing.T) {
 
 func TestProcessCategoryCreateCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(500008)
 
@@ -672,7 +672,7 @@ func TestProcessCategoryCreateCore(t *testing.T) {
 
 func TestHandleCreateCategoryCallbackCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(500009)
 
@@ -726,7 +726,7 @@ func TestHandleCreateCategoryCallbackCore(t *testing.T) {
 
 func TestPromptEditMerchantCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(500020)
 
@@ -769,7 +769,7 @@ func TestPromptEditMerchantCore(t *testing.T) {
 
 func TestProcessMerchantEditCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(500021)
 
@@ -892,7 +892,7 @@ func TestProcessMerchantEditCore(t *testing.T) {
 
 func TestPromptCreateCategoryCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(500010)
 

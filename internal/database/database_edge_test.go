@@ -16,7 +16,7 @@ const (
 
 // TestRunMigrations_Idempotent tests that migrations can be run multiple times safely.
 func TestRunMigrations_Idempotent(t *testing.T) {
-	pool := TestDB(t)
+	pool := testDB(t)
 	ctx := context.Background()
 
 	// Run migrations first time
@@ -39,7 +39,7 @@ func TestRunMigrations_Idempotent(t *testing.T) {
 
 // TestRunMigrations_WithContextCancellation tests migration behavior with canceled context.
 func TestRunMigrations_WithContextCancellation(t *testing.T) {
-	pool := TestDB(t)
+	pool := testDB(t)
 
 	// Create already-canceled context
 	ctx, cancel := context.WithCancel(context.Background())
@@ -53,13 +53,13 @@ func TestRunMigrations_WithContextCancellation(t *testing.T) {
 
 // TestSeedCategories_AlreadySeeded tests re-seeding with existing data.
 func TestSeedCategories_AlreadySeeded(t *testing.T) {
-	pool := TestDB(t)
+	pool := testDB(t)
 	ctx := context.Background()
 
 	err := RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
-	CleanupTables(ctx, t, pool)
+	cleanupTables(ctx, t, pool)
 
 	// First seed
 	err = SeedCategories(ctx, pool)
@@ -89,12 +89,12 @@ func TestSeedCategories_AlreadySeeded(t *testing.T) {
 
 // TestSeedCategories_WithContextCancellation tests seeding with canceled context.
 func TestSeedCategories_WithContextCancellation(t *testing.T) {
-	pool := TestDB(t)
+	pool := testDB(t)
 
 	err := RunMigrations(context.Background(), pool)
 	require.NoError(t, err)
 
-	CleanupTables(context.Background(), t, pool)
+	cleanupTables(context.Background(), t, pool)
 
 	// Create already-canceled context
 	ctx, cancel := context.WithCancel(context.Background())
@@ -162,14 +162,14 @@ func TestConnect_WithMalformedURL(t *testing.T) {
 
 // TestCleanupTables_EmptyDatabase tests cleanup on empty database.
 func TestCleanupTables_EmptyDatabase(t *testing.T) {
-	pool := TestDB(t)
+	pool := testDB(t)
 	ctx := context.Background()
 
 	err := RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
 	// Clean empty tables
-	CleanupTables(ctx, t, pool)
+	cleanupTables(ctx, t, pool)
 
 	// Verify tables are empty
 	var count int
@@ -188,7 +188,7 @@ func TestCleanupTables_EmptyDatabase(t *testing.T) {
 
 // TestCleanupTables_WithData tests cleanup with existing data.
 func TestCleanupTables_WithData(t *testing.T) {
-	pool := TestDB(t)
+	pool := testDB(t)
 	ctx := context.Background()
 
 	err := RunMigrations(ctx, pool)
@@ -213,7 +213,7 @@ func TestCleanupTables_WithData(t *testing.T) {
 	require.Positive(t, categoryCount)
 
 	// Cleanup
-	CleanupTables(ctx, t, pool)
+	cleanupTables(ctx, t, pool)
 
 	// Verify all data removed
 	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM expenses").Scan(&userCount)
@@ -241,7 +241,7 @@ func TestTestDB_SkipsWithoutEnvVar(t *testing.T) {
 	}
 
 	// Verify TestDB works when env var is set
-	pool := TestDB(t)
+	pool := testDB(t)
 	require.NotNil(t, pool)
 }
 
@@ -279,13 +279,13 @@ func TestConnect_WithValidConnectionPooled(t *testing.T) {
 
 // TestSeedCategories_CategoryNames tests that all expected categories are seeded.
 func TestSeedCategories_CategoryNames(t *testing.T) {
-	pool := TestDB(t)
+	pool := testDB(t)
 	ctx := context.Background()
 
 	err := RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
-	CleanupTables(ctx, t, pool)
+	cleanupTables(ctx, t, pool)
 
 	err = SeedCategories(ctx, pool)
 	require.NoError(t, err)

@@ -38,7 +38,7 @@ func (m *mockExchangeService) Convert(
 
 func TestConvertExpenseCurrency(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(910001)
 
@@ -111,7 +111,7 @@ func TestConvertExpenseCurrency(t *testing.T) {
 
 func TestSaveExpenseCore_ConvertsCurrencyToDefault(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(910002)
 
@@ -156,7 +156,7 @@ func TestSaveExpenseCore_ConvertsCurrencyToDefault(t *testing.T) {
 
 func TestSaveExpenseCore_ExchangeOutageDoesNotBlockSave(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(910003)
 

@@ -202,7 +202,7 @@ func TestSendEditConfirmation(t *testing.T) {
 
 func TestGetEditableExpense(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 
 	const ownerID = int64(930001)
@@ -286,7 +286,7 @@ func TestIsValidAutoCreatedCategoryName(t *testing.T) {
 
 func TestApplyNewCategorySuggestion(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 
 	expense := &appmodels.Expense{}
@@ -319,7 +319,7 @@ func TestApplyNewCategorySuggestion(t *testing.T) {
 
 func TestSaveInlineTags(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 
 	const userID = int64(940001)
@@ -380,7 +380,7 @@ func TestSaveInlineTags_NoTags(t *testing.T) {
 
 func TestApplyNewCategorySuggestion_CreateError(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 
 	// Seed an existing category to force duplicate create path.

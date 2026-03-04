@@ -28,7 +28,7 @@ func (c *fakeHTTPClient) Do(_ *http.Request) (*http.Response, error) {
 
 func TestDefaultHandler_UnknownText_NoPanic(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 
 	client := &fakeHTTPClient{}

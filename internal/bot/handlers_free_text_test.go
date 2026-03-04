@@ -10,15 +10,15 @@ import (
 	tgmodels "github.com/go-telegram/bot/models"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/bot/mocks"
-	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
+	"gitlab.com/yelinaung/expense-bot/internal/testutil/dbtest"
 )
 
 // TestHandleFreeTextExpense tests free-text expense parsing and creation.
 func TestHandleFreeTextExpense(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	categoryRepo := repository.NewCategoryRepository(tx)

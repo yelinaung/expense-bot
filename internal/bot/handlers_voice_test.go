@@ -134,7 +134,7 @@ func TestHandleVoiceCore_ParseError(t *testing.T) {
 
 func TestHandleVoiceCore_Success(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	require.NoError(t, b.userRepo.UpsertUser(ctx, &appmodels.User{
 		ID:        100,

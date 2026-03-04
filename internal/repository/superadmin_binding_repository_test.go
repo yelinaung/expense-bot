@@ -5,12 +5,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/yelinaung/expense-bot/internal/database"
+	"gitlab.com/yelinaung/expense-bot/internal/testutil/dbtest"
 )
 
 func TestSuperadminBindingRepository_SaveAndLoad(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	repo := NewSuperadminBindingRepository(tx)
 

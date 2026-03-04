@@ -18,7 +18,7 @@ const (
 
 func TestHandleTagCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 
 	userID := int64(700001)
@@ -192,7 +192,7 @@ func TestHandleTagCore(t *testing.T) {
 
 func TestHandleUntagCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 
 	userID := int64(700002)
@@ -267,7 +267,7 @@ func TestHandleUntagCore(t *testing.T) {
 
 func TestHandleTagsCore(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 
 	userID := int64(700003)
@@ -382,7 +382,7 @@ func TestHandleTagsCore(t *testing.T) {
 
 func TestInlineTagsOnExpenseCreation(t *testing.T) {
 	ctx := context.Background()
-	pool := TestDB(ctx, t)
+	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 
 	userID := int64(700004)

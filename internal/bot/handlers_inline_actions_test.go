@@ -10,14 +10,14 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/bot/mocks"
-	"gitlab.com/yelinaung/expense-bot/internal/database"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
+	"gitlab.com/yelinaung/expense-bot/internal/testutil/dbtest"
 )
 
 func TestHandleExpenseActionCallbackCore(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	categoryRepo := repository.NewCategoryRepository(tx)
@@ -132,7 +132,7 @@ func TestHandleExpenseActionCallbackCore(t *testing.T) {
 
 func TestHandleConfirmDeleteCallbackCore(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	categoryRepo := repository.NewCategoryRepository(tx)
@@ -194,7 +194,7 @@ func TestHandleConfirmDeleteCallbackCore(t *testing.T) {
 
 func TestHandleBackToExpenseCallbackCore(t *testing.T) {
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	categoryRepo := repository.NewCategoryRepository(tx)
@@ -255,7 +255,7 @@ func TestInlineActionWrappers(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	tx := database.TestTx(ctx, t)
+	tx := dbtest.TestTx(ctx, t)
 
 	userRepo := repository.NewUserRepository(tx)
 	categoryRepo := repository.NewCategoryRepository(tx)
