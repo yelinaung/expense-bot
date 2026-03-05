@@ -71,6 +71,7 @@ func CleanupTables(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 		return
 	}
 
+	// nosemgrep: go.lang.security.audit.sqli.tainted-sql-string // Table names come from pg_tables (trusted) and are sanitized via pgx.Identifier.Sanitize().
 	_, err = pool.Exec(
 		context.WithoutCancel(ctx),
 		"TRUNCATE TABLE "+strings.Join(tables, ", ")+" RESTART IDENTITY CASCADE",
