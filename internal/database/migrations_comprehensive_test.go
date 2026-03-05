@@ -1,18 +1,20 @@
-package database
+package database_test
 
 import (
 	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/yelinaung/expense-bot/internal/database"
+	"gitlab.com/yelinaung/expense-bot/internal/testutil/dbtest"
 )
 
 // TestMigrations_SchemaDetails verifies the complete database schema.
 func TestMigrations_SchemaDetails(t *testing.T) {
-	pool := testDB(t)
+	pool := dbtest.TestDB(t)
 	ctx := context.Background()
 
-	err := RunMigrations(ctx, pool)
+	err := database.RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
 	t.Run("users table has correct columns", func(t *testing.T) {
@@ -123,10 +125,10 @@ func TestMigrations_SchemaDetails(t *testing.T) {
 
 // TestMigrations_Indexes verifies all indexes are created.
 func TestMigrations_Indexes(t *testing.T) {
-	pool := testDB(t)
+	pool := dbtest.TestDB(t)
 	ctx := context.Background()
 
-	err := RunMigrations(ctx, pool)
+	err := database.RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
 	expectedIndexes := []string{
@@ -153,13 +155,13 @@ func TestMigrations_Indexes(t *testing.T) {
 
 // TestMigrations_ForeignKeyConstraints tests that foreign key constraints work.
 func TestMigrations_ForeignKeyConstraints(t *testing.T) {
-	pool := testDB(t)
+	pool := dbtest.TestDB(t)
 	ctx := context.Background()
 
-	err := RunMigrations(ctx, pool)
+	err := database.RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
-	cleanupTables(ctx, t, pool)
+	dbtest.CleanupTables(ctx, t, pool)
 
 	t.Run("cannot insert expense without user", func(t *testing.T) {
 		_, err := pool.Exec(ctx, `
@@ -187,7 +189,7 @@ func TestMigrations_ForeignKeyConstraints(t *testing.T) {
 	})
 
 	t.Run("can insert expense with valid category", func(t *testing.T) {
-		cleanupTables(ctx, t, pool)
+		dbtest.CleanupTables(ctx, t, pool)
 
 		// Insert user
 		_, err := pool.Exec(ctx, `
@@ -214,13 +216,13 @@ func TestMigrations_ForeignKeyConstraints(t *testing.T) {
 
 // TestMigrations_DefaultValues tests that default values are set correctly.
 func TestMigrations_DefaultValues(t *testing.T) {
-	pool := testDB(t)
+	pool := dbtest.TestDB(t)
 	ctx := context.Background()
 
-	err := RunMigrations(ctx, pool)
+	err := database.RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
-	cleanupTables(ctx, t, pool)
+	dbtest.CleanupTables(ctx, t, pool)
 
 	t.Run("expenses.status defaults to 'confirmed'", func(t *testing.T) {
 		// Insert user
@@ -249,7 +251,7 @@ func TestMigrations_DefaultValues(t *testing.T) {
 	})
 
 	t.Run("expenses.currency defaults to 'SGD'", func(t *testing.T) {
-		cleanupTables(ctx, t, pool)
+		dbtest.CleanupTables(ctx, t, pool)
 
 		// Insert user
 		_, err := pool.Exec(ctx, `
@@ -277,7 +279,7 @@ func TestMigrations_DefaultValues(t *testing.T) {
 	})
 
 	t.Run("timestamps are automatically set", func(t *testing.T) {
-		cleanupTables(ctx, t, pool)
+		dbtest.CleanupTables(ctx, t, pool)
 
 		// Insert user
 		var userID int64
@@ -305,13 +307,13 @@ func TestMigrations_DefaultValues(t *testing.T) {
 
 // TestSeedCategories_DuplicateHandling tests ON CONFLICT handling.
 func TestSeedCategories_DuplicateHandling(t *testing.T) {
-	pool := testDB(t)
+	pool := dbtest.TestDB(t)
 	ctx := context.Background()
 
-	err := RunMigrations(ctx, pool)
+	err := database.RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
-	cleanupTables(ctx, t, pool)
+	dbtest.CleanupTables(ctx, t, pool)
 
 	// Manually insert one of the categories
 	_, err = pool.Exec(ctx, `INSERT INTO categories (name) VALUES ('Food - Dining Out')`)
@@ -323,7 +325,7 @@ func TestSeedCategories_DuplicateHandling(t *testing.T) {
 	require.Equal(t, 1, countBefore)
 
 	// Run seed - should not error and should not duplicate
-	err = SeedCategories(ctx, pool)
+	err = database.SeedCategories(ctx, pool)
 	require.NoError(t, err)
 
 	var countAfter int
@@ -340,7 +342,7 @@ func TestSeedCategories_DuplicateHandling(t *testing.T) {
 
 // TestMigrations_MigrationOrder tests that migrations run in correct order.
 func TestMigrations_MigrationOrder(t *testing.T) {
-	pool := testDB(t)
+	pool := dbtest.TestDB(t)
 	ctx := context.Background()
 
 	// Drop all tables to test from scratch
@@ -352,7 +354,7 @@ func TestMigrations_MigrationOrder(t *testing.T) {
 	require.NoError(t, err)
 
 	// Run migrations
-	err = RunMigrations(ctx, pool)
+	err = database.RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
 	// Verify all tables were created in correct order
@@ -370,15 +372,15 @@ func TestMigrations_MigrationOrder(t *testing.T) {
 
 // TestSeedCategories_CategoryOrder tests categories are inserted in expected order.
 func TestSeedCategories_CategoryOrder(t *testing.T) {
-	pool := testDB(t)
+	pool := dbtest.TestDB(t)
 	ctx := context.Background()
 
-	err := RunMigrations(ctx, pool)
+	err := database.RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
-	cleanupTables(ctx, t, pool)
+	dbtest.CleanupTables(ctx, t, pool)
 
-	err = SeedCategories(ctx, pool)
+	err = database.SeedCategories(ctx, pool)
 	require.NoError(t, err)
 
 	// Verify first category

@@ -1,4 +1,4 @@
-package database
+package database_test
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/yelinaung/expense-bot/internal/database"
+	"gitlab.com/yelinaung/expense-bot/internal/testutil/dbtest"
 )
 
 const (
@@ -16,19 +18,19 @@ const (
 
 // TestRunMigrations_Idempotent tests that migrations can be run multiple times safely.
 func TestRunMigrations_Idempotent(t *testing.T) {
-	pool := testDB(t)
+	pool := dbtest.TestDB(t)
 	ctx := context.Background()
 
 	// Run migrations first time
-	err := RunMigrations(ctx, pool)
+	err := database.RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
 	// Run migrations second time - should not error
-	err = RunMigrations(ctx, pool)
+	err = database.RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
 	// Run migrations third time - should still not error
-	err = RunMigrations(ctx, pool)
+	err = database.RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
 	// Verify tables still exist and are functional
@@ -39,13 +41,13 @@ func TestRunMigrations_Idempotent(t *testing.T) {
 
 // TestRunMigrations_WithContextCancellation tests migration behavior with canceled context.
 func TestRunMigrations_WithContextCancellation(t *testing.T) {
-	pool := testDB(t)
+	pool := dbtest.TestDB(t)
 
 	// Create already-canceled context
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
-	err := RunMigrations(ctx, pool)
+	err := database.RunMigrations(ctx, pool)
 	// Note: May succeed if migrations are fast enough, or may fail with context error
 	// We just verify it doesn't panic
 	_ = err
@@ -53,16 +55,16 @@ func TestRunMigrations_WithContextCancellation(t *testing.T) {
 
 // TestSeedCategories_AlreadySeeded tests re-seeding with existing data.
 func TestSeedCategories_AlreadySeeded(t *testing.T) {
-	pool := testDB(t)
+	pool := dbtest.TestDB(t)
 	ctx := context.Background()
 
-	err := RunMigrations(ctx, pool)
+	err := database.RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
-	cleanupTables(ctx, t, pool)
+	dbtest.CleanupTables(ctx, t, pool)
 
 	// First seed
-	err = SeedCategories(ctx, pool)
+	err = database.SeedCategories(ctx, pool)
 	require.NoError(t, err)
 
 	var count int
@@ -71,7 +73,7 @@ func TestSeedCategories_AlreadySeeded(t *testing.T) {
 	require.Equal(t, 16, count)
 
 	// Second seed - should be idempotent
-	err = SeedCategories(ctx, pool)
+	err = database.SeedCategories(ctx, pool)
 	require.NoError(t, err)
 
 	err = pool.QueryRow(ctx, selectCountCategoriesQuery).Scan(&count)
@@ -79,7 +81,7 @@ func TestSeedCategories_AlreadySeeded(t *testing.T) {
 	require.Equal(t, 16, count, "should not duplicate categories")
 
 	// Third seed - verify still idempotent
-	err = SeedCategories(ctx, pool)
+	err = database.SeedCategories(ctx, pool)
 	require.NoError(t, err)
 
 	err = pool.QueryRow(ctx, selectCountCategoriesQuery).Scan(&count)
@@ -89,18 +91,18 @@ func TestSeedCategories_AlreadySeeded(t *testing.T) {
 
 // TestSeedCategories_WithContextCancellation tests seeding with canceled context.
 func TestSeedCategories_WithContextCancellation(t *testing.T) {
-	pool := testDB(t)
+	pool := dbtest.TestDB(t)
 
-	err := RunMigrations(context.Background(), pool)
+	err := database.RunMigrations(context.Background(), pool)
 	require.NoError(t, err)
 
-	cleanupTables(context.Background(), t, pool)
+	dbtest.CleanupTables(context.Background(), t, pool)
 
 	// Create already-canceled context
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	err = SeedCategories(ctx, pool)
+	err = database.SeedCategories(ctx, pool)
 	// May succeed or fail depending on timing
 	_ = err
 }
@@ -111,7 +113,7 @@ func TestConnect_WithTimeout(t *testing.T) {
 	defer cancel()
 
 	// Try to connect to unreachable host with very short timeout
-	pool, err := Connect(ctx, "postgres://localhost:59999/nonexistent?connect_timeout=1", false)
+	pool, err := database.Connect(ctx, "postgres://localhost:59999/nonexistent?connect_timeout=1", false)
 	require.Error(t, err)
 	require.Nil(t, pool)
 }
@@ -151,7 +153,7 @@ func TestConnect_WithMalformedURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
-			pool, err := Connect(ctx, tt.url, false)
+			pool, err := database.Connect(ctx, tt.url, false)
 
 			// All of these should fail
 			require.Error(t, err)
@@ -162,14 +164,14 @@ func TestConnect_WithMalformedURL(t *testing.T) {
 
 // TestCleanupTables_EmptyDatabase tests cleanup on empty database.
 func TestCleanupTables_EmptyDatabase(t *testing.T) {
-	pool := testDB(t)
+	pool := dbtest.TestDB(t)
 	ctx := context.Background()
 
-	err := RunMigrations(ctx, pool)
+	err := database.RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
 	// Clean empty tables
-	cleanupTables(ctx, t, pool)
+	dbtest.CleanupTables(ctx, t, pool)
 
 	// Verify tables are empty
 	var count int
@@ -188,10 +190,10 @@ func TestCleanupTables_EmptyDatabase(t *testing.T) {
 
 // TestCleanupTables_WithData tests cleanup with existing data.
 func TestCleanupTables_WithData(t *testing.T) {
-	pool := testDB(t)
+	pool := dbtest.TestDB(t)
 	ctx := context.Background()
 
-	err := RunMigrations(ctx, pool)
+	err := database.RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
 	// Insert test data
@@ -213,7 +215,7 @@ func TestCleanupTables_WithData(t *testing.T) {
 	require.Positive(t, categoryCount)
 
 	// Cleanup
-	cleanupTables(ctx, t, pool)
+	dbtest.CleanupTables(ctx, t, pool)
 
 	// Verify all data removed
 	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM expenses").Scan(&userCount)
@@ -241,7 +243,7 @@ func TestTestDB_SkipsWithoutEnvVar(t *testing.T) {
 	}
 
 	// Verify TestDB works when env var is set
-	pool := testDB(t)
+	pool := dbtest.TestDB(t)
 	require.NotNil(t, pool)
 }
 
@@ -255,13 +257,13 @@ func TestConnect_WithValidConnectionPooled(t *testing.T) {
 	ctx := context.Background()
 
 	// Create first connection
-	pool1, err := Connect(ctx, dbURL, false)
+	pool1, err := database.Connect(ctx, dbURL, false)
 	require.NoError(t, err)
 	require.NotNil(t, pool1)
 	defer pool1.Close()
 
 	// Create second connection
-	pool2, err := Connect(ctx, dbURL, false)
+	pool2, err := database.Connect(ctx, dbURL, false)
 	require.NoError(t, err)
 	require.NotNil(t, pool2)
 	defer pool2.Close()
@@ -279,15 +281,15 @@ func TestConnect_WithValidConnectionPooled(t *testing.T) {
 
 // TestSeedCategories_CategoryNames tests that all expected categories are seeded.
 func TestSeedCategories_CategoryNames(t *testing.T) {
-	pool := testDB(t)
+	pool := dbtest.TestDB(t)
 	ctx := context.Background()
 
-	err := RunMigrations(ctx, pool)
+	err := database.RunMigrations(ctx, pool)
 	require.NoError(t, err)
 
-	cleanupTables(ctx, t, pool)
+	dbtest.CleanupTables(ctx, t, pool)
 
-	err = SeedCategories(ctx, pool)
+	err = database.SeedCategories(ctx, pool)
 	require.NoError(t, err)
 
 	// Expected categories (must match migrations.go SeedCategories)

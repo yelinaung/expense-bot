@@ -3,9 +3,11 @@ package dbtest
 import (
 	"context"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gitlab.com/yelinaung/expense-bot/internal/database"
 )
@@ -43,7 +45,36 @@ func TestDB(t *testing.T) *pgxpool.Pool {
 func CleanupTables(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 
-	_, err := pool.Exec(context.WithoutCancel(ctx), "TRUNCATE TABLE expenses, users, categories CASCADE")
+	rows, err := pool.Query(context.WithoutCancel(ctx), `
+		SELECT tablename
+		FROM pg_tables
+		WHERE schemaname = 'public'
+		ORDER BY tablename
+	`)
+	if err != nil {
+		t.Fatalf("failed to list tables for cleanup: %v", err)
+	}
+	defer rows.Close()
+
+	tables := make([]string, 0, 16)
+	for rows.Next() {
+		var table string
+		if scanErr := rows.Scan(&table); scanErr != nil {
+			t.Fatalf("failed to scan table name for cleanup: %v", scanErr)
+		}
+		tables = append(tables, pgx.Identifier{table}.Sanitize())
+	}
+	if rowsErr := rows.Err(); rowsErr != nil {
+		t.Fatalf("failed to iterate tables for cleanup: %v", rowsErr)
+	}
+	if len(tables) == 0 {
+		return
+	}
+
+	_, err = pool.Exec(
+		context.WithoutCancel(ctx),
+		"TRUNCATE TABLE "+strings.Join(tables, ", ")+" RESTART IDENTITY CASCADE",
+	)
 	if err != nil {
 		t.Fatalf("failed to truncate tables: %v", err)
 	}
