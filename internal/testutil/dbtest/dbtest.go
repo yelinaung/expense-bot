@@ -119,6 +119,22 @@ func TestPool(t *testing.T) *pgxpool.Pool {
 // TestTx returns a database transaction for testing.
 // The transaction is automatically rolled back when the test completes,
 // ensuring test isolation without the need for table cleanup.
+//
+// This approach allows tests to run in parallel safely, as each test
+// operates in its own transaction that doesn't affect others.
+//
+// # Usage
+//
+//	tx := dbtest.TestTx(ctx, t)
+//	userRepo := repository.NewUserRepository(tx)
+//	// Use repositories normally - all operations are in a transaction.
+//	// The transaction is automatically rolled back after the test completes.
+//
+// # Benefits
+//   - No need for CleanupTables() - automatic rollback via t.Cleanup.
+//   - Tests can run in parallel safely (each has its own transaction).
+//   - Faster than TRUNCATE-based cleanup.
+//   - Works with any repository that accepts the database.PGXDB interface.
 func TestTx(ctx context.Context, t *testing.T) database.PGXDB {
 	t.Helper()
 
