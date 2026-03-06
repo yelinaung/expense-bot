@@ -2,6 +2,7 @@
 # root is only used here for build-time package installation.
 FROM myoung34/github-runner:ubuntu-jammy@sha256:518ca7d18691fca6093f6366a040ba387bf9f7449357759115ac0d572b18612b # NOSONAR
 
+ARG NODE_VERSION=20.19.2
 ARG GO_VERSION=1.26.0
 ARG GOLANGCI_LINT_VERSION=2.10.1
 ARG GORELEASER_VERSION=2.14.1
@@ -21,6 +22,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends jq && \
 ENV PATH="/opt/hostedtoolcache/go/${GO_VERSION}/x64/bin:/opt/hostedtoolcache/go/${GO_VERSION}/x64/packages/bin:${PATH}" \
     GOPATH="/opt/hostedtoolcache/go/${GO_VERSION}/x64/packages" \
     GOBIN="/opt/hostedtoolcache/go/${GO_VERSION}/x64/packages/bin"
+
+# Install Node.js externals for GitHub Actions container jobs.
+# The runner mounts these into containers as /__e/; Alpine (musl) builds
+# are required for actions running inside Alpine-based containers.
+RUN mkdir -p /actions-runner/externals/node20/bin && \
+    curl --proto "=https" --tlsv1.2 -sSf -L \
+      "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz" | \
+    tar -xz -C /actions-runner/externals/node20 --strip-components=1 && \
+    mkdir -p /actions-runner/externals/node20_alpine/bin && \
+    curl --proto "=https" --tlsv1.2 -sSf -L \
+      "https://unofficial-builds.nodejs.org/download/release/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64-musl.tar.gz" | \
+    tar -xz -C /actions-runner/externals/node20_alpine --strip-components=1
 
 RUN go install mvdan.cc/gofumpt@latest && \
     go install golang.org/x/vuln/cmd/govulncheck@latest && \

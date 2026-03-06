@@ -21,6 +21,18 @@
         "/^runner\\/Dockerfile$/"
       ],
       "matchStrings": [
+        "(?m)^ARG\\s+NODE_VERSION=(?<currentValue>[0-9A-Za-z._-]+)\\s*$"
+      ],
+      "datasourceTemplate": "node-version",
+      "depNameTemplate": "node",
+      "versioningTemplate": "node"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^runner\\/Dockerfile$/"
+      ],
+      "matchStrings": [
         "(?m)^ARG\\s+GO_VERSION=(?<currentValue>[0-9A-Za-z._-]+)\\s*$"
       ],
       "datasourceTemplate": "github-tags",
