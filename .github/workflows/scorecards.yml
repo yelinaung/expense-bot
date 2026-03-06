@@ -21,7 +21,7 @@ permissions:
 jobs:
   analysis:
     name: Scorecard analysis
-    runs-on: [self-hosted, Linux, X64, playground-ubuntu]
+    runs-on: ubuntu-latest
     permissions:
       # Needed to upload the results to code-scanning dashboard.
       security-events: write
