@@ -21,10 +21,25 @@
         "/^runner\\/Dockerfile$/"
       ],
       "matchStrings": [
-        "(?m)^ARG\\s+NODE_VERSION=(?<currentValue>[0-9A-Za-z._-]+)\\s*$"
+        "(?m)^ARG\\s+NODE20_VERSION=(?<currentValue>[0-9A-Za-z._-]+)\\s*$"
       ],
       "datasourceTemplate": "node-version",
       "depNameTemplate": "node",
+      "allowedVersions": "20.x",
+      "versioningTemplate": "node"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^runner\\/Dockerfile$/"
+      ],
+      "matchStrings": [
+        "(?m)^ARG\\s+NODE24_VERSION=(?<currentValue>[0-9A-Za-z._-]+)\\s*$"
+      ],
+      "datasourceTemplate": "node-version",
+      "depNameTemplate": "node24",
+      "packageNameTemplate": "node",
+      "allowedVersions": "24.x",
       "versioningTemplate": "node"
     },
     {
