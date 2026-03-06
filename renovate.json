@@ -12,6 +12,14 @@
       "postUpdateOptions": [
         "gomodTidy"
       ]
+    },
+    {
+      "matchDepNames": ["node"],
+      "allowedVersions": "20.x"
+    },
+    {
+      "matchDepNames": ["node24"],
+      "allowedVersions": "24.x"
     }
   ],
   "customManagers": [
@@ -25,7 +33,6 @@
       ],
       "datasourceTemplate": "node-version",
       "depNameTemplate": "node",
-      "allowedVersions": "20.x",
       "versioningTemplate": "node"
     },
     {
@@ -39,8 +46,19 @@
       "datasourceTemplate": "node-version",
       "depNameTemplate": "node24",
       "packageNameTemplate": "node",
-      "allowedVersions": "24.x",
       "versioningTemplate": "node"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^runner\\/Dockerfile$/"
+      ],
+      "matchStrings": [
+        "(?m)^ARG\\s+SEMGREP_VERSION=(?<currentValue>[0-9A-Za-z._-]+)\\s*$"
+      ],
+      "datasourceTemplate": "pypi",
+      "depNameTemplate": "semgrep",
+      "versioningTemplate": "semver"
     },
     {
       "customType": "regex",

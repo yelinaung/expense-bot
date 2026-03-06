@@ -8,6 +8,7 @@ ARG GO_VERSION=1.26.0
 ARG GOLANGCI_LINT_VERSION=2.10.1
 ARG GORELEASER_VERSION=2.14.1
 ARG GITLEAKS_VERSION=8.30.0
+ARG SEMGREP_VERSION=1.153.1
 
 # Use bash with pipefail for RUN steps that use curl|tar pipelines.
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -45,6 +46,8 @@ RUN mkdir -p /actions-runner/externals/node24/bin && \
     curl --proto "=https" --tlsv1.2 -sSf -L \
       "https://unofficial-builds.nodejs.org/download/release/v${NODE24_VERSION}/node-v${NODE24_VERSION}-linux-x64-musl.tar.gz" | \
     tar -xz -C /actions-runner/externals/node24_alpine --strip-components=1
+
+RUN pip3 install --no-cache-dir semgrep=="${SEMGREP_VERSION}"
 
 RUN go install mvdan.cc/gofumpt@latest && \
     go install golang.org/x/vuln/cmd/govulncheck@latest && \
