@@ -23,6 +23,28 @@ func init() {
 	sort.Slice(currencySymbolsByLenDesc, func(i, j int) bool {
 		return len(currencySymbolsByLenDesc[i]) > len(currencySymbolsByLenDesc[j])
 	})
+
+	// Build regexes from currencySymbolToCode so they stay in sync.
+	symbolAlt := buildCurrencySymbolAlternation()
+	currencyPrefixRegex = regexp.MustCompile(`^(` + symbolAlt + `|[A-Z]{3})\s*`)
+	trailingAmountRegex = regexp.MustCompile(
+		`\s((?:` + symbolAlt + `)?\d+(?:[.,]\d{1,2})?(?:` + symbolAlt + `)?)` +
+			`(?:\s+[A-Za-z]{3})?` +
+			`(?:\s+#[a-zA-Z]\w{0,29})*` +
+			`(?:\s*\[[^\]]+\])?` +
+			`\s*$`,
+	)
+}
+
+// buildCurrencySymbolAlternation returns a regex alternation of all
+// currency symbols from currencySymbolToCode, ordered longest-first
+// so multi-char symbols (e.g. "HK$") match before single-char ones.
+func buildCurrencySymbolAlternation() string {
+	parts := make([]string, len(currencySymbolsByLenDesc))
+	for i, sym := range currencySymbolsByLenDesc {
+		parts[i] = regexp.QuoteMeta(sym)
+	}
+	return strings.Join(parts, "|")
 }
 
 // errInvalidAmount is returned when the amount is zero or negative.
@@ -39,6 +61,23 @@ type ParsedExpense struct {
 
 // amountRegex matches amounts like "5", "5.50", "5,50".
 var amountRegex = regexp.MustCompile(`^(\d+(?:[.,]\d{1,2})?)`)
+
+// trailingAmountRegex matches a currency-symbol/code + amount (or bare
+// amount) at the end of a string, optionally followed by a currency code
+// or a bracket category.  This intentionally does NOT match amounts in the
+// middle of a sentence to avoid parsing chat text like "I have 2 meetings"
+// as an expense.  Built from currencySymbolToCode in init().
+//
+// Accepted tail patterns (after one or more description words):
+//
+//	Coffee 5.50
+//	Taxi S$15
+//	Lunch 10€
+//	Lunch 10 SGD
+//	Lunch 10 sgd
+//	Dinner €30 [Food - Dining Out]
+//	Coffee 5.50 #snack
+var trailingAmountRegex *regexp.Regexp
 
 // bracketCategoryRegex matches a trailing [Category Name] in the input.
 var bracketCategoryRegex = regexp.MustCompile(`\s*\[([^\]]+)\]\s*$`)
@@ -68,8 +107,8 @@ var currencyWordToCode = map[string]string{
 }
 
 // currencyPrefixRegex matches currency symbols or codes at the start.
-// Matches: $, €, £, ¥, S$, A$, RM, Rp, or 3-letter codes like USD, SGD.
-var currencyPrefixRegex = regexp.MustCompile(`^(S\$|A\$|HK\$|NZ\$|NT\$|RM|Rp|[$€£¥฿₱₫₩₹]|[A-Z]{3})\s*`)
+// Built from currencySymbolToCode in init().
+var currencyPrefixRegex *regexp.Regexp
 
 // currencySuffixRegex matches 3-letter currency codes at the end (e.g., "50 USD").
 var currencySuffixRegex = regexp.MustCompile(`\s+([A-Z]{3})$`)
@@ -134,6 +173,7 @@ func parseAmount(input string) (decimal.Decimal, error) {
 }
 
 // ParseExpenseInput parses free-text expense input like "5.50 Coffee", "$10 Lunch", or "50 USD Coffee".
+// It also handles reordered input where the description comes first, e.g. "Coffee 5.50" or "Lunch SGD 10".
 // Returns nil if the input cannot be parsed as an expense.
 func ParseExpenseInput(input string) *ParsedExpense {
 	input = strings.TrimSpace(input)
@@ -141,14 +181,22 @@ func ParseExpenseInput(input string) *ParsedExpense {
 		return nil
 	}
 
-	detectedCurrency, input := parseCurrencyPrefix(input)
-	amount, rest := parseAmountAndRest(input)
+	if result := parseExpenseLeadingAmount(input); result != nil {
+		return result
+	}
+
+	return parseExpenseReordered(input)
+}
+
+// parseExpenseLeadingAmount parses input where the amount comes first.
+func parseExpenseLeadingAmount(input string) *ParsedExpense {
+	detectedCurrency, remaining := parseCurrencyPrefix(input)
+	amount, rest := parseAmountAndRest(remaining)
 	if !amount.GreaterThan(decimal.Zero) {
 		return nil
 	}
 	detectedCurrency, rest = parseCurrencyAfterAmount(detectedCurrency, rest)
 
-	// Extract tags from the remaining text.
 	var tags []string
 	if rest != "" {
 		tags, rest = extractTags(rest)
@@ -160,6 +208,54 @@ func ParseExpenseInput(input string) *ParsedExpense {
 		Currency:    detectedCurrency,
 		Tags:        tags,
 	}
+}
+
+// parseExpenseReordered handles input where the description comes before
+// the amount at the tail, e.g. "Coffee 5.50", "Lunch 10 SGD",
+// "Grab taxi S$15".  The amount must be at the end of the input
+// (optionally followed by a currency code or bracket category) to avoid
+// false positives on ordinary chat messages.
+func parseExpenseReordered(input string) *ParsedExpense {
+	match := trailingAmountRegex.FindStringSubmatchIndex(input)
+	if match == nil {
+		return nil
+	}
+
+	// Everything before the match is the description prefix.
+	prefix := strings.TrimSpace(input[:match[0]])
+
+	// Reject if the prefix is empty (amount-only already handled),
+	// starts with "/" (failed command), or contains digits (ambiguous).
+	if prefix == "" || strings.HasPrefix(prefix, "/") || containsDigit(prefix) {
+		return nil
+	}
+
+	// The tail is the amount (+ optional currency / bracket category).
+	tail := strings.TrimSpace(input[match[0]:])
+
+	// Separate any trailing bracket category so it stays at the end
+	// after reinserting the description prefix.
+	bracket := ""
+	if bm := bracketCategoryRegex.FindString(tail); bm != "" {
+		tail = strings.TrimSpace(tail[:len(tail)-len(bm)])
+		bracket = " " + strings.TrimSpace(bm)
+	}
+
+	// Reconstruct as "amount [currency] prefix [bracket]".
+	return parseExpenseLeadingAmount(tail + " " + prefix + bracket)
+}
+
+// containsDigit reports whether s contains any ASCII digit.
+// This is intentionally conservative: descriptions like "7-Eleven 5.50"
+// are rejected to avoid false positives where embedded numbers in chat
+// text (e.g. "Room 3 is ready") would be mistaken for expense amounts.
+func containsDigit(s string) bool {
+	for _, c := range s {
+		if c >= '0' && c <= '9' {
+			return true
+		}
+	}
+	return false
 }
 
 func parseCurrencyPrefix(input string) (currency, remaining string) {

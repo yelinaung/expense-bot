@@ -258,7 +258,7 @@ func TestParseExpenseInput_EdgeCases(t *testing.T) {
 			wantDesc: "",
 		},
 		{
-			name:    "invalid amount with text",
+			name:    "amount in middle of text not reordered",
 			input:   "abc 5.50 Coffee",
 			wantNil: true,
 		},
