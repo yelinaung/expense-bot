@@ -16,6 +16,13 @@ import (
 // single-char ones (e.g. "$").
 var currencySymbolsByLenDesc []string
 
+const (
+	currencyCodePatternUpper   = `[A-Z]{3}`
+	currencyCodePatternAnyCase = `[A-Za-z]{3}`
+	tagNamePattern             = `#[a-zA-Z]\w{0,29}`
+	bracketCategoryPattern     = `\[[^\]]+\]`
+)
+
 func init() {
 	for sym := range currencySymbolToCode {
 		currencySymbolsByLenDesc = append(currencySymbolsByLenDesc, sym)
@@ -26,14 +33,8 @@ func init() {
 
 	// Build regexes from currencySymbolToCode so they stay in sync.
 	symbolAlt := buildCurrencySymbolAlternation()
-	currencyPrefixRegex = regexp.MustCompile(`^(` + symbolAlt + `|[A-Z]{3})\s*`)
-	trailingAmountRegex = regexp.MustCompile(
-		`\s((?:` + symbolAlt + `)?\d+(?:[.,]\d{1,2})?(?:` + symbolAlt + `)?)` +
-			`(?:\s+[A-Za-z]{3})?` +
-			`(?:\s+#[a-zA-Z]\w{0,29})*` +
-			`(?:\s*\[[^\]]+\])?` +
-			`\s*$`,
-	)
+	currencyPrefixRegex = regexp.MustCompile(`^(` + symbolAlt + `|` + currencyCodePatternUpper + `)\s*`)
+	trailingAmountRegex = buildTrailingAmountRegex(symbolAlt)
 }
 
 // buildCurrencySymbolAlternation returns a regex alternation of all
@@ -45,6 +46,16 @@ func buildCurrencySymbolAlternation() string {
 		parts[i] = regexp.QuoteMeta(sym)
 	}
 	return strings.Join(parts, "|")
+}
+
+func buildTrailingAmountRegex(symbolAlt string) *regexp.Regexp {
+	amountPattern := `(?:` + symbolAlt + `)?\d+(?:[.,]\d{1,2})?(?:` + symbolAlt + `)?`
+	pattern := `\s(` + amountPattern + `)` +
+		`(?:\s+` + currencyCodePatternAnyCase + `)?` +
+		`(?:\s+` + tagNamePattern + `)*` +
+		`(?:\s*` + bracketCategoryPattern + `)?` +
+		`\s*$`
+	return regexp.MustCompile(pattern)
 }
 
 // errInvalidAmount is returned when the amount is zero or negative.
@@ -111,10 +122,10 @@ var currencyWordToCode = map[string]string{
 var currencyPrefixRegex *regexp.Regexp
 
 // currencySuffixRegex matches 3-letter currency codes at the end (e.g., "50 USD").
-var currencySuffixRegex = regexp.MustCompile(`\s+([A-Z]{3})$`)
+var currencySuffixRegex = regexp.MustCompile(`\s+(` + currencyCodePatternUpper + `)$`)
 
 // tagTokenRegex matches a single #tag token (letter start, up to 30 word chars).
-var tagTokenRegex = regexp.MustCompile(`^#([a-zA-Z]\w{0,29})$`)
+var tagTokenRegex = regexp.MustCompile(`^(` + tagNamePattern + `)$`)
 
 // extractTags extracts #tag tokens from text, removes them, deduplicates, and lowercases.
 // It preserves original whitespace in the remaining text.
@@ -130,7 +141,7 @@ func extractTags(text string) (tags []string, cleaned string) {
 
 	for i, word := range words {
 		if m := tagTokenRegex.FindStringSubmatch(word); len(m) > 1 {
-			name := strings.ToLower(m[1])
+			name := strings.ToLower(strings.TrimPrefix(m[1], "#"))
 			if !seen[name] {
 				seen[name] = true
 				tags = append(tags, name)
@@ -250,12 +261,7 @@ func parseExpenseReordered(input string) *ParsedExpense {
 // are rejected to avoid false positives where embedded numbers in chat
 // text (e.g. "Room 3 is ready") would be mistaken for expense amounts.
 func containsDigit(s string) bool {
-	for _, c := range s {
-		if c >= '0' && c <= '9' {
-			return true
-		}
-	}
-	return false
+	return strings.ContainsAny(s, "0123456789")
 }
 
 func parseCurrencyPrefix(input string) (currency, remaining string) {
