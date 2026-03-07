@@ -177,6 +177,7 @@ test:
     - job: check_secrets
     - job: lint
     - job: check_sast
+      optional: true
     - job: gosec
     - job: prek
       artifacts: false
