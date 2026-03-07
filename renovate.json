@@ -80,6 +80,42 @@
         "/^runner\\/Dockerfile$/"
       ],
       "matchStrings": [
+        "(?m)^ARG\\s+GOFUMPT_VERSION=(?<currentValue>[0-9A-Za-z._-]+)\\s*$"
+      ],
+      "datasourceTemplate": "go",
+      "depNameTemplate": "mvdan.cc/gofumpt",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^runner\\/Dockerfile$/"
+      ],
+      "matchStrings": [
+        "(?m)^ARG\\s+GOVULNCHECK_VERSION=(?<currentValue>[0-9A-Za-z._-]+)\\s*$"
+      ],
+      "datasourceTemplate": "go",
+      "depNameTemplate": "golang.org/x/vuln",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^runner\\/Dockerfile$/"
+      ],
+      "matchStrings": [
+        "(?m)^ARG\\s+GOSEC_VERSION=(?<currentValue>[0-9A-Za-z._-]+)\\s*$"
+      ],
+      "datasourceTemplate": "go",
+      "depNameTemplate": "github.com/securego/gosec/v2",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^runner\\/Dockerfile$/"
+      ],
+      "matchStrings": [
         "(?m)^ARG\\s+GOLANGCI_LINT_VERSION=(?<currentValue>[0-9A-Za-z._-]+)\\s*$"
       ],
       "datasourceTemplate": "github-releases",
