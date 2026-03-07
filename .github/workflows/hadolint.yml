@@ -1,0 +1,50 @@
+name: Hadolint
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - '**/Dockerfile'
+      - '**/*.Dockerfile'
+      - 'Dockerfile.*'
+      - '.github/workflows/hadolint.yml'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - '**/Dockerfile'
+      - '**/*.Dockerfile'
+      - 'Dockerfile.*'
+      - '.github/workflows/hadolint.yml'
+  workflow_dispatch: {}
+
+jobs:
+  hadolint:
+    name: Lint Dockerfiles
+    runs-on: [self-hosted, Linux, X64, playground-ubuntu]
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run hadolint for all Dockerfiles
+        run: |
+          set -euo pipefail
+
+          mapfile -t dockerfiles < <(git ls-files \
+            '**/Dockerfile' \
+            '**/*.Dockerfile' \
+            'Dockerfile.*')
+
+          if [ "${#dockerfiles[@]}" -eq 0 ]; then
+            echo "No Dockerfiles found."
+            exit 0
+          fi
+
+          echo "Linting ${#dockerfiles[@]} Dockerfile(s)"
+          for file in "${dockerfiles[@]}"; do
+            echo "==> $file"
+            docker run --rm -i hadolint/hadolint < "$file"
+          done
