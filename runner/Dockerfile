@@ -36,20 +36,17 @@ RUN mkdir -p /actions-runner/externals/node20/bin && \
     mkdir -p /actions-runner/externals/node20_alpine/bin && \
     curl --proto "=https" --tlsv1.2 -sSf -L \
       "https://unofficial-builds.nodejs.org/download/release/v${NODE20_VERSION}/node-v${NODE20_VERSION}-linux-x64-musl.tar.gz" | \
-    tar -xz -C /actions-runner/externals/node20_alpine --strip-components=1
-
-RUN mkdir -p /actions-runner/externals/node24/bin && \
+    tar -xz -C /actions-runner/externals/node20_alpine --strip-components=1 && \
+    mkdir -p /actions-runner/externals/node24/bin && \
     curl --proto "=https" --tlsv1.2 -sSf -L \
       "https://nodejs.org/dist/v${NODE24_VERSION}/node-v${NODE24_VERSION}-linux-x64.tar.gz" | \
     tar -xz -C /actions-runner/externals/node24 --strip-components=1 && \
     mkdir -p /actions-runner/externals/node24_alpine/bin && \
     curl --proto "=https" --tlsv1.2 -sSf -L \
       "https://unofficial-builds.nodejs.org/download/release/v${NODE24_VERSION}/node-v${NODE24_VERSION}-linux-x64-musl.tar.gz" | \
-    tar -xz -C /actions-runner/externals/node24_alpine --strip-components=1
-
-RUN pip3 install --no-cache-dir semgrep=="${SEMGREP_VERSION}"
-
-RUN go install mvdan.cc/gofumpt@latest && \
+    tar -xz -C /actions-runner/externals/node24_alpine --strip-components=1 && \
+    pip3 install --no-cache-dir semgrep=="${SEMGREP_VERSION}" && \
+    go install mvdan.cc/gofumpt@latest && \
     go install golang.org/x/vuln/cmd/govulncheck@latest && \
     go install github.com/securego/gosec/v2/cmd/gosec@latest && \
     curl --proto "=https" --tlsv1.2 -sSf -L "https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh" | \
