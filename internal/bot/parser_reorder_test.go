@@ -230,6 +230,14 @@ func TestParseExpenseInputWithCategories_DescriptionFirst(t *testing.T) {
 			wantCatName:  "Transportation",
 			wantCurrency: "SGD",
 		},
+		{
+			name:         "description first with lowercase currency code and bracket category",
+			input:        "Coffee 5.50 sgd [Food - Dining Out]",
+			wantAmt:      "5.50",
+			wantDesc:     "Coffee",
+			wantCatName:  "Food - Dining Out",
+			wantCurrency: "SGD",
+		},
 	}
 
 	for _, tt := range tests {
@@ -273,6 +281,13 @@ func TestParseAddCommand_DescriptionFirst(t *testing.T) {
 		{
 			name:         "add command with description first and currency",
 			input:        "/add Lunch 10 SGD",
+			wantAmt:      "10.00",
+			wantDesc:     "Lunch",
+			wantCurrency: "SGD",
+		},
+		{
+			name:         "add command with description first and lowercase currency",
+			input:        "/add Lunch 10 sgd",
 			wantAmt:      "10.00",
 			wantDesc:     "Lunch",
 			wantCurrency: "SGD",
@@ -337,6 +352,27 @@ func TestParseExpenseInput_DescriptionFirst_Tags(t *testing.T) {
 			wantDesc:     "Lunch",
 			wantCurrency: "SGD",
 			wantTags:     []string{"work"},
+		},
+		{
+			name:     "multiple tags in prefix before amount",
+			input:    "Coffee #food #morning 5.50",
+			wantAmt:  "5.50",
+			wantDesc: "Coffee",
+			wantTags: []string{"food", "morning"},
+		},
+		{
+			name:     "multiple tags after trailing amount",
+			input:    "Coffee 5.50 #snack #office",
+			wantAmt:  "5.50",
+			wantDesc: "Coffee",
+			wantTags: []string{"snack", "office"},
+		},
+		{
+			name:     "tags with bracket category in reordered input",
+			input:    "Coffee #food 5.50 [Food - Dining Out]",
+			wantAmt:  "5.50",
+			wantDesc: "Coffee [Food - Dining Out]",
+			wantTags: []string{"food"},
 		},
 	}
 
