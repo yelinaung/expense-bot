@@ -82,6 +82,29 @@ func CleanupTables(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 	}
 }
 
+// connectWithRetries attempts to connect to the database and run migrations,
+// retrying on transient failures (e.g. CI container not fully ready).
+func connectWithRetries(ctx context.Context, dbURL string) (*pgxpool.Pool, error) {
+	const maxRetries = 3
+	var pool *pgxpool.Pool
+	var err error
+
+	for attempt := range maxRetries {
+		pool, err = database.Connect(ctx, dbURL, false)
+		if err == nil {
+			err = database.RunMigrations(ctx, pool)
+			if err == nil {
+				return pool, nil
+			}
+			pool.Close()
+		}
+		if attempt < maxRetries-1 {
+			time.Sleep(time.Duration(attempt+1) * time.Second)
+		}
+	}
+	return nil, err
+}
+
 // TestPool returns a shared database connection pool for testing.
 // The pool is created once and reused across all tests.
 // Migrations are run once when the pool is first created.
@@ -96,35 +119,10 @@ func TestPool(t *testing.T) *pgxpool.Pool {
 
 	testPoolOnce.Do(func() {
 		ctx := context.Background()
-
-		// Retry connection + migrations to handle transient database
-		// readiness issues in CI (e.g. container not fully ready).
-		const maxRetries = 3
-		for attempt := range maxRetries {
-			testPool, testPoolErr = database.Connect(ctx, dbURL, false)
-			if testPoolErr != nil {
-				if attempt < maxRetries-1 {
-					time.Sleep(time.Duration(attempt+1) * time.Second)
-					continue
-				}
-				return
-			}
-
-			testPoolErr = database.RunMigrations(ctx, testPool)
-			if testPoolErr == nil {
-				break
-			}
-			// Migration failed — close pool and retry.
-			testPool.Close()
-			testPool = nil
-			if attempt < maxRetries-1 {
-				time.Sleep(time.Duration(attempt+1) * time.Second)
-			}
-		}
+		testPool, testPoolErr = connectWithRetries(ctx, dbURL)
 		if testPoolErr != nil {
 			return
 		}
-
 		testPoolErr = database.SeedCategories(ctx, testPool)
 	})
 
