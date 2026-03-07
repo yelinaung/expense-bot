@@ -22,7 +22,7 @@ test-coverage:
 	out_file="$$(mktemp)"; \
 	test_status=0; \
 	TEST_DATABASE_URL="$$TEST_DATABASE_URL" go test -v -coverprofile=coverage.out -covermode=atomic -p 1 ./... > "$$out_file" 2>&1 || test_status=$$?; \
-	fail_lines="$$(rg -n "^FAIL|--- FAIL:|panic:" "$$out_file" || true)"; \
+	fail_lines="$$(grep -En "^FAIL|--- FAIL:|panic:" "$$out_file" || true)"; \
 	grep -v "no such tool" "$$out_file"; \
 	rm -f "$$out_file"; \
 	go tool cover -func=coverage.out; \
@@ -62,7 +62,7 @@ test-integration: test-db-up
 	test_status=0; \
 	TEST_DATABASE_URL="postgres://$${POSTGRES_USER:-test}:$${POSTGRES_PASSWORD:-test}@localhost:5433/$${POSTGRES_DB:-expense_bot_test}?sslmode=disable" \
 		go test -v -coverprofile=coverage.out -covermode=atomic -p 1 ./... > "$$out_file" 2>&1 || test_status=$$?; \
-	fail_lines="$$(rg -n "^FAIL|--- FAIL:|panic:" "$$out_file" || true)"; \
+	fail_lines="$$(grep -En "^FAIL|--- FAIL:|panic:" "$$out_file" || true)"; \
 	grep -v "no such tool" "$$out_file"; \
 	rm -f "$$out_file"; \
 	cover_status=0; \

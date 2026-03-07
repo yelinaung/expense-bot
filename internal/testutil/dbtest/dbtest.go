@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -95,18 +96,35 @@ func TestPool(t *testing.T) *pgxpool.Pool {
 
 	testPoolOnce.Do(func() {
 		ctx := context.Background()
-		testPool, testPoolErr = database.Connect(ctx, dbURL, false)
+
+		// Retry connection + migrations to handle transient database
+		// readiness issues in CI (e.g. container not fully ready).
+		const maxRetries = 3
+		for attempt := range maxRetries {
+			testPool, testPoolErr = database.Connect(ctx, dbURL, false)
+			if testPoolErr != nil {
+				if attempt < maxRetries-1 {
+					time.Sleep(time.Duration(attempt+1) * time.Second)
+					continue
+				}
+				return
+			}
+
+			testPoolErr = database.RunMigrations(ctx, testPool)
+			if testPoolErr == nil {
+				break
+			}
+			// Migration failed — close pool and retry.
+			testPool.Close()
+			testPool = nil
+			if attempt < maxRetries-1 {
+				time.Sleep(time.Duration(attempt+1) * time.Second)
+			}
+		}
 		if testPoolErr != nil {
 			return
 		}
 
-		// Run migrations once for the shared pool.
-		testPoolErr = database.RunMigrations(ctx, testPool)
-		if testPoolErr != nil {
-			return
-		}
-
-		// Seed categories once for the shared pool.
 		testPoolErr = database.SeedCategories(ctx, testPool)
 	})
 
