@@ -155,21 +155,29 @@ jobs:
 
       - name: Start PostgreSQL
         run: |
+          set -euo pipefail
           docker rm -f test-postgres 2>/dev/null || true
           docker run -d --name test-postgres \
-            --network container:$(hostname) \
+            -p ${{ env.POSTGRES_PORT }}:5432 \
             -e POSTGRES_USER=${{ env.POSTGRES_USER }} \
             -e POSTGRES_PASSWORD=${{ env.POSTGRES_PASSWORD }} \
             -e POSTGRES_DB=${{ env.POSTGRES_DB }} \
             postgres:18-alpine
           echo "Waiting for PostgreSQL..."
+          ready=0
           for i in $(seq 1 30); do
             if docker exec test-postgres pg_isready -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }} > /dev/null 2>&1; then
               echo "PostgreSQL is ready"
+              ready=1
               break
             fi
             sleep 1
           done
+          if [ "$ready" -ne 1 ]; then
+            echo "PostgreSQL failed to become ready within timeout."
+            docker logs test-postgres || true
+            exit 1
+          fi
 
       - name: Run tests with coverage
         env:
