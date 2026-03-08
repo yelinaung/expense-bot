@@ -49,9 +49,9 @@ RUN mkdir -p /actions-runner/externals/node20/bin && \
       "https://unofficial-builds.nodejs.org/download/release/v${NODE24_VERSION}/node-v${NODE24_VERSION}-linux-x64-musl.tar.gz" | \
     tar -xz -C /actions-runner/externals/node24_alpine --strip-components=1 && \
     pip3 install --no-cache-dir semgrep=="${SEMGREP_VERSION}" && \
-    go install mvdan.cc/gofumpt@v${GOFUMPT_VERSION} && \
-    go install golang.org/x/vuln/cmd/govulncheck@v${GOVULNCHECK_VERSION} && \
-    go install github.com/securego/gosec/v2/cmd/gosec@v${GOSEC_VERSION} && \
+    go install "mvdan.cc/gofumpt@v${GOFUMPT_VERSION}" && \
+    go install "golang.org/x/vuln/cmd/govulncheck@v${GOVULNCHECK_VERSION}" && \
+    go install "github.com/securego/gosec/v2/cmd/gosec@v${GOSEC_VERSION}" && \
     curl --proto "=https" --tlsv1.2 -sSf -L "https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh" | \
     sh -s -- -b "${GOBIN}" "v${GOLANGCI_LINT_VERSION}" && \
     curl --proto "=https" --tlsv1.2 -sSf -L "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | \
