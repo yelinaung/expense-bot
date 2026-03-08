@@ -159,8 +159,16 @@ jobs:
           container_name="test-postgres-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           echo "Using PostgreSQL container: ${container_name}"
           docker rm -f "${container_name}" 2>/dev/null || true
+          # Share the runner container's network so localhost:5432 is reachable
+          # from the test process. Fall back to --network host for bare-metal runners.
+          network_flag="--network container:$(hostname)"
+          if ! docker run --rm ${network_flag} alpine true 2>/dev/null; then
+            network_flag="--network host"
+          fi
+          echo "Network mode: ${network_flag}"
           docker run -d --name "${container_name}" \
-            --network host \
+            ${network_flag} \
+            --shm-size=256m \
             -e POSTGRES_USER=${{ env.POSTGRES_USER }} \
             -e POSTGRES_PASSWORD=${{ env.POSTGRES_PASSWORD }} \
             -e POSTGRES_DB=${{ env.POSTGRES_DB }} \
@@ -168,10 +176,17 @@ jobs:
           echo "Waiting for PostgreSQL..."
           ready=0
           for i in $(seq 1 30); do
-            if docker exec "${container_name}" pg_isready -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }} > /dev/null 2>&1; then
-              echo "PostgreSQL is ready"
+            # Verify from the runner process (not docker exec) that TCP 5432 is reachable
+            if bash -c 'echo > /dev/tcp/localhost/5432' 2>/dev/null; then
+              echo "PostgreSQL is ready (TCP verified from runner)"
               ready=1
               break
+            fi
+            # Check the container hasn't exited
+            if ! docker inspect "${container_name}" --format='{{.State.Running}}' 2>/dev/null | grep -q true; then
+              echo "PostgreSQL container exited unexpectedly!"
+              docker logs "${container_name}" 2>&1 || true
+              exit 1
             fi
             sleep 1
           done
@@ -184,7 +199,19 @@ jobs:
       - name: Run tests with coverage
         env:
           TEST_DATABASE_URL: postgres://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@localhost:${{ env.POSTGRES_PORT }}/${{ env.POSTGRES_DB }}?sslmode=disable
-        run: make test-coverage
+        run: |
+          # Pre-compile test binaries first (this is the slow part)
+          go test -c -covermode=atomic ./... 2>/dev/null || true
+          # Verify DB is still reachable after compilation
+          container_name="test-postgres-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          if ! bash -c 'echo > /dev/tcp/localhost/5432' 2>/dev/null; then
+            echo "PostgreSQL is NOT reachable before test run!"
+            docker inspect "${container_name}" --format='Status: {{.State.Status}}, Running: {{.State.Running}}, ExitCode: {{.State.ExitCode}}' 2>&1 || true
+            docker logs --tail 50 "${container_name}" 2>&1 || true
+            exit 1
+          fi
+          echo "PostgreSQL still healthy — starting tests"
+          make test-coverage
 
       - name: Check coverage threshold
         run: |
