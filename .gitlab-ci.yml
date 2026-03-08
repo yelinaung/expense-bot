@@ -138,7 +138,7 @@ prek:
 
 lint:
   stage: quality
-  image: golangci/golangci-lint:v2.10-alpine
+  image: golangci/golangci-lint:v2.11-alpine
   tags:
     - playground-bravo
   extends: .go-cache
