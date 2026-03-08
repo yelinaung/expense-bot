@@ -156,8 +156,10 @@ jobs:
       - name: Start PostgreSQL
         run: |
           set -euo pipefail
-          docker rm -f test-postgres 2>/dev/null || true
-          docker run -d --name test-postgres \
+          container_name="test-postgres-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "Using PostgreSQL container: ${container_name}"
+          docker rm -f "${container_name}" 2>/dev/null || true
+          docker run -d --name "${container_name}" \
             -p ${{ env.POSTGRES_PORT }}:5432 \
             -e POSTGRES_USER=${{ env.POSTGRES_USER }} \
             -e POSTGRES_PASSWORD=${{ env.POSTGRES_PASSWORD }} \
@@ -166,7 +168,7 @@ jobs:
           echo "Waiting for PostgreSQL..."
           ready=0
           for i in $(seq 1 30); do
-            if docker exec test-postgres pg_isready -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }} > /dev/null 2>&1; then
+            if docker exec "${container_name}" pg_isready -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }} > /dev/null 2>&1; then
               echo "PostgreSQL is ready"
               ready=1
               break
@@ -175,7 +177,7 @@ jobs:
           done
           if [ "$ready" -ne 1 ]; then
             echo "PostgreSQL failed to become ready within timeout."
-            docker logs test-postgres || true
+            docker logs "${container_name}" || true
             exit 1
           fi
 
@@ -209,7 +211,10 @@ jobs:
 
       - name: Stop PostgreSQL
         if: always()
-        run: docker rm -f test-postgres 2>/dev/null || true
+        run: |
+          set -euo pipefail
+          container_name="test-postgres-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          docker rm -f "${container_name}" 2>/dev/null || true
 
   test-race:
     name: Race Detection
