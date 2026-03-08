@@ -11,7 +11,7 @@ ARG GOSEC_VERSION=2.22.9
 ARG GOLANGCI_LINT_VERSION=2.10.1
 ARG GORELEASER_VERSION=2.14.1
 ARG GITLEAKS_VERSION=8.30.0
-ARG SEMGREP_VERSION=1.153.1
+ARG SEMGREP_VERSION=1.154.0
 
 # Use bash with pipefail for RUN steps that use curl|tar pipelines.
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
