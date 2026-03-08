@@ -160,7 +160,7 @@ jobs:
           echo "Using PostgreSQL container: ${container_name}"
           docker rm -f "${container_name}" 2>/dev/null || true
           docker run -d --name "${container_name}" \
-            -p ${{ env.POSTGRES_PORT }}:5432 \
+            --network host \
             -e POSTGRES_USER=${{ env.POSTGRES_USER }} \
             -e POSTGRES_PASSWORD=${{ env.POSTGRES_PASSWORD }} \
             -e POSTGRES_DB=${{ env.POSTGRES_DB }} \
