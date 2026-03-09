@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.9.0] - 2026-03-09 - Parser Improvements and CI Reliability
+
+### Added
+- **Description-First Parsing**:
+  - Added support for description-first inputs where amount appears at the end
+    (for example: `Coffee 5.50`, `Lunch USD 12`, `Taxi 20 SGD`).
+  - Added support for trailing currency symbols/codes in reordered inputs,
+    including lowercase currency codes and inline tags.
+- **Runner Tooling Support**:
+  - Added Node.js 20 and Node.js 24 tooling in the self-hosted runner image for
+    CI compatibility with security/quality workflows.
+
+### Changed
+- **CI/Test Infrastructure Hardening**:
+  - Hardened PostgreSQL startup readiness checks in GitHub Actions.
+  - Improved transient test DB handling and retry logic in test helper setup.
+  - Updated test workflow container strategy to reduce flaky DB connectivity on
+    self-hosted runners.
+- **Repository Test Utilities**:
+  - Consolidated DB test helpers under `internal/testutil/dbtest` and aligned
+    usage across database, repository, and bot tests.
+- **Security and Quality Automation**:
+  - Expanded CI security/quality coverage with dedicated workflows and runner
+    image/tooling updates.
+
+### Fixed
+- **Voice Currency Ambiguity**:
+  - Treated ambiguous dollar inputs from voice parsing as default currency
+    instead of forcing an incorrect specific dollar currency.
+- **CI Flaky PostgreSQL Failures**:
+  - Fixed intermittent test failures caused by transient DB startup/connectivity
+    issues in CI.
+  - Isolated CI PostgreSQL container naming per run to avoid collisions on
+    self-hosted runners.
+- **Telemetry and Dependency Updates**:
+  - Updated OpenTelemetry modules and related dependencies to keep runtime and
+    instrumentation behavior current.
+
+### Security
+- **Static Analysis Hygiene**:
+  - Added/adjusted narrowly scoped suppressions for known false positives in
+    trusted SQL cleanup paths.
+- **Workflow Hardening**:
+  - Applied StepSecurity and permissions hardening improvements in CI.
+
 ## [v0.7.0] - 2026-02-24 - Reminder Summary, Runner Tooling Automation & CI Hardening
 
 ### Added

@@ -12,7 +12,7 @@ A Telegram bot for tracking personal expenses with multi-currency support, AI-po
 ## Features
 
 - **Multi-Currency Support**: Track expenses in 17 currencies (USD, EUR, GBP, SGD, JPY, and more)
-- **Quick Expense Tracking**: Add expenses with simple text messages like `5.50 Coffee` or `$10 Lunch`
+- **Quick Expense Tracking**: Add expenses with simple text messages like `5.50 Coffee`, `Coffee 5.50`, or `$10 Lunch`
 - **AI Auto-Categorization**: Automatically categorizes expenses using Gemini AI (e.g., "vegetables" → "Food - Grocery")
 - **Structured Input**: Use commands like `/add 10.50 Lunch Food - Dining Out` for detailed entries
 - **Receipt OCR**: Upload receipt photos for automatic expense extraction using Gemini AI
@@ -265,9 +265,11 @@ Simply send a message in the format `<amount> <description> [category]`:
 
 ```
 5.50 Coffee                    # Uses your default currency
+Coffee 5.50                    # Description-first format
 $10 Lunch                      # USD
 €25 Dinner Food - Dining Out   # EUR with category
 50 THB Taxi                    # Thai Baht
+Lunch usd 12 #team             # Description-first, lowercase currency, tags
 5.9 vegetables                 # Auto-categorized as "Food - Grocery"
 5.50 Coffee #work              # With inline tag
 10 Lunch #team #client         # Multiple tags
