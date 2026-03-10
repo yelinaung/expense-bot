@@ -17,7 +17,7 @@ ARG SEMGREP_VERSION=1.154.0
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # hadolint ignore=DL3008
-RUN apt-get update && apt-get install -y --no-install-recommends jq && \
+RUN apt-get update && apt-get install -y --no-install-recommends jq file && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir -p "/opt/hostedtoolcache/go/${GO_VERSION}/x64" && \
     curl --proto "=https" --tlsv1.2 -sSf -L "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" | \
