@@ -192,6 +192,12 @@ func ParseExpenseInput(input string) *ParsedExpense {
 		return nil
 	}
 
+	if shouldPreferReorderedParse(input) {
+		if result := parseExpenseReordered(input); result != nil {
+			return result
+		}
+	}
+
 	if result := parseExpenseLeadingAmount(input); result != nil {
 		return result
 	}
@@ -234,15 +240,17 @@ func parseExpenseReordered(input string) *ParsedExpense {
 
 	// Everything before the match is the description prefix.
 	prefix := strings.TrimSpace(input[:match[0]])
+	tail := strings.TrimSpace(input[match[0]:])
 
 	// Reject if the prefix is empty (amount-only already handled),
-	// starts with "/" (failed command), or contains digits (ambiguous).
-	if prefix == "" || strings.HasPrefix(prefix, "/") || containsDigit(prefix) {
+	// starts with "/" (failed command), or contains digits without a
+	// clearer currency marker at the tail.
+	if prefix == "" || strings.HasPrefix(prefix, "/") {
 		return nil
 	}
-
-	// The tail is the amount (+ optional currency / bracket category).
-	tail := strings.TrimSpace(input[match[0]:])
+	if containsDigit(prefix) && !hasExplicitCurrencyMarker(tail) {
+		return nil
+	}
 
 	// Separate any trailing bracket category so it stays at the end
 	// after reinserting the description prefix.
@@ -256,10 +264,43 @@ func parseExpenseReordered(input string) *ParsedExpense {
 	return parseExpenseLeadingAmount(tail + " " + prefix + bracket)
 }
 
+func shouldPreferReorderedParse(input string) bool {
+	match := trailingAmountRegex.FindStringSubmatchIndex(input)
+	if match == nil || match[0] == 0 {
+		return false
+	}
+
+	prefix := strings.TrimSpace(input[:match[0]])
+	if !containsDigit(prefix) {
+		return false
+	}
+
+	tail := strings.TrimSpace(input[match[0]:])
+	return hasExplicitCurrencyMarker(tail)
+}
+
+func hasExplicitCurrencyMarker(tail string) bool {
+	if tail == "" {
+		return false
+	}
+
+	upperTail := strings.ToUpper(tail)
+	if currencySuffixRegex.MatchString(upperTail) {
+		return true
+	}
+
+	for _, symbol := range currencySymbolsByLenDesc {
+		if strings.Contains(tail, symbol) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // containsDigit reports whether s contains any ASCII digit.
-// This is intentionally conservative: descriptions like "7-Eleven 5.50"
-// are rejected to avoid false positives where embedded numbers in chat
-// text (e.g. "Room 3 is ready") would be mistaken for expense amounts.
+// This helps keep description-first parsing conservative when embedded
+// numbers could otherwise be mistaken for expense amounts.
 func containsDigit(s string) bool {
 	return strings.ContainsAny(s, "0123456789")
 }
