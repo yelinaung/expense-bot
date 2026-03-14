@@ -304,7 +304,7 @@ func hasExplicitCurrencyMarker(tail string) bool {
 	}
 
 	for _, symbol := range currencySymbolsByLenDesc {
-		if strings.Contains(tail, symbol) {
+		if strings.Contains(upperTail, strings.ToUpper(symbol)) {
 			return true
 		}
 	}
