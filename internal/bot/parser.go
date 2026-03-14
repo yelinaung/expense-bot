@@ -129,6 +129,9 @@ var currencyPrefixRegex *regexp.Regexp
 // currencySuffixRegex matches 3-letter currency codes at the end (e.g., "50 USD").
 var currencySuffixRegex = regexp.MustCompile(`\s+(` + currencyCodePatternUpper + `)$`)
 
+// currencyCodeTokenRegex matches standalone 3-letter currency code tokens.
+var currencyCodeTokenRegex = regexp.MustCompile(`\b(` + currencyCodePatternUpper + `)\b`)
+
 // tagTokenRegex matches a single #tag token (letter start, up to 30 word chars).
 var tagTokenRegex = regexp.MustCompile(`^(` + tagNamePattern + `)$`)
 
@@ -294,17 +297,19 @@ func hasExplicitCurrencyMarker(tail string) bool {
 		return false
 	}
 
-	// ISO currency code suffixes are treated case-insensitively, but symbol
-	// forms such as "RM", "Rp", and "S$" intentionally keep canonical case
-	// because the actual parse path only recognizes the symbols as stored in
-	// currencySymbolToCode.
 	upperTail := strings.ToUpper(tail)
-	if currencySuffixRegex.MatchString(upperTail) {
-		return true
+	for _, match := range currencyCodeTokenRegex.FindAllStringSubmatch(upperTail, -1) {
+		if len(match) <= 1 {
+			continue
+		}
+		if _, ok := models.SupportedCurrencies[match[1]]; ok {
+			return true
+		}
 	}
 
 	for _, symbol := range currencySymbolsByLenDesc {
-		if strings.Contains(upperTail, strings.ToUpper(symbol)) {
+		if _, ok := currencySymbolToCode[symbol]; ok &&
+			strings.Contains(upperTail, strings.ToUpper(symbol)) {
 			return true
 		}
 	}
