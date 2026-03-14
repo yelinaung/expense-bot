@@ -200,8 +200,8 @@ func ParseExpenseInput(input string) *ParsedExpense {
 		return nil
 	}
 
-	if shouldPreferReorderedParse(input) {
-		if result := parseExpenseReordered(input); result != nil {
+	if candidate := shouldPreferReorderedParse(input); candidate != nil {
+		if result := parseExpenseReordered(candidate); result != nil {
 			return result
 		}
 	}
@@ -210,7 +210,7 @@ func ParseExpenseInput(input string) *ParsedExpense {
 		return result
 	}
 
-	return parseExpenseReordered(input)
+	return parseExpenseReordered(findReorderedExpenseCandidate(input))
 }
 
 // parseExpenseLeadingAmount parses input where the amount comes first.
@@ -240,8 +240,7 @@ func parseExpenseLeadingAmount(input string) *ParsedExpense {
 // "Grab taxi S$15".  The amount must be at the end of the input
 // (optionally followed by a currency code or bracket category) to avoid
 // false positives on ordinary chat messages.
-func parseExpenseReordered(input string) *ParsedExpense {
-	candidate := findReorderedExpenseCandidate(input)
+func parseExpenseReordered(candidate *reorderedExpenseCandidate) *ParsedExpense {
 	if candidate == nil {
 		return nil
 	}
@@ -267,17 +266,21 @@ func parseExpenseReordered(input string) *ParsedExpense {
 	return parseExpenseLeadingAmount(tail + " " + candidate.prefix + bracket)
 }
 
-func shouldPreferReorderedParse(input string) bool {
+func shouldPreferReorderedParse(input string) *reorderedExpenseCandidate {
 	candidate := findReorderedExpenseCandidate(input)
 	if candidate == nil || candidate.prefix == "" {
-		return false
+		return nil
 	}
 
 	if !containsDigit(candidate.prefix) {
-		return false
+		return nil
 	}
 
-	return hasExplicitCurrencyMarker(candidate.tail)
+	if !hasExplicitCurrencyMarker(candidate.tail) {
+		return nil
+	}
+
+	return candidate
 }
 
 func findReorderedExpenseCandidate(input string) *reorderedExpenseCandidate {
