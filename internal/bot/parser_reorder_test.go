@@ -449,6 +449,16 @@ func TestHasExplicitCurrencyMarker(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "currency code before tag",
+			tail: "10 SGD #lunch",
+			want: true,
+		},
+		{
+			name: "unsupported currency code",
+			tail: "10 ABC",
+			want: false,
+		},
+		{
 			name: "plain amount only",
 			tail: "10",
 			want: false,
@@ -459,6 +469,44 @@ func TestHasExplicitCurrencyMarker(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tt.want, hasExplicitCurrencyMarker(tt.tail))
+		})
+	}
+}
+
+func TestShouldPreferReorderedParse(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+		want  bool
+	}{
+		{
+			name:  "digit prefix with supported code and tag",
+			input: "2 noodles, 10 SGD #lunch",
+			want:  true,
+		},
+		{
+			name:  "digit prefix with supported code and bracket category",
+			input: "2 noodles, 10 SGD [Food]",
+			want:  true,
+		},
+		{
+			name:  "digit prefix with unsupported code",
+			input: "2 noodles, 10 ABC",
+			want:  false,
+		},
+		{
+			name:  "prefix without digits",
+			input: "noodles, 10 SGD",
+			want:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tt.want, shouldPreferReorderedParse(tt.input))
 		})
 	}
 }
