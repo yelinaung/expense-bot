@@ -70,6 +70,11 @@ type ParsedExpense struct {
 	Tags         []string
 }
 
+type reorderedExpenseCandidate struct {
+	prefix string
+	tail   string
+}
+
 // amountRegex matches amounts like "5", "5.50", "5,50".
 var amountRegex = regexp.MustCompile(`^(\d+(?:[.,]\d{1,2})?)`)
 
@@ -233,50 +238,55 @@ func parseExpenseLeadingAmount(input string) *ParsedExpense {
 // (optionally followed by a currency code or bracket category) to avoid
 // false positives on ordinary chat messages.
 func parseExpenseReordered(input string) *ParsedExpense {
-	match := trailingAmountRegex.FindStringSubmatchIndex(input)
-	if match == nil {
+	candidate := findReorderedExpenseCandidate(input)
+	if candidate == nil {
 		return nil
 	}
-
-	// Everything before the match is the description prefix.
-	prefix := strings.TrimSpace(input[:match[0]])
-	tail := strings.TrimSpace(input[match[0]:])
 
 	// Reject if the prefix is empty (amount-only already handled),
 	// starts with "/" (failed command), or contains digits without a
 	// clearer currency marker at the tail.
-	if prefix == "" || strings.HasPrefix(prefix, "/") {
-		return nil
-	}
-	if containsDigit(prefix) && !hasExplicitCurrencyMarker(tail) {
+	if candidate.prefix == "" || strings.HasPrefix(candidate.prefix, "/") ||
+		(containsDigit(candidate.prefix) && !hasExplicitCurrencyMarker(candidate.tail)) {
 		return nil
 	}
 
 	// Separate any trailing bracket category so it stays at the end
 	// after reinserting the description prefix.
 	bracket := ""
+	tail := candidate.tail
 	if bm := bracketCategoryRegex.FindString(tail); bm != "" {
 		tail = strings.TrimSpace(tail[:len(tail)-len(bm)])
 		bracket = " " + strings.TrimSpace(bm)
 	}
 
 	// Reconstruct as "amount [currency] prefix [bracket]".
-	return parseExpenseLeadingAmount(tail + " " + prefix + bracket)
+	return parseExpenseLeadingAmount(tail + " " + candidate.prefix + bracket)
 }
 
 func shouldPreferReorderedParse(input string) bool {
+	candidate := findReorderedExpenseCandidate(input)
+	if candidate == nil || candidate.prefix == "" {
+		return false
+	}
+
+	if !containsDigit(candidate.prefix) {
+		return false
+	}
+
+	return hasExplicitCurrencyMarker(candidate.tail)
+}
+
+func findReorderedExpenseCandidate(input string) *reorderedExpenseCandidate {
 	match := trailingAmountRegex.FindStringSubmatchIndex(input)
 	if match == nil || match[0] == 0 {
-		return false
+		return nil
 	}
 
-	prefix := strings.TrimSpace(input[:match[0]])
-	if !containsDigit(prefix) {
-		return false
+	return &reorderedExpenseCandidate{
+		prefix: strings.TrimSpace(input[:match[0]]),
+		tail:   strings.TrimSpace(input[match[0]:]),
 	}
-
-	tail := strings.TrimSpace(input[match[0]:])
-	return hasExplicitCurrencyMarker(tail)
 }
 
 func hasExplicitCurrencyMarker(tail string) bool {
@@ -284,6 +294,10 @@ func hasExplicitCurrencyMarker(tail string) bool {
 		return false
 	}
 
+	// ISO currency code suffixes are treated case-insensitively, but symbol
+	// forms such as "RM", "Rp", and "S$" intentionally keep canonical case
+	// because the actual parse path only recognizes the symbols as stored in
+	// currencySymbolToCode.
 	upperTail := strings.ToUpper(tail)
 	if currencySuffixRegex.MatchString(upperTail) {
 		return true
