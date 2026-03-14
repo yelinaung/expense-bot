@@ -177,6 +177,13 @@ func TestParseExpenseInput_DescriptionFirst(t *testing.T) {
 			wantDesc:     "Coffee",
 			wantCurrency: "SGD",
 		},
+		{
+			name:         "quantity in description with trailing currency amount",
+			input:        "2 Prawn noodles, 10$",
+			wantAmt:      "10.00",
+			wantDesc:     "2 Prawn noodles,",
+			wantCurrency: "",
+		},
 	}
 
 	for _, tt := range tests {
