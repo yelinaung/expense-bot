@@ -429,3 +429,36 @@ func TestContainsDigit(t *testing.T) {
 		})
 	}
 }
+
+func TestHasExplicitCurrencyMarker(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		tail string
+		want bool
+	}{
+		{
+			name: "mixed case currency symbol",
+			tail: "10rM",
+			want: true,
+		},
+		{
+			name: "lowercase currency code suffix",
+			tail: "10 sgd",
+			want: true,
+		},
+		{
+			name: "plain amount only",
+			tail: "10",
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tt.want, hasExplicitCurrencyMarker(tt.tail))
+		})
+	}
+}
