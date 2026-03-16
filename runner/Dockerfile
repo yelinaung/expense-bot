@@ -1,6 +1,6 @@
 # The base image drops to a non-root user via its own entrypoint;
 # root is only used here for build-time package installation.
-FROM myoung34/github-runner:ubuntu-jammy@sha256:5ba54aa260e83e387af9e8a8e255b8e8c8853b568aaf055dc63d53e0d4db057a
+FROM myoung34/github-runner:ubuntu-jammy@sha256:7ef00e791be9d5db957dabc6e970ac31141fdd1873ac53c03016b9021a658310
 
 ARG NODE20_VERSION=20.20.1
 ARG NODE24_VERSION=24.14.0
