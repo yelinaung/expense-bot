@@ -446,7 +446,7 @@ mise run test-db-down
 The project uses:
 - **golangci-lint** - 28 linters enabled for code quality
 - **gofumpt** - Stricter formatting than gofmt
-- **Pre-commit hooks** - Automatic formatting, linting, and testing
+- **prek hooks** - Automatic formatting, linting, and testing
 - **GitLab CI + GitHub Actions** - Automated testing, SAST, and coverage enforcement (50% minimum)
 
 ### Project Standards
@@ -570,10 +570,9 @@ openssl rand -hex 32
 
 ### Development Setup
 
-1. Install pre-commit hooks:
+1. Install `prek` hooks:
    ```bash
-   curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/latest/download/prek-installer.sh | sh
-   prek install
+   mise run hooks-install
    ```
 
 2. Run tests before committing:

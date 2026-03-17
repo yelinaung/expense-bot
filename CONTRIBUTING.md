@@ -11,7 +11,7 @@ Thank you for your interest in contributing to Expense Bot!
 3. Trust the project config: `mise trust mise.toml`
 4. Install the project tools: `mise install`
 5. Install dependencies: `go mod download`
-6. Set up pre-commit hooks: `pip install pre-commit && pre-commit install`
+6. Install git hooks with `prek`: `mise run hooks-install`
 7. Copy `.env.example` to `.env` and configure
 
 ## Development

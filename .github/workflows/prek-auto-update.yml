@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   auto-update:
-    name: Update pre-commit hooks
+    name: Update prek hooks
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -33,10 +33,10 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: chore/prek-auto-update
-          title: "chore: auto-update pre-commit hooks"
+          title: "chore: auto-update prek hooks"
           body: |
-            Automated update of pre-commit hook versions via `prek auto-update`.
+            Automated update of prek hook versions via `prek auto-update`.
 
             Review the changes to `.pre-commit-config.yaml` and merge if CI passes.
-          commit-message: "chore: auto-update pre-commit hooks"
+          commit-message: "chore: auto-update prek hooks"
           labels: dependencies

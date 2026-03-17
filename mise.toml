@@ -3,6 +3,7 @@ go = "1.26.1"
 gofumpt = "0.9.2"
 golangci-lint = "2.11.3"
 goreleaser = "2.14.3"
+prek = "0.3.4"
 
 [tasks.build]
 description = "Build the expense bot binary"
@@ -76,3 +77,7 @@ run = "goreleaser release --snapshot --clean"
 [tasks.push]
 description = "Push the current branch to all configured remotes"
 run = "./scripts/mise/push.sh"
+
+[tasks."hooks-install"]
+description = "Install git hooks with prek"
+run = "prek install"
