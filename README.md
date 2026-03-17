@@ -94,6 +94,8 @@ cd expense-bot
 ### 2. Install Dependencies
 
 ```bash
+mise trust mise.toml
+mise install
 go mod download
 ```
 

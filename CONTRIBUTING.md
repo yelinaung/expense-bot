@@ -8,10 +8,11 @@ Thank you for your interest in contributing to Expense Bot!
 
 1. Fork the repository
 2. Clone your fork: `git clone <your-fork-url>`
-3. Install dependencies: `go mod download`
-4. Set up pre-commit hooks: `pip install pre-commit && pre-commit install`
-5. Copy `.env.example` to `.env` and configure
-6. Trust the project config: `mise trust mise.toml`
+3. Trust the project config: `mise trust mise.toml`
+4. Install the project tools: `mise install`
+5. Install dependencies: `go mod download`
+6. Set up pre-commit hooks: `pip install pre-commit && pre-commit install`
+7. Copy `.env.example` to `.env` and configure
 
 ## Development
 
