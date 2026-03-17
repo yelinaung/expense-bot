@@ -59,7 +59,8 @@ expense-bot/
 │   ├── repository/         # Data access layer
 │   └── telemetry/          # OpenTelemetry init, middleware, metrics, HTTP transport
 ├── main.go                 # Application entrypoint
-├── Makefile                # Development commands
+├── mise.toml               # Canonical development tasks
+├── Makefile                # Compatibility shim that forwards to mise tasks
 ├── docker-compose.test.yml # Test database setup
 └── .gitlab-ci.yml          # CI/CD pipeline
 ```
@@ -374,47 +375,50 @@ The bot uses intelligent category matching:
 
 ## Development
 
-### Available Make Commands
+### Available Mise Tasks
+
+Use `mise run <task>` as the canonical interface. Existing `make <target>`
+commands still work and forward to the matching `mise` task.
 
 ```bash
 # Build the application
-make build
+mise run build
 
 # Run all tests
-make test
+mise run test
 
 # Run tests with coverage report
-make test-coverage
+mise run test-coverage
 
 # Run tests with race detection
-make test-race
+mise run test-race
 
 # Run integration tests (requires Docker)
-make test-integration
+mise run test-integration
 
 # Run linter
-make lint
+mise run lint
 
 # Format code
-make fmt
+mise run fmt
 
 # Clean build artifacts
-make clean
+mise run clean
 
 # View HTML coverage report
-make coverage-html
+mise run coverage-html
 ```
 
 ### Running Tests
 
 **Unit tests only:**
 ```bash
-make test
+mise run test
 ```
 
 **Integration tests with PostgreSQL:**
 ```bash
-make test-integration
+mise run test-integration
 ```
 
 This will:
@@ -426,13 +430,13 @@ This will:
 **Manual integration testing:**
 ```bash
 # Start test database
-make test-db-up
+mise run test-db-up
 
 # Run tests with TEST_DATABASE_URL set
 TEST_DATABASE_URL="postgres://YOUR_DATABASE_URL" go test -v ./...
 
 # Stop test database
-make test-db-down
+mise run test-db-down
 ```
 
 ### Code Quality

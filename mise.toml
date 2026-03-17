@@ -1,0 +1,72 @@
+[tasks.build]
+description = "Build the expense bot binary"
+run = "./scripts/mise/build.sh"
+
+[tasks.test]
+description = "Run Go tests"
+run = [
+  "mkdir -p .cache/go-build",
+  "GOCACHE=$PWD/.cache/go-build go test -v ./...",
+]
+
+[tasks."test-coverage"]
+description = "Run Go tests with coverage checks"
+run = "./scripts/mise/test-coverage.sh"
+
+[tasks."test-race"]
+description = "Run Go tests with race detection"
+run = [
+  "mkdir -p .cache/go-build",
+  "GOCACHE=$PWD/.cache/go-build CGO_ENABLED=1 go test -v -race ./...",
+]
+
+[tasks."test-db-up"]
+description = "Start the PostgreSQL test database"
+run = [
+  "docker compose -f docker-compose.test.yml up -d",
+  "echo 'Waiting for PostgreSQL to be ready...'",
+  "sleep 5",
+]
+
+[tasks."test-db-down"]
+description = "Stop the PostgreSQL test database"
+run = "docker compose -f docker-compose.test.yml down -v"
+
+[tasks."test-integration"]
+description = "Run integration tests against the PostgreSQL test database"
+run = "./scripts/mise/test-integration.sh"
+
+[tasks."coverage-html"]
+description = "Generate an HTML coverage report"
+depends = ["test-coverage"]
+run = [
+  "go tool cover -html=coverage.out -o coverage.html",
+  "echo 'Coverage report generated: coverage.html'",
+]
+
+[tasks.lint]
+description = "Run Go vet and golangci-lint"
+run = [
+  "mkdir -p .cache/go-build",
+  "GOCACHE=$PWD/.cache/go-build go vet ./...",
+  "GOCACHE=$PWD/.cache/go-build golangci-lint run ./...",
+]
+
+[tasks.fmt]
+description = "Format Go code with gofumpt"
+run = "gofumpt -w ."
+
+[tasks.clean]
+description = "Remove build and coverage artifacts"
+run = [
+  "rm -f bin/expense-bot coverage.out coverage.html",
+  "rm -rf dist/",
+]
+
+[tasks.release]
+description = "Run a snapshot GoReleaser build"
+run = "goreleaser release --snapshot --clean"
+
+[tasks.push]
+description = "Push the current branch to all configured remotes"
+run = "./scripts/mise/push.sh"

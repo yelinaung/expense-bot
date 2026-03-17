@@ -11,6 +11,7 @@ Thank you for your interest in contributing to Expense Bot!
 3. Install dependencies: `go mod download`
 4. Set up pre-commit hooks: `pip install pre-commit && pre-commit install`
 5. Copy `.env.example` to `.env` and configure
+6. Trust the project config: `mise trust mise.toml`
 
 ## Development
 
@@ -18,31 +19,31 @@ Thank you for your interest in contributing to Expense Bot!
 
 ```bash
 # Unit tests
-make test
+mise run test
 
 # With coverage
-make test-coverage
+mise run test-coverage
 
 # Integration tests (requires Docker)
-make test-integration
+mise run test-integration
 ```
 
 ### Code Quality
 
 ```bash
 # Format code
-make fmt
+mise run fmt
 
 # Run linter
-make lint
+mise run lint
 ```
 
 ## Making Changes
 
 1. Create a feature branch: `git checkout -b feature/your-feature`
 2. Make your changes
-3. Run tests: `make test`
-4. Run linter: `make lint`
+3. Run tests: `mise run test`
+4. Run linter: `mise run lint`
 5. Commit with a descriptive message (use [conventional commits](https://www.conventionalcommits.org/))
 6. Push and open a pull request
 
