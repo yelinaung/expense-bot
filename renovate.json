@@ -152,6 +152,30 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
+        "/^runner\\/Dockerfile$/"
+      ],
+      "matchStrings": [
+        "(?m)^ARG\\s+MISE_VERSION=(?<currentValue>[0-9A-Za-z._-]+)\\s*$"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "jdx/mise",
+      "extractVersionTemplate": "^v?(?<version>.*)$",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^runner\\/Dockerfile$/"
+      ],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>[^\\s]+)\\s+depName=(?<depName>[^\\s]+)\\nARG\\s+\\w+=(?<currentDigest>[a-f0-9]+)\\s*$"
+      ],
+      "currentValueTemplate": "master",
+      "versioningTemplate": "git"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
         "/^\\.github\\/workflows\\/.*\\.yml$/"
       ],
       "matchStrings": [
