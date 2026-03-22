@@ -17,6 +17,9 @@ on:
       - '.github/workflows/hadolint.yml'
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 jobs:
   hadolint:
     name: Lint Dockerfiles
