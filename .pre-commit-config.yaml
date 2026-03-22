@@ -23,3 +23,7 @@ repos:
     rev: v2.11.3
     hooks:
       - id: golangci-lint
+  - repo: https://github.com/jumanjihouse/pre-commit-hooks
+    rev: 3.0.0
+    hooks:
+      - id: shellcheck
