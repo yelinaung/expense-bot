@@ -57,7 +57,7 @@ RUN mkdir -p /actions-runner/externals/node20/bin && \
     go install "github.com/securego/gosec/v2/cmd/gosec@v${GOSEC_VERSION}" && \
     curl --proto "=https" --tlsv1.2 -sSf -L \
       "https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/mise-v${MISE_VERSION}-linux-x64.tar.gz" | \
-    tar -xz -C /usr/local/bin --strip-components=1 mise/bin/mise && \
+    tar -xz -C /usr/local/bin --strip-components=2 mise/bin/mise && \
     curl --proto "=https" --tlsv1.2 -sSf -L \
       "https://raw.githubusercontent.com/golangci/golangci-lint/${GOLANGCI_LINT_INSTALL_COMMIT}/install.sh" | \
     sh -s -- -b "${GOBIN}" "v${GOLANGCI_LINT_VERSION}" && \
