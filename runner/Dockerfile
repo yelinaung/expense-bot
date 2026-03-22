@@ -12,7 +12,9 @@ ARG GOLANGCI_LINT_VERSION=2.11.3
 ARG GORELEASER_VERSION=2.14.3
 ARG GITLEAKS_VERSION=8.30.0
 ARG SEMGREP_VERSION=1.156.0
-ARG MISE_INSTALL_URL=https://mise.run
+ARG MISE_VERSION=2026.3.10
+# renovate: datasource=github-commits depName=golangci/golangci-lint
+ARG GOLANGCI_LINT_INSTALL_COMMIT=870ddc133592c3609f26af3b6f05ce2dd4a7afda
 
 # Use bash with pipefail for RUN steps that use curl|tar pipelines.
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -53,9 +55,11 @@ RUN mkdir -p /actions-runner/externals/node20/bin && \
     go install "mvdan.cc/gofumpt@v${GOFUMPT_VERSION}" && \
     go install "golang.org/x/vuln/cmd/govulncheck@v${GOVULNCHECK_VERSION}" && \
     go install "github.com/securego/gosec/v2/cmd/gosec@v${GOSEC_VERSION}" && \
-    curl --proto "=https" --tlsv1.2 -sSf -L "${MISE_INSTALL_URL}" | sh && \
-    install -m 0755 /root/.local/bin/mise /usr/local/bin/mise && \
-    curl --proto "=https" --tlsv1.2 -sSf -L "https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh" | \
+    curl --proto "=https" --tlsv1.2 -sSf -L \
+      "https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/mise-v${MISE_VERSION}-linux-x64.tar.gz" | \
+    tar -xz -C /usr/local/bin --strip-components=2 mise/bin/mise && \
+    curl --proto "=https" --tlsv1.2 -sSf -L \
+      "https://raw.githubusercontent.com/golangci/golangci-lint/${GOLANGCI_LINT_INSTALL_COMMIT}/install.sh" | \
     sh -s -- -b "${GOBIN}" "v${GOLANGCI_LINT_VERSION}" && \
     curl --proto "=https" --tlsv1.2 -sSf -L "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | \
     tar -xz -C /usr/local/bin gitleaks && \

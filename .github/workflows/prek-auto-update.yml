@@ -7,12 +7,14 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   auto-update:
     name: Update prek hooks
+    permissions:
+      contents: write
+      pull-requests: write
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
     steps:
       - name: Harden the runner (Audit all outbound calls)
