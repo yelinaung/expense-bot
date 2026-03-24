@@ -6,7 +6,7 @@ require (
 	github.com/exaring/otelpgx v0.10.0
 	github.com/go-analyze/charts v0.5.26
 	github.com/go-telegram/bot v1.20.0
-	github.com/jackc/pgx/v5 v5.9.0
+	github.com/jackc/pgx/v5 v5.9.1
 	github.com/joho/godotenv v1.5.1
 	github.com/rs/zerolog v1.34.0
 	github.com/shopspring/decimal v1.4.0
