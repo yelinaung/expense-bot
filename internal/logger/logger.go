@@ -28,16 +28,26 @@ func init() {
 		Logger()
 }
 
+// Level represents a log level.
+type Level string
+
+const (
+	LevelDebug Level = "debug"
+	LevelInfo  Level = "info"
+	LevelWarn  Level = "warn"
+	LevelError Level = "error"
+)
+
 // SetLevel sets the global log level.
-func SetLevel(level string) {
+func SetLevel(level Level) {
 	switch level {
-	case "debug":
+	case LevelDebug:
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	case "info":
+	case LevelInfo:
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	case "warn":
+	case LevelWarn:
 		zerolog.SetGlobalLevel(zerolog.WarnLevel)
-	case "error":
+	case LevelError:
 		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
 	default:
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)

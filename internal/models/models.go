@@ -53,9 +53,11 @@ type Category struct {
 }
 
 // ExpenseStatus represents the status of an expense.
+type ExpenseStatus string
+
 const (
-	ExpenseStatusDraft     = "draft"
-	ExpenseStatusConfirmed = "confirmed"
+	ExpenseStatusDraft     ExpenseStatus = "draft"
+	ExpenseStatusConfirmed ExpenseStatus = "confirmed"
 )
 
 // MaxTagNameLength is the maximum allowed length for tag names.
@@ -90,7 +92,7 @@ type Expense struct {
 	Category          *Category
 	Tags              []Tag
 	ReceiptFileID     string
-	Status            string
+	Status            ExpenseStatus
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 }

@@ -28,7 +28,7 @@ func (r *ExpenseRepository) Pool() database.PGXDB {
 // Create adds a new expense.
 func (r *ExpenseRepository) Create(ctx context.Context, expense *models.Expense) error {
 	// Default to confirmed if not specified.
-	if expense.Status == "" {
+	if expense.Status == models.ExpenseStatus("") {
 		expense.Status = models.ExpenseStatusConfirmed
 	}
 	err := r.db.QueryRow(ctx, `

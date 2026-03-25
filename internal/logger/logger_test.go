@@ -14,22 +14,22 @@ import (
 
 func TestSetLevel(t *testing.T) {
 	t.Run("sets debug level", func(t *testing.T) {
-		SetLevel("debug")
+		SetLevel(LevelDebug)
 		require.Equal(t, zerolog.DebugLevel, zerolog.GlobalLevel())
 	})
 
 	t.Run("sets info level", func(t *testing.T) {
-		SetLevel("info")
+		SetLevel(LevelInfo)
 		require.Equal(t, zerolog.InfoLevel, zerolog.GlobalLevel())
 	})
 
 	t.Run("sets warn level", func(t *testing.T) {
-		SetLevel("warn")
+		SetLevel(LevelWarn)
 		require.Equal(t, zerolog.WarnLevel, zerolog.GlobalLevel())
 	})
 
 	t.Run("sets error level", func(t *testing.T) {
-		SetLevel("error")
+		SetLevel(LevelError)
 		require.Equal(t, zerolog.ErrorLevel, zerolog.GlobalLevel())
 	})
 
@@ -39,7 +39,7 @@ func TestSetLevel(t *testing.T) {
 	})
 
 	// Reset to debug for other tests.
-	SetLevel("debug")
+	SetLevel(LevelDebug)
 }
 
 func TestSetJSON(t *testing.T) {
