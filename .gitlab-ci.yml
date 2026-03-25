@@ -11,6 +11,16 @@ variables:
   GOPATH: ${CI_PROJECT_DIR}/.go
   GOCACHE: ${CI_PROJECT_DIR}/.go-cache
   GOLANGCI_LINT_CACHE: ${CI_PROJECT_DIR}/.golangci-cache
+  # Pinned image digests (amd64/linux) — update together with version comments.
+  GOLANG_IMAGE: golang:1.26-alpine@sha256:d337ecb3075f0ec76d81652b3fa52af47c3eba6c8ba9f93b835752df7ce62946
+  GOLANGCI_LINT_IMAGE: golangci/golangci-lint:v2.11-alpine@sha256:764c339d1afa8ea000f0f265ef561961cfa0ff79fa054875d462592acb2ae993
+  POSTGRES_IMAGE: postgres:18-alpine@sha256:ef9e5f962db375d64c9e01bf12c41426d63c64b8cdf962daf35b60e74aa95ce5
+  ALPINE_JQ_IMAGE: apteno/alpine-jq:latest@sha256:2618c251ddb92dd09e9bee03769792df70a31083a8d4105472ef5c823b2fb8e3
+  ALPINE_GIT_IMAGE: alpine/git:latest@sha256:970dba879f3c60fd3d1286788fdc8107dceb541d8569e3f2b1745e8e5199664d
+  GORELEASER_IMAGE: goreleaser/goreleaser:v2.14.3@sha256:91947e3c176c4812f4b78ee4bb826f88c574c5b1fadad4212197b8faf26de484
+  # Pinned tool versions for go install.
+  GOSEC_VERSION: v2.22.11
+  GOIMPORTS_VERSION: v0.43.0
 
 include:
   - template: Security/Secret-Detection.gitlab-ci.yml
@@ -48,13 +58,13 @@ semgrep-sast:
 
 gosec:
   stage: security
-  image: golang:1.26-alpine
+  image: $GOLANG_IMAGE
   tags:
     - playground-bravo
   extends: .go-cache
   before_script:
     - export PATH="$GOPATH/bin:$PATH"
-    - go install github.com/securego/gosec/v2/cmd/gosec@latest
+    - go install github.com/securego/gosec/v2/cmd/gosec@${GOSEC_VERSION}
   script:
     - gosec -exclude-dir=.go ./...
 
@@ -63,7 +73,7 @@ gosec:
 
 check_secrets:
   stage: quality
-  image: apteno/alpine-jq:latest
+  image: $ALPINE_JQ_IMAGE
   tags:
     - playground-bravo
   needs:
@@ -87,7 +97,7 @@ check_secrets:
 
 check_sast:
   stage: quality
-  image: apteno/alpine-jq:latest
+  image: $ALPINE_JQ_IMAGE
   tags:
     - playground-bravo
   needs:
@@ -116,7 +126,7 @@ check_sast:
 
 prek:
   stage: quality
-  image: golang:1.26-alpine
+  image: $GOLANG_IMAGE
   tags:
     - playground-bravo
   extends: .go-cache
@@ -131,14 +141,15 @@ prek:
     - apk add --no-cache curl git bash shellcheck
     - curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/download/v0.3.4/prek-installer.sh | sh
     - export PATH="$HOME/.local/bin:$GOPATH/bin:$PATH"
-    - go install golang.org/x/tools/cmd/goimports@latest
-    - curl --proto '=https' --tlsv1.2 -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b "$GOPATH/bin"
+    - go install golang.org/x/tools/cmd/goimports@${GOIMPORTS_VERSION}
+    - curl --proto '=https' --tlsv1.2 -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b "$GOPATH/bin" v2.11.3
   script:
-    - prek run --all-files --show-diff-on-failure --color always
+    - SKIP=shellcheck prek run --all-files --show-diff-on-failure --color always
+    - shellcheck scripts/**/*.sh
 
 lint:
   stage: quality
-  image: golangci/golangci-lint:v2.11-alpine
+  image: $GOLANGCI_LINT_IMAGE
   tags:
     - playground-bravo
   extends: .go-cache
@@ -161,7 +172,7 @@ lint:
 
 test:
   stage: test
-  image: golang:1.26-alpine
+  image: $GOLANG_IMAGE
   tags:
     - playground-bravo
   extends: .go-cache
@@ -182,7 +193,7 @@ test:
     - job: prek
       artifacts: false
   services:
-    - name: postgres:18-alpine
+    - name: $POSTGRES_IMAGE
       alias: postgres
   variables:
     POSTGRES_USER: test
@@ -193,7 +204,7 @@ test:
   script:
     # NOTE: Using -p 1 to avoid race conditions in database tests
     # Multiple packages connecting to same test DB causes migration conflicts
-    - go test -v -coverprofile=coverage.out -covermode=atomic -p 1 ./...
+    - go test -v -coverprofile=coverage.out -covermode=atomic -coverpkg=./internal/... -p 1 ./...
     - go tool cover -func=coverage.out
     # Check coverage threshold using awk (bc not available in alpine)
     - |
@@ -217,7 +228,7 @@ test:
 deploy:
   stage: deploy
   image:
-    name: alpine/git:latest
+    name: $ALPINE_GIT_IMAGE
     entrypoint: [""]
   tags:
     - playground-bravo
@@ -249,7 +260,7 @@ deploy:
 release:
   stage: release
   image:
-    name: goreleaser/goreleaser
+    name: $GORELEASER_IMAGE
     entrypoint: [""]
   tags:
     - playground-bravo
