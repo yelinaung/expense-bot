@@ -14,7 +14,7 @@ import (
 )
 
 func TestCheckAndSendReminders(t *testing.T) {
-	loc := reminderLocationGMTPlus8
+	loc := time.FixedZone("GMT+8", 8*60*60)
 	now := time.Date(2026, 2, 11, 14, 30, 0, 0, loc)
 	todayStr := now.Format("2006-01-02")
 
@@ -22,6 +22,7 @@ func TestCheckAndSendReminders(t *testing.T) {
 		ctx := context.Background()
 		pool := testDB(ctx, t)
 		b := setupTestBot(t, pool)
+		b.displayLocation = loc
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 14
@@ -49,6 +50,7 @@ func TestCheckAndSendReminders(t *testing.T) {
 		ctx := context.Background()
 		pool := testDB(ctx, t)
 		b := setupTestBot(t, pool)
+		b.displayLocation = loc
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 14
@@ -76,6 +78,7 @@ func TestCheckAndSendReminders(t *testing.T) {
 		ctx := context.Background()
 		pool := testDB(ctx, t)
 		b := setupTestBot(t, pool)
+		b.displayLocation = loc
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 14
@@ -98,6 +101,7 @@ func TestCheckAndSendReminders(t *testing.T) {
 		ctx := context.Background()
 		pool := testDB(ctx, t)
 		b := setupTestBot(t, pool)
+		b.displayLocation = loc
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 14
@@ -134,10 +138,11 @@ func TestCheckAndSendReminders(t *testing.T) {
 		require.Equal(t, todayStr, reminded[2002])
 	})
 
-	t.Run("uses GMT+8 day window when deciding summary", func(t *testing.T) {
+	t.Run("uses configured timezone day window when deciding summary", func(t *testing.T) {
 		ctx := context.Background()
 		pool := testDB(ctx, t)
 		b := setupTestBot(t, pool)
+		b.displayLocation = loc
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 0
@@ -180,6 +185,7 @@ func TestCheckAndSendReminders(t *testing.T) {
 		ctx := context.Background()
 		pool := testDB(ctx, t)
 		b := setupTestBot(t, pool)
+		b.displayLocation = loc
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.tagRepo = nil
@@ -219,6 +225,7 @@ func TestCheckAndSendReminders(t *testing.T) {
 		ctx := context.Background()
 		pool := testDB(ctx, t)
 		b := setupTestBot(t, pool)
+		b.displayLocation = loc
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 14
@@ -243,6 +250,7 @@ func TestCheckAndSendReminders(t *testing.T) {
 		ctx := context.Background()
 		pool := testDB(ctx, t)
 		b := setupTestBot(t, pool)
+		b.displayLocation = loc
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 20 // now is hour 14, won't match
@@ -265,6 +273,7 @@ func TestCheckAndSendReminders(t *testing.T) {
 		ctx := context.Background()
 		pool := testDB(ctx, t)
 		b := setupTestBot(t, pool)
+		b.displayLocation = loc
 		mockBot := mocks.NewMockBot()
 		mockBot.SendMessageError = errors.New("user blocked bot")
 		b.messageSender = mockBot
@@ -289,6 +298,7 @@ func TestCheckAndSendReminders(t *testing.T) {
 		ctx := context.Background()
 		pool := testDB(ctx, t)
 		b := setupTestBot(t, pool)
+		b.displayLocation = loc
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.ReminderHour = 14
@@ -318,7 +328,7 @@ func TestStartDailyReminderLoop_RunsImmediateCheck(t *testing.T) {
 	mockBot := mocks.NewMockBot()
 	b.messageSender = mockBot
 	b.cfg.DailyReminderEnabled = true
-	b.cfg.ReminderHour = time.Now().In(reminderLocationGMTPlus8).Hour()
+	b.cfg.ReminderHour = time.Now().In(b.displayLocation).Hour()
 	b.cfg.WhitelistedUserIDs = []int64{2100}
 
 	err := b.userRepo.UpsertUser(ctx, &models.User{

@@ -22,8 +22,6 @@ const (
 	ReminderTimeout = 2 * time.Minute
 )
 
-var reminderLocationGMTPlus8 = time.FixedZone("GMT+8", 8*60*60)
-
 // startDailyReminderLoop runs a periodic loop that sends daily reminders to users
 // who haven't logged any expenses for the current day.
 func (b *Bot) startDailyReminderLoop(ctx context.Context) {
@@ -32,11 +30,11 @@ func (b *Bot) startDailyReminderLoop(ctx context.Context) {
 		return
 	}
 
-	loc := reminderLocationGMTPlus8
+	loc := b.displayLocation
 
 	logger.Log.Info().
 		Int("hour", b.cfg.ReminderHour).
-		Str("timezone", "GMT+8").
+		Str("timezone", loc.String()).
 		Msg("Daily reminder loop started")
 
 	reminded := make(map[int64]string)
