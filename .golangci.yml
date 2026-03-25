@@ -1,6 +1,6 @@
 version: "2"
 run:
-  go: "1.24.5"
+  go: "1.25.1"
   modules-download-mode: readonly
   issues-exit-code: 1
   tests: true
