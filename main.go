@@ -74,7 +74,11 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		return wrapRunError("Failed to load config", err)
 	}
 
-	logger.SetLevel(cfg.LogLevel)
+	logLevel, err := logger.ParseLevel(cfg.LogLevel)
+	if err != nil {
+		logger.Log.Warn().Err(err).Msg("Invalid LOG_LEVEL; defaulting to info")
+	}
+	logger.SetLevel(logLevel)
 	logger.InitHashSalt()
 
 	otelProviders, err := telemetry.Init(runCtx, &telemetry.Config{
