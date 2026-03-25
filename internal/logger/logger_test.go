@@ -13,33 +13,60 @@ import (
 )
 
 func TestSetLevel(t *testing.T) {
-	t.Run("sets debug level", func(t *testing.T) {
-		SetLevel(LevelDebug)
-		require.Equal(t, zerolog.DebugLevel, zerolog.GlobalLevel())
-	})
+	tests := []struct {
+		name  string
+		level Level
+		want  zerolog.Level
+	}{
+		{"debug", LevelDebug, zerolog.DebugLevel},
+		{"info", LevelInfo, zerolog.InfoLevel},
+		{"warn", LevelWarn, zerolog.WarnLevel},
+		{"error", LevelError, zerolog.ErrorLevel},
+		{"unknown defaults to info", "unknown", zerolog.InfoLevel},
+		{"zero value defaults to info", Level(""), zerolog.InfoLevel},
+	}
 
-	t.Run("sets info level", func(t *testing.T) {
-		SetLevel(LevelInfo)
-		require.Equal(t, zerolog.InfoLevel, zerolog.GlobalLevel())
-	})
-
-	t.Run("sets warn level", func(t *testing.T) {
-		SetLevel(LevelWarn)
-		require.Equal(t, zerolog.WarnLevel, zerolog.GlobalLevel())
-	})
-
-	t.Run("sets error level", func(t *testing.T) {
-		SetLevel(LevelError)
-		require.Equal(t, zerolog.ErrorLevel, zerolog.GlobalLevel())
-	})
-
-	t.Run("defaults to info for unknown level", func(t *testing.T) {
-		SetLevel("unknown")
-		require.Equal(t, zerolog.InfoLevel, zerolog.GlobalLevel())
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			SetLevel(tt.level)
+			require.Equal(t, tt.want, zerolog.GlobalLevel())
+		})
+	}
 
 	// Reset to debug for other tests.
 	SetLevel(LevelDebug)
+}
+
+func TestParseLevel(t *testing.T) {
+	tests := []struct {
+		name    string
+		raw     string
+		want    Level
+		wantErr bool
+	}{
+		{"debug", "debug", LevelDebug, false},
+		{"info", "info", LevelInfo, false},
+		{"warn", "warn", LevelWarn, false},
+		{"error", "error", LevelError, false},
+		{"empty defaults to info", "", LevelInfo, false},
+		{"uppercase normalized", "DEBUG", LevelDebug, false},
+		{"mixed case normalized", "Warn", LevelWarn, false},
+		{"whitespace trimmed", "  error  ", LevelError, false},
+		{"unknown returns error", "trace", LevelInfo, true},
+		{"typo returns error", "inf", LevelInfo, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseLevel(tt.raw)
+			require.Equal(t, tt.want, got)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestSetJSON(t *testing.T) {

@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	"gitlab.com/yelinaung/expense-bot/internal/logger"
 )
 
 const envTrue = "true"
@@ -25,7 +24,7 @@ type Config struct {
 	ExchangeRateBaseURL  string
 	ExchangeRateTimeout  time.Duration
 	ExchangeRateCacheTTL time.Duration
-	LogLevel             logger.Level
+	LogLevel             string
 	WhitelistedUserIDs   []int64
 	WhitelistedUsernames []string
 	AllowedChatIDs       []int64
@@ -81,7 +80,7 @@ func newDefaultConfig() *Config {
 		ExchangeRateBaseURL:   "https://api.frankfurter.app",
 		ExchangeRateTimeout:   5 * time.Second,
 		ExchangeRateCacheTTL:  12 * time.Hour,
-		LogLevel:              logger.Level(os.Getenv("LOG_LEVEL")),
+		LogLevel:              os.Getenv("LOG_LEVEL"),
 		resolvedSuperadmins:   make(map[string]int64),
 		resolvedSuperadminIDs: make(map[int64]struct{}),
 	}

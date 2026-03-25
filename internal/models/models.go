@@ -56,6 +56,7 @@ type Category struct {
 type ExpenseStatus string
 
 const (
+	ExpenseStatusUnset     ExpenseStatus = ""
 	ExpenseStatusDraft     ExpenseStatus = "draft"
 	ExpenseStatusConfirmed ExpenseStatus = "confirmed"
 )

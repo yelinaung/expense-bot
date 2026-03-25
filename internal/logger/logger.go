@@ -3,7 +3,9 @@ package logger
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -38,6 +40,22 @@ const (
 	LevelError Level = "error"
 )
 
+// ParseLevel normalizes and validates a raw log level string. It trims
+// whitespace and lowercases the input. An empty string is treated as
+// LevelInfo. Unknown values return LevelInfo and a non-nil error.
+func ParseLevel(raw string) (Level, error) {
+	normalized := Level(strings.ToLower(strings.TrimSpace(raw)))
+
+	switch normalized {
+	case LevelDebug, LevelInfo, LevelWarn, LevelError:
+		return normalized, nil
+	case "":
+		return LevelInfo, nil
+	default:
+		return LevelInfo, fmt.Errorf("unknown log level %q", raw)
+	}
+}
+
 // SetLevel sets the global log level.
 func SetLevel(level Level) {
 	switch level {
@@ -50,6 +68,8 @@ func SetLevel(level Level) {
 	case LevelError:
 		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
 	default:
+		Log.Warn().Str("level", string(level)).
+			Msg("Unknown log level; defaulting to info")
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
 }
