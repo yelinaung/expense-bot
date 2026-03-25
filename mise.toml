@@ -74,7 +74,7 @@ run = [
 description = "Run a snapshot GoReleaser build"
 run = "goreleaser release --snapshot --clean"
 
-[tasks.push]
+[tasks.push-all]
 description = "Push the current branch to all configured remotes"
 run = "./scripts/mise/push.sh"
 
