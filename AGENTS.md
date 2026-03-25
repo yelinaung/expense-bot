@@ -3,15 +3,16 @@
 ## Build/Test/Lint Commands
 
 - **Go version**: 1.25+
-- **Build**: `go build .` or `go run .`
-- **Test**: `task test` or `go test ./...`
-- **Update Golden Files**: `go test ./... -update` (regenerates .golden files when test output changes)
-  - Update specific package: `go test ./internal/tui/components/core -update` (in this case, we're updating "core")
+- **Build**: `mise build`
+- **Test**:
+    - `mise run test` for unit tests
+    - `mise run test-coverage` for tests with coverage
+    - `mise run test-race` to run go tests with race detection
+    - `mise run test-integration` to run integration tests against the PostgreSQL test database
 - **Lint**:
-    - Run `gopls check -severity=hint $(fd -e go)` and fix the warnings
-    - Run `golangci-lint run` and fix the issues
-- **Format**: `task fmt` (gofumpt -w .)
-- **Dev**: `task dev` (runs with profiling enabled)
+    - `mise run lint` to run Go vet and golangci-lint
+- **Clean**:
+    - `mise run clean` to remove build and coverage artifacts
 - `grep` is an alias to `rg`.
 
 ## Code Style Guidelines
@@ -32,29 +33,7 @@
 - **File permissions**: Use octal notation (0o755, 0o644) for file permissions
 - **Comments**: End comments in periods unless comments are at the end of the line.
 
-## Testing with Mock Providers
-
-When writing tests that involve provider configurations, use the mock providers to avoid API calls:
-
-```go
-func TestYourFunction(t *testing.T) {
-    // Enable mock providers for testing
-    originalUseMock := config.UseMockProviders
-    config.UseMockProviders = true
-    defer func() {
-        config.UseMockProviders = originalUseMock
-        config.ResetProviders()
-    }()
-
-    // Reset providers to ensure fresh mock data
-    config.ResetProviders()
-
-    // Your test code here - providers will now return mock data
-    providers := config.Providers()
-    // ... test logic
-}
-```
-ALWAYS RUN these `make` commands:
+ALWAYS RUN these `mise run` commands:
 - test
 - test-coverage
 - test-race
@@ -95,7 +74,7 @@ ENSURE that the test coverage stays at or above 50% (CI enforced).
 
 ## Formatting
 
-- ALWAYS format any Go code you write with `make fmt`
+- ALWAYS format any Go code you write with `mise fmt`
 
 ## Comments
 
@@ -105,12 +84,12 @@ ENSURE that the test coverage stays at or above 50% (CI enforced).
 ## Committing
 
 - ALWAYS run both unit and integraton tests before pushing
-    - Especially, the fail tests with `make test-integration 2&>1 | grep -w 'FAIL:'`
+    - Especially, the fail tests with `mise test-integration 2&>1 | grep -w 'FAIL:'`
 - ALWAYS use semantic commits (`fix:`, `feat:`, `chore:`, `refactor:`, `docs:`, `sec:`, etc).
 - ALWAYS run pre-commits before pushing
 - Try to keep commits to one line, not including your attribution. Only use
   multi-line commits when additional context is truly necessary.
-- Push to all remotes with `make push`.
+- Push to all remotes with `mise push-all`.
 
 ## Working on the TUI (UI)
 Anytime you starts the work, read the AGENTS.md file
