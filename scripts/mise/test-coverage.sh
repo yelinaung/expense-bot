@@ -25,7 +25,7 @@ fi
 
 out_file="$(mktemp)"
 test_status=0
-if ! TEST_DATABASE_URL="${TEST_DATABASE_URL}" go test -v -coverprofile=coverage.out -covermode=atomic -p 1 ./... >"${out_file}" 2>&1; then
+if ! TEST_DATABASE_URL="${TEST_DATABASE_URL}" go test -v -coverprofile=coverage.out -covermode=atomic -coverpkg=./internal/... -p 1 ./... >"${out_file}" 2>&1; then
 	test_status=$?
 fi
 
