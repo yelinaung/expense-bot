@@ -10,6 +10,7 @@ cleanup() {
 	if [[ "${started_db}" -eq 1 ]]; then
 		docker compose -f docker-compose.test.yml down -v
 	fi
+	return 0
 }
 
 trap cleanup EXIT

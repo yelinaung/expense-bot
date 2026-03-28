@@ -10,6 +10,7 @@ sleep 5
 
 cleanup() {
 	docker compose -f docker-compose.test.yml down -v
+	return 0
 }
 
 trap cleanup EXIT
