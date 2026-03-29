@@ -60,7 +60,6 @@ expense-bot/
 │   └── telemetry/          # OpenTelemetry init, middleware, metrics, HTTP transport
 ├── main.go                 # Application entrypoint
 ├── mise.toml               # Canonical development tasks
-├── Makefile                # Compatibility shim that forwards to mise tasks
 ├── docker-compose.test.yml # Test database setup
 └── .gitlab-ci.yml          # CI/CD pipeline
 ```
@@ -87,7 +86,7 @@ expense-bot/
 ### 1. Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/yelinaung/expense-bot
 cd expense-bot
 ```
 
@@ -178,7 +177,7 @@ Default categories will be seeded automatically.
 
 ```bash
 # Build the bot
-make build
+mise build
 
 # Run the bot
 ./bin/expense-bot
@@ -379,8 +378,7 @@ The bot uses intelligent category matching:
 
 ### Available Mise Tasks
 
-Use `mise run <task>` as the canonical interface. Existing `make <target>`
-commands still work and forward to the matching `mise` task.
+Use `mise run <task>` as the canonical interface.
 
 ```bash
 # Build the application
@@ -577,8 +575,8 @@ openssl rand -hex 32
 
 2. Run tests before committing:
    ```bash
-   make test-coverage
-   make lint
+   mise run test-coverage
+   mise run lint
    ```
 
 ### Commit Guidelines
