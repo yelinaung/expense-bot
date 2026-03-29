@@ -230,6 +230,7 @@ deploy:
   image:
     name: $ALPINE_GIT_IMAGE
     entrypoint: [""]
+  environment: prod
   tags:
     - playground-bravo
   needs:
