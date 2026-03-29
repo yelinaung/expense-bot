@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.10.1] - 2026-03-29
+
+### Fixed
+- **Dockerfile**: Moved inline comments above `FROM` lines — inline comments
+  after `FROM` are not valid Dockerfile syntax, causing deploy failures.
+
 ## [v0.10.0] - 2026-03-29 - Mise Migration, Type Safety & Security Hardening
 
 ### Added
