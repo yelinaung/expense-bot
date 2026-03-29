@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.10.0] - 2026-03-29 - Mise Migration, Type Safety & Security Hardening
+
+### Added
+- **Mise as Canonical Task Runner**:
+  - Migrated all dev tasks from Makefile to `mise.toml`.
+  - Declared explicit tool versions in mise (`go`, `gofumpt`, `golangci-lint`,
+    `goreleaser`, `prek`).
+  - Standardized on `prek` pre-commit hooks.
+### Changed
+- **Type Safety Refactoring**:
+  - Added typed `ExpenseStatus` and `logger.Level` for compile-time safety.
+  - Added `ParseLevel` helper and decoupled config from zerolog.
+- **Task Cleanup**:
+  - Renamed mise task `push` to `push-all`.
+  - Restricted `mise test` to `internal/` folder only.
+  - Added explicit return statement in mise task scripts.
+- **Documentation**:
+  - Removed Makefile and all `make` references from README.
+  - Updated README with actual repository clone URL.
+
+### Fixed
+- **Timezone Issue for Reminder**: Corrected reminder timezone handling.
+- **Mise Extraction**: Fixed `strip-components=2` for mise installation.
+
+### Security
+- **StepSecurity Best Practices**: Applied harden-runner and permissions
+  hardening across CI workflows.
+- **CI Permission Tightening**: Moved read-all permissions to top-level,
+  reduced per-job permissions.
+- **Docker Image Pinning**: Pinned all Docker images by SHA256 digest in
+  CI and Dockerfile.
+- **CI Dependency Pinning**: Pinned all CI action versions with SHA256 hashes.
+- **ShellCheck**: Added shellcheck pre-commit hook and CI step.
+
+### Dependencies
+- Updated `zerolog` to v1.35.0, `pgx` to v5.9.1, `go-telegram/bot` to
+  v1.20.0, `genai` to v1.51.0, `gosec` to v2.25.0, `grpc` to v1.79.3.
+- Updated `golangci-lint` to v2.11.4, `gitleaks` to v8.30.1, `semgrep`
+  to v1.156.0.
+- Updated Node.js to v24.14.1, mise to v2026.3.15.
+- Removed `dependabot.yml` (fully migrated to Renovate).
+
 ## [v0.9.0] - 2026-03-09 - Parser Improvements and CI Reliability
 
 ### Added
