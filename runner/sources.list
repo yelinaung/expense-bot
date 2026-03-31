@@ -1,0 +1,2 @@
+deb http://mirror.sg.gs/ubuntu/ noble main restricted
+deb-src http://mirror.sg.gs/ubuntu/ noble main restricted
