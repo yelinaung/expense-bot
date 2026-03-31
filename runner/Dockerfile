@@ -1,9 +1,8 @@
 # The base image drops to a non-root user via its own entrypoint;
 # root is only used here for build-time package installation.
-FROM myoung34/github-runner@sha256:02d8fd1d307fa003b67825655f29c8f56024712f9a1ee6010510817173c7734c # myoung34/github-runner:ubuntu-jammy
+# myoung34/github-runner:ubuntu-noble
+FROM myoung34/github-runner:2.333.1-ubuntu-noble@sha256:63e29766dddf14038cb7e8a02886f0f6fba18f837e2a3d0782bda982c0606ae8
 
-ARG NODE20_VERSION=20.20.2
-ARG NODE24_VERSION=24.14.1
 ARG GO_VERSION=1.26.1
 ARG GOFUMPT_VERSION=0.9.2
 ARG GOVULNCHECK_VERSION=1.1.4
@@ -20,38 +19,19 @@ ARG GOLANGCI_LINT_INSTALL_COMMIT=870ddc133592c3609f26af3b6f05ce2dd4a7afda
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # hadolint ignore=DL3008
-RUN apt-get update && apt-get install -y --no-install-recommends jq file && \
+COPY sources.list /etc/apt/sources.list
+RUN apt-get update && apt-get install -y --no-install-recommends jq file pipx && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir -p "/opt/hostedtoolcache/go/${GO_VERSION}/x64" && \
     curl --proto "=https" --tlsv1.2 -sSf -L "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" | \
     tar -xz -C "/opt/hostedtoolcache/go/${GO_VERSION}/x64" --strip-components=1 && \
     touch "/opt/hostedtoolcache/go/${GO_VERSION}/x64.complete"
 
-ENV PATH="/opt/hostedtoolcache/go/${GO_VERSION}/x64/bin:/opt/hostedtoolcache/go/${GO_VERSION}/x64/packages/bin:${PATH}" \
+ENV PATH="/root/.local/bin:/opt/hostedtoolcache/go/${GO_VERSION}/x64/bin:/opt/hostedtoolcache/go/${GO_VERSION}/x64/packages/bin:${PATH}" \
     GOPATH="/opt/hostedtoolcache/go/${GO_VERSION}/x64/packages" \
     GOBIN="/opt/hostedtoolcache/go/${GO_VERSION}/x64/packages/bin"
 
-# Install Node.js externals for GitHub Actions container jobs.
-# The runner mounts these into containers as /__e/; Alpine (musl) builds
-# are required for actions running inside Alpine-based containers.
-# Both node20 and node24 are needed during the transition period.
-RUN mkdir -p /actions-runner/externals/node20/bin && \
-    curl --proto "=https" --tlsv1.2 -sSf -L \
-      "https://nodejs.org/dist/v${NODE20_VERSION}/node-v${NODE20_VERSION}-linux-x64.tar.gz" | \
-    tar -xz -C /actions-runner/externals/node20 --strip-components=1 && \
-    mkdir -p /actions-runner/externals/node20_alpine/bin && \
-    curl --proto "=https" --tlsv1.2 -sSf -L \
-      "https://unofficial-builds.nodejs.org/download/release/v${NODE20_VERSION}/node-v${NODE20_VERSION}-linux-x64-musl.tar.gz" | \
-    tar -xz -C /actions-runner/externals/node20_alpine --strip-components=1 && \
-    mkdir -p /actions-runner/externals/node24/bin && \
-    curl --proto "=https" --tlsv1.2 -sSf -L \
-      "https://nodejs.org/dist/v${NODE24_VERSION}/node-v${NODE24_VERSION}-linux-x64.tar.gz" | \
-    tar -xz -C /actions-runner/externals/node24 --strip-components=1 && \
-    mkdir -p /actions-runner/externals/node24_alpine/bin && \
-    curl --proto "=https" --tlsv1.2 -sSf -L \
-      "https://unofficial-builds.nodejs.org/download/release/v${NODE24_VERSION}/node-v${NODE24_VERSION}-linux-x64-musl.tar.gz" | \
-    tar -xz -C /actions-runner/externals/node24_alpine --strip-components=1 && \
-    pip3 install --no-cache-dir semgrep=="${SEMGREP_VERSION}" && \
+RUN pipx install semgrep=="${SEMGREP_VERSION}" && \
     go install "mvdan.cc/gofumpt@v${GOFUMPT_VERSION}" && \
     go install "golang.org/x/vuln/cmd/govulncheck@v${GOVULNCHECK_VERSION}" && \
     go install "github.com/securego/gosec/v2/cmd/gosec@v${GOSEC_VERSION}" && \
@@ -65,4 +45,14 @@ RUN mkdir -p /actions-runner/externals/node20/bin && \
     tar -xz -C /usr/local/bin gitleaks && \
     curl --proto "=https" --tlsv1.2 -sSf -L "https://github.com/goreleaser/goreleaser/releases/download/v${GORELEASER_VERSION}/goreleaser_Linux_x86_64.tar.gz" | \
     tar -xz -C /usr/local/bin goreleaser && \
-    go clean -modcache
+    go clean -modcache && \
+    echo "=== Installed tool versions ===" && \
+    go version && \
+    gofumpt --version && \
+    govulncheck -version && \
+    gosec --version && \
+    golangci-lint --version && \
+    goreleaser --version && \
+    gitleaks version && \
+    semgrep --version && \
+    mise --version
