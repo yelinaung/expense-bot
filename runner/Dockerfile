@@ -18,8 +18,8 @@ ARG GOLANGCI_LINT_INSTALL_COMMIT=870ddc133592c3609f26af3b6f05ce2dd4a7afda
 # Use bash with pipefail for RUN steps that use curl|tar pipelines.
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# hadolint ignore=DL3008
 COPY sources.list /etc/apt/sources.list
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends jq file pipx && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir -p "/opt/hostedtoolcache/go/${GO_VERSION}/x64" && \
