@@ -65,10 +65,7 @@ run = "gofumpt -w ."
 
 [tasks.clean]
 description = "Remove build and coverage artifacts"
-run = [
-  "rm -f bin/expense-bot coverage.out coverage.html",
-  "rm -rf dist/",
-]
+run = ["rm -f bin/expense-bot coverage.out coverage.html", "rm -rf dist/"]
 
 [tasks.release]
 description = "Run a snapshot GoReleaser build"
