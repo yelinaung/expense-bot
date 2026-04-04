@@ -20,8 +20,8 @@ func TestParseExpenseInput_DescriptionFirst(t *testing.T) {
 		{
 			name:     "simple description then amount",
 			input:    "Coffee 5.50",
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 		},
 		{
 			name:     "multi-word description then amount",
@@ -32,16 +32,16 @@ func TestParseExpenseInput_DescriptionFirst(t *testing.T) {
 		{
 			name:         "description then amount then currency code",
 			input:        "Coffee 5.50 SGD",
-			wantAmt:      "5.50",
-			wantDesc:     "Coffee",
-			wantCurrency: "SGD",
+			wantAmt:      testAmount550,
+			wantDesc:     testCoffeeDesc,
+			wantCurrency: testCurrencySGD,
 		},
 		{
 			name:         "description then currency symbol and amount",
 			input:        "Taxi S$15",
 			wantAmt:      "15.00",
 			wantDesc:     "Taxi",
-			wantCurrency: "SGD",
+			wantCurrency: testCurrencySGD,
 		},
 		{
 			name:         "description then euro amount",
@@ -78,7 +78,7 @@ func TestParseExpenseInput_DescriptionFirst(t *testing.T) {
 		},
 		{
 			name:    "only description no amount",
-			input:   "Coffee",
+			input:   testCoffeeDesc,
 			wantNil: true,
 		},
 		{
@@ -119,15 +119,15 @@ func TestParseExpenseInput_DescriptionFirst(t *testing.T) {
 		{
 			name:     "leading amount still works",
 			input:    "5.50 Coffee",
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 		},
 		{
 			name:         "leading currency still works",
 			input:        "SGD 5.50 Coffee",
-			wantAmt:      "5.50",
-			wantDesc:     "Coffee",
-			wantCurrency: "SGD",
+			wantAmt:      testAmount550,
+			wantDesc:     testCoffeeDesc,
+			wantCurrency: testCurrencySGD,
 		},
 		{
 			name:     "description then large amount",
@@ -159,8 +159,8 @@ func TestParseExpenseInput_DescriptionFirst(t *testing.T) {
 		{
 			name:         "trailing dollar sign is ambiguous not USD",
 			input:        "Coffee $5.50",
-			wantAmt:      "5.50",
-			wantDesc:     "Coffee",
+			wantAmt:      testAmount550,
+			wantDesc:     testCoffeeDesc,
 			wantCurrency: "",
 		},
 		{
@@ -173,9 +173,9 @@ func TestParseExpenseInput_DescriptionFirst(t *testing.T) {
 		{
 			name:         "lowercase currency code suffix",
 			input:        "Coffee 5.50 sgd",
-			wantAmt:      "5.50",
-			wantDesc:     "Coffee",
-			wantCurrency: "SGD",
+			wantAmt:      testAmount550,
+			wantDesc:     testCoffeeDesc,
+			wantCurrency: testCurrencySGD,
 		},
 		{
 			name:         "quantity in description with trailing currency amount",
@@ -225,8 +225,8 @@ func TestParseExpenseInputWithCategories_DescriptionFirst(t *testing.T) {
 		{
 			name:        "description first with bracket category",
 			input:       "Coffee 5.50 [Food - Dining Out]",
-			wantAmt:     "5.50",
-			wantDesc:    "Coffee",
+			wantAmt:     testAmount550,
+			wantDesc:    testCoffeeDesc,
 			wantCatName: "Food - Dining Out",
 		},
 		{
@@ -235,15 +235,15 @@ func TestParseExpenseInputWithCategories_DescriptionFirst(t *testing.T) {
 			wantAmt:      "15.00",
 			wantDesc:     "Taxi",
 			wantCatName:  "Transportation",
-			wantCurrency: "SGD",
+			wantCurrency: testCurrencySGD,
 		},
 		{
 			name:         "description first with lowercase currency code and bracket category",
 			input:        "Coffee 5.50 sgd [Food - Dining Out]",
-			wantAmt:      "5.50",
-			wantDesc:     "Coffee",
+			wantAmt:      testAmount550,
+			wantDesc:     testCoffeeDesc,
 			wantCatName:  "Food - Dining Out",
-			wantCurrency: "SGD",
+			wantCurrency: testCurrencySGD,
 		},
 	}
 
@@ -282,22 +282,22 @@ func TestParseAddCommand_DescriptionFirst(t *testing.T) {
 		{
 			name:     "add command with description first",
 			input:    "/add Coffee 5.50",
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 		},
 		{
 			name:         "add command with description first and currency",
 			input:        "/add Lunch 10 SGD",
 			wantAmt:      "10.00",
 			wantDesc:     "Lunch",
-			wantCurrency: "SGD",
+			wantCurrency: testCurrencySGD,
 		},
 		{
 			name:         "add command with description first and lowercase currency",
 			input:        "/add Lunch 10 sgd",
 			wantAmt:      "10.00",
 			wantDesc:     "Lunch",
-			wantCurrency: "SGD",
+			wantCurrency: testCurrencySGD,
 		},
 		{
 			name:    "add command with no amount still fails",
@@ -341,15 +341,15 @@ func TestParseExpenseInput_DescriptionFirst_Tags(t *testing.T) {
 		{
 			name:     "tag in prefix before amount",
 			input:    "Coffee #food 5.50",
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 			wantTags: []string{"food"},
 		},
 		{
 			name:     "tag after trailing amount",
 			input:    "Coffee 5.50 #snack",
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 			wantTags: []string{"snack"},
 		},
 		{
@@ -357,27 +357,27 @@ func TestParseExpenseInput_DescriptionFirst_Tags(t *testing.T) {
 			input:        "Lunch #work 10 SGD",
 			wantAmt:      "10.00",
 			wantDesc:     "Lunch",
-			wantCurrency: "SGD",
+			wantCurrency: testCurrencySGD,
 			wantTags:     []string{"work"},
 		},
 		{
 			name:     "multiple tags in prefix before amount",
 			input:    "Coffee #food #morning 5.50",
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 			wantTags: []string{"food", "morning"},
 		},
 		{
 			name:     "multiple tags after trailing amount",
 			input:    "Coffee 5.50 #snack #office",
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 			wantTags: []string{"snack", "office"},
 		},
 		{
 			name:     "tags with bracket category in reordered input",
 			input:    "Coffee #food 5.50 [Food - Dining Out]",
-			wantAmt:  "5.50",
+			wantAmt:  testAmount550,
 			wantDesc: "Coffee [Food - Dining Out]",
 			wantTags: []string{"food"},
 		},
@@ -417,7 +417,7 @@ func TestContainsDigit(t *testing.T) {
 		{"abc123", true},
 		{"123", true},
 		{"", false},
-		{"Coffee", false},
+		{testCoffeeDesc, false},
 		{"Order1", true},
 		{"café", false},
 	}

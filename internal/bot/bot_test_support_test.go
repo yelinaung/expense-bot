@@ -13,6 +13,17 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/testutil/dbtest"
 )
 
+// Shared test constants for bot package tests.
+const (
+	testCurrencySGD           = "SGD"
+	testCoffeeDesc            = "Coffee"
+	testAmount550             = "5.50"
+	testAmount1000            = "10.00"
+	testCategoryFood          = "Food"
+	testCategoryTransport     = "Transport"
+	testCategoryFoodDiningOut = "Food - Dining Out"
+)
+
 // testDB is a convenience wrapper around dbtest.TestTx for bot tests.
 func testDB(ctx context.Context, t *testing.T) database.PGXDB {
 	t.Helper()

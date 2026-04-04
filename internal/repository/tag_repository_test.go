@@ -26,14 +26,14 @@ func setupTagTest(t *testing.T) (*TagRepository, *ExpenseRepository, *UserReposi
 func createTestExpense(t *testing.T, userRepo *UserRepository, expenseRepo *ExpenseRepository, ctx context.Context, userID int64) *models.Expense {
 	t.Helper()
 
-	err := userRepo.UpsertUser(ctx, &models.User{ID: userID, Username: "taguser"})
+	err := userRepo.UpsertUser(ctx, &models.User{ID: userID, Username: testUsername})
 	require.NoError(t, err)
 
 	expense := &models.Expense{
 		UserID:      userID,
 		Amount:      decimal.NewFromFloat(10.00),
-		Currency:    "SGD",
-		Description: "Test expense",
+		Currency:    testCurrencySGD,
+		Description: testDescription,
 		Status:      models.ExpenseStatusConfirmed,
 	}
 	err = expenseRepo.Create(ctx, expense)
@@ -123,7 +123,7 @@ func TestTagRepository_GetAllByUserID(t *testing.T) {
 	expA := &models.Expense{
 		UserID:      userA,
 		Amount:      decimal.NewFromFloat(9.99),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "A expense",
 		Status:      models.ExpenseStatusConfirmed,
 	}
@@ -133,7 +133,7 @@ func TestTagRepository_GetAllByUserID(t *testing.T) {
 	expB := &models.Expense{
 		UserID:      userB,
 		Amount:      decimal.NewFromFloat(3.50),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "B expense",
 		Status:      models.ExpenseStatusConfirmed,
 	}
@@ -313,7 +313,7 @@ func TestTagRepository_GetExpensesByTagID(t *testing.T) {
 	exp1 := &models.Expense{
 		UserID:      userID,
 		Amount:      decimal.NewFromFloat(5.00),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "Expense 1",
 		Status:      models.ExpenseStatusConfirmed,
 	}
@@ -323,7 +323,7 @@ func TestTagRepository_GetExpensesByTagID(t *testing.T) {
 	exp2 := &models.Expense{
 		UserID:      userID,
 		Amount:      decimal.NewFromFloat(15.00),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "Expense 2",
 		Status:      models.ExpenseStatusConfirmed,
 	}

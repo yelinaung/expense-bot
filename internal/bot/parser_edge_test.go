@@ -10,7 +10,7 @@ import (
 const (
 	invalidAmountFormatEdge  = "invalid amount format"
 	tenPointNineNineNineEdge = "10.999"
-	foodDiningOutParserEdge  = "Food - Dining Out"
+	foodDiningOutParserEdge  = testCategoryFoodDiningOut
 	foodGroceryParserEdge    = "Food - Grocery"
 	entertainmentParserEdge  = "Entertainment"
 )
@@ -183,56 +183,56 @@ func TestParseExpenseInput_EdgeCases(t *testing.T) {
 		{
 			name:     "description with emoji",
 			input:    "5.50 Coffee ☕",
-			wantAmt:  "5.50",
+			wantAmt:  testAmount550,
 			wantDesc: "Coffee ☕",
 		},
 		{
 			name:     "description with unicode",
 			input:    "10.00 Café français",
-			wantAmt:  "10.00",
+			wantAmt:  testAmount1000,
 			wantDesc: "Café français",
 		},
 		{
 			name:     "description with newlines",
 			input:    "5.50 Coffee\nwith friends",
-			wantAmt:  "5.50",
+			wantAmt:  testAmount550,
 			wantDesc: "Coffee\nwith friends",
 		},
 		{
 			name:     "description with tabs",
 			input:    "5.50 Coffee\twith\ttabs",
-			wantAmt:  "5.50",
+			wantAmt:  testAmount550,
 			wantDesc: "Coffee\twith\ttabs",
 		},
 		{
 			name:     "very long description",
 			input:    "5.50 " + string(make([]byte, 500)),
-			wantAmt:  "5.50",
+			wantAmt:  testAmount550,
 			wantDesc: string(make([]byte, 500)),
 		},
 		{
 			name:     "description with multiple spaces",
 			input:    "5.50   Coffee   with   spaces",
-			wantAmt:  "5.50",
+			wantAmt:  testAmount550,
 			wantDesc: "Coffee   with   spaces",
 		},
 		{
 			name:     "amount with leading zeros",
 			input:    "005.50 Coffee",
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 		},
 		{
 			name:     "amount at start with no space",
 			input:    "5.50Coffee",
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 		},
 		{
 			name:     "amount with trailing zeros gets truncated by regex",
 			input:    "5.5000 Coffee",
-			wantAmt:  "5.50",      // Regex captures 5.50
-			wantDesc: "00 Coffee", // Rest becomes description
+			wantAmt:  testAmount550, // Regex captures 5.50
+			wantDesc: "00 Coffee",   // Rest becomes description
 		},
 		{
 			name:     "text starting with number but not amount",
@@ -243,7 +243,7 @@ func TestParseExpenseInput_EdgeCases(t *testing.T) {
 		{
 			name:     "description starting with number",
 			input:    "5.50 123 Main Street",
-			wantAmt:  "5.50",
+			wantAmt:  testAmount550,
 			wantDesc: "123 Main Street",
 		},
 		{
@@ -254,7 +254,7 @@ func TestParseExpenseInput_EdgeCases(t *testing.T) {
 		{
 			name:     "amount with comma no decimals",
 			input:    "5,50",
-			wantAmt:  "5.50",
+			wantAmt:  testAmount550,
 			wantDesc: "",
 		},
 		{
@@ -265,13 +265,13 @@ func TestParseExpenseInput_EdgeCases(t *testing.T) {
 		{
 			name:     "description with parentheses",
 			input:    "10.00 Coffee (large)",
-			wantAmt:  "10.00",
+			wantAmt:  testAmount1000,
 			wantDesc: "Coffee (large)",
 		},
 		{
 			name:     "description with quotes",
 			input:    "10.00 \"Special\" Coffee",
-			wantAmt:  "10.00",
+			wantAmt:  testAmount1000,
 			wantDesc: "\"Special\" Coffee",
 		},
 	}
@@ -305,14 +305,14 @@ func TestParseAddCommand_EdgeCases(t *testing.T) {
 		{
 			name:     "add command with extra spaces",
 			input:    "/add     5.50     Coffee",
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 		},
 		{
 			name:     "add command with bot mention and extra text",
 			input:    "/add@mybot@extra 5.50 Coffee",
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 		},
 		{
 			name:    "add command with @ but no space",
@@ -322,7 +322,7 @@ func TestParseAddCommand_EdgeCases(t *testing.T) {
 		{
 			name:     "add command with @ at end",
 			input:    "/add 5.50 Coffee@",
-			wantAmt:  "5.50",
+			wantAmt:  testAmount550,
 			wantDesc: "Coffee@",
 		},
 		{
@@ -333,25 +333,25 @@ func TestParseAddCommand_EdgeCases(t *testing.T) {
 		{
 			name:     "add command with newline",
 			input:    "/add\n5.50 Coffee",
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 		},
 		{
 			name:     "add command with tab",
 			input:    "/add\t5.50 Coffee",
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 		},
 		{
 			name:     "add command with unicode space",
 			input:    "/add 5.50 Coffee",
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 		},
 		{
 			name:     "add with bot mention containing numbers",
 			input:    "/add@bot123 10.00 Lunch",
-			wantAmt:  "10.00",
+			wantAmt:  testAmount1000,
 			wantDesc: "Lunch",
 		},
 		{
@@ -362,8 +362,8 @@ func TestParseAddCommand_EdgeCases(t *testing.T) {
 		{
 			name:     "add command with very long bot name",
 			input:    "/add@verylongbotnamethatgoeson 5.50 Coffee",
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 		},
 	}
 
@@ -406,70 +406,70 @@ func TestParseAddCommandWithCategories_ComplexEdgeCases(t *testing.T) {
 		{
 			name:        "overlapping categories - longest wins",
 			input:       "/add 10.00 Dinner Food - Dining Out",
-			wantAmt:     "10.00",
+			wantAmt:     testAmount1000,
 			wantDesc:    "Dinner",
 			wantCatName: foodDiningOutParserEdge,
 		},
 		{
 			name:        "category name in description but not at end",
 			input:       "/add 10.00 Food from restaurant",
-			wantAmt:     "10.00",
+			wantAmt:     testAmount1000,
 			wantDesc:    "Food from restaurant",
 			wantCatName: "",
 		},
 		{
 			name:        "multiple category names, last one matches",
 			input:       "/add 10.00 Food and Entertainment",
-			wantAmt:     "10.00",
+			wantAmt:     testAmount1000,
 			wantDesc:    "Food and",
 			wantCatName: entertainmentParserEdge,
 		},
 		{
 			name:        "category with special characters in name",
 			input:       "/add 10.00 Bus fare Transportation - Bus",
-			wantAmt:     "10.00",
+			wantAmt:     testAmount1000,
 			wantDesc:    "Bus fare",
 			wantCatName: "Transportation - Bus",
 		},
 		{
 			name:        "description ends with partial category",
 			input:       "/add 10.00 Foo",
-			wantAmt:     "10.00",
+			wantAmt:     testAmount1000,
 			wantDesc:    "Foo",
 			wantCatName: "",
 		},
 		{
 			name:        "whitespace before category",
 			input:       "/add 10.00 Dinner   Food - Dining Out",
-			wantAmt:     "10.00",
+			wantAmt:     testAmount1000,
 			wantDesc:    "Dinner",
 			wantCatName: foodDiningOutParserEdge,
 		},
 		{
 			name:        "category only in description no amount text",
 			input:       "/add 10.00 Food",
-			wantAmt:     "10.00",
+			wantAmt:     testAmount1000,
 			wantDesc:    "",
 			wantCatName: "Food",
 		},
 		{
 			name:        "empty description after category extraction",
 			input:       "/add 10.00   Food",
-			wantAmt:     "10.00",
+			wantAmt:     testAmount1000,
 			wantDesc:    "",
 			wantCatName: "Food",
 		},
 		{
 			name:        "case mismatch in category",
 			input:       "/add 10.00 Snacks FOOD",
-			wantAmt:     "10.00",
+			wantAmt:     testAmount1000,
 			wantDesc:    "Snacks",
 			wantCatName: "Food",
 		},
 		{
 			name:        "category with trailing spaces in input",
 			input:       "/add 10.00 Movie Entertainment   ",
-			wantAmt:     "10.00",
+			wantAmt:     testAmount1000,
 			wantDesc:    "Movie",
 			wantCatName: entertainmentParserEdge,
 		},
@@ -526,21 +526,21 @@ func TestParseExpenseInputWithCategories_ComplexEdgeCases(t *testing.T) {
 		{
 			name:        "category name repeated in description",
 			input:       "10.00 Food from food store Food - Grocery",
-			wantAmt:     "10.00",
+			wantAmt:     testAmount1000,
 			wantDesc:    "Food from food store",
 			wantCatName: foodGroceryParserEdge,
 		},
 		{
 			name:        "unicode in description with category",
 			input:       "10.00 Café ☕ Food - Dining Out",
-			wantAmt:     "10.00",
+			wantAmt:     testAmount1000,
 			wantDesc:    "Café ☕",
 			wantCatName: foodDiningOutParserEdge,
 		},
 		{
 			name:        "number in description with category",
 			input:       "10.00 Order #12345 Food - Dining Out",
-			wantAmt:     "10.00",
+			wantAmt:     testAmount1000,
 			wantDesc:    "Order #12345",
 			wantCatName: foodDiningOutParserEdge,
 		},

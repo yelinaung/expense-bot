@@ -26,7 +26,7 @@ func setupExpenseTest(t *testing.T) (*ExpenseRepository, *UserRepository, *Categ
 func TestExpenseRepository_Create(t *testing.T) {
 	expenseRepo, userRepo, categoryRepo, ctx := setupExpenseTest(t)
 
-	user := &models.User{ID: 111, Username: "testuser", FirstName: "Test", LastName: "User"}
+	user := &models.User{ID: 111, Username: "testuser", FirstName: testFirstName, LastName: testLastName}
 	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
@@ -37,7 +37,7 @@ func TestExpenseRepository_Create(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      111,
 			Amount:      decimal.NewFromFloat(25.50),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Lunch at hawker",
 			CategoryID:  &cat.ID,
 		}
@@ -52,7 +52,7 @@ func TestExpenseRepository_Create(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      111,
 			Amount:      decimal.NewFromFloat(10.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Misc expense",
 			CategoryID:  nil,
 		}
@@ -66,14 +66,14 @@ func TestExpenseRepository_Create(t *testing.T) {
 func TestExpenseRepository_GetByID(t *testing.T) {
 	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
 
-	user := &models.User{ID: 222, Username: "user2", FirstName: "Test", LastName: "User"}
+	user := &models.User{ID: 222, Username: "user2", FirstName: testFirstName, LastName: testLastName}
 	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
 	expense := &models.Expense{
 		UserID:      222,
 		Amount:      decimal.NewFromFloat(15.00),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "Coffee",
 	}
 	err = expenseRepo.Create(ctx, expense)
@@ -96,7 +96,7 @@ func TestExpenseRepository_GetByID(t *testing.T) {
 func TestExpenseRepository_GetByUserID(t *testing.T) {
 	expenseRepo, userRepo, categoryRepo, ctx := setupExpenseTest(t)
 
-	user := &models.User{ID: 333, Username: "user3", FirstName: "Test", LastName: "User"}
+	user := &models.User{ID: 333, Username: "user3", FirstName: testFirstName, LastName: testLastName}
 	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
@@ -107,7 +107,7 @@ func TestExpenseRepository_GetByUserID(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      333,
 			Amount:      decimal.NewFromFloat(float64(i + 1)),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Expense",
 			CategoryID:  &cat.ID,
 		}
@@ -133,14 +133,14 @@ func TestExpenseRepository_GetByUserID(t *testing.T) {
 func TestExpenseRepository_GetByUserIDAndDateRange(t *testing.T) {
 	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
 
-	user := &models.User{ID: 444, Username: "user4", FirstName: "Test", LastName: "User"}
+	user := &models.User{ID: 444, Username: "user4", FirstName: testFirstName, LastName: testLastName}
 	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
 	expense := &models.Expense{
 		UserID:      444,
 		Amount:      decimal.NewFromFloat(50.00),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "Today expense",
 	}
 	err = expenseRepo.Create(ctx, expense)
@@ -169,7 +169,7 @@ func TestExpenseRepository_GetByUserIDAndDateRange(t *testing.T) {
 func TestExpenseRepository_Update(t *testing.T) {
 	expenseRepo, userRepo, categoryRepo, ctx := setupExpenseTest(t)
 
-	user := &models.User{ID: 555, Username: "user5", FirstName: "Test", LastName: "User"}
+	user := &models.User{ID: 555, Username: "user5", FirstName: testFirstName, LastName: testLastName}
 	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
@@ -179,7 +179,7 @@ func TestExpenseRepository_Update(t *testing.T) {
 	expense := &models.Expense{
 		UserID:      555,
 		Amount:      decimal.NewFromFloat(20.00),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "Original",
 	}
 	err = expenseRepo.Create(ctx, expense)
@@ -204,14 +204,14 @@ func TestExpenseRepository_Update(t *testing.T) {
 func TestExpenseRepository_Delete(t *testing.T) {
 	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
 
-	user := &models.User{ID: 666, Username: "user6", FirstName: "Test", LastName: "User"}
+	user := &models.User{ID: 666, Username: "user6", FirstName: testFirstName, LastName: testLastName}
 	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
 	expense := &models.Expense{
 		UserID:      666,
 		Amount:      decimal.NewFromFloat(10.00),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "To delete",
 	}
 	err = expenseRepo.Create(ctx, expense)
@@ -229,7 +229,7 @@ func TestExpenseRepository_Delete(t *testing.T) {
 func TestExpenseRepository_DeleteExpiredDrafts(t *testing.T) {
 	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
 
-	user := &models.User{ID: 888, Username: "user8", FirstName: "Test", LastName: "User"}
+	user := &models.User{ID: 888, Username: "user8", FirstName: testFirstName, LastName: testLastName}
 	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
@@ -237,7 +237,7 @@ func TestExpenseRepository_DeleteExpiredDrafts(t *testing.T) {
 		draftExpense := &models.Expense{
 			UserID:      888,
 			Amount:      decimal.NewFromFloat(10.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Draft expense",
 			Status:      models.ExpenseStatusDraft,
 		}
@@ -247,7 +247,7 @@ func TestExpenseRepository_DeleteExpiredDrafts(t *testing.T) {
 		confirmedExpense := &models.Expense{
 			UserID:      888,
 			Amount:      decimal.NewFromFloat(20.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Confirmed expense",
 			Status:      models.ExpenseStatusConfirmed,
 		}
@@ -267,14 +267,14 @@ func TestExpenseRepository_DeleteExpiredDrafts(t *testing.T) {
 	})
 
 	t.Run("does not delete recent drafts", func(t *testing.T) {
-		user := &models.User{ID: 889, Username: "user9", FirstName: "Test", LastName: "User"}
+		user := &models.User{ID: 889, Username: "user9", FirstName: testFirstName, LastName: testLastName}
 		err := userRepo.UpsertUser(ctx, user)
 		require.NoError(t, err)
 
 		recentDraft := &models.Expense{
 			UserID:      889,
 			Amount:      decimal.NewFromFloat(15.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Recent draft",
 			Status:      models.ExpenseStatusDraft,
 		}
@@ -300,7 +300,7 @@ func TestExpenseRepository_DeleteExpiredDrafts(t *testing.T) {
 func TestExpenseRepository_GetTotalByUserIDAndDateRange(t *testing.T) {
 	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
 
-	user := &models.User{ID: 777, Username: "user7", FirstName: "Test", LastName: "User"}
+	user := &models.User{ID: 777, Username: "user7", FirstName: testFirstName, LastName: testLastName}
 	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
@@ -309,7 +309,7 @@ func TestExpenseRepository_GetTotalByUserIDAndDateRange(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      777,
 			Amount:      decimal.NewFromFloat(amt),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Expense",
 		}
 		err := expenseRepo.Create(ctx, expense)
@@ -339,7 +339,7 @@ func TestExpenseRepository_GetTotalByUserIDAndDateRange(t *testing.T) {
 func TestExpenseRepository_GetTotalByUserIDAndDateRange_MixedStatuses(t *testing.T) {
 	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
 
-	user := &models.User{ID: 900, Username: "user900", FirstName: "Test", LastName: "User"}
+	user := &models.User{ID: 900, Username: "user900", FirstName: testFirstName, LastName: testLastName}
 	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
@@ -347,7 +347,7 @@ func TestExpenseRepository_GetTotalByUserIDAndDateRange_MixedStatuses(t *testing
 	confirmed := &models.Expense{
 		UserID:      900,
 		Amount:      decimal.NewFromFloat(100.00),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "Confirmed expense",
 		Status:      models.ExpenseStatusConfirmed,
 	}
@@ -358,7 +358,7 @@ func TestExpenseRepository_GetTotalByUserIDAndDateRange_MixedStatuses(t *testing
 	draft := &models.Expense{
 		UserID:      900,
 		Amount:      decimal.NewFromFloat(50.00),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "Draft expense",
 		Status:      models.ExpenseStatusDraft,
 	}
@@ -381,7 +381,7 @@ func TestExpenseRepository_UpdateNonExistent(t *testing.T) {
 	expense := &models.Expense{
 		ID:          99999,
 		Amount:      decimal.NewFromFloat(10.00),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "Non-existent",
 		Status:      models.ExpenseStatusConfirmed,
 	}
@@ -400,14 +400,14 @@ func TestExpenseRepository_DeleteNonExistent(t *testing.T) {
 func TestExpenseRepository_GetByUserIDAndDateRange_EdgeBoundaries(t *testing.T) {
 	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
 
-	user := &models.User{ID: 901, Username: "user901", FirstName: "Test", LastName: "User"}
+	user := &models.User{ID: 901, Username: "user901", FirstName: testFirstName, LastName: testLastName}
 	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
 	expense := &models.Expense{
 		UserID:      901,
 		Amount:      decimal.NewFromFloat(25.00),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "Edge boundary test",
 	}
 	err = expenseRepo.Create(ctx, expense)
@@ -437,7 +437,7 @@ func TestExpenseRepository_GetByUserIDAndDateRange_EdgeBoundaries(t *testing.T) 
 func TestExpenseRepository_GetByUserID_OnlyConfirmed(t *testing.T) {
 	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
 
-	user := &models.User{ID: 902, Username: "user902", FirstName: "Test", LastName: "User"}
+	user := &models.User{ID: 902, Username: "user902", FirstName: testFirstName, LastName: testLastName}
 	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
@@ -445,7 +445,7 @@ func TestExpenseRepository_GetByUserID_OnlyConfirmed(t *testing.T) {
 	confirmed := &models.Expense{
 		UserID:      902,
 		Amount:      decimal.NewFromFloat(10.00),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "Confirmed",
 		Status:      models.ExpenseStatusConfirmed,
 	}
@@ -456,7 +456,7 @@ func TestExpenseRepository_GetByUserID_OnlyConfirmed(t *testing.T) {
 	draft := &models.Expense{
 		UserID:      902,
 		Amount:      decimal.NewFromFloat(20.00),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "Draft",
 		Status:      models.ExpenseStatusDraft,
 	}
@@ -472,14 +472,14 @@ func TestExpenseRepository_GetByUserID_OnlyConfirmed(t *testing.T) {
 func TestExpenseRepository_GetByUserIDAndDateRange_OnlyConfirmed(t *testing.T) {
 	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
 
-	user := &models.User{ID: 903, Username: "user903", FirstName: "Test", LastName: "User"}
+	user := &models.User{ID: 903, Username: "user903", FirstName: testFirstName, LastName: testLastName}
 	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
 	confirmed := &models.Expense{
 		UserID:      903,
 		Amount:      decimal.NewFromFloat(30.00),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "Confirmed for date range",
 		Status:      models.ExpenseStatusConfirmed,
 	}
@@ -489,7 +489,7 @@ func TestExpenseRepository_GetByUserIDAndDateRange_OnlyConfirmed(t *testing.T) {
 	draft := &models.Expense{
 		UserID:      903,
 		Amount:      decimal.NewFromFloat(40.00),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "Draft for date range",
 		Status:      models.ExpenseStatusDraft,
 	}
@@ -509,7 +509,7 @@ func TestExpenseRepository_GetByUserIDAndDateRange_OnlyConfirmed(t *testing.T) {
 func TestExpenseRepository_Create_DefaultStatus(t *testing.T) {
 	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
 
-	user := &models.User{ID: 904, Username: "user904", FirstName: "Test", LastName: "User"}
+	user := &models.User{ID: 904, Username: "user904", FirstName: testFirstName, LastName: testLastName}
 	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
@@ -517,7 +517,7 @@ func TestExpenseRepository_Create_DefaultStatus(t *testing.T) {
 	expense := &models.Expense{
 		UserID:      904,
 		Amount:      decimal.NewFromFloat(15.00),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "No status set",
 	}
 	err = expenseRepo.Create(ctx, expense)
@@ -538,14 +538,14 @@ func TestExpenseRepository_Pool(t *testing.T) {
 func TestExpenseRepository_GetByUserAndNumber(t *testing.T) {
 	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
 
-	user := &models.User{ID: 950, Username: "user950", FirstName: "Test", LastName: "User"}
+	user := &models.User{ID: 950, Username: "user950", FirstName: testFirstName, LastName: testLastName}
 	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
 	expense := &models.Expense{
 		UserID:      950,
 		Amount:      decimal.NewFromFloat(42.00),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "Number test",
 		Status:      models.ExpenseStatusConfirmed,
 	}
@@ -575,7 +575,7 @@ func TestExpenseRepository_GetByUserAndNumber(t *testing.T) {
 func TestExpenseRepository_HasExpensesForDate(t *testing.T) {
 	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
 
-	user := &models.User{ID: 970, Username: "user970", FirstName: "Test", LastName: "User"}
+	user := &models.User{ID: 970, Username: "user970", FirstName: testFirstName, LastName: testLastName}
 	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
@@ -593,7 +593,7 @@ func TestExpenseRepository_HasExpensesForDate(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      970,
 			Amount:      decimal.NewFromFloat(10.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Lunch",
 			Status:      models.ExpenseStatusConfirmed,
 		}
@@ -606,14 +606,14 @@ func TestExpenseRepository_HasExpensesForDate(t *testing.T) {
 	})
 
 	t.Run("returns false when only draft expense exists", func(t *testing.T) {
-		user2 := &models.User{ID: 971, Username: "user971", FirstName: "Test", LastName: "User"}
+		user2 := &models.User{ID: 971, Username: "user971", FirstName: testFirstName, LastName: testLastName}
 		err := userRepo.UpsertUser(ctx, user2)
 		require.NoError(t, err)
 
 		draft := &models.Expense{
 			UserID:      971,
 			Amount:      decimal.NewFromFloat(5.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Draft only",
 			Status:      models.ExpenseStatusDraft,
 		}
@@ -629,7 +629,7 @@ func TestExpenseRepository_HasExpensesForDate(t *testing.T) {
 func TestExpenseRepository_NullifyCategoryOnExpenses(t *testing.T) {
 	expenseRepo, userRepo, categoryRepo, ctx := setupExpenseTest(t)
 
-	user := &models.User{ID: 960, Username: "user960", FirstName: "Test", LastName: "User"}
+	user := &models.User{ID: 960, Username: "user960", FirstName: testFirstName, LastName: testLastName}
 	err := userRepo.UpsertUser(ctx, user)
 	require.NoError(t, err)
 
@@ -640,7 +640,7 @@ func TestExpenseRepository_NullifyCategoryOnExpenses(t *testing.T) {
 		exp1 := &models.Expense{
 			UserID:      960,
 			Amount:      decimal.NewFromFloat(10.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Nullify 1",
 			CategoryID:  &cat.ID,
 		}
@@ -650,7 +650,7 @@ func TestExpenseRepository_NullifyCategoryOnExpenses(t *testing.T) {
 		exp2 := &models.Expense{
 			UserID:      960,
 			Amount:      decimal.NewFromFloat(20.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Nullify 2",
 			CategoryID:  &cat.ID,
 		}
@@ -683,7 +683,7 @@ func TestExpenseRepository_NullifyCategoryOnExpenses(t *testing.T) {
 		exp := &models.Expense{
 			UserID:      960,
 			Amount:      decimal.NewFromFloat(30.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Keep category",
 			CategoryID:  &otherCat.ID,
 		}

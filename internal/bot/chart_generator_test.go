@@ -28,13 +28,13 @@ func TestGenerateExpenseChart(t *testing.T) {
 					ID:          2,
 					Amount:      decimal.NewFromFloat(30.00),
 					Description: "Lunch",
-					Category:    &models.Category{ID: 2, Name: "Food - Dining Out"},
+					Category:    &models.Category{ID: 2, Name: testCategoryFoodDiningOut},
 				},
 				{
 					ID:          3,
 					Amount:      decimal.NewFromFloat(20.00),
 					Description: "Coffee",
-					Category:    &models.Category{ID: 2, Name: "Food - Dining Out"},
+					Category:    &models.Category{ID: 2, Name: testCategoryFoodDiningOut},
 				},
 			},
 			period:      "Week",
@@ -85,13 +85,13 @@ func TestGenerateExpenseChart(t *testing.T) {
 					ID:          1,
 					Amount:      decimal.NewFromFloat(12.50),
 					Description: "Coffee",
-					Category:    &models.Category{ID: 1, Name: "Food - Dining Out"},
+					Category:    &models.Category{ID: 1, Name: testCategoryFoodDiningOut},
 				},
 				{
 					ID:          2,
 					Amount:      decimal.NewFromFloat(7.75),
 					Description: "Snack",
-					Category:    &models.Category{ID: 1, Name: "Food - Dining Out"},
+					Category:    &models.Category{ID: 1, Name: testCategoryFoodDiningOut},
 				},
 			},
 			period:      "Week",
@@ -142,7 +142,7 @@ func TestAggregateByCategory(t *testing.T) {
 				},
 				{
 					Amount:   decimal.NewFromFloat(30.00),
-					Category: &models.Category{Name: "Food - Dining Out"},
+					Category: &models.Category{Name: testCategoryFoodDiningOut},
 				},
 				{
 					Amount:   decimal.NewFromFloat(20.00),
@@ -150,8 +150,8 @@ func TestAggregateByCategory(t *testing.T) {
 				},
 			},
 			expected: map[string]string{
-				"Food - Groceries":  "70",
-				"Food - Dining Out": "30",
+				"Food - Groceries":        "70",
+				testCategoryFoodDiningOut: "30",
 			},
 		},
 		{
@@ -175,15 +175,15 @@ func TestAggregateByCategory(t *testing.T) {
 			expenses: []models.Expense{
 				{
 					Amount:   decimal.NewFromFloat(12.50),
-					Category: &models.Category{Name: "Food - Dining Out"},
+					Category: &models.Category{Name: testCategoryFoodDiningOut},
 				},
 				{
 					Amount:   decimal.NewFromFloat(7.75),
-					Category: &models.Category{Name: "Food - Dining Out"},
+					Category: &models.Category{Name: testCategoryFoodDiningOut},
 				},
 			},
 			expected: map[string]string{
-				"Food - Dining Out": "20.25",
+				testCategoryFoodDiningOut: "20.25",
 			},
 		},
 		{

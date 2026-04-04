@@ -39,7 +39,7 @@ func TestExpenseRepository_GetByUserIDAndCategory(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      userID,
 			Amount:      decimal.NewFromFloat(10.50),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Test expense",
 			CategoryID:  &category.ID,
 			Status:      models.ExpenseStatusConfirmed,
@@ -53,7 +53,7 @@ func TestExpenseRepository_GetByUserIDAndCategory(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      userID,
 			Amount:      decimal.NewFromFloat(5.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Other expense",
 			CategoryID:  &otherCategory.ID,
 			Status:      models.ExpenseStatusConfirmed,
@@ -66,7 +66,7 @@ func TestExpenseRepository_GetByUserIDAndCategory(t *testing.T) {
 	draftExpense := &models.Expense{
 		UserID:      userID,
 		Amount:      decimal.NewFromFloat(1.00),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "Draft",
 		CategoryID:  &category.ID,
 		Status:      models.ExpenseStatusDraft,
@@ -139,7 +139,7 @@ func TestExpenseRepository_GetTotalByUserIDAndCategory(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      userID,
 			Amount:      decimal.NewFromFloat(amount),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Test",
 			CategoryID:  &category.ID,
 			Status:      models.ExpenseStatusConfirmed,
@@ -152,7 +152,7 @@ func TestExpenseRepository_GetTotalByUserIDAndCategory(t *testing.T) {
 	draftExpense := &models.Expense{
 		UserID:      userID,
 		Amount:      decimal.NewFromFloat(100.00),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "Draft",
 		CategoryID:  &category.ID,
 		Status:      models.ExpenseStatusDraft,
@@ -219,7 +219,7 @@ func TestExpenseRepository_CategoryFilterEdgeCases(t *testing.T) {
 			expense := &models.Expense{
 				UserID:      userID,
 				Amount:      decimal.NewFromInt(int64(i)),
-				Currency:    "SGD",
+				Currency:    testCurrencySGD,
 				Description: "Test",
 				CategoryID:  &category.ID,
 				Status:      models.ExpenseStatusConfirmed,

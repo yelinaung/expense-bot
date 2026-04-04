@@ -9,9 +9,9 @@ import (
 
 const (
 	invalidAmountFormatParserTest = "invalid amount format"
-	fiveFiftyCoffeeParserTest     = "5.50 Coffee"
-	addFiveFiftyCoffeeParserTest  = "/add 5.50 Coffee"
-	foodDiningOutParserTest       = "Food - Dining Out"
+	fiveFiftyCoffeeParserTest     = testAmount550 + " " + testCoffeeDesc
+	addFiveFiftyCoffeeParserTest  = "/add " + testAmount550 + " " + testCoffeeDesc
+	foodDiningOutParserTest       = testCategoryFoodDiningOut
 	travelVacationParserTest      = "Travel & Vacation"
 	oneEightyNineParserTest       = "189.00"
 	ogAlbertParserTest            = "OG Albert"
@@ -135,8 +135,8 @@ func TestParseExpenseInput(t *testing.T) {
 		{
 			name:     "simple amount and description",
 			input:    fiveFiftyCoffeeParserTest,
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 		},
 		{
 			name:     "integer amount",
@@ -147,13 +147,13 @@ func TestParseExpenseInput(t *testing.T) {
 		{
 			name:     "comma decimal",
 			input:    "5,50 Coffee",
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 		},
 		{
 			name:     "amount only",
-			input:    "5.50",
-			wantAmt:  "5.50",
+			input:    testAmount550,
+			wantAmt:  testAmount550,
 			wantDesc: "",
 		},
 		{
@@ -169,7 +169,7 @@ func TestParseExpenseInput(t *testing.T) {
 		},
 		{
 			name:    "no amount",
-			input:   "Coffee",
+			input:   testCoffeeDesc,
 			wantNil: true,
 		},
 		{
@@ -180,8 +180,8 @@ func TestParseExpenseInput(t *testing.T) {
 		{
 			name:     "whitespace handling",
 			input:    "  5.50   Coffee  ",
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 		},
 		{
 			name:    "zero amount",
@@ -197,8 +197,8 @@ func TestParseExpenseInput(t *testing.T) {
 		{
 			name:     "amount with single decimal",
 			input:    "5.5 Coffee",
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 		},
 		{
 			name:     "description with special characters",
@@ -255,14 +255,14 @@ func TestParseAddCommand(t *testing.T) {
 		{
 			name:     "simple add command",
 			input:    addFiveFiftyCoffeeParserTest,
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 		},
 		{
 			name:     "add command with bot mention",
 			input:    "/add@mybot 5.50 Coffee",
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 		},
 		{
 			name:     "add command with multi-word description",
@@ -310,8 +310,8 @@ func TestParseAddCommand(t *testing.T) {
 		{
 			name:     "add command comma decimal",
 			input:    "/add 5,50 Coffee",
-			wantAmt:  "5.50",
-			wantDesc: "Coffee",
+			wantAmt:  testAmount550,
+			wantDesc: testCoffeeDesc,
 		},
 	}
 
@@ -353,15 +353,15 @@ func TestParseAddCommandWithCategories(t *testing.T) {
 		{
 			name:        "with category at end",
 			input:       "/add 5.50 Coffee Food - Dining Out",
-			wantAmt:     "5.50",
-			wantDesc:    "Coffee",
+			wantAmt:     testAmount550,
+			wantDesc:    testCoffeeDesc,
 			wantCatName: foodDiningOutParserTest,
 		},
 		{
 			name:        "no category match",
 			input:       addFiveFiftyCoffeeParserTest,
-			wantAmt:     "5.50",
-			wantDesc:    "Coffee",
+			wantAmt:     testAmount550,
+			wantDesc:    testCoffeeDesc,
 			wantCatName: "",
 		},
 		{
@@ -419,15 +419,15 @@ func TestParseExpenseInputWithCategories(t *testing.T) {
 		{
 			name:        "free text with category",
 			input:       "5.50 Coffee Food - Dining Out",
-			wantAmt:     "5.50",
-			wantDesc:    "Coffee",
+			wantAmt:     testAmount550,
+			wantDesc:    testCoffeeDesc,
 			wantCatName: foodDiningOutParserTest,
 		},
 		{
 			name:        "free text without category",
 			input:       fiveFiftyCoffeeParserTest,
-			wantAmt:     "5.50",
-			wantDesc:    "Coffee",
+			wantAmt:     testAmount550,
+			wantDesc:    testCoffeeDesc,
 			wantCatName: "",
 		},
 		{
@@ -507,23 +507,23 @@ func TestExtractDescription(t *testing.T) {
 	}{
 		{
 			name:  "simple text",
-			input: "Coffee",
-			want:  "Coffee",
+			input: testCoffeeDesc,
+			want:  testCoffeeDesc,
 		},
 		{
 			name:  "text with leading whitespace",
 			input: "  Coffee",
-			want:  "Coffee",
+			want:  testCoffeeDesc,
 		},
 		{
 			name:  "text with trailing whitespace",
 			input: "Coffee  ",
-			want:  "Coffee",
+			want:  testCoffeeDesc,
 		},
 		{
 			name:  "text with both whitespace",
 			input: "  Coffee  ",
-			want:  "Coffee",
+			want:  testCoffeeDesc,
 		},
 		{
 			name:  "multi-word text",
@@ -572,23 +572,23 @@ func TestParseAddCommandWithCategoriesEdgeCases(t *testing.T) {
 			name:        "empty category list",
 			input:       addFiveFiftyCoffeeParserTest,
 			categories:  []string{},
-			wantAmt:     "5.50",
-			wantDesc:    "Coffee",
+			wantAmt:     testAmount550,
+			wantDesc:    testCoffeeDesc,
 			wantCatName: "",
 		},
 		{
 			name:        "nil category list",
 			input:       addFiveFiftyCoffeeParserTest,
 			categories:  nil,
-			wantAmt:     "5.50",
-			wantDesc:    "Coffee",
+			wantAmt:     testAmount550,
+			wantDesc:    testCoffeeDesc,
 			wantCatName: "",
 		},
 		{
 			name:        "amount only with categories",
 			input:       "/add 5.50",
 			categories:  []string{"Food"},
-			wantAmt:     "5.50",
+			wantAmt:     testAmount550,
 			wantDesc:    "",
 			wantCatName: "",
 		},
@@ -596,7 +596,7 @@ func TestParseAddCommandWithCategoriesEdgeCases(t *testing.T) {
 			name:        "partial category match should not match",
 			input:       "/add 5.50 Coffee Foo",
 			categories:  []string{"Food"},
-			wantAmt:     "5.50",
+			wantAmt:     testAmount550,
 			wantDesc:    "Coffee Foo",
 			wantCatName: "",
 		},
@@ -642,21 +642,21 @@ func TestParseExpenseInputWithCategoriesEdgeCases(t *testing.T) {
 			name:        "empty category list",
 			input:       fiveFiftyCoffeeParserTest,
 			categories:  []string{},
-			wantAmt:     "5.50",
-			wantDesc:    "Coffee",
+			wantAmt:     testAmount550,
+			wantDesc:    testCoffeeDesc,
 			wantCatName: "",
 		},
 		{
 			name:        "amount only with categories",
-			input:       "5.50",
+			input:       testAmount550,
 			categories:  []string{"Food"},
-			wantAmt:     "5.50",
+			wantAmt:     testAmount550,
 			wantDesc:    "",
 			wantCatName: "",
 		},
 		{
 			name:       "invalid input returns nil",
-			input:      "Coffee",
+			input:      testCoffeeDesc,
 			categories: []string{"Food"},
 			wantNil:    true,
 		},
