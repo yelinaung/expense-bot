@@ -21,7 +21,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 FROM alpine@sha256:59855d3dceb3ae53991193bd03301e082b2a7faa56a514b03527ae0ec2ce3a95
 
 # hadolint ignore=DL3018
-RUN apk --no-cache add ca-certificates \
+RUN apk --no-cache add ca-certificates tzdata \
     && addgroup -S appgroup \
     && adduser -S appuser -G appgroup
 
