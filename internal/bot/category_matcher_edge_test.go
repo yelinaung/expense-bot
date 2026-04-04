@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	foodDiningOutCatEdge     = "Food - Dining Out"
+	foodDiningOutCatEdge     = testCategoryFoodDiningOut
 	foodGroceryCatEdge       = "Food - Grocery"
 	transportationBusCatEdge = "Transportation - Bus"
 	travelVacationCatEdge    = "Travel & Vacation"

@@ -42,12 +42,12 @@ func TestApplyParsedEdit(t *testing.T) {
 		Merchant:    "old",
 	}
 	categories := []appmodels.Category{
-		{ID: 1, Name: "Food"},
-		{ID: 2, Name: "Transport"},
+		{ID: 1, Name: testCategoryFood},
+		{ID: 2, Name: testCategoryTransport},
 	}
 	parsed := &ParsedExpense{
 		Amount:       decimal.RequireFromString("9.99"),
-		Currency:     "SGD",
+		Currency:     testCurrencySGD,
 		Description:  "Lunch",
 		CategoryName: "food",
 	}
@@ -55,28 +55,28 @@ func TestApplyParsedEdit(t *testing.T) {
 	applyParsedEdit(expense, parsed, categories)
 
 	require.True(t, decimal.RequireFromString("9.99").Equal(expense.Amount))
-	require.Equal(t, "SGD", expense.Currency)
+	require.Equal(t, testCurrencySGD, expense.Currency)
 	require.Equal(t, "Lunch", expense.Description)
 	require.Equal(t, "Lunch", expense.Merchant)
 	require.NotNil(t, expense.CategoryID)
 	require.Equal(t, 1, *expense.CategoryID)
 	require.NotNil(t, expense.Category)
-	require.Equal(t, "Food", expense.Category.Name)
+	require.Equal(t, testCategoryFood, expense.Category.Name)
 }
 
 func TestFindCategoryByName(t *testing.T) {
 	t.Parallel()
 
 	categories := []appmodels.Category{
-		{ID: 10, Name: "Food"},
-		{ID: 20, Name: "Transport"},
+		{ID: 10, Name: testCategoryFood},
+		{ID: 20, Name: testCategoryTransport},
 	}
 
 	id, cat := findCategoryByName(categories, "transport")
 	require.NotNil(t, id)
 	require.NotNil(t, cat)
 	require.Equal(t, 20, *id)
-	require.Equal(t, "Transport", cat.Name)
+	require.Equal(t, testCategoryTransport, cat.Name)
 
 	id, cat = findCategoryByName(categories, "unknown")
 	require.Nil(t, id)
@@ -88,16 +88,16 @@ func TestBuildReceiptConfirmationText(t *testing.T) {
 
 	expense := &appmodels.Expense{
 		Amount:   decimal.RequireFromString("24.30"),
-		Currency: "SGD",
+		Currency: testCurrencySGD,
 		Merchant: "Cafe",
-		Category: &appmodels.Category{Name: "Food"},
+		Category: &appmodels.Category{Name: testCategoryFood},
 	}
 	date := time.Date(2026, 2, 15, 0, 0, 0, 0, time.UTC)
 
 	partial := buildReceiptConfirmationText(expense, date, true)
 	require.Contains(t, partial, "Partial Extraction")
 	require.Contains(t, partial, "24.30")
-	require.Contains(t, partial, "Food")
+	require.Contains(t, partial, testCategoryFood)
 
 	full := buildReceiptConfirmationText(expense, date, false)
 	require.Contains(t, full, "Receipt Scanned")
@@ -139,14 +139,14 @@ func TestBuildVoiceConfirmationText(t *testing.T) {
 
 	expense := &appmodels.Expense{
 		Amount:      decimal.RequireFromString("8.90"),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "Taxi",
-		Category:    &appmodels.Category{Name: "Transport"},
+		Category:    &appmodels.Category{Name: testCategoryTransport},
 	}
 	text := buildVoiceConfirmationText(expense)
 	require.Contains(t, text, "Voice Expense Detected")
 	require.Contains(t, text, "Taxi")
-	require.Contains(t, text, "Transport")
+	require.Contains(t, text, testCategoryTransport)
 }
 
 func TestApplyMatchedSuggestion(t *testing.T) {
@@ -155,8 +155,8 @@ func TestApplyMatchedSuggestion(t *testing.T) {
 	b := &Bot{}
 	expense := &appmodels.Expense{}
 	categories := []appmodels.Category{
-		{ID: 1, Name: "Food"},
-		{ID: 2, Name: "Transport"},
+		{ID: 1, Name: testCategoryFood},
+		{ID: 2, Name: testCategoryTransport},
 	}
 
 	ok := b.applyMatchedSuggestion(expense, "lunch", &gemini.CategorySuggestion{
@@ -183,9 +183,9 @@ func TestSendEditConfirmation(t *testing.T) {
 	expense := &appmodels.Expense{
 		UserExpenseNumber: 7,
 		Amount:            decimal.RequireFromString("11.50"),
-		Currency:          "SGD",
+		Currency:          testCurrencySGD,
 		Description:       "Breakfast",
-		Category:          &appmodels.Category{Name: "Food"},
+		Category:          &appmodels.Category{Name: testCategoryFood},
 	}
 
 	sendEditConfirmation(context.Background(), mockBot, 100, expense)
@@ -197,7 +197,7 @@ func TestSendEditConfirmation(t *testing.T) {
 	require.Contains(t, msg.Text, "Expense Updated")
 	require.Contains(t, msg.Text, "#7")
 	require.Contains(t, msg.Text, "Breakfast")
-	require.Contains(t, msg.Text, "Food")
+	require.Contains(t, msg.Text, testCategoryFood)
 }
 
 func TestGetEditableExpense(t *testing.T) {
@@ -210,14 +210,14 @@ func TestGetEditableExpense(t *testing.T) {
 		ID:              ownerID,
 		Username:        "owner",
 		FirstName:       "Owner",
-		DefaultCurrency: "SGD",
+		DefaultCurrency: testCurrencySGD,
 	})
 	require.NoError(t, err)
 
 	exp := &appmodels.Expense{
 		UserID:      ownerID,
 		Amount:      decimal.RequireFromString("5.50"),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "Coffee",
 		Merchant:    "Coffee",
 	}
@@ -247,8 +247,8 @@ func TestParseEditExpenseValues(t *testing.T) {
 	t.Parallel()
 
 	categories := []appmodels.Category{
-		{ID: 1, Name: "Food"},
-		{ID: 2, Name: "Transport"},
+		{ID: 1, Name: testCategoryFood},
+		{ID: 2, Name: testCategoryTransport},
 	}
 	categoryID := 2
 	expense := &appmodels.Expense{
@@ -258,9 +258,9 @@ func TestParseEditExpenseValues(t *testing.T) {
 	parsed := parseEditExpenseValues("18.25 Lunch [Food]", expense, categories)
 	require.NotNil(t, parsed)
 	require.Equal(t, "Lunch", parsed.Description)
-	require.Equal(t, "Food", parsed.CategoryName)
+	require.Equal(t, testCategoryFood, parsed.CategoryName)
 	require.NotNil(t, expense.Category)
-	require.Equal(t, "Transport", expense.Category.Name)
+	require.Equal(t, testCategoryTransport, expense.Category.Name)
 }
 
 func TestSendEmptyExpenseList(t *testing.T) {
@@ -297,7 +297,7 @@ func TestApplyNewCategorySuggestion(t *testing.T) {
 	require.False(t, ok)
 	require.Nil(t, expense.CategoryID)
 
-	categories := []appmodels.Category{{ID: 42, Name: "Food"}}
+	categories := []appmodels.Category{{ID: 42, Name: testCategoryFood}}
 	expense = &appmodels.Expense{}
 	ok = b.applyNewCategorySuggestion(ctx, expense, "desc", &gemini.CategorySuggestion{
 		NewCategoryName: "food",
@@ -327,14 +327,14 @@ func TestSaveInlineTags(t *testing.T) {
 		ID:              userID,
 		Username:        "taguser",
 		FirstName:       "Tag",
-		DefaultCurrency: "SGD",
+		DefaultCurrency: testCurrencySGD,
 	})
 	require.NoError(t, err)
 
 	exp := &appmodels.Expense{
 		UserID:      userID,
 		Amount:      decimal.RequireFromString("3.50"),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "snack",
 		Merchant:    "snack",
 	}

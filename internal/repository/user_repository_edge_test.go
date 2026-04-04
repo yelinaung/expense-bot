@@ -25,8 +25,8 @@ func TestUserRepository_UpsertUserEdgeCases(t *testing.T) {
 		user := &models.User{
 			ID:        123,
 			Username:  longUsername,
-			FirstName: "Test",
-			LastName:  "User",
+			FirstName: testFirstName,
+			LastName:  testLastName,
 		}
 
 		err := repo.UpsertUser(ctx, user)
@@ -46,9 +46,9 @@ func TestUserRepository_UpsertUserEdgeCases(t *testing.T) {
 
 		user := &models.User{
 			ID:        456,
-			Username:  "testuser",
+			Username:  testUsername,
 			FirstName: longFirstName,
-			LastName:  "User",
+			LastName:  testLastName,
 		}
 
 		err := repo.UpsertUser(ctx, user)
@@ -67,8 +67,8 @@ func TestUserRepository_UpsertUserEdgeCases(t *testing.T) {
 
 		user := &models.User{
 			ID:        789,
-			Username:  "testuser",
-			FirstName: "Test",
+			Username:  testUsername,
+			FirstName: testFirstName,
 			LastName:  longLastName,
 		}
 

@@ -9,6 +9,8 @@ import (
 )
 
 func TestIsAuthorized(t *testing.T) {
+	const approvedUsername = "approved-user"
+
 	ctx := context.Background()
 	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
@@ -22,11 +24,11 @@ func TestIsAuthorized(t *testing.T) {
 		userID := int64(9002)
 		require.NoError(t, b.userRepo.UpsertUser(ctx, &appmodels.User{
 			ID:        userID,
-			Username:  "approved-user",
+			Username:  approvedUsername,
 			FirstName: "Approved",
 		}))
-		require.NoError(t, b.approvedUserRepo.Approve(ctx, userID, "approved-user", 1))
-		require.True(t, b.isAuthorized(ctx, userID, "approved-user"))
+		require.NoError(t, b.approvedUserRepo.Approve(ctx, userID, approvedUsername, 1))
+		require.True(t, b.isAuthorized(ctx, userID, approvedUsername))
 	})
 
 	t.Run("denies unapproved user", func(t *testing.T) {
@@ -36,7 +38,7 @@ func TestIsAuthorized(t *testing.T) {
 	t.Run("returns false when context is canceled", func(t *testing.T) {
 		canceledCtx, cancel := context.WithCancel(ctx)
 		cancel()
-		require.False(t, b.isAuthorized(canceledCtx, 9002, "approved-user"))
+		require.False(t, b.isAuthorized(canceledCtx, 9002, approvedUsername))
 	})
 
 	t.Run("username-only approval is accepted and backfilled", func(t *testing.T) {

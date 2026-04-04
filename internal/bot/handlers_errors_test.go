@@ -50,7 +50,7 @@ func TestSaveExpense_Errors(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      99999, // Non-existent user
 			Amount:      parsed.Amount,
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: parsed.Description,
 			Status:      models.ExpenseStatusConfirmed,
 		}
@@ -82,7 +82,7 @@ func TestSaveExpense_Errors(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      12345,
 			Amount:      parsed.Amount,
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: parsed.Description,
 			Status:      models.ExpenseStatusConfirmed,
 		}
@@ -118,7 +118,7 @@ func TestSaveExpense_Errors(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      12345,
 			Amount:      parsed.Amount,
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: parsed.Description,
 			Status:      models.ExpenseStatusConfirmed,
 		}
@@ -153,7 +153,7 @@ func TestSaveExpense_Errors(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      12345,
 			Amount:      parsed.Amount,
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: parsed.Description,
 			CategoryID:  &categories[0].ID,
 			Category:    &categories[0],
@@ -231,7 +231,7 @@ func TestExpenseRepositoryErrors(t *testing.T) {
 			ID:          99999,
 			UserID:      12345,
 			Amount:      decimal.NewFromFloat(10.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Test",
 			Status:      models.ExpenseStatusConfirmed,
 		}
@@ -274,7 +274,7 @@ func TestExpenseRepositoryErrors(t *testing.T) {
 		oldDraft := &models.Expense{
 			UserID:      12345,
 			Amount:      decimal.NewFromFloat(10.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Old draft",
 			Status:      models.ExpenseStatusDraft,
 		}
@@ -285,7 +285,7 @@ func TestExpenseRepositoryErrors(t *testing.T) {
 		recentDraft := &models.Expense{
 			UserID:      12345,
 			Amount:      decimal.NewFromFloat(20.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Recent draft",
 			Status:      models.ExpenseStatusDraft,
 		}
@@ -318,7 +318,7 @@ func TestExpenseRepositoryErrors(t *testing.T) {
 		confirmed := &models.Expense{
 			UserID:      12345,
 			Amount:      decimal.NewFromFloat(30.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Confirmed",
 			Status:      models.ExpenseStatusConfirmed,
 		}

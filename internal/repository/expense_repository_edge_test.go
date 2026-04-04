@@ -23,9 +23,9 @@ func TestExpenseRepository_CreateEdgeCases(t *testing.T) {
 	userRepo := NewUserRepository(tx)
 	err := userRepo.UpsertUser(ctx, &models.User{
 		ID:        123,
-		Username:  "testuser",
-		FirstName: "Test",
-		LastName:  "User",
+		Username:  testUsername,
+		FirstName: testFirstName,
+		LastName:  testLastName,
 	})
 	require.NoError(t, err)
 
@@ -35,7 +35,7 @@ func TestExpenseRepository_CreateEdgeCases(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      123,
 			Amount:      decimal.NewFromFloat(999999999.99),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Very large expense",
 			Status:      models.ExpenseStatusConfirmed,
 		}
@@ -54,7 +54,7 @@ func TestExpenseRepository_CreateEdgeCases(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      123,
 			Amount:      decimal.NewFromFloat(0.01),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Very small expense",
 			Status:      models.ExpenseStatusConfirmed,
 		}
@@ -68,7 +68,7 @@ func TestExpenseRepository_CreateEdgeCases(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      123,
 			Amount:      decimal.NewFromFloat(10.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "", // Empty description
 			Status:      models.ExpenseStatusConfirmed,
 		}
@@ -87,7 +87,7 @@ func TestExpenseRepository_CreateEdgeCases(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      123,
 			Amount:      decimal.NewFromFloat(10.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: longDesc,
 			Status:      models.ExpenseStatusConfirmed,
 		}
@@ -101,7 +101,7 @@ func TestExpenseRepository_CreateEdgeCases(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      123,
 			Amount:      decimal.NewFromFloat(10.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Coffee ☕ & Cake 🍰 @ Café",
 			Status:      models.ExpenseStatusConfirmed,
 		}
@@ -120,7 +120,7 @@ func TestExpenseRepository_CreateEdgeCases(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      123,
 			Amount:      decimal.NewFromFloat(10.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Draft",
 			Status:      models.ExpenseStatusDraft,
 		}
@@ -141,9 +141,9 @@ func TestExpenseRepository_UpdateEdgeCases(t *testing.T) {
 	userRepo := NewUserRepository(tx)
 	err := userRepo.UpsertUser(ctx, &models.User{
 		ID:        123,
-		Username:  "testuser",
-		FirstName: "Test",
-		LastName:  "User",
+		Username:  testUsername,
+		FirstName: testFirstName,
+		LastName:  testLastName,
 	})
 	require.NoError(t, err)
 
@@ -154,7 +154,7 @@ func TestExpenseRepository_UpdateEdgeCases(t *testing.T) {
 			ID:          99999, // Non-existent ID
 			UserID:      123,
 			Amount:      decimal.NewFromFloat(10.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Test",
 			Status:      models.ExpenseStatusConfirmed,
 		}
@@ -169,7 +169,7 @@ func TestExpenseRepository_UpdateEdgeCases(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      123,
 			Amount:      decimal.NewFromFloat(10.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Original",
 			Status:      models.ExpenseStatusConfirmed,
 		}
@@ -192,7 +192,7 @@ func TestExpenseRepository_UpdateEdgeCases(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      123,
 			Amount:      decimal.NewFromFloat(10.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Test",
 			Status:      models.ExpenseStatusDraft,
 		}
@@ -220,9 +220,9 @@ func TestExpenseRepository_DeleteEdgeCases(t *testing.T) {
 	userRepo := NewUserRepository(tx)
 	err := userRepo.UpsertUser(ctx, &models.User{
 		ID:        123,
-		Username:  "testuser",
-		FirstName: "Test",
-		LastName:  "User",
+		Username:  testUsername,
+		FirstName: testFirstName,
+		LastName:  testLastName,
 	})
 	require.NoError(t, err)
 
@@ -239,7 +239,7 @@ func TestExpenseRepository_DeleteEdgeCases(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      123,
 			Amount:      decimal.NewFromFloat(10.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Test",
 			Status:      models.ExpenseStatusConfirmed,
 		}
@@ -290,9 +290,9 @@ func TestExpenseRepository_GetByUserIDAndDateRangeEdgeCases(t *testing.T) {
 	userRepo := NewUserRepository(tx)
 	err := userRepo.UpsertUser(ctx, &models.User{
 		ID:        123,
-		Username:  "testuser",
-		FirstName: "Test",
-		LastName:  "User",
+		Username:  testUsername,
+		FirstName: testFirstName,
+		LastName:  testLastName,
 	})
 	require.NoError(t, err)
 
@@ -304,7 +304,7 @@ func TestExpenseRepository_GetByUserIDAndDateRangeEdgeCases(t *testing.T) {
 	expense := &models.Expense{
 		UserID:      123,
 		Amount:      decimal.NewFromFloat(10.00),
-		Currency:    "SGD",
+		Currency:    testCurrencySGD,
 		Description: "Test",
 		Status:      models.ExpenseStatusConfirmed,
 	}
@@ -358,9 +358,9 @@ func TestExpenseRepository_DeleteExpiredDraftsEdgeCases(t *testing.T) {
 	userRepo := NewUserRepository(tx)
 	err := userRepo.UpsertUser(ctx, &models.User{
 		ID:        123,
-		Username:  "testuser",
-		FirstName: "Test",
-		LastName:  "User",
+		Username:  testUsername,
+		FirstName: testFirstName,
+		LastName:  testLastName,
 	})
 	require.NoError(t, err)
 
@@ -377,7 +377,7 @@ func TestExpenseRepository_DeleteExpiredDraftsEdgeCases(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      123,
 			Amount:      decimal.NewFromFloat(10.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Recent draft",
 			Status:      models.ExpenseStatusDraft,
 		}
@@ -399,7 +399,7 @@ func TestExpenseRepository_DeleteExpiredDraftsEdgeCases(t *testing.T) {
 		expense := &models.Expense{
 			UserID:      123,
 			Amount:      decimal.NewFromFloat(10.00),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Confirmed",
 			Status:      models.ExpenseStatusConfirmed,
 		}

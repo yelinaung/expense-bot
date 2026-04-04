@@ -85,7 +85,7 @@ func TestHandleEditCallbackCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal("50.00"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Test Expense",
 			Status:      appmodels.ExpenseStatusDraft,
 		}
@@ -117,7 +117,7 @@ func TestHandleEditCallbackCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal("60.00"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Category Test",
 			Status:      appmodels.ExpenseStatusDraft,
 		}
@@ -149,7 +149,7 @@ func TestHandleEditCallbackCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal("80.00"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Inline Edit",
 			Status:      appmodels.ExpenseStatusConfirmed,
 		}
@@ -190,7 +190,7 @@ func TestHandleEditCallbackCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      otherUserID,
 			Amount:      mustParseDecimal("70.00"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Other User",
 			Status:      appmodels.ExpenseStatusDraft,
 		}
@@ -235,7 +235,7 @@ func TestPromptEditAmountCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal("25.50"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Test",
 			Status:      appmodels.ExpenseStatusDraft,
 		}
@@ -309,7 +309,7 @@ func TestHandlePendingEditCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal(amount10CBT),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Original",
 			Status:      appmodels.ExpenseStatusDraft,
 		}
@@ -393,7 +393,7 @@ func TestProcessAmountEditCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      otherUserID,
 			Amount:      mustParseDecimal(amount15CBT),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: otherFirstNameCBT,
 			Status:      appmodels.ExpenseStatusDraft,
 		}
@@ -412,7 +412,7 @@ func TestProcessAmountEditCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal(amount20CBT),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "To Update",
 			Status:      appmodels.ExpenseStatusDraft,
 		}
@@ -459,7 +459,7 @@ func TestHandleCancelEditCallbackCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal("30.00"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Cancel Test",
 			Status:      appmodels.ExpenseStatusDraft,
 		}
@@ -520,7 +520,7 @@ func TestShowCategorySelectionCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal("40.00"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Category Select",
 			Status:      appmodels.ExpenseStatusDraft,
 		}
@@ -565,7 +565,7 @@ func TestHandleSetCategoryCallbackCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal("55.00"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Set Category",
 			Status:      appmodels.ExpenseStatusDraft,
 		}
@@ -649,7 +649,7 @@ func TestProcessCategoryCreateCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal("65.00"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Create Cat Test",
 			Status:      appmodels.ExpenseStatusDraft,
 		}
@@ -696,7 +696,7 @@ func TestHandleCreateCategoryCallbackCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal("75.00"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Create Callback",
 			Status:      appmodels.ExpenseStatusDraft,
 		}
@@ -743,7 +743,7 @@ func TestPromptEditMerchantCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal(amount15CBT),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: oldMerchantTextCBT,
 			Merchant:    oldMerchantTextCBT,
 			Status:      appmodels.ExpenseStatusDraft,
@@ -819,7 +819,7 @@ func TestProcessMerchantEditCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      otherUserID,
 			Amount:      mustParseDecimal(amount10CBT),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Other Merchant",
 			Status:      appmodels.ExpenseStatusDraft,
 		}
@@ -838,7 +838,7 @@ func TestProcessMerchantEditCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal(amount20CBT),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: oldNameTextCBT,
 			Merchant:    oldNameTextCBT,
 			Status:      appmodels.ExpenseStatusDraft,
@@ -867,7 +867,7 @@ func TestProcessMerchantEditCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal(amount15CBT),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: clearTestTextCBT,
 			Merchant:    clearTestTextCBT,
 			Status:      appmodels.ExpenseStatusDraft,
@@ -909,7 +909,7 @@ func TestPromptCreateCategoryCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal("85.00"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Prompt Cat",
 			Status:      appmodels.ExpenseStatusDraft,
 		}

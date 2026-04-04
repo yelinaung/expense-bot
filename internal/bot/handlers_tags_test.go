@@ -78,7 +78,7 @@ func TestHandleTagCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal("5.50"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Coffee",
 		}
 		err := b.expenseRepo.Create(ctx, expense)
@@ -98,7 +98,7 @@ func TestHandleTagCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal("10.00"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Lunch",
 		}
 		err := b.expenseRepo.Create(ctx, expense)
@@ -118,7 +118,7 @@ func TestHandleTagCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal("7.00"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Snack",
 		}
 		err := b.expenseRepo.Create(ctx, expense)
@@ -137,7 +137,7 @@ func TestHandleTagCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal("5.00"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Test",
 		}
 		err := b.expenseRepo.Create(ctx, expense)
@@ -156,7 +156,7 @@ func TestHandleTagCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal("5.00"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Test",
 		}
 		err := b.expenseRepo.Create(ctx, expense)
@@ -175,7 +175,7 @@ func TestHandleTagCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal("5.00"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Test",
 		}
 		err := b.expenseRepo.Create(ctx, expense)
@@ -225,7 +225,7 @@ func TestHandleUntagCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal("5.50"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Coffee",
 		}
 		err := b.expenseRepo.Create(ctx, expense)
@@ -251,7 +251,7 @@ func TestHandleUntagCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal("3.00"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Water",
 		}
 		err := b.expenseRepo.Create(ctx, expense)
@@ -292,7 +292,7 @@ func TestHandleTagsCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal("1.00"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "tag list test",
 			Status:      appmodels.ExpenseStatusConfirmed,
 		}
@@ -326,7 +326,7 @@ func TestHandleTagsCore(t *testing.T) {
 		otherExpense := &appmodels.Expense{
 			UserID:      otherUserID,
 			Amount:      mustParseDecimal("2.00"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "other tag list test",
 			Status:      appmodels.ExpenseStatusConfirmed,
 		}
@@ -351,7 +351,7 @@ func TestHandleTagsCore(t *testing.T) {
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal("8.00"),
-			Currency:    "SGD",
+			Currency:    testCurrencySGD,
 			Description: "Tagged Expense",
 		}
 		err := b.expenseRepo.Create(ctx, expense)
