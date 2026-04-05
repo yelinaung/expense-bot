@@ -439,14 +439,14 @@ func TestHandleTodayCore(t *testing.T) {
 
 		_, err = b.db.Exec(
 			ctx,
-			"UPDATE expenses SET created_at = $1 WHERE id = $2",
+			testUpdateExpenseTimeSQL,
 			yesterdayLateLocal,
 			yesterdayExpense.ID,
 		)
 		require.NoError(t, err)
 		_, err = b.db.Exec(
 			ctx,
-			"UPDATE expenses SET created_at = $1 WHERE id = $2",
+			testUpdateExpenseTimeSQL,
 			todayMorningLocal,
 			todayExpense.ID,
 		)
@@ -563,14 +563,14 @@ func TestHandleWeekCore(t *testing.T) {
 
 		_, err = b.db.Exec(
 			ctx,
-			"UPDATE expenses SET created_at = $1 WHERE id = $2",
+			testUpdateExpenseTimeSQL,
 			sundayLateLocal,
 			sundayExpense.ID,
 		)
 		require.NoError(t, err)
 		_, err = b.db.Exec(
 			ctx,
-			"UPDATE expenses SET created_at = $1 WHERE id = $2",
+			testUpdateExpenseTimeSQL,
 			mondayEarlyLocal,
 			mondayExpense.ID,
 		)

@@ -38,7 +38,7 @@ func TestMockBot_SendMessage(t *testing.T) {
 		require.Equal(t, models.ParseModeHTML, last.ParseMode)
 	})
 
-	t.Run("returns error when configured", func(t *testing.T) {
+	t.Run(testReturnsErrorWhenConfigured, func(t *testing.T) {
 		t.Parallel()
 
 		mockBot := NewMockBot()
@@ -105,7 +105,7 @@ func TestMockBot_EditMessageText(t *testing.T) {
 		require.NotNil(t, last.ReplyMarkup)
 	})
 
-	t.Run("returns error when configured", func(t *testing.T) {
+	t.Run(testReturnsErrorWhenConfigured, func(t *testing.T) {
 		t.Parallel()
 
 		mockBot := NewMockBot()
@@ -172,7 +172,7 @@ func TestMockBot_GetFile(t *testing.T) {
 		require.Equal(t, "custom-id", file.FileID)
 	})
 
-	t.Run("returns error when configured", func(t *testing.T) {
+	t.Run(testReturnsErrorWhenConfigured, func(t *testing.T) {
 		t.Parallel()
 
 		mockBot := NewMockBot()

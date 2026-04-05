@@ -57,9 +57,9 @@ func TestUpdateAttributes(t *testing.T) {
 		}
 
 		attrs := attrsToMap(updateAttributes(update))
-		require.Equal(t, "telegram", attrs["messaging.system"])
-		require.Equal(t, logger.HashUserID(42), attrs["telegram.user_id"])
-		require.Equal(t, logger.HashChatID(99), attrs["telegram.chat_id"])
+		require.Equal(t, "telegram", attrs[testMessagingSystemAttr])
+		require.Equal(t, logger.HashUserID(42), attrs[testTelegramUserIDAttr])
+		require.Equal(t, logger.HashChatID(99), attrs[testTelegramChatIDAttr])
 	})
 
 	t.Run("extracts message user and chat attributes", func(t *testing.T) {
@@ -72,9 +72,9 @@ func TestUpdateAttributes(t *testing.T) {
 		}
 
 		attrs := attrsToMap(updateAttributes(update))
-		require.Equal(t, "telegram", attrs["messaging.system"])
-		require.Equal(t, logger.HashUserID(77), attrs["telegram.user_id"])
-		require.Equal(t, logger.HashChatID(88), attrs["telegram.chat_id"])
+		require.Equal(t, "telegram", attrs[testMessagingSystemAttr])
+		require.Equal(t, logger.HashUserID(77), attrs[testTelegramUserIDAttr])
+		require.Equal(t, logger.HashChatID(88), attrs[testTelegramChatIDAttr])
 	})
 
 	t.Run("extracts edited message user and chat attributes", func(t *testing.T) {
@@ -87,8 +87,8 @@ func TestUpdateAttributes(t *testing.T) {
 		}
 
 		attrs := attrsToMap(updateAttributes(update))
-		require.Equal(t, "telegram", attrs["messaging.system"])
-		require.Equal(t, logger.HashUserID(55), attrs["telegram.user_id"])
-		require.Equal(t, logger.HashChatID(66), attrs["telegram.chat_id"])
+		require.Equal(t, "telegram", attrs[testMessagingSystemAttr])
+		require.Equal(t, logger.HashUserID(55), attrs[testTelegramUserIDAttr])
+		require.Equal(t, logger.HashChatID(66), attrs[testTelegramChatIDAttr])
 	})
 }

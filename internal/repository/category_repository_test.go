@@ -8,6 +8,8 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/testutil/dbtest"
 )
 
+const testCategoryNewName = "New Name"
+
 func TestCategoryRepository_CRUD(t *testing.T) {
 	ctx := context.Background()
 	tx := dbtest.TestTx(ctx, t)
@@ -38,12 +40,12 @@ func TestCategoryRepository_CRUD(t *testing.T) {
 		cat, err := repo.Create(ctx, "Old Name")
 		require.NoError(t, err)
 
-		err = repo.Update(ctx, cat.ID, "New Name")
+		err = repo.Update(ctx, cat.ID, testCategoryNewName)
 		require.NoError(t, err)
 
 		fetched, err := repo.GetByID(ctx, cat.ID)
 		require.NoError(t, err)
-		require.Equal(t, "New Name", fetched.Name)
+		require.Equal(t, testCategoryNewName, fetched.Name)
 	})
 
 	t.Run("deletes category", func(t *testing.T) {
@@ -101,7 +103,7 @@ func TestCategoryRepository_UpdateNonExistent(t *testing.T) {
 	repo := NewCategoryRepository(tx)
 
 	// Update should succeed even for non-existent ID (no rows affected).
-	err := repo.Update(ctx, 99999, "New Name")
+	err := repo.Update(ctx, 99999, testCategoryNewName)
 	require.NoError(t, err)
 }
 

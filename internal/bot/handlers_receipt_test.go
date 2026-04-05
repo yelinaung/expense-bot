@@ -376,12 +376,12 @@ func TestHandlePhotoCore_DownloadError(t *testing.T) {
 	mockBot := mocks.NewMockBot()
 	mockBot.GetFileError = errors.New("get file failed")
 
-	update := mocks.PhotoUpdate(12345, 100, "photo-file-id")
+	update := mocks.PhotoUpdate(12345, 100, testPhotoFileID)
 
 	b.handlePhotoCore(context.Background(), mockBot, update)
 
 	require.Equal(t, 2, mockBot.SentMessageCount())
-	require.Contains(t, mockBot.SentMessages[0].Text, "Processing receipt")
+	require.Contains(t, mockBot.SentMessages[0].Text, testProcessingReceiptText)
 	require.Contains(t, mockBot.SentMessages[1].Text, "Failed to download photo")
 }
 
@@ -403,12 +403,12 @@ func TestHandlePhotoCore_ParseError(t *testing.T) {
 		},
 	}
 	mockBot := mocks.NewMockBot()
-	update := mocks.PhotoUpdate(12345, 100, "photo-file-id")
+	update := mocks.PhotoUpdate(12345, 100, testPhotoFileID)
 
 	b.handlePhotoCore(context.Background(), mockBot, update)
 
 	require.Equal(t, 2, mockBot.SentMessageCount())
-	require.Contains(t, mockBot.SentMessages[0].Text, "Processing receipt")
+	require.Contains(t, mockBot.SentMessages[0].Text, testProcessingReceiptText)
 	require.Contains(t, mockBot.SentMessages[1].Text, "Could not read this receipt")
 }
 
@@ -446,11 +446,11 @@ func TestHandlePhotoCore_Success(t *testing.T) {
 		}),
 	}
 	mockBot := mocks.NewMockBot()
-	update := mocks.PhotoUpdate(12345, 100, "photo-file-id")
+	update := mocks.PhotoUpdate(12345, 100, testPhotoFileID)
 
 	b.handlePhotoCore(ctx, mockBot, update)
 
 	require.Equal(t, 2, mockBot.SentMessageCount())
-	require.Contains(t, mockBot.SentMessages[0].Text, "Processing receipt")
+	require.Contains(t, mockBot.SentMessages[0].Text, testProcessingReceiptText)
 	require.Contains(t, mockBot.SentMessages[1].Text, "Receipt Scanned")
 }

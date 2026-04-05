@@ -64,7 +64,7 @@ func TestTracingMiddlewareRecordsMetrics(t *testing.T) {
 
 	var rm metricdata.ResourceMetrics
 	require.NoError(t, reader.Collect(context.Background(), &rm))
-	require.Positive(t, metricDataPointCount(rm, "telegram.handler.count"))
+	require.Positive(t, metricDataPointCount(rm, testTelegramHandlerCount))
 	require.Positive(t, metricDataPointCount(rm, "telegram.handler.duration"))
 }
 
@@ -84,7 +84,7 @@ func TestRecordHandlerMetrics(t *testing.T) {
 
 	var rm metricdata.ResourceMetrics
 	require.NoError(t, reader.Collect(context.Background(), &rm))
-	require.Positive(t, metricDataPointCount(rm, "telegram.handler.count"))
+	require.Positive(t, metricDataPointCount(rm, testTelegramHandlerCount))
 	require.Positive(t, metricDataPointCount(rm, "telegram.handler.duration"))
 }
 
@@ -113,5 +113,5 @@ func TestTracingMiddlewarePanicPathRecordsMetrics(t *testing.T) {
 
 	var rm metricdata.ResourceMetrics
 	require.NoError(t, reader.Collect(context.Background(), &rm))
-	require.Positive(t, metricDataPointCount(rm, "telegram.handler.count"))
+	require.Positive(t, metricDataPointCount(rm, testTelegramHandlerCount))
 }

@@ -196,7 +196,7 @@ func TestParseExpenseInput_DescriptionFirst(t *testing.T) {
 				return
 			}
 
-			require.NotNil(t, result, "expected non-nil result for input: %s", tt.input)
+			require.NotNil(t, result, testExpectedNonNilInput, tt.input)
 			require.Equal(t, tt.wantAmt, result.Amount.StringFixed(2))
 			require.Equal(t, tt.wantDesc, result.Description)
 			require.Equal(t, tt.wantCurrency, result.Currency)
@@ -207,8 +207,10 @@ func TestParseExpenseInput_DescriptionFirst(t *testing.T) {
 func TestParseExpenseInputWithCategories_DescriptionFirst(t *testing.T) {
 	t.Parallel()
 
+	foodDiningOutBracketed := bracketedCategory(testCategoryFoodDiningOut)
+
 	categories := []string{
-		"Food - Dining Out",
+		testCategoryFoodDiningOut,
 		"Transportation",
 		"Travel & Vacation",
 	}
@@ -224,10 +226,10 @@ func TestParseExpenseInputWithCategories_DescriptionFirst(t *testing.T) {
 	}{
 		{
 			name:        "description first with bracket category",
-			input:       "Coffee 5.50 [Food - Dining Out]",
+			input:       testCoffeeDesc + " " + testAmount550 + " " + foodDiningOutBracketed,
 			wantAmt:     testAmount550,
 			wantDesc:    testCoffeeDesc,
-			wantCatName: "Food - Dining Out",
+			wantCatName: testCategoryFoodDiningOut,
 		},
 		{
 			name:         "description first with currency and bracket category",
@@ -239,10 +241,10 @@ func TestParseExpenseInputWithCategories_DescriptionFirst(t *testing.T) {
 		},
 		{
 			name:         "description first with lowercase currency code and bracket category",
-			input:        "Coffee 5.50 sgd [Food - Dining Out]",
+			input:        testCoffeeDesc + " " + testAmount550 + " sgd " + foodDiningOutBracketed,
 			wantAmt:      testAmount550,
 			wantDesc:     testCoffeeDesc,
-			wantCatName:  "Food - Dining Out",
+			wantCatName:  testCategoryFoodDiningOut,
 			wantCurrency: testCurrencySGD,
 		},
 	}
@@ -257,7 +259,7 @@ func TestParseExpenseInputWithCategories_DescriptionFirst(t *testing.T) {
 				return
 			}
 
-			require.NotNil(t, result, "expected non-nil result for input: %s", tt.input)
+			require.NotNil(t, result, testExpectedNonNilInput, tt.input)
 			require.Equal(t, tt.wantAmt, result.Amount.StringFixed(2))
 			require.Equal(t, tt.wantDesc, result.Description)
 			require.Equal(t, tt.wantCatName, result.CategoryName)
@@ -316,7 +318,7 @@ func TestParseAddCommand_DescriptionFirst(t *testing.T) {
 				return
 			}
 
-			require.NotNil(t, result, "expected non-nil result for input: %s", tt.input)
+			require.NotNil(t, result, testExpectedNonNilInput, tt.input)
 			require.Equal(t, tt.wantAmt, result.Amount.StringFixed(2))
 			require.Equal(t, tt.wantDesc, result.Description)
 			if tt.wantCurrency != "" {
@@ -376,9 +378,9 @@ func TestParseExpenseInput_DescriptionFirst_Tags(t *testing.T) {
 		},
 		{
 			name:     "tags with bracket category in reordered input",
-			input:    "Coffee #food 5.50 [Food - Dining Out]",
+			input:    testCoffeeDesc + " #food " + testAmount550 + " " + bracketedCategory(testCategoryFoodDiningOut),
 			wantAmt:  testAmount550,
-			wantDesc: "Coffee [Food - Dining Out]",
+			wantDesc: testCoffeeDesc + " " + bracketedCategory(testCategoryFoodDiningOut),
 			wantTags: []string{"food"},
 		},
 	}
@@ -393,7 +395,7 @@ func TestParseExpenseInput_DescriptionFirst_Tags(t *testing.T) {
 				return
 			}
 
-			require.NotNil(t, result, "expected non-nil result for input: %s", tt.input)
+			require.NotNil(t, result, testExpectedNonNilInput, tt.input)
 			require.Equal(t, tt.wantAmt, result.Amount.StringFixed(2))
 			require.Equal(t, tt.wantDesc, result.Description)
 			require.Equal(t, tt.wantCurrency, result.Currency)

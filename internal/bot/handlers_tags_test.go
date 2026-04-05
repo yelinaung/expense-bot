@@ -42,7 +42,7 @@ func TestHandleTagCore(t *testing.T) {
 		b.handleTagCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "Usage:")
+		require.Contains(t, msg.Text, testTagUsageText)
 	})
 
 	t.Run("missing tag name shows usage", func(t *testing.T) {
@@ -51,7 +51,7 @@ func TestHandleTagCore(t *testing.T) {
 		b.handleTagCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "Usage:")
+		require.Contains(t, msg.Text, testTagUsageText)
 	})
 
 	t.Run("invalid expense ID shows error", func(t *testing.T) {
@@ -216,7 +216,7 @@ func TestHandleUntagCore(t *testing.T) {
 		b.handleUntagCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "Usage:")
+		require.Contains(t, msg.Text, testTagUsageText)
 	})
 
 	t.Run("removes tag successfully", func(t *testing.T) {

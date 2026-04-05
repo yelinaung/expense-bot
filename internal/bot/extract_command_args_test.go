@@ -15,33 +15,33 @@ func TestExtractCommandArgs(t *testing.T) {
 	}{
 		{
 			name:    "simple command with args",
-			text:    "/addcategory Food",
-			command: "/addcategory",
+			text:    withCommandArg(testAddCategoryCommand, "Food"),
+			command: testAddCategoryCommand,
 			want:    "Food",
 		},
 		{
 			name:    "command with no args",
-			text:    "/addcategory",
-			command: "/addcategory",
+			text:    testAddCategoryCommand,
+			command: testAddCategoryCommand,
 			want:    "",
 		},
 		{
 			name:    "command with bot mention and args",
-			text:    "/addcategory@mybot Food",
-			command: "/addcategory",
+			text:    withCommandArg(withBotMention(testAddCategoryCommand), "Food"),
+			command: testAddCategoryCommand,
 			want:    "Food",
 		},
 		{
 			name:    "command with bot mention and no args",
-			text:    "/addcategory@mybot",
-			command: "/addcategory",
+			text:    withBotMention(testAddCategoryCommand),
+			command: testAddCategoryCommand,
 			want:    "",
 		},
 		{
 			name:    "command with multi-word args",
-			text:    "/addcategory Food - Dining Out",
-			command: "/addcategory",
-			want:    "Food - Dining Out",
+			text:    withCommandArg(testAddCategoryCommand, testCategoryFoodDiningOut),
+			command: testAddCategoryCommand,
+			want:    testCategoryFoodDiningOut,
 		},
 		{
 			name:    "command with bot mention and multi-word args",
@@ -51,8 +51,8 @@ func TestExtractCommandArgs(t *testing.T) {
 		},
 		{
 			name:    "command with extra spaces",
-			text:    "/addcategory   Food  ",
-			command: "/addcategory",
+			text:    testAddCategoryCommand + "   Food  ",
+			command: testAddCategoryCommand,
 			want:    "Food",
 		},
 		{

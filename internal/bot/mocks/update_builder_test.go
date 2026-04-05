@@ -109,20 +109,20 @@ func TestUpdateBuilder_WithDocument(t *testing.T) {
 
 	update := NewUpdateBuilder().
 		WithMessage(1, 2, "").
-		WithDocument("doc-id", "receipt.pdf", "application/pdf").
+		WithDocument(testDocID, "receipt.pdf", testApplicationPDF).
 		Build()
 
 	require.NotNil(t, update.Message.Document)
-	require.Equal(t, "doc-id", update.Message.Document.FileID)
+	require.Equal(t, testDocID, update.Message.Document.FileID)
 	require.Equal(t, "receipt.pdf", update.Message.Document.FileName)
-	require.Equal(t, "application/pdf", update.Message.Document.MimeType)
+	require.Equal(t, testApplicationPDF, update.Message.Document.MimeType)
 }
 
 func TestUpdateBuilder_WithDocument_CreatesMessage(t *testing.T) {
 	t.Parallel()
 
 	update := NewUpdateBuilder().
-		WithDocument("doc-id", "file.pdf", "application/pdf").
+		WithDocument(testDocID, "file.pdf", testApplicationPDF).
 		Build()
 
 	require.NotNil(t, update.Message)
