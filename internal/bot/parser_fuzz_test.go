@@ -248,39 +248,72 @@ func FuzzExtractTags(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, input string) {
 		tags, cleaned := extractTags(input)
-
-		for _, tag := range tags {
-			// Invariant 1: Tags must be lowercase.
-			if tag != strings.ToLower(tag) {
-				t.Errorf("extractTags(%q) returned non-lowercase tag: %q", input, tag)
-			}
-
-			// Invariant 2: Each tag must match the valid pattern.
-			if !tagPattern.MatchString(tag) {
-				t.Errorf("extractTags(%q) returned invalid tag: %q", input, tag)
-			}
-		}
-
-		// Invariant 3: Tags must be deduplicated.
-		seen := make(map[string]bool)
-		for _, tag := range tags {
-			if seen[tag] {
-				t.Errorf("extractTags(%q) returned duplicate tag: %q", input, tag)
-			}
-			seen[tag] = true
-		}
-
-		// Invariant 4: Cleaned text must not contain any extracted #tag tokens as standalone words.
-		for _, tag := range tags {
-			for word := range strings.FieldsSeq(cleaned) {
-				if strings.EqualFold(word, "#"+tag) {
-					t.Errorf("extractTags(%q) cleaned text still contains #%s: %q", input, tag, cleaned)
-				}
-			}
-		}
-
-		_ = cleaned // Must not panic.
+		assertExtractedTagsInvariants(t, input, tags, cleaned, tagPattern)
 	})
+}
+
+func assertExtractedTagsInvariants(
+	t *testing.T,
+	input string,
+	tags []string,
+	cleaned string,
+	tagPattern *regexp.Regexp,
+) {
+	t.Helper()
+
+	assertLowercaseExtractedTags(t, input, tags)
+	assertExtractedTagsMatchPattern(t, input, tags, tagPattern)
+	assertUniqueExtractedTags(t, input, tags)
+	assertCleanedTextExcludesExtractedTags(t, input, tags, cleaned)
+}
+
+func assertLowercaseExtractedTags(t *testing.T, input string, tags []string) {
+	t.Helper()
+
+	for _, tag := range tags {
+		if tag != strings.ToLower(tag) {
+			t.Errorf("extractTags(%q) returned non-lowercase tag: %q", input, tag)
+		}
+	}
+}
+
+func assertExtractedTagsMatchPattern(
+	t *testing.T,
+	input string,
+	tags []string,
+	tagPattern *regexp.Regexp,
+) {
+	t.Helper()
+
+	for _, tag := range tags {
+		if !tagPattern.MatchString(tag) {
+			t.Errorf("extractTags(%q) returned invalid tag: %q", input, tag)
+		}
+	}
+}
+
+func assertUniqueExtractedTags(t *testing.T, input string, tags []string) {
+	t.Helper()
+
+	seen := make(map[string]bool)
+	for _, tag := range tags {
+		if seen[tag] {
+			t.Errorf("extractTags(%q) returned duplicate tag: %q", input, tag)
+		}
+		seen[tag] = true
+	}
+}
+
+func assertCleanedTextExcludesExtractedTags(t *testing.T, input string, tags []string, cleaned string) {
+	t.Helper()
+
+	for _, tag := range tags {
+		for word := range strings.FieldsSeq(cleaned) {
+			if strings.EqualFold(word, "#"+tag) {
+				t.Errorf("extractTags(%q) cleaned text still contains #%s: %q", input, tag, cleaned)
+			}
+		}
+	}
 }
 
 func FuzzExtractCommandArgs(f *testing.F) {

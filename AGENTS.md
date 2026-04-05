@@ -93,3 +93,5 @@ ENSURE that the test coverage stays at or above 50% (CI enforced).
 
 ## Working on the TUI (UI)
 Anytime you starts the work, read the AGENTS.md file
+
+Refer to @CLAUDE.md for additional instructions
