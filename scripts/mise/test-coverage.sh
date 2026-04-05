@@ -37,6 +37,10 @@ rm -f "${out_file}"
 cover_report="$(go tool cover -func=coverage.out)"
 printf "%s\n" "${cover_report}"
 
+# Sonar should only ingest coverage for files it analyzes. Keep the full
+# report for local tooling and Codecov, and write a filtered report for Sonar.
+awk 'NR == 1 || $0 !~ /\/mocks\/|\/internal\/testutil\//' coverage.out > coverage-sonar.out
+
 total_coverage="$(printf "%s\n" "${cover_report}" | awk '/^total:/ {gsub("%","",$3); print $3}')"
 threshold=50
 
