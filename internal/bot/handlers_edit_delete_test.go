@@ -16,7 +16,14 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/testutil/dbtest"
 )
 
-const notFoundTextEditDelete = "not found"
+const (
+	editUsageHTML       = "❌ Usage: <code>/edit &lt;id&gt; &lt;amount&gt; &lt;description&gt; [category]</code>"
+	editInvalidIDHTML   = "❌ Invalid expense ID. Use: <code>/edit &lt;id&gt; &lt;amount&gt; &lt;description&gt;</code>"
+	editProvideValsHTML = "❌ Please provide new values: <code>/edit &lt;id&gt; &lt;amount&gt; &lt;description&gt;</code>"
+	editInvalidFmtHTML  = "❌ Invalid format. Use: <code>/edit &lt;id&gt; &lt;amount&gt; &lt;description&gt;</code>"
+	deleteUsageHTML     = "❌ Usage: <code>/delete &lt;id&gt;</code>"
+	deleteInvalidIDHTML = "❌ Invalid expense ID. Use: <code>/delete &lt;id&gt;</code>"
+)
 
 // TestHandleEdit tests the /edit command handler.
 func TestHandleEdit(t *testing.T) {
@@ -33,21 +40,21 @@ func TestHandleEdit(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("shows usage when no arguments", func(t *testing.T) {
-		update := mocks.CommandUpdate(12345, user.ID, "/edit")
+		update := mocks.CommandUpdate(12345, user.ID, testEditCommand)
 
 		callHandleEdit(ctx, mockBot, update, expenseRepo, categoryRepo, user.ID)
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.NotNil(t, msg)
-		require.Contains(t, msg.Text, "Usage:")
-		require.Contains(t, msg.Text, "/edit")
+		require.Contains(t, msg.Text, testTagUsageText)
+		require.Contains(t, msg.Text, testEditCommand)
 	})
 
 	t.Run("shows error for invalid expense ID", func(t *testing.T) {
 		mockBot.Reset()
 
-		update := mocks.CommandUpdate(12345, user.ID, "/edit abc 5.00 New description")
+		update := mocks.CommandUpdate(12345, user.ID, testEditCommandPrefix+"abc 5.00 New description")
 
 		callHandleEdit(ctx, mockBot, update, expenseRepo, categoryRepo, user.ID)
 
@@ -60,14 +67,14 @@ func TestHandleEdit(t *testing.T) {
 	t.Run("shows error when expense not found", func(t *testing.T) {
 		mockBot.Reset()
 
-		update := mocks.CommandUpdate(12345, user.ID, "/edit 99999 5.00 New description")
+		update := mocks.CommandUpdate(12345, user.ID, testEditCommandPrefix+"99999 5.00 New description")
 
 		callHandleEdit(ctx, mockBot, update, expenseRepo, categoryRepo, user.ID)
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.NotNil(t, msg)
-		require.Contains(t, msg.Text, notFoundTextEditDelete)
+		require.Contains(t, msg.Text, testNotFoundText)
 	})
 
 	t.Run("edits expense successfully", func(t *testing.T) {
@@ -83,7 +90,7 @@ func TestHandleEdit(t *testing.T) {
 		err := expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
 
-		update := mocks.CommandUpdate(12345, user.ID, "/edit "+strconv.FormatInt(expense.UserExpenseNumber, 10)+" 20.00 Updated description")
+		update := mocks.CommandUpdate(12345, user.ID, testEditCommandPrefix+strconv.FormatInt(expense.UserExpenseNumber, 10)+" 20.00 Updated description")
 
 		callHandleEdit(ctx, mockBot, update, expenseRepo, categoryRepo, user.ID)
 
@@ -105,7 +112,7 @@ func TestHandleEdit(t *testing.T) {
 			UserID:      user.ID,
 			Amount:      decimal.NewFromFloat(15.00),
 			Currency:    "SGD",
-			Description: "Original description",
+			Description: testOriginalDescription,
 			CategoryID:  &category.ID,
 			Status:      models.ExpenseStatusConfirmed,
 		}
@@ -113,7 +120,7 @@ func TestHandleEdit(t *testing.T) {
 		require.NoError(t, err)
 
 		// Edit only the amount - description and category should be preserved
-		update := mocks.CommandUpdate(12345, user.ID, "/edit "+strconv.FormatInt(expense.UserExpenseNumber, 10)+" 25.50")
+		update := mocks.CommandUpdate(12345, user.ID, testEditCommandPrefix+strconv.FormatInt(expense.UserExpenseNumber, 10)+" 25.50")
 
 		callHandleEdit(ctx, mockBot, update, expenseRepo, categoryRepo, user.ID)
 
@@ -122,14 +129,14 @@ func TestHandleEdit(t *testing.T) {
 		require.NotNil(t, msg)
 		require.Contains(t, msg.Text, "Expense Updated")
 		require.Contains(t, msg.Text, "S$25.50 SGD")
-		require.Contains(t, msg.Text, "Original description")
+		require.Contains(t, msg.Text, testOriginalDescription)
 		require.Contains(t, msg.Text, "Test Partial Edit Preserve Cat")
 
 		// Verify in database that fields were preserved
 		updated, err := expenseRepo.GetByID(ctx, expense.ID)
 		require.NoError(t, err)
 		require.Equal(t, "25.50", updated.Amount.StringFixed(2))
-		require.Equal(t, "Original description", updated.Description)
+		require.Equal(t, testOriginalDescription, updated.Description)
 		require.NotNil(t, updated.CategoryID)
 		require.Equal(t, category.ID, *updated.CategoryID)
 	})
@@ -155,14 +162,14 @@ func TestHandleEdit(t *testing.T) {
 		// The other user's expense number won't resolve under user.ID
 		// since GetByUserAndNumber is scoped by user.
 		nonExistentNum := int64(99999)
-		update := mocks.CommandUpdate(12345, user.ID, "/edit "+strconv.FormatInt(nonExistentNum, 10)+" 100.00 Trying to edit")
+		update := mocks.CommandUpdate(12345, user.ID, testEditCommandPrefix+strconv.FormatInt(nonExistentNum, 10)+" 100.00 Trying to edit")
 
 		callHandleEdit(ctx, mockBot, update, expenseRepo, categoryRepo, user.ID)
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.NotNil(t, msg)
-		require.Contains(t, msg.Text, notFoundTextEditDelete)
+		require.Contains(t, msg.Text, testNotFoundText)
 	})
 }
 
@@ -181,7 +188,7 @@ func callHandleEdit(
 
 	chatID := update.Message.Chat.ID
 
-	args := strings.TrimPrefix(update.Message.Text, "/edit")
+	args := strings.TrimPrefix(update.Message.Text, testEditCommand)
 	args = strings.TrimSpace(args)
 
 	if strings.Index(args, "@") == 0 {
@@ -195,7 +202,7 @@ func callHandleEdit(
 	if args == "" {
 		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      "❌ Usage: <code>/edit &lt;id&gt; &lt;amount&gt; &lt;description&gt; [category]</code>",
+			Text:      editUsageHTML,
 			ParseMode: tgmodels.ParseModeHTML,
 		})
 		return
@@ -206,7 +213,7 @@ func callHandleEdit(
 	if err != nil {
 		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      "❌ Invalid expense ID. Use: <code>/edit &lt;id&gt; &lt;amount&gt; &lt;description&gt;</code>",
+			Text:      editInvalidIDHTML,
 			ParseMode: tgmodels.ParseModeHTML,
 		})
 		return
@@ -216,7 +223,7 @@ func callHandleEdit(
 	if err != nil {
 		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Expense #" + strconv.FormatInt(expenseNum, 10) + " not found.",
+			Text:   "❌ Expense #" + strconv.FormatInt(expenseNum, 10) + " " + testNotFoundText + ".",
 		})
 		return
 	}
@@ -232,7 +239,7 @@ func callHandleEdit(
 	if len(parts) < 2 {
 		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      "❌ Please provide new values: <code>/edit &lt;id&gt; &lt;amount&gt; &lt;description&gt;</code>",
+			Text:      editProvideValsHTML,
 			ParseMode: tgmodels.ParseModeHTML,
 		})
 		return
@@ -266,7 +273,7 @@ func callHandleEdit(
 	if parsed == nil {
 		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      "❌ Invalid format. Use: <code>/edit &lt;id&gt; &lt;amount&gt; &lt;description&gt;</code>",
+			Text:      editInvalidFmtHTML,
 			ParseMode: tgmodels.ParseModeHTML,
 		})
 		return
@@ -337,21 +344,21 @@ func TestHandleDelete(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("shows usage when no arguments", func(t *testing.T) {
-		update := mocks.CommandUpdate(12345, user.ID, "/delete")
+		update := mocks.CommandUpdate(12345, user.ID, testDeleteCommand)
 
 		callHandleDelete(ctx, mockBot, update, expenseRepo, user.ID)
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.NotNil(t, msg)
-		require.Contains(t, msg.Text, "Usage:")
-		require.Contains(t, msg.Text, "/delete")
+		require.Contains(t, msg.Text, testTagUsageText)
+		require.Contains(t, msg.Text, testDeleteCommand)
 	})
 
 	t.Run("shows error for invalid expense ID", func(t *testing.T) {
 		mockBot.Reset()
 
-		update := mocks.CommandUpdate(12345, user.ID, "/delete abc")
+		update := mocks.CommandUpdate(12345, user.ID, withCommandArg(testDeleteCommand, "abc"))
 
 		callHandleDelete(ctx, mockBot, update, expenseRepo, user.ID)
 
@@ -364,14 +371,14 @@ func TestHandleDelete(t *testing.T) {
 	t.Run("shows error when expense not found", func(t *testing.T) {
 		mockBot.Reset()
 
-		update := mocks.CommandUpdate(12345, user.ID, "/delete 99999")
+		update := mocks.CommandUpdate(12345, user.ID, withCommandArg(testDeleteCommand, "99999"))
 
 		callHandleDelete(ctx, mockBot, update, expenseRepo, user.ID)
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.NotNil(t, msg)
-		require.Contains(t, msg.Text, notFoundTextEditDelete)
+		require.Contains(t, msg.Text, testNotFoundText)
 	})
 
 	t.Run("deletes expense successfully", func(t *testing.T) {
@@ -387,7 +394,7 @@ func TestHandleDelete(t *testing.T) {
 		err := expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
 
-		update := mocks.CommandUpdate(12345, user.ID, "/delete "+strconv.FormatInt(expense.UserExpenseNumber, 10))
+		update := mocks.CommandUpdate(12345, user.ID, withCommandArg(testDeleteCommand, strconv.FormatInt(expense.UserExpenseNumber, 10)))
 
 		callHandleDelete(ctx, mockBot, update, expenseRepo, user.ID)
 
@@ -417,14 +424,14 @@ func TestHandleDelete(t *testing.T) {
 		err = expenseRepo.Create(ctx, expense)
 		require.NoError(t, err)
 
-		update := mocks.CommandUpdate(12345, user.ID, "/delete "+strconv.FormatInt(expense.UserExpenseNumber, 10))
+		update := mocks.CommandUpdate(12345, user.ID, withCommandArg(testDeleteCommand, strconv.FormatInt(expense.UserExpenseNumber, 10)))
 
 		callHandleDelete(ctx, mockBot, update, expenseRepo, user.ID)
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.NotNil(t, msg)
-		require.Contains(t, msg.Text, notFoundTextEditDelete)
+		require.Contains(t, msg.Text, testNotFoundText)
 	})
 }
 
@@ -480,7 +487,7 @@ func callHandleDelete(
 
 	chatID := update.Message.Chat.ID
 
-	args := strings.TrimPrefix(update.Message.Text, "/delete")
+	args := strings.TrimPrefix(update.Message.Text, testDeleteCommand)
 	args = strings.TrimSpace(args)
 
 	if strings.Index(args, "@") == 0 {
@@ -494,7 +501,7 @@ func callHandleDelete(
 	if args == "" {
 		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      "❌ Usage: <code>/delete &lt;id&gt;</code>",
+			Text:      deleteUsageHTML,
 			ParseMode: tgmodels.ParseModeHTML,
 		})
 		return
@@ -504,7 +511,7 @@ func callHandleDelete(
 	if err != nil {
 		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      "❌ Invalid expense ID. Use: <code>/delete &lt;id&gt;</code>",
+			Text:      deleteInvalidIDHTML,
 			ParseMode: tgmodels.ParseModeHTML,
 		})
 		return
@@ -514,7 +521,7 @@ func callHandleDelete(
 	if err != nil {
 		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Expense #" + strconv.FormatInt(expenseNum, 10) + " not found.",
+			Text:   "❌ Expense #" + strconv.FormatInt(expenseNum, 10) + " " + testNotFoundText + ".",
 		})
 		return
 	}

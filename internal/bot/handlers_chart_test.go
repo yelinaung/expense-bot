@@ -92,7 +92,7 @@ func TestHandleChartCore(t *testing.T) {
 
 	t.Run("generates weekly chart", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		update := mocks.CommandUpdate(chatID, userID, "/chart week")
+		update := mocks.CommandUpdate(chatID, userID, testChartWeekCommand)
 
 		b.handleChartCore(ctx, mockBot, update)
 
@@ -146,7 +146,7 @@ func TestHandleChartCore(t *testing.T) {
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.Contains(t, msg.Text, "❌ Please specify chart type")
-		require.Contains(t, msg.Text, "/chart week")
+		require.Contains(t, msg.Text, testChartWeekCommand)
 		require.Contains(t, msg.Text, "/chart month")
 	})
 
@@ -161,7 +161,7 @@ func TestHandleChartCore(t *testing.T) {
 		require.NoError(t, err)
 
 		mockBot := mocks.NewMockBot()
-		update := mocks.CommandUpdate(chatID, newUserID, "/chart week")
+		update := mocks.CommandUpdate(chatID, newUserID, testChartWeekCommand)
 
 		b.handleChartCore(ctx, mockBot, update)
 

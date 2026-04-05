@@ -22,7 +22,7 @@ func TestGenerateExpenseChart(t *testing.T) {
 					ID:          1,
 					Amount:      decimal.NewFromFloat(50.00),
 					Description: "Groceries",
-					Category:    &models.Category{ID: 1, Name: "Food - Groceries"},
+					Category:    &models.Category{ID: 1, Name: testCategoryFoodGroceries},
 				},
 				{
 					ID:          2,
@@ -47,7 +47,7 @@ func TestGenerateExpenseChart(t *testing.T) {
 					ID:          1,
 					Amount:      decimal.NewFromFloat(100.00),
 					Description: "Groceries",
-					Category:    &models.Category{ID: 1, Name: "Food - Groceries"},
+					Category:    &models.Category{ID: 1, Name: testCategoryFoodGroceries},
 				},
 			},
 			period:      "Month",
@@ -138,7 +138,7 @@ func TestAggregateByCategory(t *testing.T) {
 			expenses: []models.Expense{
 				{
 					Amount:   decimal.NewFromFloat(50.00),
-					Category: &models.Category{Name: "Food - Groceries"},
+					Category: &models.Category{Name: testCategoryFoodGroceries},
 				},
 				{
 					Amount:   decimal.NewFromFloat(30.00),
@@ -146,11 +146,11 @@ func TestAggregateByCategory(t *testing.T) {
 				},
 				{
 					Amount:   decimal.NewFromFloat(20.00),
-					Category: &models.Category{Name: "Food - Groceries"},
+					Category: &models.Category{Name: testCategoryFoodGroceries},
 				},
 			},
 			expected: map[string]string{
-				"Food - Groceries":        "70",
+				testCategoryFoodGroceries: "70",
 				testCategoryFoodDiningOut: "30",
 			},
 		},

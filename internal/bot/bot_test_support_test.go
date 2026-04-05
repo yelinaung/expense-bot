@@ -22,7 +22,47 @@ const (
 	testCategoryFood          = "Food"
 	testCategoryTransport     = "Transport"
 	testCategoryFoodDiningOut = "Food - Dining Out"
+	testCategoryFoodGroceries = "Food - Groceries"
+	testLunchDesc             = "Lunch"
+	testAddCategoryCommand    = "/addcategory"
+	testChartWeekCommand      = "/chart week"
+	testReportWeekCommand     = "/report week"
+	testReportMonthCommand    = "/report month"
+	testTagUsageText          = "Usage:"
+	testNotFoundText          = "not found"
+	testControlCharactersText = "control characters"
+	testVoiceFileID           = "voice-file-id"
+	testPhotoFileID           = "photo-file-id"
+	testProcessingVoiceText   = "Processing voice message"
+	testProcessingReceiptText = "Processing receipt"
+	testTodayExpensesText     = "Today's Expenses"
+	testOriginalDescription   = "Original description"
+	testEditCommandPrefix     = "/edit "
+	testEditCommand           = "/edit"
+	testDeleteCommand         = "/delete"
+	testInlineNilCallbackName = "returns early for nil callback query"
+	testUpdateExpenseTimeSQL  = "UPDATE expenses SET created_at = $1 WHERE id = $2"
+	testExtractsFromMessage   = "extracts from message"
+	testExtractsFromCallback  = "extracts from callback query"
+	testExtractsFromEdited    = "extracts from edited message"
+	testExpectedNonNilInput   = "expected non-nil result for input: %s"
 )
+
+func withBotMention(command string) string {
+	return command + "@mybot"
+}
+
+func withCommandArg(command, arg string) string {
+	if arg == "" {
+		return command
+	}
+
+	return command + " " + arg
+}
+
+func bracketedCategory(category string) string {
+	return "[" + category + "]"
+}
 
 // testDB is a convenience wrapper around dbtest.TestTx for bot tests.
 func testDB(ctx context.Context, t *testing.T) database.PGXDB {

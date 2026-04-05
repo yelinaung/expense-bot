@@ -48,7 +48,7 @@ func TestHandleVoiceCore(t *testing.T) {
 		t.Parallel()
 		b := &Bot{}
 		mockBot := mocks.NewMockBot()
-		update := mocks.VoiceUpdate(12345, 100, "voice-file-id", 5)
+		update := mocks.VoiceUpdate(12345, 100, testVoiceFileID, 5)
 		b.handleVoiceCore(context.Background(), mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		require.Contains(t, mockBot.LastSentMessage().Text, "Voice expense input is not configured")
@@ -92,12 +92,12 @@ func TestHandleVoiceCore_DownloadError(t *testing.T) {
 	}
 	mockBot := mocks.NewMockBot()
 	mockBot.GetFileError = errors.New("get file failed")
-	update := mocks.VoiceUpdate(12345, 100, "voice-file-id", 5)
+	update := mocks.VoiceUpdate(12345, 100, testVoiceFileID, 5)
 
 	b.handleVoiceCore(context.Background(), mockBot, update)
 
 	require.Equal(t, 2, mockBot.SentMessageCount())
-	require.Contains(t, mockBot.SentMessages[0].Text, "Processing voice message")
+	require.Contains(t, mockBot.SentMessages[0].Text, testProcessingVoiceText)
 	require.Contains(t, mockBot.SentMessages[1].Text, "Failed to download voice message")
 }
 
@@ -123,12 +123,12 @@ func TestHandleVoiceCore_ParseError(t *testing.T) {
 		}),
 	}
 	mockBot := mocks.NewMockBot()
-	update := mocks.VoiceUpdate(12345, 100, "voice-file-id", 5)
+	update := mocks.VoiceUpdate(12345, 100, testVoiceFileID, 5)
 
 	b.handleVoiceCore(context.Background(), mockBot, update)
 
 	require.Equal(t, 2, mockBot.SentMessageCount())
-	require.Contains(t, mockBot.SentMessages[0].Text, "Processing voice message")
+	require.Contains(t, mockBot.SentMessages[0].Text, testProcessingVoiceText)
 	require.Contains(t, mockBot.SentMessages[1].Text, "Failed to process voice message")
 }
 
@@ -166,11 +166,11 @@ func TestHandleVoiceCore_Success(t *testing.T) {
 		}),
 	}
 	mockBot := mocks.NewMockBot()
-	update := mocks.VoiceUpdate(12345, 100, "voice-file-id", 5)
+	update := mocks.VoiceUpdate(12345, 100, testVoiceFileID, 5)
 
 	b.handleVoiceCore(ctx, mockBot, update)
 
 	require.Equal(t, 2, mockBot.SentMessageCount())
-	require.Contains(t, mockBot.SentMessages[0].Text, "Processing voice message")
+	require.Contains(t, mockBot.SentMessages[0].Text, testProcessingVoiceText)
 	require.Contains(t, mockBot.SentMessages[1].Text, "Voice Expense Detected")
 }

@@ -21,7 +21,7 @@ import (
 func TestExtractUserID(t *testing.T) {
 	t.Parallel()
 
-	t.Run("extracts from message", func(t *testing.T) {
+	t.Run(testExtractsFromMessage, func(t *testing.T) {
 		t.Parallel()
 		update := &tgmodels.Update{
 			Message: &tgmodels.Message{
@@ -31,7 +31,7 @@ func TestExtractUserID(t *testing.T) {
 		require.Equal(t, int64(12345), extractUserID(update))
 	})
 
-	t.Run("extracts from callback query", func(t *testing.T) {
+	t.Run(testExtractsFromCallback, func(t *testing.T) {
 		t.Parallel()
 		update := &tgmodels.Update{
 			CallbackQuery: &tgmodels.CallbackQuery{
@@ -41,7 +41,7 @@ func TestExtractUserID(t *testing.T) {
 		require.Equal(t, int64(67890), extractUserID(update))
 	})
 
-	t.Run("extracts from edited message", func(t *testing.T) {
+	t.Run(testExtractsFromEdited, func(t *testing.T) {
 		t.Parallel()
 		update := &tgmodels.Update{
 			EditedMessage: &tgmodels.Message{
@@ -69,7 +69,7 @@ func TestExtractUserID(t *testing.T) {
 func TestExtractUsername(t *testing.T) {
 	t.Parallel()
 
-	t.Run("extracts from message", func(t *testing.T) {
+	t.Run(testExtractsFromMessage, func(t *testing.T) {
 		t.Parallel()
 		update := &tgmodels.Update{
 			Message: &tgmodels.Message{
@@ -79,7 +79,7 @@ func TestExtractUsername(t *testing.T) {
 		require.Equal(t, "testuser", extractUsername(update))
 	})
 
-	t.Run("extracts from callback query", func(t *testing.T) {
+	t.Run(testExtractsFromCallback, func(t *testing.T) {
 		t.Parallel()
 		update := &tgmodels.Update{
 			CallbackQuery: &tgmodels.CallbackQuery{
@@ -89,7 +89,7 @@ func TestExtractUsername(t *testing.T) {
 		require.Equal(t, "callbackuser", extractUsername(update))
 	})
 
-	t.Run("extracts from edited message", func(t *testing.T) {
+	t.Run(testExtractsFromEdited, func(t *testing.T) {
 		t.Parallel()
 		update := &tgmodels.Update{
 			EditedMessage: &tgmodels.Message{
@@ -117,7 +117,7 @@ func TestExtractUsername(t *testing.T) {
 func TestExtractChatID(t *testing.T) {
 	t.Parallel()
 
-	t.Run("extracts from message", func(t *testing.T) {
+	t.Run(testExtractsFromMessage, func(t *testing.T) {
 		t.Parallel()
 		update := &tgmodels.Update{
 			Message: &tgmodels.Message{
@@ -127,7 +127,7 @@ func TestExtractChatID(t *testing.T) {
 		require.Equal(t, int64(12345), extractChatID(update))
 	})
 
-	t.Run("extracts from callback query", func(t *testing.T) {
+	t.Run(testExtractsFromCallback, func(t *testing.T) {
 		t.Parallel()
 		update := &tgmodels.Update{
 			CallbackQuery: &tgmodels.CallbackQuery{
@@ -141,7 +141,7 @@ func TestExtractChatID(t *testing.T) {
 		require.Equal(t, int64(67890), extractChatID(update))
 	})
 
-	t.Run("extracts from edited message", func(t *testing.T) {
+	t.Run(testExtractsFromEdited, func(t *testing.T) {
 		t.Parallel()
 		update := &tgmodels.Update{
 			EditedMessage: &tgmodels.Message{

@@ -48,7 +48,7 @@ func TestHandleExpenseActionCallbackCore(t *testing.T) {
 	err = expenseRepo.Create(ctx, expense)
 	require.NoError(t, err)
 
-	t.Run("returns early for nil callback query", func(t *testing.T) {
+	t.Run(testInlineNilCallbackName, func(t *testing.T) {
 		mockBot.Reset()
 
 		update := &tgmodels.Update{CallbackQuery: nil}
@@ -163,7 +163,7 @@ func TestHandleConfirmDeleteCallbackCore(t *testing.T) {
 	err = expenseRepo.Create(ctx, expense)
 	require.NoError(t, err)
 
-	t.Run("returns early for nil callback query", func(t *testing.T) {
+	t.Run(testInlineNilCallbackName, func(t *testing.T) {
 		mockBot.Reset()
 
 		update := &tgmodels.Update{CallbackQuery: nil}
@@ -225,7 +225,7 @@ func TestHandleBackToExpenseCallbackCore(t *testing.T) {
 	err = expenseRepo.Create(ctx, expense)
 	require.NoError(t, err)
 
-	t.Run("returns early for nil callback query", func(t *testing.T) {
+	t.Run(testInlineNilCallbackName, func(t *testing.T) {
 		mockBot.Reset()
 
 		update := &tgmodels.Update{CallbackQuery: nil}

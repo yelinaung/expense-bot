@@ -27,18 +27,18 @@ func TestHandleEditCore(t *testing.T) {
 
 	t.Run("invalid command format returns usage", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		update := mocks.CommandUpdate(chatID, userID, "/edit")
+		update := mocks.CommandUpdate(chatID, userID, testEditCommand)
 		b.handleEditCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
-		require.Contains(t, mockBot.LastSentMessage().Text, "Usage:")
+		require.Contains(t, mockBot.LastSentMessage().Text, testTagUsageText)
 	})
 
 	t.Run("expense not found returns not found", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		update := mocks.CommandUpdate(chatID, userID, "/edit 9999 1.00 coffee")
+		update := mocks.CommandUpdate(chatID, userID, testEditCommandPrefix+"9999 1.00 coffee")
 		b.handleEditCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
-		require.Contains(t, mockBot.LastSentMessage().Text, "not found")
+		require.Contains(t, mockBot.LastSentMessage().Text, testNotFoundText)
 	})
 
 	t.Run("updates expense successfully", func(t *testing.T) {
@@ -53,7 +53,7 @@ func TestHandleEditCore(t *testing.T) {
 		}
 		require.NoError(t, b.expenseRepo.Create(ctx, expense))
 
-		cmd := "/edit " + strconv.FormatInt(expense.UserExpenseNumber, 10) + " 20.50 after"
+		cmd := testEditCommandPrefix + strconv.FormatInt(expense.UserExpenseNumber, 10) + " 20.50 after"
 		update := mocks.CommandUpdate(chatID, userID, cmd)
 		b.handleEditCore(ctx, mockBot, update)
 
@@ -79,7 +79,7 @@ func TestHandleEditCore(t *testing.T) {
 		}
 		require.NoError(t, b.expenseRepo.Create(ctx, expense))
 
-		cmd := "/edit " + strconv.FormatInt(expense.UserExpenseNumber, 10) + " not-a-valid-input"
+		cmd := testEditCommandPrefix + strconv.FormatInt(expense.UserExpenseNumber, 10) + " not-a-valid-input"
 		update := &models.Update{
 			Message: &models.Message{
 				Chat: models.Chat{ID: chatID},
@@ -108,7 +108,7 @@ func TestHandleDeleteCore(t *testing.T) {
 
 	t.Run("usage when no args", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		update := mocks.CommandUpdate(chatID, userID, "/delete")
+		update := mocks.CommandUpdate(chatID, userID, testDeleteCommand)
 		b.handleDeleteCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		require.Contains(t, mockBot.LastSentMessage().Text, "Usage")
@@ -116,18 +116,18 @@ func TestHandleDeleteCore(t *testing.T) {
 
 	t.Run("invalid id", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		update := mocks.CommandUpdate(chatID, userID, "/delete abc")
+		update := mocks.CommandUpdate(chatID, userID, withCommandArg(testDeleteCommand, "abc"))
 		b.handleDeleteCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		require.Contains(t, mockBot.LastSentMessage().Text, "Invalid expense ID")
 	})
 
-	t.Run("not found", func(t *testing.T) {
+	t.Run(testNotFoundText, func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		update := mocks.CommandUpdate(chatID, userID, "/delete 99999")
+		update := mocks.CommandUpdate(chatID, userID, withCommandArg(testDeleteCommand, "99999"))
 		b.handleDeleteCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
-		require.Contains(t, mockBot.LastSentMessage().Text, "not found")
+		require.Contains(t, mockBot.LastSentMessage().Text, testNotFoundText)
 	})
 
 	t.Run("deletes successfully", func(t *testing.T) {
@@ -141,7 +141,7 @@ func TestHandleDeleteCore(t *testing.T) {
 		}
 		require.NoError(t, b.expenseRepo.Create(ctx, expense))
 
-		cmd := "/delete " + strconv.FormatInt(expense.UserExpenseNumber, 10)
+		cmd := withCommandArg(testDeleteCommand, strconv.FormatInt(expense.UserExpenseNumber, 10))
 		update := mocks.CommandUpdate(chatID, userID, cmd)
 		b.handleDeleteCore(ctx, mockBot, update)
 

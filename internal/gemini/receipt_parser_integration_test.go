@@ -25,7 +25,7 @@ func TestParseReceipt_Integration(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, imageBytes)
 
-		receiptData, err := client.ParseReceipt(ctx, imageBytes, "image/jpeg")
+		receiptData, err := client.ParseReceipt(ctx, imageBytes, testGeminiImageJPEG)
 		require.NoError(t, err)
 		require.NotNil(t, receiptData)
 
@@ -41,8 +41,8 @@ func TestParseReceipt_Integration(t *testing.T) {
 		require.Contains(t, strings.ToLower(receiptData.Merchant), "swee choon",
 			"expected merchant to contain 'Swee Choon', got %s", receiptData.Merchant)
 
-		require.Equal(t, "Food - Dining Out", receiptData.SuggestedCategory,
-			"expected category 'Food - Dining Out', got %s", receiptData.SuggestedCategory)
+		require.Equal(t, testGeminiCategoryFoodDiningOut, receiptData.SuggestedCategory,
+			"expected category %q, got %s", testGeminiCategoryFoodDiningOut, receiptData.SuggestedCategory)
 
 		require.GreaterOrEqual(t, receiptData.Confidence, 0.7,
 			"expected confidence >= 0.7, got %f", receiptData.Confidence)
@@ -55,14 +55,14 @@ func TestParseReceipt_Integration(t *testing.T) {
 	})
 
 	t.Run("returns error for empty image", func(t *testing.T) {
-		_, err := client.ParseReceipt(ctx, []byte{}, "image/jpeg")
+		_, err := client.ParseReceipt(ctx, []byte{}, testGeminiImageJPEG)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "image data is required")
 	})
 
 	t.Run("handles invalid image gracefully", func(t *testing.T) {
 		invalidImage := []byte("not a valid image")
-		_, err := client.ParseReceipt(ctx, invalidImage, "image/jpeg")
+		_, err := client.ParseReceipt(ctx, invalidImage, testGeminiImageJPEG)
 		require.Error(t, err)
 	})
 }

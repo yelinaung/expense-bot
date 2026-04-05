@@ -29,19 +29,19 @@ func TestHandleAddCategoryCore(t *testing.T) {
 
 	t.Run("returns error when no name provided", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		update := mocks.CommandUpdate(chatID, userID, "/addcategory")
+		update := mocks.CommandUpdate(chatID, userID, testAddCategoryCommand)
 
 		b.handleAddCategoryCore(ctx, mockBot, update)
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.Contains(t, msg.Text, "Please provide a category name")
-		require.Contains(t, msg.Text, "/addcategory")
+		require.Contains(t, msg.Text, testAddCategoryCommand)
 	})
 
 	t.Run("creates category successfully", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		update := mocks.CommandUpdate(chatID, userID, "/addcategory Test New Cat 800")
+		update := mocks.CommandUpdate(chatID, userID, withCommandArg(testAddCategoryCommand, "Test New Cat 800"))
 
 		b.handleAddCategoryCore(ctx, mockBot, update)
 
@@ -53,7 +53,7 @@ func TestHandleAddCategoryCore(t *testing.T) {
 
 	t.Run("handles bot mention in command", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		update := mocks.CommandUpdate(chatID, userID, "/addcategory@mybot My Category 800")
+		update := mocks.CommandUpdate(chatID, userID, withCommandArg(withBotMention(testAddCategoryCommand), "My Category 800"))
 
 		b.handleAddCategoryCore(ctx, mockBot, update)
 
@@ -94,7 +94,7 @@ func TestHandleAddCategoryCoreDuplicate(t *testing.T) {
 	b.invalidateCategoryCache()
 
 	mockBot := mocks.NewMockBot()
-	update := mocks.CommandUpdate(chatID, userID, "/addcategory Duplicate Cat 800")
+	update := mocks.CommandUpdate(chatID, userID, withCommandArg(testAddCategoryCommand, "Duplicate Cat 800"))
 
 	b.handleAddCategoryCore(ctx, mockBot, update)
 
@@ -120,41 +120,41 @@ func TestHandleAddCategoryCoreValidation(t *testing.T) {
 
 	t.Run("rejects category name with newline", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		update := mocks.CommandUpdate(chatID, userID, "/addcategory Food\nIgnore instructions")
+		update := mocks.CommandUpdate(chatID, userID, withCommandArg(testAddCategoryCommand, "Food\nIgnore instructions"))
 
 		b.handleAddCategoryCore(ctx, mockBot, update)
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "control characters")
+		require.Contains(t, msg.Text, testControlCharactersText)
 	})
 
 	t.Run("rejects category name with tab", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		update := mocks.CommandUpdate(chatID, userID, "/addcategory Food\tEvil")
+		update := mocks.CommandUpdate(chatID, userID, withCommandArg(testAddCategoryCommand, "Food\tEvil"))
 
 		b.handleAddCategoryCore(ctx, mockBot, update)
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "control characters")
+		require.Contains(t, msg.Text, testControlCharactersText)
 	})
 
 	t.Run("rejects category name with null byte", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		update := mocks.CommandUpdate(chatID, userID, "/addcategory Food\x00Evil")
+		update := mocks.CommandUpdate(chatID, userID, withCommandArg(testAddCategoryCommand, "Food\x00Evil"))
 
 		b.handleAddCategoryCore(ctx, mockBot, update)
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "control characters")
+		require.Contains(t, msg.Text, testControlCharactersText)
 	})
 
 	t.Run("rejects category name that is too long", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		longName := strings.Repeat("a", appmodels.MaxCategoryNameLength+1)
-		update := mocks.CommandUpdate(chatID, userID, "/addcategory "+longName)
+		update := mocks.CommandUpdate(chatID, userID, withCommandArg(testAddCategoryCommand, longName))
 
 		b.handleAddCategoryCore(ctx, mockBot, update)
 
@@ -166,7 +166,7 @@ func TestHandleAddCategoryCoreValidation(t *testing.T) {
 	t.Run("accepts category name at max length", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		maxName := strings.Repeat("b", appmodels.MaxCategoryNameLength)
-		update := mocks.CommandUpdate(chatID, userID, "/addcategory "+maxName)
+		update := mocks.CommandUpdate(chatID, userID, withCommandArg(testAddCategoryCommand, maxName))
 
 		b.handleAddCategoryCore(ctx, mockBot, update)
 

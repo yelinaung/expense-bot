@@ -132,7 +132,7 @@ func TestCheckAndSendReminders(t *testing.T) {
 		require.Equal(t, 1, mockBot.SentMessageCount(), "should send daily summary to user with expenses")
 		msg := mockBot.LastSentMessage()
 		require.Equal(t, int64(2002), msg.ChatID)
-		require.Contains(t, msg.Text, "Today's Expenses")
+		require.Contains(t, msg.Text, testTodayExpensesText)
 		require.Contains(t, msg.Text, "Lunch")
 		require.Equal(t, tgmodels.ParseModeHTML, msg.ParseMode)
 		require.Equal(t, todayStr, reminded[2002])
@@ -176,7 +176,7 @@ func TestCheckAndSendReminders(t *testing.T) {
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "Today's Expenses")
+		require.Contains(t, msg.Text, testTodayExpensesText)
 		require.Contains(t, msg.Text, "Breakfast")
 		require.Equal(t, nowAtBoundary.Format("2006-01-02"), reminded[2012])
 	})
@@ -216,7 +216,7 @@ func TestCheckAndSendReminders(t *testing.T) {
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, "Today's Expenses")
+		require.Contains(t, msg.Text, testTodayExpensesText)
 		require.Contains(t, msg.Text, "Tea")
 		require.Equal(t, todayStr, reminded[2013])
 	})

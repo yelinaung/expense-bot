@@ -19,9 +19,9 @@ func TestSuggestCategory(t *testing.T) {
 	t.Parallel()
 
 	categories := []string{
-		"Food - Dining Out",
-		"Food - Groceries",
-		"Transportation",
+		testGeminiCategoryFoodDiningOut,
+		testGeminiCategoryFoodGroceries,
+		testGeminiCategoryTransport,
 		"Entertainment",
 		"Shopping",
 		"Health & Fitness",
@@ -31,14 +31,14 @@ func TestSuggestCategory(t *testing.T) {
 	t.Run("suggests category for coffee", func(t *testing.T) {
 		t.Parallel()
 		mockGen := &mockGenerator{
-			response: createMockCategoryResponse("Food - Dining Out", 0.95, "Coffee is typically a dining out expense"),
+			response: createMockCategoryResponse(testGeminiCategoryFoodDiningOut, 0.95, "Coffee is typically a dining out expense"),
 		}
 		client := NewClientWithGenerator(mockGen)
 
 		suggestion, err := client.SuggestCategory(context.Background(), "coffee", categories)
 		require.NoError(t, err)
 		require.NotNil(t, suggestion)
-		require.Equal(t, "Food - Dining Out", suggestion.Category)
+		require.Equal(t, testGeminiCategoryFoodDiningOut, suggestion.Category)
 		require.Greater(t, suggestion.Confidence, 0.9)
 		require.NotEmpty(t, suggestion.Reasoning)
 	})
@@ -46,27 +46,27 @@ func TestSuggestCategory(t *testing.T) {
 	t.Run("suggests category for taxi", func(t *testing.T) {
 		t.Parallel()
 		mockGen := &mockGenerator{
-			response: createMockCategoryResponse("Transportation", 0.98, "Taxi is a transportation expense"),
+			response: createMockCategoryResponse(testGeminiCategoryTransport, 0.98, "Taxi is a transportation expense"),
 		}
 		client := NewClientWithGenerator(mockGen)
 
 		suggestion, err := client.SuggestCategory(context.Background(), "taxi to airport", categories)
 		require.NoError(t, err)
 		require.NotNil(t, suggestion)
-		require.Equal(t, "Transportation", suggestion.Category)
+		require.Equal(t, testGeminiCategoryTransport, suggestion.Category)
 	})
 
 	t.Run("suggests category for groceries", func(t *testing.T) {
 		t.Parallel()
 		mockGen := &mockGenerator{
-			response: createMockCategoryResponse("Food - Groceries", 0.92, "Supermarket shopping is typically groceries"),
+			response: createMockCategoryResponse(testGeminiCategoryFoodGroceries, 0.92, "Supermarket shopping is typically groceries"),
 		}
 		client := NewClientWithGenerator(mockGen)
 
 		suggestion, err := client.SuggestCategory(context.Background(), "supermarket", categories)
 		require.NoError(t, err)
 		require.NotNil(t, suggestion)
-		require.Equal(t, "Food - Groceries", suggestion.Category)
+		require.Equal(t, testGeminiCategoryFoodGroceries, suggestion.Category)
 	})
 
 	t.Run("handles case-insensitive category matching", func(t *testing.T) {
@@ -80,7 +80,7 @@ func TestSuggestCategory(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, suggestion)
 		// Should match exact case from available categories
-		require.Equal(t, "Transportation", suggestion.Category)
+		require.Equal(t, testGeminiCategoryTransport, suggestion.Category)
 	})
 
 	t.Run("returns error for empty description", func(t *testing.T) {
@@ -280,29 +280,29 @@ func TestSanitizeDescription(t *testing.T) {
 			expected: "Coffee'Shop",
 		},
 		{
-			name:     "removes newlines",
+			name:     testGeminiRemovesNewlines,
 			input:    "Coffee\nShop",
-			expected: "Coffee Shop",
+			expected: testGeminiCoffeeShop,
 		},
 		{
 			name:     "removes carriage returns",
 			input:    "Coffee\r\nShop",
-			expected: "Coffee Shop",
+			expected: testGeminiCoffeeShop,
 		},
 		{
-			name:     "removes null bytes",
+			name:     testGeminiRemovesNullBytes,
 			input:    "Coffee\x00Shop",
 			expected: "CoffeeShop",
 		},
 		{
 			name:     "collapses multiple spaces",
 			input:    "Coffee   Shop",
-			expected: "Coffee Shop",
+			expected: testGeminiCoffeeShop,
 		},
 		{
 			name:     "trims leading and trailing spaces",
-			input:    "  Coffee Shop  ",
-			expected: "Coffee Shop",
+			input:    "  " + testGeminiCoffeeShop + "  ",
+			expected: testGeminiCoffeeShop,
 		},
 		{
 			name:     "truncates long descriptions",
@@ -322,12 +322,12 @@ func TestSanitizeDescription(t *testing.T) {
 		{
 			name:     "handles tab characters",
 			input:    "Coffee\tShop\t\tExpense",
-			expected: "Coffee Shop Expense",
+			expected: testGeminiCoffeeShop + " Expense",
 		},
 		{
 			name:     "handles mixed whitespace",
 			input:    "Coffee \t\n Shop",
-			expected: "Coffee Shop",
+			expected: testGeminiCoffeeShop,
 		},
 		{
 			name:     "handles zero-width characters",
@@ -342,7 +342,7 @@ func TestSanitizeDescription(t *testing.T) {
 		{
 			name:     "handles unicode whitespace",
 			input:    "Coffee\u00A0Shop\u2003Expense", // non-breaking space, em space
-			expected: "Coffee Shop Expense",
+			expected: testGeminiCoffeeShop + " Expense",
 		},
 		{
 			name:     "truncates at exact boundary",
@@ -374,19 +374,19 @@ func TestSanitizeReasoning(t *testing.T) {
 		expected string
 	}{
 		{
-			name:     "removes newlines",
+			name:     testGeminiRemovesNewlines,
 			input:    "This is a\ntest reasoning",
-			expected: "This is a test reasoning",
+			expected: testGeminiReasoningTestText + " reasoning",
 		},
 		{
 			name:     "removes carriage returns",
 			input:    "This is\r\na test",
-			expected: "This is a test",
+			expected: testGeminiReasoningTestText,
 		},
 		{
 			name:     "collapses multiple spaces",
 			input:    "This  is   a test",
-			expected: "This is a test",
+			expected: testGeminiReasoningTestText,
 		},
 		{
 			name:     "truncates long reasoning",
@@ -396,7 +396,7 @@ func TestSanitizeReasoning(t *testing.T) {
 		{
 			name:     "handles tab characters",
 			input:    "This is\ta\ttest",
-			expected: "This is a test",
+			expected: testGeminiReasoningTestText,
 		},
 		{
 			name:     "truncates at exact 500 boundary",
@@ -492,9 +492,9 @@ func TestSuggestCategory_PromptInjection(t *testing.T) {
 	t.Parallel()
 
 	categories := []string{
-		"Food - Dining Out",
-		"Food - Groceries",
-		"Transportation",
+		testGeminiCategoryFoodDiningOut,
+		testGeminiCategoryFoodGroceries,
+		testGeminiCategoryTransport,
 		"Entertainment",
 	}
 
@@ -532,7 +532,7 @@ func TestSuggestCategory_PromptInjection(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			mockGen := &mockGenerator{
-				response: createMockCategoryResponse("Food - Dining Out", 0.85, "Coffee categorized as dining"),
+				response: createMockCategoryResponse(testGeminiCategoryFoodDiningOut, 0.85, "Coffee categorized as dining"),
 			}
 			client := NewClientWithGenerator(mockGen)
 
@@ -552,7 +552,7 @@ func TestSuggestCategory_PromptInjection(t *testing.T) {
 func TestSuggestCategory_NewCategorySuggestion(t *testing.T) {
 	t.Parallel()
 
-	categories := []string{"Food - Dining Out", "Transportation"}
+	categories := []string{testGeminiCategoryFoodDiningOut, testGeminiCategoryTransport}
 	mockGen := &mockGenerator{
 		response: createMockNewCategoryResponse("Subscriptions - AI Tools", 0.92, "Distinct recurring software expense"),
 	}
@@ -569,7 +569,7 @@ func TestSuggestCategory_NewCategorySuggestion(t *testing.T) {
 func TestSuggestCategory_NewCategoryNormalizedToExisting(t *testing.T) {
 	t.Parallel()
 
-	categories := []string{"Food - Dining Out", "Transportation"}
+	categories := []string{testGeminiCategoryFoodDiningOut, testGeminiCategoryTransport}
 	mockGen := &mockGenerator{
 		response: createMockNewCategoryResponse("transportation", 0.90, "existing category phrased as new"),
 	}
@@ -579,14 +579,14 @@ func TestSuggestCategory_NewCategoryNormalizedToExisting(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, suggestion)
 	require.True(t, suggestion.Matched)
-	require.Equal(t, "Transportation", suggestion.Category)
+	require.Equal(t, testGeminiCategoryTransport, suggestion.Category)
 	require.Empty(t, suggestion.NewCategoryName)
 }
 
 func TestSuggestCategory_InvalidPayloadWithoutCategoryOrNewCategory(t *testing.T) {
 	t.Parallel()
 
-	categories := []string{"Food - Dining Out", "Transportation"}
+	categories := []string{testGeminiCategoryFoodDiningOut, testGeminiCategoryTransport}
 	mockGen := &mockGenerator{
 		response: &genai.GenerateContentResponse{
 			Candidates: []*genai.Candidate{
@@ -630,13 +630,13 @@ func TestSanitizeForPrompt(t *testing.T) {
 			expected:  "Test 'value'",
 		},
 		{
-			name:      "removes null bytes",
+			name:      testGeminiRemovesNullBytes,
 			input:     "Test\x00value",
 			maxLength: 100,
 			expected:  "Testvalue",
 		},
 		{
-			name:      "removes newlines",
+			name:      testGeminiRemovesNewlines,
 			input:     "Test\nvalue",
 			maxLength: 100,
 			expected:  "Test value",
@@ -674,8 +674,8 @@ func TestSanitizeCategoryName(t *testing.T) {
 	}{
 		{
 			name:     "normal category passes through",
-			input:    "Food - Dining Out",
-			expected: "Food - Dining Out",
+			input:    testGeminiCategoryFoodDiningOut,
+			expected: testGeminiCategoryFoodDiningOut,
 		},
 		{
 			name:     "removes newlines from category",
@@ -688,7 +688,7 @@ func TestSanitizeCategoryName(t *testing.T) {
 			expected: strings.Repeat("a", MaxCategoryNameLength),
 		},
 		{
-			name:     "removes null bytes",
+			name:     testGeminiRemovesNullBytes,
 			input:    "Food\x00Category",
 			expected: "FoodCategory",
 		},
@@ -721,12 +721,12 @@ func TestSanitizeCategoryName(t *testing.T) {
 func TestSuggestCategory_ConfidenceValidation(t *testing.T) {
 	t.Parallel()
 
-	categories := []string{"Food - Dining Out", "Transportation"}
+	categories := []string{testGeminiCategoryFoodDiningOut, testGeminiCategoryTransport}
 
 	t.Run("rejects confidence below 0", func(t *testing.T) {
 		t.Parallel()
 		mockGen := &mockGenerator{
-			response: createMockCategoryResponse("Food - Dining Out", -0.5, "Test"),
+			response: createMockCategoryResponse(testGeminiCategoryFoodDiningOut, -0.5, "Test"),
 		}
 		client := NewClientWithGenerator(mockGen)
 
@@ -739,7 +739,7 @@ func TestSuggestCategory_ConfidenceValidation(t *testing.T) {
 	t.Run("rejects confidence above 1", func(t *testing.T) {
 		t.Parallel()
 		mockGen := &mockGenerator{
-			response: createMockCategoryResponse("Food - Dining Out", 1.5, "Test"),
+			response: createMockCategoryResponse(testGeminiCategoryFoodDiningOut, 1.5, "Test"),
 		}
 		client := NewClientWithGenerator(mockGen)
 
@@ -754,15 +754,15 @@ func TestSuggestCategory_SanitizesCategoryEnum(t *testing.T) {
 	t.Parallel()
 
 	categories := []string{
-		"Food - Dining Out",
+		testGeminiCategoryFoodDiningOut,
 		"",
 		"   ",
-		"Transportation",
+		testGeminiCategoryTransport,
 		"transportation",
 		"Utilities\n",
 	}
 	mockGen := &mockGenerator{
-		response: createMockCategoryResponse("Transportation", 0.92, "taxi"),
+		response: createMockCategoryResponse(testGeminiCategoryTransport, 0.92, "taxi"),
 	}
 	client := NewClientWithGenerator(mockGen)
 
@@ -774,6 +774,6 @@ func TestSuggestCategory_SanitizesCategoryEnum(t *testing.T) {
 
 	categorySchema := mockGen.lastConfig.ResponseSchema.Properties["category"]
 	require.NotNil(t, categorySchema)
-	require.Equal(t, []string{"Food - Dining Out", "Transportation", "Utilities"}, categorySchema.Enum)
+	require.Equal(t, []string{testGeminiCategoryFoodDiningOut, testGeminiCategoryTransport, "Utilities"}, categorySchema.Enum)
 	require.NotContains(t, categorySchema.Enum, "")
 }

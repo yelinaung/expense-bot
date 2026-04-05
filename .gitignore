@@ -40,6 +40,8 @@ Thumbs.db
 
 # Claude Code local settings
 .claude/
+CLAUDE.md
+.rtk
 
 tmp
 .cache/

@@ -57,7 +57,7 @@ func TestHandleReportCore(t *testing.T) {
 
 		// Update created_at to be within this week
 		_, err = b.expenseRepo.Pool().Exec(ctx,
-			"UPDATE expenses SET created_at = $1 WHERE id = $2",
+			testUpdateExpenseTimeSQL,
 			startOfWeek.Add(time.Duration(i)*24*time.Hour), expense.ID)
 		require.NoError(t, err)
 	}
@@ -78,14 +78,14 @@ func TestHandleReportCore(t *testing.T) {
 
 		// Update created_at to be within this month but before this week
 		_, err = b.expenseRepo.Pool().Exec(ctx,
-			"UPDATE expenses SET created_at = $1 WHERE id = $2",
+			testUpdateExpenseTimeSQL,
 			startOfMonth.Add(time.Duration(i)*24*time.Hour), expense.ID)
 		require.NoError(t, err)
 	}
 
 	t.Run("generates weekly report CSV", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		update := mocks.CommandUpdate(chatID, userID, "/report week")
+		update := mocks.CommandUpdate(chatID, userID, testReportWeekCommand)
 
 		b.handleReportCore(ctx, mockBot, update)
 
@@ -98,7 +98,7 @@ func TestHandleReportCore(t *testing.T) {
 
 	t.Run("generates monthly report CSV", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		update := mocks.CommandUpdate(chatID, userID, "/report month")
+		update := mocks.CommandUpdate(chatID, userID, testReportMonthCommand)
 
 		b.handleReportCore(ctx, mockBot, update)
 
@@ -145,7 +145,7 @@ func TestHandleReportCore(t *testing.T) {
 			err = b.expenseRepo.Create(ctx, expense)
 			require.NoError(t, err)
 			_, err = b.expenseRepo.Pool().Exec(ctx,
-				"UPDATE expenses SET created_at = $1 WHERE id = $2",
+				testUpdateExpenseTimeSQL,
 				ts, expense.ID)
 			require.NoError(t, err)
 		}
@@ -155,7 +155,7 @@ func TestHandleReportCore(t *testing.T) {
 		makeExpense("3.00", "Sunday End", time.Date(2026, 3, 1, 23, 59, 0, 0, b.displayLocation))
 		makeExpense("4.00", "Next Monday", time.Date(2026, 3, 2, 0, 1, 0, 0, b.displayLocation))
 
-		update := mocks.CommandUpdate(chatID, tzUserID, "/report week")
+		update := mocks.CommandUpdate(chatID, tzUserID, testReportWeekCommand)
 		b.handleReportCore(ctx, mockBot, update)
 
 		require.Equal(t, 1, mockBot.SentDocumentCount())
@@ -203,7 +203,7 @@ func TestHandleReportCore(t *testing.T) {
 			err = b.expenseRepo.Create(ctx, expense)
 			require.NoError(t, err)
 			_, err = b.expenseRepo.Pool().Exec(ctx,
-				"UPDATE expenses SET created_at = $1 WHERE id = $2",
+				testUpdateExpenseTimeSQL,
 				ts, expense.ID)
 			require.NoError(t, err)
 		}
@@ -213,7 +213,7 @@ func TestHandleReportCore(t *testing.T) {
 		makeExpense("30.00", "Month End", time.Date(2026, 2, 28, 23, 59, 0, 0, b.displayLocation))
 		makeExpense("40.00", "Next Month", time.Date(2026, 3, 1, 0, 1, 0, 0, b.displayLocation))
 
-		update := mocks.CommandUpdate(chatID, tzUserID, "/report month")
+		update := mocks.CommandUpdate(chatID, tzUserID, testReportMonthCommand)
 		b.handleReportCore(ctx, mockBot, update)
 
 		require.Equal(t, 1, mockBot.SentDocumentCount())
@@ -247,8 +247,8 @@ func TestHandleReportCore(t *testing.T) {
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.Contains(t, msg.Text, "❌ Please specify report type")
-		require.Contains(t, msg.Text, "/report week")
-		require.Contains(t, msg.Text, "/report month")
+		require.Contains(t, msg.Text, testReportWeekCommand)
+		require.Contains(t, msg.Text, testReportMonthCommand)
 	})
 
 	t.Run("handles period with no expenses", func(t *testing.T) {
@@ -262,7 +262,7 @@ func TestHandleReportCore(t *testing.T) {
 		require.NoError(t, err)
 
 		mockBot := mocks.NewMockBot()
-		update := mocks.CommandUpdate(chatID, newUserID, "/report week")
+		update := mocks.CommandUpdate(chatID, newUserID, testReportWeekCommand)
 
 		b.handleReportCore(ctx, mockBot, update)
 

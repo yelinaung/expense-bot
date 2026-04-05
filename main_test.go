@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const testMainAppName = "expense-bot"
+
 func TestMainVersionCommand(t *testing.T) {
 	originalArgs := os.Args
 	originalStdout := os.Stdout
@@ -24,7 +26,7 @@ func TestMainVersionCommand(t *testing.T) {
 		date = originalDate
 	})
 
-	os.Args = []string{"expense-bot", "version"}
+	os.Args = []string{testMainAppName, "version"}
 	version = "v1.2.3"
 	commit = "abc123"
 	date = "2026-02-26"
@@ -39,7 +41,7 @@ func TestMainVersionCommand(t *testing.T) {
 	require.NoError(t, w.Close())
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
-	require.Equal(t, "expense-bot v1.2.3 (commit: abc123, built: 2026-02-26)\n", string(out))
+	require.Equal(t, testMainAppName+" v1.2.3 (commit: abc123, built: 2026-02-26)\n", string(out))
 }
 
 func TestMainExitsWhenTelemetryInitFails(t *testing.T) {
@@ -55,7 +57,7 @@ func TestMainExitsWhenTelemetryInitFails(t *testing.T) {
 		t.Setenv(key, value)
 	}
 
-	err := run(context.Background(), []string{"expense-bot"}, io.Discard)
+	err := run(context.Background(), []string{testMainAppName}, io.Discard)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "Failed to initialize OpenTelemetry")
 }
@@ -72,7 +74,7 @@ func TestMainExitsWhenDatabaseConnectFails(t *testing.T) {
 		t.Setenv(key, value)
 	}
 
-	err := run(context.Background(), []string{"expense-bot"}, io.Discard)
+	err := run(context.Background(), []string{testMainAppName}, io.Discard)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "Failed to connect to database")
 }

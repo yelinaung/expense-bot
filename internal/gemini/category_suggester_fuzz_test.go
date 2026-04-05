@@ -5,6 +5,8 @@ import (
 	"testing"
 )
 
+const testWhitespaceControlChars = "\t\n\r"
+
 func FuzzExtractJSON(f *testing.F) {
 	// Valid JSON objects.
 	f.Add(`{"key": "value"}`)
@@ -98,7 +100,7 @@ func FuzzSanitizeDescription(f *testing.F) {
 	// Empty and whitespace.
 	f.Add("")
 	f.Add("   ")
-	f.Add("\t\n\r")
+	f.Add(testWhitespaceControlChars)
 
 	f.Fuzz(func(t *testing.T, input string) {
 		result := sanitizeDescription(input)
@@ -164,7 +166,7 @@ func FuzzSanitizeReasoning(f *testing.F) {
 	// Empty and whitespace.
 	f.Add("")
 	f.Add("   ")
-	f.Add("\t\n\r")
+	f.Add(testWhitespaceControlChars)
 
 	// Unicode.
 	f.Add("日本語の理由") //nolint:gosmopolitan // Intentional Unicode fuzz seed.
