@@ -104,45 +104,53 @@ func FuzzSanitizeDescription(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, input string) {
 		result := sanitizeDescription(input)
-
-		// Invariant 1: Must not contain double quotes.
-		if strings.Contains(result, `"`) {
-			t.Errorf("sanitizeDescription(%q) contains double quote: %q", input, result)
-		}
-
-		// Invariant 2: Must not contain backticks.
-		if strings.Contains(result, "`") {
-			t.Errorf("sanitizeDescription(%q) contains backtick: %q", input, result)
-		}
-
-		// Invariant 3: Must not contain newlines or carriage returns.
-		if strings.Contains(result, "\n") {
-			t.Errorf("sanitizeDescription(%q) contains newline: %q", input, result)
-		}
-		if strings.Contains(result, "\r") {
-			t.Errorf("sanitizeDescription(%q) contains carriage return: %q", input, result)
-		}
-
-		// Invariant 4: Must not contain null bytes.
-		if strings.Contains(result, "\x00") {
-			t.Errorf("sanitizeDescription(%q) contains null byte: %q", input, result)
-		}
-
-		// Invariant 5: Must not exceed MaxDescriptionLength.
-		if len(result) > MaxDescriptionLength {
-			t.Errorf("sanitizeDescription(%q) exceeds max length: got %d, max %d", input, len(result), MaxDescriptionLength)
-		}
-
-		// Invariant 6: Must not have leading or trailing whitespace.
-		if result != strings.TrimSpace(result) {
-			t.Errorf("sanitizeDescription(%q) has untrimmed whitespace: %q", input, result)
-		}
-
-		// Invariant 7: Must not have consecutive spaces.
-		if strings.Contains(result, "  ") {
-			t.Errorf("sanitizeDescription(%q) has consecutive spaces: %q", input, result)
-		}
+		assertSanitizedDescriptionInvariants(t, input, result)
 	})
+}
+
+func assertSanitizedDescriptionInvariants(t *testing.T, input, result string) {
+	t.Helper()
+
+	assertDescriptionExcludesAny(t, input, result,
+		[]string{`"`, "`"},
+		[]string{"double quote", "backtick"},
+	)
+	assertDescriptionExcludesAny(t, input, result,
+		[]string{"\n", "\r", "\x00"},
+		[]string{"newline", "carriage return", "null byte"},
+	)
+	assertDescriptionLength(t, input, result)
+	assertDescriptionSpacing(t, input, result)
+}
+
+func assertDescriptionExcludesAny(t *testing.T, input, result string, disallowed, labels []string) {
+	t.Helper()
+
+	for i, token := range disallowed {
+		if strings.Contains(result, token) {
+			t.Errorf("sanitizeDescription(%q) contains %s: %q", input, labels[i], result)
+		}
+	}
+}
+
+func assertDescriptionLength(t *testing.T, input, result string) {
+	t.Helper()
+
+	if len(result) > MaxDescriptionLength {
+		t.Errorf("sanitizeDescription(%q) exceeds max length: got %d, max %d", input, len(result), MaxDescriptionLength)
+	}
+}
+
+func assertDescriptionSpacing(t *testing.T, input, result string) {
+	t.Helper()
+
+	if result != strings.TrimSpace(result) {
+		t.Errorf("sanitizeDescription(%q) has untrimmed whitespace: %q", input, result)
+	}
+
+	if strings.Contains(result, "  ") {
+		t.Errorf("sanitizeDescription(%q) has consecutive spaces: %q", input, result)
+	}
 }
 
 func FuzzSanitizeReasoning(f *testing.F) {
@@ -236,45 +244,53 @@ func FuzzSanitizeCategoryName(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, input string) {
 		result := SanitizeCategoryName(input)
-
-		// Invariant 1: Must not contain double quotes.
-		if strings.Contains(result, `"`) {
-			t.Errorf("SanitizeCategoryName(%q) contains double quote: %q", input, result)
-		}
-
-		// Invariant 2: Must not contain backticks.
-		if strings.Contains(result, "`") {
-			t.Errorf("SanitizeCategoryName(%q) contains backtick: %q", input, result)
-		}
-
-		// Invariant 3: Must not contain newlines or carriage returns.
-		if strings.Contains(result, "\n") {
-			t.Errorf("SanitizeCategoryName(%q) contains newline: %q", input, result)
-		}
-		if strings.Contains(result, "\r") {
-			t.Errorf("SanitizeCategoryName(%q) contains carriage return: %q", input, result)
-		}
-
-		// Invariant 4: Must not contain null bytes.
-		if strings.Contains(result, "\x00") {
-			t.Errorf("SanitizeCategoryName(%q) contains null byte: %q", input, result)
-		}
-
-		// Invariant 5: Must not exceed MaxCategoryNameLength.
-		if len(result) > MaxCategoryNameLength {
-			t.Errorf("SanitizeCategoryName(%q) exceeds max length: got %d, max %d", input, len(result), MaxCategoryNameLength)
-		}
-
-		// Invariant 6: Must not have leading or trailing whitespace.
-		if result != strings.TrimSpace(result) {
-			t.Errorf("SanitizeCategoryName(%q) has untrimmed whitespace: %q", input, result)
-		}
-
-		// Invariant 7: Must not have consecutive spaces.
-		if strings.Contains(result, "  ") {
-			t.Errorf("SanitizeCategoryName(%q) has consecutive spaces: %q", input, result)
-		}
+		assertSanitizedCategoryNameInvariants(t, input, result)
 	})
+}
+
+func assertSanitizedCategoryNameInvariants(t *testing.T, input, result string) {
+	t.Helper()
+
+	assertCategoryNameExcludesAny(t, input, result,
+		[]string{`"`, "`"},
+		[]string{"double quote", "backtick"},
+	)
+	assertCategoryNameExcludesAny(t, input, result,
+		[]string{"\n", "\r", "\x00"},
+		[]string{"newline", "carriage return", "null byte"},
+	)
+	assertCategoryNameLength(t, input, result)
+	assertCategoryNameSpacing(t, input, result)
+}
+
+func assertCategoryNameExcludesAny(t *testing.T, input, result string, disallowed, labels []string) {
+	t.Helper()
+
+	for i, token := range disallowed {
+		if strings.Contains(result, token) {
+			t.Errorf("SanitizeCategoryName(%q) contains %s: %q", input, labels[i], result)
+		}
+	}
+}
+
+func assertCategoryNameLength(t *testing.T, input, result string) {
+	t.Helper()
+
+	if len(result) > MaxCategoryNameLength {
+		t.Errorf("SanitizeCategoryName(%q) exceeds max length: got %d, max %d", input, len(result), MaxCategoryNameLength)
+	}
+}
+
+func assertCategoryNameSpacing(t *testing.T, input, result string) {
+	t.Helper()
+
+	if result != strings.TrimSpace(result) {
+		t.Errorf("SanitizeCategoryName(%q) has untrimmed whitespace: %q", input, result)
+	}
+
+	if strings.Contains(result, "  ") {
+		t.Errorf("SanitizeCategoryName(%q) has consecutive spaces: %q", input, result)
+	}
 }
 
 func FuzzHashDescription(f *testing.F) {
