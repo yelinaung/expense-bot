@@ -40,7 +40,7 @@ func TestHandleEdit(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("shows usage when no arguments", func(t *testing.T) {
-		update := mocks.CommandUpdate(12345, user.ID, "/edit")
+		update := mocks.CommandUpdate(12345, user.ID, testEditCommand)
 
 		callHandleEdit(ctx, mockBot, update, expenseRepo, categoryRepo, user.ID)
 
@@ -48,7 +48,7 @@ func TestHandleEdit(t *testing.T) {
 		msg := mockBot.LastSentMessage()
 		require.NotNil(t, msg)
 		require.Contains(t, msg.Text, testTagUsageText)
-		require.Contains(t, msg.Text, strings.TrimSpace(testEditCommandPrefix))
+		require.Contains(t, msg.Text, testEditCommand)
 	})
 
 	t.Run("shows error for invalid expense ID", func(t *testing.T) {
@@ -188,7 +188,7 @@ func callHandleEdit(
 
 	chatID := update.Message.Chat.ID
 
-	args := strings.TrimPrefix(update.Message.Text, strings.TrimSpace(testEditCommandPrefix))
+	args := strings.TrimPrefix(update.Message.Text, testEditCommand)
 	args = strings.TrimSpace(args)
 
 	if strings.Index(args, "@") == 0 {

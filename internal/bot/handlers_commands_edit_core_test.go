@@ -3,7 +3,6 @@ package bot
 import (
 	"context"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/go-telegram/bot/models"
@@ -28,7 +27,7 @@ func TestHandleEditCore(t *testing.T) {
 
 	t.Run("invalid command format returns usage", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
-		update := mocks.CommandUpdate(chatID, userID, strings.TrimSpace(testEditCommandPrefix))
+		update := mocks.CommandUpdate(chatID, userID, testEditCommand)
 		b.handleEditCore(ctx, mockBot, update)
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		require.Contains(t, mockBot.LastSentMessage().Text, testTagUsageText)

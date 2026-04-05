@@ -38,6 +38,7 @@ const (
 	testTodayExpensesText     = "Today's Expenses"
 	testOriginalDescription   = "Original description"
 	testEditCommandPrefix     = "/edit "
+	testEditCommand           = "/edit"
 	testDeleteCommand         = "/delete"
 	testInlineNilCallbackName = "returns early for nil callback query"
 	testUpdateExpenseTimeSQL  = "UPDATE expenses SET created_at = $1 WHERE id = $2"
