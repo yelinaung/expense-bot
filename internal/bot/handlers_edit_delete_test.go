@@ -251,7 +251,13 @@ func findEditableExpense(
 		return nil, "", false
 	}
 
-	return expense, parts[1], true
+	values := strings.TrimSpace(parts[1])
+	if values == "" {
+		sendMockHTMLMessage(ctx, mock, chatID, editProvideValsHTML)
+		return nil, "", false
+	}
+
+	return expense, values, true
 }
 
 func loadEditCategories(

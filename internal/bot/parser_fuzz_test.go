@@ -107,37 +107,68 @@ func FuzzParseExpenseInput(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, input string) {
 		result := ParseExpenseInput(input)
-
-		if result != nil {
-			// Invariant 1: Amount must be positive.
-			if result.Amount.LessThanOrEqual(decimal.Zero) {
-				t.Errorf("ParseExpenseInput(%q) returned non-positive amount: %v", input, result.Amount)
-			}
-
-			// Invariant 2: Currency (if set) must be valid.
-			if result.Currency != "" {
-				if _, ok := models.SupportedCurrencies[result.Currency]; !ok {
-					t.Errorf("ParseExpenseInput(%q) returned invalid currency: %s", input, result.Currency)
-				}
-			}
-
-			// Invariant 3: Tags (if set) must each match ^[a-z]\w{0,29}$ (lowercase, letter-start).
-			for _, tag := range result.Tags {
-				if !tagPattern.MatchString(tag) {
-					t.Errorf("ParseExpenseInput(%q) returned invalid tag: %q", input, tag)
-				}
-			}
-
-			// Invariant 4: Tags must be deduplicated.
-			seen := make(map[string]bool)
-			for _, tag := range result.Tags {
-				if seen[tag] {
-					t.Errorf("ParseExpenseInput(%q) returned duplicate tag: %q", input, tag)
-				}
-				seen[tag] = true
-			}
-		}
+		assertParsedExpenseInputInvariants(t, input, result, tagPattern)
 	})
+}
+
+func assertParsedExpenseInputInvariants(
+	t *testing.T,
+	input string,
+	result *ParsedExpense,
+	tagPattern *regexp.Regexp,
+) {
+	t.Helper()
+
+	if result == nil {
+		return
+	}
+
+	assertPositiveParsedAmount(t, input, result)
+	assertSupportedParsedCurrency(t, input, result)
+	assertValidParsedTags(t, input, result.Tags, tagPattern)
+	assertUniqueParsedTags(t, input, result.Tags)
+}
+
+func assertPositiveParsedAmount(t *testing.T, input string, result *ParsedExpense) {
+	t.Helper()
+
+	if result.Amount.LessThanOrEqual(decimal.Zero) {
+		t.Errorf("ParseExpenseInput(%q) returned non-positive amount: %v", input, result.Amount)
+	}
+}
+
+func assertSupportedParsedCurrency(t *testing.T, input string, result *ParsedExpense) {
+	t.Helper()
+
+	if result.Currency == "" {
+		return
+	}
+
+	if _, ok := models.SupportedCurrencies[result.Currency]; !ok {
+		t.Errorf("ParseExpenseInput(%q) returned invalid currency: %s", input, result.Currency)
+	}
+}
+
+func assertValidParsedTags(t *testing.T, input string, tags []string, tagPattern *regexp.Regexp) {
+	t.Helper()
+
+	for _, tag := range tags {
+		if !tagPattern.MatchString(tag) {
+			t.Errorf("ParseExpenseInput(%q) returned invalid tag: %q", input, tag)
+		}
+	}
+}
+
+func assertUniqueParsedTags(t *testing.T, input string, tags []string) {
+	t.Helper()
+
+	seen := make(map[string]bool)
+	for _, tag := range tags {
+		if seen[tag] {
+			t.Errorf("ParseExpenseInput(%q) returned duplicate tag: %q", input, tag)
+		}
+		seen[tag] = true
+	}
 }
 
 func FuzzParseAddCommand(f *testing.F) {

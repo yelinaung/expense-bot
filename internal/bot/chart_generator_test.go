@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
@@ -111,32 +112,28 @@ func assertChartGenerationResult(t *testing.T, buf []byte, err error, expectErro
 	t.Helper()
 
 	if expectError {
-		if err == nil {
-			t.Errorf("expected error but got none")
-		}
+		require.Error(t, err, "expected error but got none")
 		return
 	}
 
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-		return
-	}
-
-	if len(buf) == 0 {
-		t.Errorf("expected non-empty PNG data")
-	}
-
-	if !isPNG(buf) {
-		t.Errorf("output does not appear to be a PNG file")
-	}
+	require.NoError(t, err, "unexpected error")
+	require.NotEmpty(t, buf, "expected non-empty PNG data")
+	require.True(t, isPNG(buf), "output does not appear to be a PNG file")
 }
 
 func isPNG(buf []byte) bool {
-	if len(buf) < 4 {
+	if len(buf) < 8 {
 		return false
 	}
 
-	return buf[0] == 0x89 && buf[1] == 0x50 && buf[2] == 0x4E && buf[3] == 0x47
+	return buf[0] == 0x89 &&
+		buf[1] == 0x50 &&
+		buf[2] == 0x4E &&
+		buf[3] == 0x47 &&
+		buf[4] == 0x0D &&
+		buf[5] == 0x0A &&
+		buf[6] == 0x1A &&
+		buf[7] == 0x0A
 }
 
 func TestAggregateByCategory(t *testing.T) {
