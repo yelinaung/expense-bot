@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
@@ -132,9 +133,13 @@ func assertParsedExpenseInputInvariants(
 func assertPositiveParsedAmount(t *testing.T, input string, result *ParsedExpense) {
 	t.Helper()
 
-	if result.Amount.LessThanOrEqual(decimal.Zero) {
-		t.Errorf("ParseExpenseInput(%q) returned non-positive amount: %v", input, result.Amount)
-	}
+	require.True(
+		t,
+		result.Amount.GreaterThan(decimal.Zero),
+		"ParseExpenseInput(%q) returned non-positive amount: %v",
+		input,
+		result.Amount,
+	)
 }
 
 func assertSupportedParsedCurrency(t *testing.T, input string, result *ParsedExpense) {
@@ -144,18 +149,27 @@ func assertSupportedParsedCurrency(t *testing.T, input string, result *ParsedExp
 		return
 	}
 
-	if _, ok := models.SupportedCurrencies[result.Currency]; !ok {
-		t.Errorf("ParseExpenseInput(%q) returned invalid currency: %s", input, result.Currency)
-	}
+	require.Contains(
+		t,
+		models.SupportedCurrencies,
+		result.Currency,
+		"ParseExpenseInput(%q) returned invalid currency: %s",
+		input,
+		result.Currency,
+	)
 }
 
 func assertValidParsedTags(t *testing.T, input string, tags []string, tagPattern *regexp.Regexp) {
 	t.Helper()
 
 	for _, tag := range tags {
-		if !tagPattern.MatchString(tag) {
-			t.Errorf("ParseExpenseInput(%q) returned invalid tag: %q", input, tag)
-		}
+		require.True(
+			t,
+			tagPattern.MatchString(tag),
+			"ParseExpenseInput(%q) returned invalid tag: %q",
+			input,
+			tag,
+		)
 	}
 }
 
@@ -164,9 +178,13 @@ func assertUniqueParsedTags(t *testing.T, input string, tags []string) {
 
 	seen := make(map[string]bool)
 	for _, tag := range tags {
-		if seen[tag] {
-			t.Errorf("ParseExpenseInput(%q) returned duplicate tag: %q", input, tag)
-		}
+		require.False(
+			t,
+			seen[tag],
+			"ParseExpenseInput(%q) returned duplicate tag: %q",
+			input,
+			tag,
+		)
 		seen[tag] = true
 	}
 }
@@ -271,9 +289,14 @@ func assertLowercaseExtractedTags(t *testing.T, input string, tags []string) {
 	t.Helper()
 
 	for _, tag := range tags {
-		if tag != strings.ToLower(tag) {
-			t.Errorf("extractTags(%q) returned non-lowercase tag: %q", input, tag)
-		}
+		require.Equal(
+			t,
+			strings.ToLower(tag),
+			tag,
+			"extractTags(%q) returned non-lowercase tag: %q",
+			input,
+			tag,
+		)
 	}
 }
 
@@ -286,9 +309,13 @@ func assertExtractedTagsMatchPattern(
 	t.Helper()
 
 	for _, tag := range tags {
-		if !tagPattern.MatchString(tag) {
-			t.Errorf("extractTags(%q) returned invalid tag: %q", input, tag)
-		}
+		require.True(
+			t,
+			tagPattern.MatchString(tag),
+			"extractTags(%q) returned invalid tag: %q",
+			input,
+			tag,
+		)
 	}
 }
 
@@ -297,9 +324,13 @@ func assertUniqueExtractedTags(t *testing.T, input string, tags []string) {
 
 	seen := make(map[string]bool)
 	for _, tag := range tags {
-		if seen[tag] {
-			t.Errorf("extractTags(%q) returned duplicate tag: %q", input, tag)
-		}
+		require.False(
+			t,
+			seen[tag],
+			"extractTags(%q) returned duplicate tag: %q",
+			input,
+			tag,
+		)
 		seen[tag] = true
 	}
 }
@@ -309,9 +340,14 @@ func assertCleanedTextExcludesExtractedTags(t *testing.T, input string, tags []s
 
 	for _, tag := range tags {
 		for word := range strings.FieldsSeq(cleaned) {
-			if strings.EqualFold(word, "#"+tag) {
-				t.Errorf("extractTags(%q) cleaned text still contains #%s: %q", input, tag, cleaned)
-			}
+			require.False(
+				t,
+				strings.EqualFold(word, "#"+tag),
+				"extractTags(%q) cleaned text still contains #%s: %q",
+				input,
+				tag,
+				cleaned,
+			)
 		}
 	}
 }
