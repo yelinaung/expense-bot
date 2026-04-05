@@ -102,29 +102,41 @@ func TestGenerateExpenseChart(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			buf, err := GenerateExpenseChart(tt.expenses, tt.period)
-
-			if tt.expectError {
-				if err == nil {
-					t.Errorf("expected error but got none")
-				}
-				return
-			}
-
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
-
-			if len(buf) == 0 {
-				t.Errorf("expected non-empty PNG data")
-			}
-
-			// PNG files start with magic bytes: 89 50 4E 47
-			if len(buf) >= 4 && (buf[0] != 0x89 || buf[1] != 0x50 || buf[2] != 0x4E || buf[3] != 0x47) {
-				t.Errorf("output does not appear to be a PNG file")
-			}
+			assertChartGenerationResult(t, buf, err, tt.expectError)
 		})
 	}
+}
+
+func assertChartGenerationResult(t *testing.T, buf []byte, err error, expectError bool) {
+	t.Helper()
+
+	if expectError {
+		if err == nil {
+			t.Errorf("expected error but got none")
+		}
+		return
+	}
+
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+		return
+	}
+
+	if len(buf) == 0 {
+		t.Errorf("expected non-empty PNG data")
+	}
+
+	if !isPNG(buf) {
+		t.Errorf("output does not appear to be a PNG file")
+	}
+}
+
+func isPNG(buf []byte) bool {
+	if len(buf) < 4 {
+		return false
+	}
+
+	return buf[0] == 0x89 && buf[1] == 0x50 && buf[2] == 0x4E && buf[3] == 0x47
 }
 
 func TestAggregateByCategory(t *testing.T) {
