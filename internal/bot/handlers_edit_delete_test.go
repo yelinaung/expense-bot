@@ -187,147 +187,37 @@ func callHandleEdit(
 	}
 
 	chatID := update.Message.Chat.ID
-
-	args := strings.TrimPrefix(update.Message.Text, testEditCommand)
-	args = strings.TrimSpace(args)
-
-	if strings.Index(args, "@") == 0 {
-		if spaceIdx := strings.Index(args, " "); spaceIdx != -1 {
-			args = strings.TrimSpace(args[spaceIdx:])
-		} else {
-			args = ""
-		}
-	}
+	args := extractCommandArgs(update.Message.Text, testEditCommand)
 
 	if args == "" {
-		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    chatID,
-			Text:      editUsageHTML,
-			ParseMode: tgmodels.ParseModeHTML,
-		})
+		sendMockHTMLMessage(ctx, mock, chatID, editUsageHTML)
 		return
 	}
 
-	parts := strings.SplitN(args, " ", 2)
-	expenseNum, err := strconv.ParseInt(parts[0], 10, 64)
-	if err != nil {
-		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    chatID,
-			Text:      editInvalidIDHTML,
-			ParseMode: tgmodels.ParseModeHTML,
-		})
+	expense, values, ok := findEditableExpense(ctx, mock, chatID, expenseRepo, userID, args)
+	if !ok {
 		return
 	}
 
-	expense, err := expenseRepo.GetByUserAndNumber(ctx, userID, expenseNum)
-	if err != nil {
-		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
-			Text:   "❌ Expense #" + strconv.FormatInt(expenseNum, 10) + " " + testNotFoundText + ".",
-		})
+	categories, ok := loadEditCategories(ctx, mock, chatID, categoryRepo)
+	if !ok {
 		return
 	}
 
-	if expense.UserID != userID {
-		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
-			Text:   "❌ You can only edit your own expenses.",
-		})
-		return
-	}
+	attachExpenseCategory(expense, categories)
 
-	if len(parts) < 2 {
-		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    chatID,
-			Text:      editProvideValsHTML,
-			ParseMode: tgmodels.ParseModeHTML,
-		})
-		return
-	}
-
-	categories, err := categoryRepo.GetAll(ctx)
-	if err != nil {
-		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
-			Text:   "❌ Failed to fetch categories. Please try again.",
-		})
-		return
-	}
-
-	// Load the existing category if one is set
-	if expense.CategoryID != nil {
-		for i := range categories {
-			if categories[i].ID == *expense.CategoryID {
-				expense.Category = &categories[i]
-				break
-			}
-		}
-	}
-
-	categoryNames := make([]string, len(categories))
-	for i := range categories {
-		categoryNames[i] = categories[i].Name
-	}
-
-	parsed := ParseExpenseInputWithCategories(parts[1], categoryNames)
+	parsed := parseEditValues(ctx, mock, chatID, values, categories)
 	if parsed == nil {
-		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    chatID,
-			Text:      editInvalidFmtHTML,
-			ParseMode: tgmodels.ParseModeHTML,
-		})
 		return
 	}
 
-	expense.Amount = parsed.Amount
+	applyParsedExpenseEdit(expense, parsed, categories)
 
-	if parsed.Currency != "" {
-		expense.Currency = parsed.Currency
-	}
-
-	if parsed.Description != "" {
-		expense.Description = parsed.Description
-	}
-
-	if parsed.CategoryName != "" {
-		for i := range categories {
-			if strings.EqualFold(categories[i].Name, parsed.CategoryName) {
-				expense.CategoryID = &categories[i].ID
-				expense.Category = &categories[i]
-				break
-			}
-		}
-	}
-
-	if expenseRepo.Update(ctx, expense) != nil {
-		_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
-			Text:   "❌ Failed to update expense. Please try again.",
-		})
+	if !updateEditedExpense(ctx, mock, chatID, expenseRepo, expense) {
 		return
 	}
 
-	categoryText := categoryUncategorized
-	if expense.Category != nil {
-		categoryText = expense.Category.Name
-	}
-
-	currency := expense.Currency
-	if currency == "" {
-		currency = "SGD"
-	}
-	currencySymbol := models.SupportedCurrencies[currency]
-	if currencySymbol == "" {
-		currencySymbol = currency
-	}
-
-	text := "✅ <b>Expense Updated</b>\n\n🆔 #" + strconv.FormatInt(expense.UserExpenseNumber, 10) + "\n💰 " + currencySymbol + expense.Amount.StringFixed(2) + " " + currency + "\n📝 " + expense.Description + "\n📁 " + categoryText
-
-	_, _ = mock.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    chatID,
-		Text:      text,
-		ParseMode: tgmodels.ParseModeHTML,
-	})
+	sendEditedExpenseMessage(ctx, mock, chatID, expense)
 }
 
 // TestHandleDelete tests the /delete command handler.

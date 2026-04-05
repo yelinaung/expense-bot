@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
@@ -107,37 +108,85 @@ func FuzzParseExpenseInput(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, input string) {
 		result := ParseExpenseInput(input)
-
-		if result != nil {
-			// Invariant 1: Amount must be positive.
-			if result.Amount.LessThanOrEqual(decimal.Zero) {
-				t.Errorf("ParseExpenseInput(%q) returned non-positive amount: %v", input, result.Amount)
-			}
-
-			// Invariant 2: Currency (if set) must be valid.
-			if result.Currency != "" {
-				if _, ok := models.SupportedCurrencies[result.Currency]; !ok {
-					t.Errorf("ParseExpenseInput(%q) returned invalid currency: %s", input, result.Currency)
-				}
-			}
-
-			// Invariant 3: Tags (if set) must each match ^[a-z]\w{0,29}$ (lowercase, letter-start).
-			for _, tag := range result.Tags {
-				if !tagPattern.MatchString(tag) {
-					t.Errorf("ParseExpenseInput(%q) returned invalid tag: %q", input, tag)
-				}
-			}
-
-			// Invariant 4: Tags must be deduplicated.
-			seen := make(map[string]bool)
-			for _, tag := range result.Tags {
-				if seen[tag] {
-					t.Errorf("ParseExpenseInput(%q) returned duplicate tag: %q", input, tag)
-				}
-				seen[tag] = true
-			}
-		}
+		assertParsedExpenseInputInvariants(t, input, result, tagPattern)
 	})
+}
+
+func assertParsedExpenseInputInvariants(
+	t *testing.T,
+	input string,
+	result *ParsedExpense,
+	tagPattern *regexp.Regexp,
+) {
+	t.Helper()
+
+	if result == nil {
+		return
+	}
+
+	assertPositiveParsedAmount(t, input, result)
+	assertSupportedParsedCurrency(t, input, result)
+	assertValidParsedTags(t, input, result.Tags, tagPattern)
+	assertUniqueParsedTags(t, input, result.Tags)
+}
+
+func assertPositiveParsedAmount(t *testing.T, input string, result *ParsedExpense) {
+	t.Helper()
+
+	require.True(
+		t,
+		result.Amount.GreaterThan(decimal.Zero),
+		"ParseExpenseInput(%q) returned non-positive amount: %v",
+		input,
+		result.Amount,
+	)
+}
+
+func assertSupportedParsedCurrency(t *testing.T, input string, result *ParsedExpense) {
+	t.Helper()
+
+	if result.Currency == "" {
+		return
+	}
+
+	require.Contains(
+		t,
+		models.SupportedCurrencies,
+		result.Currency,
+		"ParseExpenseInput(%q) returned invalid currency: %s",
+		input,
+		result.Currency,
+	)
+}
+
+func assertValidParsedTags(t *testing.T, input string, tags []string, tagPattern *regexp.Regexp) {
+	t.Helper()
+
+	for _, tag := range tags {
+		require.True(
+			t,
+			tagPattern.MatchString(tag),
+			"ParseExpenseInput(%q) returned invalid tag: %q",
+			input,
+			tag,
+		)
+	}
+}
+
+func assertUniqueParsedTags(t *testing.T, input string, tags []string) {
+	t.Helper()
+
+	seen := make(map[string]bool)
+	for _, tag := range tags {
+		require.False(
+			t,
+			seen[tag],
+			"ParseExpenseInput(%q) returned duplicate tag: %q",
+			input,
+			tag,
+		)
+		seen[tag] = true
+	}
 }
 
 func FuzzParseAddCommand(f *testing.F) {
@@ -217,39 +266,90 @@ func FuzzExtractTags(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, input string) {
 		tags, cleaned := extractTags(input)
-
-		for _, tag := range tags {
-			// Invariant 1: Tags must be lowercase.
-			if tag != strings.ToLower(tag) {
-				t.Errorf("extractTags(%q) returned non-lowercase tag: %q", input, tag)
-			}
-
-			// Invariant 2: Each tag must match the valid pattern.
-			if !tagPattern.MatchString(tag) {
-				t.Errorf("extractTags(%q) returned invalid tag: %q", input, tag)
-			}
-		}
-
-		// Invariant 3: Tags must be deduplicated.
-		seen := make(map[string]bool)
-		for _, tag := range tags {
-			if seen[tag] {
-				t.Errorf("extractTags(%q) returned duplicate tag: %q", input, tag)
-			}
-			seen[tag] = true
-		}
-
-		// Invariant 4: Cleaned text must not contain any extracted #tag tokens as standalone words.
-		for _, tag := range tags {
-			for word := range strings.FieldsSeq(cleaned) {
-				if strings.EqualFold(word, "#"+tag) {
-					t.Errorf("extractTags(%q) cleaned text still contains #%s: %q", input, tag, cleaned)
-				}
-			}
-		}
-
-		_ = cleaned // Must not panic.
+		assertExtractedTagsInvariants(t, input, tags, cleaned, tagPattern)
 	})
+}
+
+func assertExtractedTagsInvariants(
+	t *testing.T,
+	input string,
+	tags []string,
+	cleaned string,
+	tagPattern *regexp.Regexp,
+) {
+	t.Helper()
+
+	assertLowercaseExtractedTags(t, input, tags)
+	assertExtractedTagsMatchPattern(t, input, tags, tagPattern)
+	assertUniqueExtractedTags(t, input, tags)
+	assertCleanedTextExcludesExtractedTags(t, input, tags, cleaned)
+}
+
+func assertLowercaseExtractedTags(t *testing.T, input string, tags []string) {
+	t.Helper()
+
+	for _, tag := range tags {
+		require.Equal(
+			t,
+			strings.ToLower(tag),
+			tag,
+			"extractTags(%q) returned non-lowercase tag: %q",
+			input,
+			tag,
+		)
+	}
+}
+
+func assertExtractedTagsMatchPattern(
+	t *testing.T,
+	input string,
+	tags []string,
+	tagPattern *regexp.Regexp,
+) {
+	t.Helper()
+
+	for _, tag := range tags {
+		require.True(
+			t,
+			tagPattern.MatchString(tag),
+			"extractTags(%q) returned invalid tag: %q",
+			input,
+			tag,
+		)
+	}
+}
+
+func assertUniqueExtractedTags(t *testing.T, input string, tags []string) {
+	t.Helper()
+
+	seen := make(map[string]bool)
+	for _, tag := range tags {
+		require.False(
+			t,
+			seen[tag],
+			"extractTags(%q) returned duplicate tag: %q",
+			input,
+			tag,
+		)
+		seen[tag] = true
+	}
+}
+
+func assertCleanedTextExcludesExtractedTags(t *testing.T, input string, tags []string, cleaned string) {
+	t.Helper()
+
+	for _, tag := range tags {
+		for word := range strings.FieldsSeq(cleaned) {
+			require.False(
+				t,
+				strings.EqualFold(word, "#"+tag),
+				"extractTags(%q) cleaned text still contains #%s: %q",
+				input,
+				tag,
+				cleaned,
+			)
+		}
+	}
 }
 
 func FuzzExtractCommandArgs(f *testing.F) {

@@ -1,6 +1,7 @@
 # The base image drops to a non-root user via its own entrypoint;
 # root is only used here for build-time package installation.
 # myoung34/github-runner:ubuntu-noble
+# NOSONAR
 FROM myoung34/github-runner:2.333.1-ubuntu-noble@sha256:63e29766dddf14038cb7e8a02886f0f6fba18f837e2a3d0782bda982c0606ae8
 
 ARG GO_VERSION=1.26.1
@@ -20,7 +21,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 COPY sources.list /etc/apt/sources.list
 # hadolint ignore=DL3008
-RUN apt-get update && apt-get install -y --no-install-recommends jq file pipx && \
+RUN apt-get update && apt-get install -y --no-install-recommends file jq pipx && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir -p "/opt/hostedtoolcache/go/${GO_VERSION}/x64" && \
     curl --proto "=https" --tlsv1.2 -sSf -L "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" | \
