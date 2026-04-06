@@ -8,7 +8,6 @@ import (
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
 )
@@ -103,7 +102,6 @@ func (b *Bot) handleShowTimezoneCore(ctx context.Context, tg TelegramAPI, update
 	tz, err := b.userRepo.GetTimezone(ctx, userID)
 	if err != nil {
 		logger.Log.Error().Err(err).Int64("user_id", userID).Msg("Failed to get timezone")
-		tz = appmodels.DefaultTimezone
 	}
 
 	loc := b.userLocation(tz)

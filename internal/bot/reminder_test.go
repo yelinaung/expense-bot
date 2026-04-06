@@ -393,7 +393,7 @@ func TestCheckAndSendReminders(t *testing.T) {
 		require.Equal(t, int64(3002), msg.ChatID)
 	})
 
-	t.Run("falls back to displayLocation when user timezone is empty", func(t *testing.T) {
+	t.Run("uses default DB timezone when not explicitly set", func(t *testing.T) {
 		ctx := context.Background()
 		pool := testDB(ctx, t)
 		b := setupTestBot(t, pool)
@@ -427,7 +427,6 @@ func TestStartDailyReminderLoop_RunsImmediateCheck(t *testing.T) {
 	mockBot := mocks.NewMockBot()
 	b.messageSender = mockBot
 	b.cfg.DailyReminderEnabled = true
-	b.cfg.ReminderHour = time.Now().In(b.displayLocation).Hour()
 	b.cfg.WhitelistedUserIDs = []int64{2100}
 
 	err := b.userRepo.UpsertUser(ctx, &models.User{
@@ -436,6 +435,14 @@ func TestStartDailyReminderLoop_RunsImmediateCheck(t *testing.T) {
 		FirstName: "Nora",
 	})
 	require.NoError(t, err)
+
+	// Set the user's timezone and ReminderHour to match the current local time
+	// so the immediate check fires.
+	userTZ := "Asia/Singapore"
+	err = b.userRepo.UpdateTimezone(ctx, 2100, userTZ)
+	require.NoError(t, err)
+	loc, _ := time.LoadLocation(userTZ)
+	b.cfg.ReminderHour = time.Now().In(loc).Hour()
 
 	done := make(chan struct{})
 	go func() {
