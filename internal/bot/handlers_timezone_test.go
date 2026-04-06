@@ -130,6 +130,19 @@ func TestHandleShowTimezoneCore(t *testing.T) {
 		require.Contains(t, msg.Text, "/settimezone")
 	})
 
+	t.Run("shows fallback timezone when user not found", func(t *testing.T) {
+		// Use a From.ID that does not exist in the users table so GetTimezone returns an error.
+		update := mocks.CommandUpdate(12345, 99999, "/timezone")
+
+		b.handleShowTimezoneCore(ctx, mockBot, update)
+
+		// Ensure a message was sent, regardless of any previous subtests.
+		require.GreaterOrEqual(t, mockBot.SentMessageCount(), 1)
+		msg := mockBot.LastSentMessage()
+		require.Contains(t, msg.Text, "Timezone Settings")
+		require.Contains(t, msg.Text, "Asia/Singapore")
+		require.Contains(t, msg.Text, "/settimezone")
+	})
 	t.Run("shows updated timezone after setting", func(t *testing.T) {
 		mockBot.Reset()
 
