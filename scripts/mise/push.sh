@@ -13,6 +13,9 @@ if [[ -z "${remotes}" ]]; then
 	exit 1
 fi
 
+echo "Pulling ${branch} from origin with rebase..."
+git pull --rebase origin "${branch}"
+
 for remote in ${remotes}; do
 	echo "Pushing ${branch} to ${remote}..."
 	git push "${remote}" "${branch}"
