@@ -259,6 +259,8 @@ func (b *Bot) registerCommands(ctx context.Context) {
 		{Command: "delete", Description: "Delete an expense"},
 		{Command: "currency", Description: "Show your default currency"},
 		{Command: "setcurrency", Description: "Set default currency (e.g. USD, EUR)"},
+		{Command: "timezone", Description: "Show your timezone"},
+		{Command: "settimezone", Description: "Set your timezone (e.g. Asia/Tokyo)"},
 		{Command: "tag", Description: "Add tags to an expense"},
 		{Command: "untag", Description: "Remove a tag from an expense"},
 		{Command: "tags", Description: "List all tags or filter by tag"},
@@ -334,6 +336,8 @@ func (b *Bot) registerHandlers() {
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/delete", bot.MatchTypePrefix, b.handleDelete)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/setcurrency", bot.MatchTypePrefix, b.handleSetCurrency)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/currency", bot.MatchTypePrefix, b.handleShowCurrency)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/settimezone", bot.MatchTypePrefix, b.handleSetTimezone)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/timezone", bot.MatchTypePrefix, b.handleShowTimezone)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/untag", bot.MatchTypePrefix, b.handleUntag)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/tags", bot.MatchTypePrefix, b.handleTags)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/tag", bot.MatchTypePrefix, b.handleTag)

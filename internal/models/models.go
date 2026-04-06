@@ -10,6 +10,9 @@ import (
 // DefaultCurrency is the default currency for new users.
 const DefaultCurrency = "SGD"
 
+// DefaultTimezone is the default timezone for new users.
+const DefaultTimezone = "Asia/Singapore"
+
 // MaxCategoryNameLength is the maximum allowed length for category names.
 const MaxCategoryNameLength = 50
 
@@ -41,6 +44,7 @@ type User struct {
 	FirstName       string
 	LastName        string
 	DefaultCurrency string
+	Timezone        string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }
