@@ -137,6 +137,8 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 			user_id BIGINT NOT NULL,
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		)`,
+
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone TEXT NOT NULL DEFAULT 'Asia/Singapore'`,
 	}
 
 	for i, migration := range migrations {

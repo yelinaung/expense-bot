@@ -30,12 +30,9 @@ func (b *Bot) startDailyReminderLoop(ctx context.Context) {
 		return
 	}
 
-	loc := b.displayLocation
-
 	logger.Log.Info().
 		Int("hour", b.cfg.ReminderHour).
-		Str("timezone", loc.String()).
-		Msg("Daily reminder loop started")
+		Msg("Daily reminder loop started (per-user timezone)")
 
 	reminded := make(map[int64]string)
 	ticker := time.NewTicker(ReminderCheckInterval)
@@ -50,7 +47,7 @@ func (b *Bot) startDailyReminderLoop(ctx context.Context) {
 
 	// Run one check immediately so reminders aren't skipped when the process
 	// starts during the configured reminder hour.
-	b.checkAndSendReminders(ctx, loc, reminded, b.now().In(loc))
+	b.checkAndSendReminders(ctx, reminded, b.now())
 
 	for {
 		select {
@@ -58,19 +55,15 @@ func (b *Bot) startDailyReminderLoop(ctx context.Context) {
 			logger.Log.Info().Msg("Daily reminder loop stopped")
 			return
 		case <-ticker.C:
-			b.checkAndSendReminders(ctx, loc, reminded, b.now().In(loc))
+			b.checkAndSendReminders(ctx, reminded, b.now())
 		}
 	}
 }
 
-// checkAndSendReminders checks the current hour and sends reminders to users
-// who haven't logged expenses today. The reminded map tracks which users have
-// already been reminded today to avoid duplicate notifications.
-func (b *Bot) checkAndSendReminders(ctx context.Context, loc *time.Location, reminded map[int64]string, now time.Time) {
-	if now.Hour() != b.cfg.ReminderHour {
-		return
-	}
-
+// checkAndSendReminders sends reminders to authorized users whose local hour
+// matches ReminderHour. Each user's timezone is read from their profile;
+// the global displayLocation is used as fallback.
+func (b *Bot) checkAndSendReminders(ctx context.Context, reminded map[int64]string, now time.Time) {
 	ctx, span := otel.Tracer("expense-bot/background").Start(ctx, "background.reminder_check")
 	defer span.End()
 	start := time.Now()
@@ -78,17 +71,13 @@ func (b *Bot) checkAndSendReminders(ctx context.Context, loc *time.Location, rem
 	checkCtx, cancel := context.WithTimeout(ctx, ReminderTimeout)
 	defer cancel()
 
-	todayStr := now.Format("2006-01-02")
-
-	// Prune entries from previous days so the map doesn't grow unbounded.
+	// Prune entries older than yesterday (safe for all timezone offsets).
+	cutoff := now.UTC().AddDate(0, 0, -1).Format("2006-01-02")
 	for uid, dateStr := range reminded {
-		if dateStr != todayStr {
+		if dateStr < cutoff {
 			delete(reminded, uid)
 		}
 	}
-
-	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
-	endOfDay := startOfDay.AddDate(0, 0, 1)
 
 	users, err := b.userRepo.GetAuthorizedUsersForReminder(
 		checkCtx,
@@ -106,9 +95,21 @@ func (b *Bot) checkAndSendReminders(ctx context.Context, loc *time.Location, rem
 
 	for i := range users {
 		user := &users[i]
+
+		loc := b.userLocation(user.Timezone)
+		userNow := now.In(loc)
+
+		if userNow.Hour() != b.cfg.ReminderHour {
+			continue
+		}
+
+		todayStr := userNow.Format("2006-01-02")
 		if reminded[user.ID] == todayStr {
 			continue
 		}
+
+		startOfDay := time.Date(userNow.Year(), userNow.Month(), userNow.Day(), 0, 0, 0, 0, loc)
+		endOfDay := startOfDay.AddDate(0, 0, 1)
 
 		err = b.sendReminderOrDailySummary(checkCtx, user, startOfDay, endOfDay)
 		if err != nil {
@@ -117,13 +118,27 @@ func (b *Bot) checkAndSendReminders(ctx context.Context, loc *time.Location, rem
 		}
 
 		reminded[user.ID] = todayStr
-		logger.Log.Debug().Str("user_hash", logger.HashUserID(user.ID)).Msg("Sent daily reminder")
+		logger.Log.Debug().Str("user_hash", logger.HashUserID(user.ID)).Str("timezone", loc.String()).Msg("Sent daily reminder")
 	}
 
 	if b.metrics != nil {
 		b.metrics.BackgroundJobRuns.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("job", "reminder"), attribute.String("status", "ok")))
 		b.metrics.BackgroundJobDuration.Record(ctx, time.Since(start).Seconds(), otelmetric.WithAttributes(attribute.String("job", "reminder")))
 	}
+}
+
+// userLocation resolves a user's timezone string to a *time.Location,
+// falling back to the bot's global displayLocation on error.
+func (b *Bot) userLocation(tz string) *time.Location {
+	if tz == "" {
+		return b.displayLocation
+	}
+	loc, err := time.LoadLocation(tz)
+	if err != nil {
+		logger.Log.Warn().Err(err).Str("timezone", tz).Msg("Invalid user timezone, using global default")
+		return b.displayLocation
+	}
+	return loc
 }
 
 func (b *Bot) sendReminderOrDailySummary(
@@ -141,7 +156,7 @@ func (b *Bot) sendReminderOrDailySummary(
 	}
 
 	total := sumExpenseAmounts(expenses)
-	header := fmt.Sprintf("📅 <b>Today's Expenses</b> (Total: $%s)", total.StringFixed(2))
+	header := fmt.Sprintf("\U0001f4c5 <b>Today's Expenses</b> (Total: $%s)", total.StringFixed(2))
 	return b.sendTodaySummary(ctx, user.ID, expenses, header)
 }
 

@@ -275,3 +275,69 @@ func TestUserRepository_GetDefaultCurrency(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+func TestUserRepository_UpdateTimezone(t *testing.T) {
+	ctx := context.Background()
+	tx := dbtest.TestTx(ctx, t)
+
+	repo := NewUserRepository(tx)
+
+	user := &models.User{
+		ID:        12345,
+		Username:  "tzuser",
+		FirstName: "Tz",
+		LastName:  "User",
+	}
+	err := repo.UpsertUser(ctx, user)
+	require.NoError(t, err)
+
+	t.Run("updates timezone successfully", func(t *testing.T) {
+		err := repo.UpdateTimezone(ctx, user.ID, "America/New_York")
+		require.NoError(t, err)
+
+		tz, err := repo.GetTimezone(ctx, user.ID)
+		require.NoError(t, err)
+		require.Equal(t, "America/New_York", tz)
+	})
+
+	t.Run("updates timezone to another value", func(t *testing.T) {
+		err := repo.UpdateTimezone(ctx, user.ID, "Europe/London")
+		require.NoError(t, err)
+
+		tz, err := repo.GetTimezone(ctx, user.ID)
+		require.NoError(t, err)
+		require.Equal(t, "Europe/London", tz)
+	})
+
+	t.Run("succeeds silently for non-existent user", func(t *testing.T) {
+		err := repo.UpdateTimezone(ctx, 99999, "Asia/Tokyo")
+		require.NoError(t, err)
+	})
+}
+
+func TestUserRepository_GetTimezone(t *testing.T) {
+	ctx := context.Background()
+	tx := dbtest.TestTx(ctx, t)
+
+	repo := NewUserRepository(tx)
+
+	t.Run("returns default for new user", func(t *testing.T) {
+		user := &models.User{
+			ID:        54321,
+			Username:  "newuser",
+			FirstName: "New",
+			LastName:  "User",
+		}
+		err := repo.UpsertUser(ctx, user)
+		require.NoError(t, err)
+
+		tz, err := repo.GetTimezone(ctx, user.ID)
+		require.NoError(t, err)
+		require.Equal(t, "Asia/Singapore", tz)
+	})
+
+	t.Run("returns error for non-existent user", func(t *testing.T) {
+		_, err := repo.GetTimezone(ctx, 99999)
+		require.Error(t, err)
+	})
+}

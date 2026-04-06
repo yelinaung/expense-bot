@@ -133,6 +133,10 @@ func (b *Bot) handleHelpCore(ctx context.Context, tg TelegramAPI, update *models
 • <code>/currency</code> - Show your default currency
 • <code>/setcurrency &lt;code&gt;</code> - Set default currency (e.g., USD, EUR, THB)
 
+<b>Timezone:</b>
+• <code>/timezone</code> - Show your timezone
+• <code>/settimezone &lt;tz&gt;</code> - Set timezone (e.g., Asia/Tokyo, America/New_York)
+
 <b>Tags:</b>
 • Add tags inline: <code>5.50 Coffee #work #meeting</code>
 • <code>/tag &lt;id&gt; #tag1 [#tag2] ...</code> - Add tags to expense

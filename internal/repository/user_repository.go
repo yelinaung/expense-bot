@@ -40,9 +40,9 @@ func (r *UserRepository) UpsertUser(ctx context.Context, user *models.User) erro
 func (r *UserRepository) GetUserByID(ctx context.Context, id int64) (*models.User, error) {
 	var user models.User
 	err := r.db.QueryRow(ctx, `
-		SELECT id, username, first_name, last_name, default_currency, created_at, updated_at
+		SELECT id, username, first_name, last_name, default_currency, timezone, created_at, updated_at
 		FROM users WHERE id = $1
-	`, id).Scan(&user.ID, &user.Username, &user.FirstName, &user.LastName, &user.DefaultCurrency, &user.CreatedAt, &user.UpdatedAt)
+	`, id).Scan(&user.ID, &user.Username, &user.FirstName, &user.LastName, &user.DefaultCurrency, &user.Timezone, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
@@ -63,7 +63,7 @@ func (r *UserRepository) UpdateDefaultCurrency(ctx context.Context, userID int64
 // GetAllUsers returns all registered users.
 func (r *UserRepository) GetAllUsers(ctx context.Context) ([]models.User, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id, username, first_name, last_name, default_currency, created_at, updated_at
+		SELECT id, username, first_name, last_name, default_currency, timezone, created_at, updated_at
 		FROM users
 	`)
 	if err != nil {
@@ -74,7 +74,7 @@ func (r *UserRepository) GetAllUsers(ctx context.Context) ([]models.User, error)
 	var users []models.User
 	for rows.Next() {
 		var u models.User
-		if err := rows.Scan(&u.ID, &u.Username, &u.FirstName, &u.LastName, &u.DefaultCurrency, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.FirstName, &u.LastName, &u.DefaultCurrency, &u.Timezone, &u.CreatedAt, &u.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan user: %w", err)
 		}
 		users = append(users, u)
@@ -96,7 +96,7 @@ func (r *UserRepository) GetAuthorizedUsersForReminder(
 	lowered := lowercaseUsernames(superAdminUsernames)
 
 	rows, err := r.db.Query(ctx, `
-		SELECT u.id, u.username, u.first_name, u.last_name
+		SELECT u.id, u.username, u.first_name, u.last_name, u.timezone
 		FROM users u
 		WHERE (
 			u.id = ANY($1)
@@ -130,7 +130,7 @@ func scanReminderUsers(rows interface {
 	var users []models.User
 	for rows.Next() {
 		var u models.User
-		if err := rows.Scan(&u.ID, &u.Username, &u.FirstName, &u.LastName); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.FirstName, &u.LastName, &u.Timezone); err != nil {
 			return nil, fmt.Errorf("failed to scan user: %w", err)
 		}
 		users = append(users, u)
@@ -139,6 +139,32 @@ func scanReminderUsers(rows interface {
 		return nil, fmt.Errorf("error iterating users: %w", err)
 	}
 	return users, nil
+}
+
+// UpdateTimezone updates a user's timezone.
+func (r *UserRepository) UpdateTimezone(ctx context.Context, userID int64, timezone string) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE users SET timezone = $2, updated_at = NOW() WHERE id = $1
+	`, userID, timezone)
+	if err != nil {
+		return fmt.Errorf("failed to update timezone: %w", err)
+	}
+	return nil
+}
+
+// GetTimezone returns a user's timezone, or the default if not set.
+func (r *UserRepository) GetTimezone(ctx context.Context, userID int64) (string, error) {
+	var tz string
+	err := r.db.QueryRow(ctx, `
+		SELECT timezone FROM users WHERE id = $1
+	`, userID).Scan(&tz)
+	if err != nil {
+		return models.DefaultTimezone, fmt.Errorf("failed to get timezone: %w", err)
+	}
+	if tz == "" {
+		return models.DefaultTimezone, nil
+	}
+	return tz, nil
 }
 
 // GetDefaultCurrency returns a user's default currency, or SGD if not set.
