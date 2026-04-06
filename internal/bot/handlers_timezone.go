@@ -3,6 +3,7 @@ package bot
 import (
 	"context"
 	"fmt"
+	"html"
 	"strings"
 	"time"
 
@@ -19,7 +20,7 @@ func (b *Bot) handleSetTimezone(ctx context.Context, tgBot *bot.Bot, update *mod
 
 // handleSetTimezoneCore is the testable implementation of handleSetTimezone.
 func (b *Bot) handleSetTimezoneCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
-	if update.Message == nil {
+	if update == nil || update.Message == nil {
 		return
 	}
 
@@ -60,7 +61,7 @@ Use IANA timezone names.`
 	if err != nil {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      fmt.Sprintf("Unknown timezone: <code>%s</code>\n\nUse /settimezone to see common timezones.", tz),
+			Text:      fmt.Sprintf("Unknown timezone: <code>%s</code>\n\nUse /settimezone to see common timezones.", html.EscapeString(tz)),
 			ParseMode: models.ParseModeHTML,
 		})
 		return
@@ -80,7 +81,7 @@ Use IANA timezone names.`
 
 	_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    chatID,
-		Text:      fmt.Sprintf("Timezone set to <b>%s</b>\n\nYour local time: %s", loc.String(), localNow.Format("Mon, 02 Jan 2006 15:04")),
+		Text:      fmt.Sprintf("Timezone set to <b>%s</b>\n\nYour local time: %s", html.EscapeString(loc.String()), localNow.Format("Mon, 02 Jan 2006 15:04")),
 		ParseMode: models.ParseModeHTML,
 	})
 }
@@ -92,7 +93,7 @@ func (b *Bot) handleShowTimezone(ctx context.Context, tgBot *bot.Bot, update *mo
 
 // handleShowTimezoneCore is the testable implementation of handleShowTimezone.
 func (b *Bot) handleShowTimezoneCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
-	if update.Message == nil {
+	if update == nil || update.Message == nil {
 		return
 	}
 
@@ -114,7 +115,7 @@ Your timezone: <b>%s</b>
 Local time: %s
 
 To change it, use:
-<code>/settimezone Asia/Tokyo</code>`, tz, localNow.Format("Mon, 02 Jan 2006 15:04"))
+<code>/settimezone Asia/Tokyo</code>`, html.EscapeString(tz), localNow.Format("Mon, 02 Jan 2006 15:04"))
 
 	_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    chatID,

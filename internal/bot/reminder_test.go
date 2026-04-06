@@ -393,7 +393,7 @@ func TestCheckAndSendReminders(t *testing.T) {
 		require.Equal(t, int64(3002), msg.ChatID)
 	})
 
-	t.Run("uses default DB timezone when not explicitly set", func(t *testing.T) {
+	t.Run("falls back to displayLocation when user timezone is empty", func(t *testing.T) {
 		ctx := context.Background()
 		pool := testDB(ctx, t)
 		b := setupTestBot(t, pool)
@@ -409,12 +409,14 @@ func TestCheckAndSendReminders(t *testing.T) {
 			FirstName: "Default",
 		})
 		require.NoError(t, err)
-		// Don't set timezone — DB default is Asia/Singapore which is also +8
+		// Force empty timezone to exercise the userLocation("") fallback path.
+		err = b.userRepo.UpdateTimezone(ctx, 3010, "")
+		require.NoError(t, err)
 
 		reminded := make(map[int64]string)
 		b.checkAndSendReminders(ctx, reminded, nowUTC)
 
-		require.Equal(t, 1, mockBot.SentMessageCount(), "should use default timezone and send reminder")
+		require.Equal(t, 1, mockBot.SentMessageCount(), "should fall back to displayLocation and send reminder")
 	})
 }
 

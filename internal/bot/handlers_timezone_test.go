@@ -170,8 +170,6 @@ func TestHandleShowTimezoneCore(t *testing.T) {
 }
 
 func TestTimezoneHandlerWrappers(t *testing.T) {
-	t.Parallel()
-
 	ctx := context.Background()
 	tx := dbtest.TestTx(ctx, t)
 
@@ -188,12 +186,10 @@ func TestTimezoneHandlerWrappers(t *testing.T) {
 	var tgBot *bot.Bot
 
 	t.Run("handleSetTimezone wrapper", func(t *testing.T) {
-		t.Parallel()
 		b.handleSetTimezone(ctx, tgBot, &tgmodels.Update{})
 	})
 
 	t.Run("handleShowTimezone wrapper", func(t *testing.T) {
-		t.Parallel()
 		b.handleShowTimezone(ctx, tgBot, &tgmodels.Update{})
 	})
 }
