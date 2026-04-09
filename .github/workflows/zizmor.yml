@@ -11,7 +11,7 @@ permissions: {}
 jobs:
   zizmor:
     name: Run zizmor 🌈
-    runs-on: [self-hosted, Linux, X64, playground-ubuntu]
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       security-events: write # Required for upload-sarif (used by zizmor-action) to upload SARIF files.
@@ -23,6 +23,3 @@ jobs:
 
       - name: Run zizmor 🌈
         uses: zizmorcore/zizmor-action@71321a20a9ded102f6e9ce5718a2fcec2c4f70d8 # v0.5.2
-        with:
-          inputs: |
-            .github/workflows/*.yml
