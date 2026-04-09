@@ -6,11 +6,16 @@ on:
   pull_request:
     branches: [master, main]
 
+permissions:
+  contents: read
+
 jobs:
   # === SECURITY STAGE ===
   secret-detection:
     name: Secret Detection
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
+    permissions:
+      contents: read
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
@@ -20,6 +25,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Install gitleaks
         run: |
@@ -45,6 +51,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Install Semgrep
         run: |
@@ -59,6 +67,7 @@ jobs:
     name: Gosec Security Check
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
     permissions:
+      contents: read
       security-events: write
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -67,6 +76,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       # Install gosec directly using host Go (not Docker action)
       - name: Install gosec
@@ -96,6 +107,8 @@ jobs:
   lint:
     name: Lint
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
+    permissions:
+      contents: read
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
@@ -103,6 +116,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
@@ -115,6 +130,8 @@ jobs:
   prek:
     name: Pre-commit (prek)
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
+    permissions:
+      contents: read
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
@@ -122,6 +139,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Install tools
         run: |
@@ -138,6 +157,8 @@ jobs:
     name: Test
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
     needs: [lint]
+    permissions:
+      contents: read
     env:
       POSTGRES_USER: test
       POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD || 'test' }}
@@ -152,8 +173,13 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Start PostgreSQL
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
         run: |
           set -euo pipefail
           container_name="test-postgres-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
@@ -169,9 +195,9 @@ jobs:
           docker run -d --name "${container_name}" \
             ${network_flag} \
             --shm-size=256m \
-            -e POSTGRES_USER=${{ env.POSTGRES_USER }} \
-            -e POSTGRES_PASSWORD=${{ env.POSTGRES_PASSWORD }} \
-            -e POSTGRES_DB=${{ env.POSTGRES_DB }} \
+            -e "POSTGRES_USER=${POSTGRES_USER}" \
+            -e "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
+            -e "POSTGRES_DB=${POSTGRES_DB}" \
             postgres:18-alpine
           echo "Waiting for PostgreSQL..."
           ready=0
@@ -183,7 +209,7 @@ jobs:
               break
             fi
             # Check the container hasn't exited
-            if ! docker inspect "${container_name}" --format='{{.State.Running}}' 2>/dev/null | grep -q true; then
+            if ! docker inspect "${container_name}" --format='{{.State.Running}}' 2>/dev/null | rg -q true; then
               echo "PostgreSQL container exited unexpectedly!"
               docker logs "${container_name}" 2>&1 || true
               exit 1
@@ -197,9 +223,8 @@ jobs:
           fi
 
       - name: Run tests with coverage
-        env:
-          TEST_DATABASE_URL: postgres://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@localhost:${{ env.POSTGRES_PORT }}/${{ env.POSTGRES_DB }}?sslmode=disable
         run: |
+          export TEST_DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable"
           # Pre-compile test binaries first (this is the slow part)
           go test -c -covermode=atomic ./... 2>/dev/null || true
           # Verify DB is still reachable after compilation
@@ -247,6 +272,8 @@ jobs:
     name: Race Detection
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
     needs: [lint]
+    permissions:
+      contents: read
     env:
       TEST_DATABASE_URL: ""
     steps:
@@ -256,6 +283,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Run race detector
         run: mise run test-race
@@ -274,6 +303,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Dependency Review
         uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
@@ -284,6 +315,8 @@ jobs:
   govulncheck:
     name: Vulnerability Check
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
+    permissions:
+      contents: read
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
@@ -291,6 +324,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Run govulncheck
         run: govulncheck ./...
