@@ -14,8 +14,6 @@ jobs:
   secret-detection:
     name: Secret Detection
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
-    permissions:
-      contents: read
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
@@ -107,8 +105,6 @@ jobs:
   lint:
     name: Lint
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
-    permissions:
-      contents: read
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
@@ -130,8 +126,6 @@ jobs:
   prek:
     name: Pre-commit (prek)
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
-    permissions:
-      contents: read
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
@@ -157,8 +151,6 @@ jobs:
     name: Test
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
     needs: [lint]
-    permissions:
-      contents: read
     env:
       POSTGRES_USER: test
       POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD || 'test' }}
@@ -209,7 +201,7 @@ jobs:
               break
             fi
             # Check the container hasn't exited
-            if ! docker inspect "${container_name}" --format='{{.State.Running}}' 2>/dev/null | rg -q true; then
+            if ! docker inspect "${container_name}" --format='{{.State.Running}}' 2>/dev/null | grep -q true; then
               echo "PostgreSQL container exited unexpectedly!"
               docker logs "${container_name}" 2>&1 || true
               exit 1
@@ -272,8 +264,6 @@ jobs:
     name: Race Detection
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
     needs: [lint]
-    permissions:
-      contents: read
     env:
       TEST_DATABASE_URL: ""
     steps:
@@ -294,8 +284,6 @@ jobs:
     name: Dependency Review
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
     if: github.event_name == 'pull_request'
-    permissions:
-      contents: read
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
@@ -315,8 +303,6 @@ jobs:
   govulncheck:
     name: Vulnerability Check
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
-    permissions:
-      contents: read
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
