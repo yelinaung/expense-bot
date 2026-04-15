@@ -7,6 +7,8 @@ stages:
 
 variables:
   SECRET_DETECTION_ENABLED: 'true'
+  # Allow Go to auto-resolve the exact toolchain version required by go.mod.
+  GOTOOLCHAIN: auto
   # Go cache configuration for faster builds
   GOPATH: ${CI_PROJECT_DIR}/.go
   GOCACHE: ${CI_PROJECT_DIR}/.go-cache
