@@ -1,61 +1,58 @@
 package bot
 
 import (
+	"sort"
 	"strings"
 	"testing"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 	"pgregory.net/rapid"
 )
 
 // TestNormalizeCurrencyCodeIdempotent: norm(norm(x)) == norm(x).
 func TestNormalizeCurrencyCodeIdempotent(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		s := rapid.String().Draw(t, "s")
 		once := normalizeCurrencyCode(s)
 		twice := normalizeCurrencyCode(once)
-		if once != twice {
-			t.Fatalf("not idempotent: once=%q twice=%q (in=%q)", once, twice, s)
-		}
+		require.Equal(t, once, twice, "not idempotent (in=%q)", s)
 	})
 }
 
-// TestNormalizeCurrencyCodeUppercaseTrimmed: output is uppercased and has no
-// leading/trailing whitespace.
+// TestNormalizeCurrencyCodeUppercaseTrimmed: output is uppercased and trimmed.
 func TestNormalizeCurrencyCodeUppercaseTrimmed(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		s := rapid.String().Draw(t, "s")
 		got := normalizeCurrencyCode(s)
-		if got != strings.ToUpper(got) {
-			t.Fatalf("not uppercased: %q", got)
-		}
-		if got != strings.TrimSpace(got) {
-			t.Fatalf("not trimmed: %q", got)
-		}
+		require.Equal(t, strings.ToUpper(got), got, "not uppercased: %q", got)
+		require.Equal(t, strings.TrimSpace(got), got, "not trimmed: %q", got)
 	})
 }
 
 // TestGetCurrencyOrCodeSymbolSupportedReturnsSymbol: for supported codes, returns symbol.
 func TestGetCurrencyOrCodeSymbolSupportedReturnsSymbol(t *testing.T) {
+	t.Parallel()
 	codes := make([]string, 0, len(appmodels.SupportedCurrencies))
 	for c := range appmodels.SupportedCurrencies {
 		codes = append(codes, c)
 	}
+	sort.Strings(codes)
 	rapid.Check(t, func(t *rapid.T) {
 		code := rapid.SampledFrom(codes).Draw(t, "code")
 		got := getCurrencyOrCodeSymbol(code)
 		want := appmodels.SupportedCurrencies[code]
-		if got != want {
-			t.Fatalf("getCurrencyOrCodeSymbol(%q) = %q, want %q", code, got, want)
-		}
+		require.Equal(t, want, got, "code=%q", code)
 	})
 }
 
 // TestGetCurrencyOrCodeSymbolUnknownReturnsCode: unsupported code → returns code verbatim.
 func TestGetCurrencyOrCodeSymbolUnknownReturnsCode(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
-		// Generate arbitrary string, skip if it happens to be a known code.
 		code := rapid.String().Draw(t, "code")
 		if _, ok := appmodels.SupportedCurrencies[code]; ok {
 			t.Skip("known code")
@@ -64,9 +61,7 @@ func TestGetCurrencyOrCodeSymbolUnknownReturnsCode(t *testing.T) {
 			t.Skip("known code")
 		}
 		got := getCurrencyOrCodeSymbol(code)
-		if got != code {
-			t.Fatalf("getCurrencyOrCodeSymbol(%q) = %q, want %q", code, got, code)
-		}
+		require.Equal(t, code, got, "code=%q", code)
 	})
 }
 
@@ -84,6 +79,7 @@ func genAmount() *rapid.Generator[decimal.Decimal] {
 //   - Result contains original currency and converted currency codes
 //   - Non-empty trimmed description is preserved as prefix
 func TestAppendOriginalAmountDescriptionInvariants(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		desc := rapid.StringMatching(`[A-Za-z ]{0,20}`).Draw(t, "desc")
 		origAmt := genAmount().Draw(t, "origAmt")
@@ -95,30 +91,21 @@ func TestAppendOriginalAmountDescriptionInvariants(t *testing.T) {
 
 		got := appendOriginalAmountDescription(desc, origAmt, origCur, convAmt, convCur, rate, rateDate)
 
-		if !strings.Contains(got, "orig:") {
-			t.Fatalf("missing 'orig:' marker: %q", got)
-		}
-		if !strings.Contains(got, origCur) {
-			t.Fatalf("missing origCur %q: %q", origCur, got)
-		}
-		if !strings.Contains(got, convCur) {
-			t.Fatalf("missing convCur %q: %q", convCur, got)
-		}
-		if !strings.Contains(got, rateDate) {
-			t.Fatalf("missing rateDate: %q", got)
-		}
+		require.Contains(t, got, "orig:", "missing marker")
+		require.Contains(t, got, origCur)
+		require.Contains(t, got, convCur)
+		require.Contains(t, got, rateDate)
 
-		trimmed := strings.TrimSpace(desc)
-		if trimmed != "" {
-			if !strings.HasPrefix(got, desc+" ") {
-				t.Fatalf("prefix not preserved: desc=%q got=%q", desc, got)
-			}
+		if strings.TrimSpace(desc) != "" {
+			require.True(t, strings.HasPrefix(got, desc+" "),
+				"prefix not preserved: desc=%q got=%q", desc, got)
 		}
 	})
 }
 
 // TestAppendConversionUnavailableDescriptionInvariants: contains marker and currencies.
 func TestAppendConversionUnavailableDescriptionInvariants(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		desc := rapid.StringMatching(`[A-Za-z ]{0,20}`).Draw(t, "desc")
 		origCur := rapid.StringMatching(`[A-Z]{3}`).Draw(t, "origCur")
@@ -126,21 +113,13 @@ func TestAppendConversionUnavailableDescriptionInvariants(t *testing.T) {
 
 		got := appendConversionUnavailableDescription(desc, origCur, targetCur)
 
-		if !strings.Contains(got, "fx_unavailable") {
-			t.Fatalf("missing fx_unavailable marker: %q", got)
-		}
-		if !strings.Contains(got, origCur) {
-			t.Fatalf("missing origCur %q: %q", origCur, got)
-		}
-		if !strings.Contains(got, targetCur) {
-			t.Fatalf("missing targetCur %q: %q", targetCur, got)
-		}
+		require.Contains(t, got, "fx_unavailable")
+		require.Contains(t, got, origCur)
+		require.Contains(t, got, targetCur)
 
-		trimmed := strings.TrimSpace(desc)
-		if trimmed != "" {
-			if !strings.HasPrefix(got, desc+" ") {
-				t.Fatalf("prefix not preserved: desc=%q got=%q", desc, got)
-			}
+		if strings.TrimSpace(desc) != "" {
+			require.True(t, strings.HasPrefix(got, desc+" "),
+				"prefix not preserved: desc=%q got=%q", desc, got)
 		}
 	})
 }

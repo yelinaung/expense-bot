@@ -1,10 +1,12 @@
 package bot
 
 import (
+	"sort"
 	"strings"
 	"testing"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 	"pgregory.net/rapid"
 )
@@ -46,42 +48,37 @@ func genDescription() *rapid.Generator[string] {
 }
 
 // genSupportedCurrencyCode draws a code from models.SupportedCurrencies.
+// Codes are sorted for deterministic rapid seeding across runs.
 func genSupportedCurrencyCode() *rapid.Generator[string] {
 	codes := make([]string, 0, len(models.SupportedCurrencies))
 	for c := range models.SupportedCurrencies {
 		codes = append(codes, c)
 	}
+	sort.Strings(codes)
 	return rapid.SampledFrom(codes)
 }
 
 // TestParseAmountAcceptsPositiveDecimals: parseAmount accepts positive decimal strings.
 func TestParseAmountAcceptsPositiveDecimals(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		s := genPositiveAmountString().Draw(t, "amountStr")
 		amt, err := parseAmount(s)
-		if err != nil {
-			t.Fatalf("parseAmount(%q) err: %v", s, err)
-		}
-		if !amt.GreaterThan(decimal.Zero) {
-			t.Fatalf("parseAmount(%q) = %s, want > 0", s, amt)
-		}
+		require.NoError(t, err, "parseAmount(%q)", s)
+		require.True(t, amt.GreaterThan(decimal.Zero), "parseAmount(%q) = %s", s, amt)
 
-		// Comma variant parses to same value.
 		if strings.Contains(s, ".") {
 			commaStr := strings.ReplaceAll(s, ".", ",")
 			amt2, err2 := parseAmount(commaStr)
-			if err2 != nil {
-				t.Fatalf("parseAmount(%q) err: %v", commaStr, err2)
-			}
-			if !amt.Equal(amt2) {
-				t.Fatalf("comma variant mismatch: %s vs %s", amt, amt2)
-			}
+			require.NoError(t, err2, "parseAmount(%q)", commaStr)
+			require.True(t, amt.Equal(amt2), "comma variant mismatch: %s vs %s", amt, amt2)
 		}
 	})
 }
 
 // TestParseAmountRejectsNonPositive: parseAmount rejects zero or negative.
 func TestParseAmountRejectsNonPositive(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		n := rapid.IntRange(0, 1_000_000).Draw(t, "n")
 		frac := rapid.IntRange(0, 99).Draw(t, "frac")
@@ -93,14 +90,13 @@ func TestParseAmountRejectsNonPositive(t *testing.T) {
 			t.Skip("positive — covered in other test")
 		}
 		_, err := parseAmount(d.String())
-		if err == nil {
-			t.Fatalf("parseAmount(%q) expected error", d.String())
-		}
+		require.Error(t, err, "parseAmount(%q) expected error", d.String())
 	})
 }
 
 // TestExtractTagsIdempotent: second extraction from cleaned text yields no tags.
 func TestExtractTagsIdempotent(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		n := rapid.IntRange(0, 5).Draw(t, "n")
 		parts := make([]string, 0, 1+n)
@@ -113,58 +109,43 @@ func TestExtractTagsIdempotent(t *testing.T) {
 
 		tags, cleaned := extractTags(input)
 
-		// All tags lowercased.
 		for _, tag := range tags {
-			if tag != strings.ToLower(tag) {
-				t.Fatalf("tag not lowercased: %q", tag)
-			}
+			require.Equal(t, strings.ToLower(tag), tag, "tag not lowercased: %q", tag)
 		}
 
-		// Tags are deduplicated.
 		seen := map[string]bool{}
 		for _, tag := range tags {
-			if seen[tag] {
-				t.Fatalf("duplicate tag: %q", tag)
-			}
+			require.False(t, seen[tag], "duplicate tag: %q", tag)
 			seen[tag] = true
 		}
 
-		// Idempotence: cleaned text has no more tags to extract.
 		tags2, _ := extractTags(cleaned)
-		if len(tags2) != 0 {
-			t.Fatalf("cleaned text still has tags: %v (cleaned=%q)", tags2, cleaned)
-		}
+		require.Empty(t, tags2, "cleaned text still has tags (cleaned=%q)", cleaned)
 	})
 }
 
 // TestParseExpenseInputAmountFirst: "AMOUNT DESCRIPTION" parses with matching amount + desc.
 func TestParseExpenseInputAmountFirst(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		amtStr := genPositiveAmountString().Draw(t, "amount")
 		desc := genDescription().Draw(t, "desc")
 		input := amtStr + " " + desc
 
 		parsed := ParseExpenseInput(input)
-		if parsed == nil {
-			t.Fatalf("ParseExpenseInput(%q) = nil", input)
-			return
-		}
+		require.NotNil(t, parsed, "ParseExpenseInput(%q)", input)
 
 		wantAmt, err := decimal.NewFromString(amtStr)
-		if err != nil {
-			t.Fatalf("bad amount: %v", err)
-		}
-		if !parsed.Amount.Equal(wantAmt) {
-			t.Fatalf("amount mismatch: got %s, want %s (input=%q)", parsed.Amount, wantAmt, input)
-		}
-		if parsed.Description != desc {
-			t.Fatalf("desc mismatch: got %q, want %q (input=%q)", parsed.Description, desc, input)
-		}
+		require.NoError(t, err)
+		require.True(t, parsed.Amount.Equal(wantAmt),
+			"amount mismatch: got %s, want %s (input=%q)", parsed.Amount, wantAmt, input)
+		require.Equal(t, desc, parsed.Description, "input=%q", input)
 	})
 }
 
 // TestParseExpenseInputWithCurrencyPrefix: "CODE AMOUNT DESC" detects currency.
 func TestParseExpenseInputWithCurrencyPrefix(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		code := genSupportedCurrencyCode().Draw(t, "code")
 		amtStr := genPositiveAmountString().Draw(t, "amount")
@@ -172,26 +153,19 @@ func TestParseExpenseInputWithCurrencyPrefix(t *testing.T) {
 		input := code + " " + amtStr + " " + desc
 
 		parsed := ParseExpenseInput(input)
-		if parsed == nil {
-			t.Fatalf("ParseExpenseInput(%q) = nil", input)
-			return
-		}
-		// USD via leading "$" symbol is ambiguous and intentionally cleared,
-		// but leading currency CODE (e.g., "USD") stays set. Check code path.
-		if parsed.Currency != code {
-			t.Fatalf("currency mismatch: got %q, want %q (input=%q)", parsed.Currency, code, input)
-		}
+		require.NotNil(t, parsed, "ParseExpenseInput(%q)", input)
+		// Leading CODE (e.g., "USD") stays set; leading "$" symbol is intentionally cleared.
+		require.Equal(t, code, parsed.Currency, "input=%q", input)
 	})
 }
 
 // TestContainsDigitMatchesStrings: containsDigit equals stdlib behavior.
 func TestContainsDigitMatchesStrings(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		s := rapid.String().Draw(t, "s")
 		got := containsDigit(s)
 		want := strings.ContainsAny(s, "0123456789")
-		if got != want {
-			t.Fatalf("containsDigit(%q) = %v, want %v", s, got, want)
-		}
+		require.Equal(t, want, got, "containsDigit(%q)", s)
 	})
 }
