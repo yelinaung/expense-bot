@@ -23,6 +23,8 @@ repos:
     rev: v2.11.4
     hooks:
       - id: golangci-lint
+        env:
+          GOTOOLCHAIN: auto
   - repo: https://github.com/koalaman/shellcheck-precommit
     rev: v0.11.0
     hooks:
