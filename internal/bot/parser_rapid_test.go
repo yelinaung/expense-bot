@@ -31,8 +31,20 @@ func genPositiveAmountString() *rapid.Generator[string] {
 }
 
 // genDescWord generates a single lowercase word with no digits / tag / bracket markers.
+// Filters out words that collide with currency codes (e.g. "usd") or currency
+// words (e.g. "baht") since the parser would extract those as the currency and
+// shrink the description, breaking downstream assertions.
 func genDescWord() *rapid.Generator[string] {
-	return rapid.StringMatching(`[a-z]{1,10}`)
+	return rapid.StringMatching(`[a-z]{1,10}`).Filter(func(w string) bool {
+		u := strings.ToUpper(w)
+		if _, ok := models.SupportedCurrencies[u]; ok {
+			return false
+		}
+		if _, ok := currencyWordToCode[u]; ok {
+			return false
+		}
+		return true
+	})
 }
 
 // genDescription generates a description of 1..4 words, no digits, no special chars.
@@ -102,7 +114,7 @@ func TestExtractTagsIdempotent(t *testing.T) {
 		parts := make([]string, 0, 1+n)
 		parts = append(parts, "lunch")
 		for range n {
-			tag := rapid.StringMatching(`[a-z]{1,10}`).Draw(t, "tag")
+			tag := rapid.StringMatching(`[A-Za-z]{1,10}`).Draw(t, "tag")
 			parts = append(parts, "#"+tag)
 		}
 		input := strings.Join(parts, " ")
