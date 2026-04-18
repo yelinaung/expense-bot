@@ -72,7 +72,7 @@ func TestMatchCategoryExactCaseInsensitive(t *testing.T) {
 		idx := rapid.IntRange(0, len(cats)-1).Draw(t, "idx")
 		target := cats[idx].Name
 		upper := rapid.Bool().Draw(t, "upper")
-		suggested := target
+		var suggested string
 		if upper {
 			suggested = strings.ToUpper(target)
 		} else {
@@ -82,6 +82,7 @@ func TestMatchCategoryExactCaseInsensitive(t *testing.T) {
 		got := MatchCategory(suggested, cats)
 		if got == nil {
 			t.Fatalf("MatchCategory(%q) = nil, want match", suggested)
+			return
 		}
 		if !strings.EqualFold(got.Name, target) {
 			t.Fatalf("MatchCategory(%q) = %q, want equalfold %q", suggested, got.Name, target)

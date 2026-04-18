@@ -103,7 +103,8 @@ func TestParseAmountRejectsNonPositive(t *testing.T) {
 func TestExtractTagsIdempotent(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		n := rapid.IntRange(0, 5).Draw(t, "n")
-		parts := []string{"lunch"}
+		parts := make([]string, 0, 1+n)
+		parts = append(parts, "lunch")
 		for range n {
 			tag := rapid.StringMatching(`[a-z]{1,10}`).Draw(t, "tag")
 			parts = append(parts, "#"+tag)
@@ -146,6 +147,7 @@ func TestParseExpenseInputAmountFirst(t *testing.T) {
 		parsed := ParseExpenseInput(input)
 		if parsed == nil {
 			t.Fatalf("ParseExpenseInput(%q) = nil", input)
+			return
 		}
 
 		wantAmt, err := decimal.NewFromString(amtStr)
@@ -172,6 +174,7 @@ func TestParseExpenseInputWithCurrencyPrefix(t *testing.T) {
 		parsed := ParseExpenseInput(input)
 		if parsed == nil {
 			t.Fatalf("ParseExpenseInput(%q) = nil", input)
+			return
 		}
 		// USD via leading "$" symbol is ambiguous and intentionally cleared,
 		// but leading currency CODE (e.g., "USD") stays set. Check code path.
