@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"sort"
 	"strings"
 	"testing"
 
@@ -36,13 +35,8 @@ func TestNormalizeCurrencyCodeUppercaseTrimmed(t *testing.T) {
 // TestGetCurrencyOrCodeSymbolSupportedReturnsSymbol: for supported codes, returns symbol.
 func TestGetCurrencyOrCodeSymbolSupportedReturnsSymbol(t *testing.T) {
 	t.Parallel()
-	codes := make([]string, 0, len(appmodels.SupportedCurrencies))
-	for c := range appmodels.SupportedCurrencies {
-		codes = append(codes, c)
-	}
-	sort.Strings(codes)
 	rapid.Check(t, func(t *rapid.T) {
-		code := rapid.SampledFrom(codes).Draw(t, "code")
+		code := genSupportedCurrency().Draw(t, "code")
 		got := getCurrencyOrCodeSymbol(code)
 		want := appmodels.SupportedCurrencies[code]
 		require.Equal(t, want, got, "code=%q", code)

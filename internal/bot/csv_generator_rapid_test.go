@@ -3,7 +3,6 @@ package bot
 import (
 	"bytes"
 	"encoding/csv"
-	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -13,16 +12,6 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 	"pgregory.net/rapid"
 )
-
-// genSupportedCurrency draws a sorted-stable currency code.
-func genSupportedCurrency() *rapid.Generator[string] {
-	codes := make([]string, 0, len(models.SupportedCurrencies))
-	for c := range models.SupportedCurrencies {
-		codes = append(codes, c)
-	}
-	sort.Strings(codes)
-	return rapid.SampledFrom(codes)
-}
 
 // genCreatedAt draws a UTC time between 2000 and 2040.
 func genCreatedAt() *rapid.Generator[time.Time] {

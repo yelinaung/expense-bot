@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"sort"
 	"strings"
 	"testing"
 
@@ -57,17 +56,6 @@ func genDescription() *rapid.Generator[string] {
 		}
 		return strings.Join(words, " ")
 	})
-}
-
-// genSupportedCurrencyCode draws a code from models.SupportedCurrencies.
-// Codes are sorted for deterministic rapid seeding across runs.
-func genSupportedCurrencyCode() *rapid.Generator[string] {
-	codes := make([]string, 0, len(models.SupportedCurrencies))
-	for c := range models.SupportedCurrencies {
-		codes = append(codes, c)
-	}
-	sort.Strings(codes)
-	return rapid.SampledFrom(codes)
 }
 
 // TestParseAmountAcceptsPositiveDecimals: parseAmount accepts positive decimal strings.
@@ -159,7 +147,7 @@ func TestParseExpenseInputAmountFirst(t *testing.T) {
 func TestParseExpenseInputWithCurrencyPrefix(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
-		code := genSupportedCurrencyCode().Draw(t, "code")
+		code := genSupportedCurrency().Draw(t, "code")
 		amtStr := genPositiveAmountString().Draw(t, "amount")
 		desc := genDescription().Draw(t, "desc")
 		input := code + " " + amtStr + " " + desc

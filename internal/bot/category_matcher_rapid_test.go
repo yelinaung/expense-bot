@@ -132,7 +132,10 @@ func TestExtractSignificantWordsFiltersStopAndShort(t *testing.T) {
 	})
 }
 
-// TestIsStopWordFixedSet: only "and", "the", "for" are stop words.
+// TestIsStopWordFixedSet pins the current stop-word set as a contract: only
+// "and", "the", "for" are recognized. Update this test when the stop-word list
+// changes — the pin exists so additions or removals are a deliberate, visible
+// change rather than a silent behavior shift.
 func TestIsStopWordFixedSet(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
@@ -143,8 +146,12 @@ func TestIsStopWordFixedSet(t *testing.T) {
 	})
 }
 
-// TestMatchCategorySubstringFinds: when suggested is substring of some category
-// name (case-insensitive), Match returns non-nil.
+// TestMatchCategorySubstringFinds asserts the substring-containment contract:
+// when suggested is a non-empty substring of any category name,
+// MatchCategory returns some category (not necessarily the target — the
+// shortest containing category or first word-based hit is acceptable). This
+// pins the "never miss a clear containment hit" behavior without constraining
+// which category wins when multiple candidates contain the substring.
 func TestMatchCategorySubstringFinds(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
