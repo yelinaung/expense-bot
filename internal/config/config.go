@@ -176,7 +176,7 @@ func parseInt64List(raw string) []int64 {
 func parseWhitelistedUsernames(raw string) []string {
 	var usernames []string
 	for username := range strings.SplitSeq(raw, ",") {
-		username = strings.TrimPrefix(strings.TrimSpace(username), "@")
+		username = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(username), "@"))
 		if username == "" {
 			continue
 		}
