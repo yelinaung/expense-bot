@@ -143,6 +143,42 @@ func TestParseExpenseInputAmountFirst(t *testing.T) {
 	})
 }
 
+// TestParseExpenseInputNoAmount: pure letters/spaces with no numeric token
+// must not parse. Both the leading-amount and reordered-amount paths require
+// a parseable amount, so the result is nil.
+func TestParseExpenseInputNoAmount(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(t *rapid.T) {
+		desc := genDescription().Draw(t, "desc")
+		parsed := ParseExpenseInput(desc)
+		require.Nil(t, parsed, "ParseExpenseInput(%q)", desc)
+	})
+}
+
+// TestParseExpenseInputWhitespaceTolerantAmount: leading/trailing/extra inner
+// spaces around "AMOUNT DESC" don't change the parsed amount. Description is
+// not compared because parser may normalize whitespace inside the description.
+func TestParseExpenseInputWhitespaceTolerantAmount(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(t *rapid.T) {
+		amtStr := genPositiveAmountString().Draw(t, "amount")
+		desc := genDescription().Draw(t, "desc")
+		lead := rapid.StringMatching(`[ \t]{0,4}`).Draw(t, "lead")
+		trail := rapid.StringMatching(`[ \t]{0,4}`).Draw(t, "trail")
+		gap := rapid.StringMatching(`[ \t]{1,4}`).Draw(t, "gap")
+		base := amtStr + " " + desc
+		noisy := lead + amtStr + gap + desc + trail
+
+		parsedBase := ParseExpenseInput(base)
+		parsedNoisy := ParseExpenseInput(noisy)
+		require.NotNil(t, parsedBase, "base=%q", base)
+		require.NotNil(t, parsedNoisy, "noisy=%q", noisy)
+		require.True(t, parsedBase.Amount.Equal(parsedNoisy.Amount),
+			"amount mismatch: base=%s noisy=%s (base=%q noisy=%q)",
+			parsedBase.Amount, parsedNoisy.Amount, base, noisy)
+	})
+}
+
 // TestParseExpenseInputWithCurrencyPrefix: "CODE AMOUNT DESC" detects currency.
 func TestParseExpenseInputWithCurrencyPrefix(t *testing.T) {
 	t.Parallel()

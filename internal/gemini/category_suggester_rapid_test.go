@@ -90,6 +90,20 @@ func TestExtractJSONRoundsToBraces(t *testing.T) {
 	})
 }
 
+// TestExtractJSONOpenBraceNoCloseEmpty: input with '{' but no matching '}'
+// returns "". This pins the LLM-output safety contract: truncated or
+// malformed responses must not slip past extractJSON as a valid payload.
+func TestExtractJSONOpenBraceNoCloseEmpty(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(t *rapid.T) {
+		prefix := rapid.StringMatching(`[A-Za-z ]{0,10}`).Draw(t, "prefix")
+		body := rapid.StringMatching(`[A-Za-z0-9 :",]{0,40}`).Draw(t, "body")
+		in := prefix + "{" + body
+		got := extractJSON(in)
+		require.Empty(t, got, "in=%q", in)
+	})
+}
+
 // TestHashDescriptionDeterministic: same input → same output; output is 16 hex chars.
 func TestHashDescriptionDeterministic(t *testing.T) {
 	t.Parallel()

@@ -146,6 +146,47 @@ func TestIsStopWordFixedSet(t *testing.T) {
 	})
 }
 
+// TestFindWordBasedCategoryMatchNoSignificantWordsReturnsNil: when the
+// suggested input contains only stop words or sub-3-character tokens,
+// extractSignificantWords returns an empty slice and the word-based matcher
+// must not fall back to any accidental hit.
+//
+// Scoped to findWordBasedCategoryMatch specifically because
+// findShortestContainingCategoryMatch can legitimately match on a 1-char
+// substring of a cat name (e.g. "a" is a substring of "aaa") — that's not a
+// spurious hit, so end-to-end MatchCategory can't assert nil here.
+func TestFindWordBasedCategoryMatchNoSignificantWordsReturnsNil(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(t *rapid.T) {
+		cats := genCategories().Draw(t, "cats")
+		kind := rapid.IntRange(0, 1).Draw(t, "kind")
+		var suggested string
+		switch kind {
+		case 0:
+			// Only stop words, space-separated.
+			n := rapid.IntRange(1, 5).Draw(t, "n")
+			toks := make([]string, n)
+			for i := range n {
+				toks[i] = rapid.SampledFrom([]string{"and", "the", "for"}).Draw(t, "stop")
+			}
+			suggested = strings.Join(toks, " ")
+		default:
+			// Only sub-3-character letter tokens.
+			n := rapid.IntRange(1, 5).Draw(t, "n")
+			toks := make([]string, n)
+			for i := range n {
+				toks[i] = rapid.StringMatching(`[A-Za-z]{1,2}`).Draw(t, "tok")
+			}
+			suggested = strings.Join(toks, " ")
+		}
+
+		require.Empty(t, extractSignificantWords(suggested),
+			"precondition: expected no significant words in %q", suggested)
+		got := findWordBasedCategoryMatch(suggested, cats)
+		require.Nil(t, got, "findWordBasedCategoryMatch(%q)", suggested)
+	})
+}
+
 // TestMatchCategorySubstringFinds asserts the substring-containment contract:
 // when suggested is a non-empty substring of any category name,
 // MatchCategory returns some category (not necessarily the target — the
