@@ -16,6 +16,10 @@ expense-bot
 *.cover
 *.html
 
+# rapid property-test failure seeds
+testdata/rapid/
+**/testdata/rapid/
+
 # Go workspace
 go.work
 go.work.sum
@@ -40,7 +44,6 @@ Thumbs.db
 
 # Claude Code local settings
 .claude/
-CLAUDE.md
 .rtk
 
 tmp
