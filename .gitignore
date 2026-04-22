@@ -43,7 +43,6 @@ Thumbs.db
 .agents/*
 
 # Claude Code local settings
-.claude/
 .rtk
 
 tmp
