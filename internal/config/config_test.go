@@ -278,6 +278,121 @@ func TestLoad_DailyReminder(t *testing.T) {
 	})
 }
 
+func TestLoad_WeeklyReport(t *testing.T) {
+	t.Run("parses WEEKLY_REPORT_ENABLED=true", func(t *testing.T) {
+		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
+		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
+		t.Setenv(envWhitelistedUserIDs, "123")
+		t.Setenv("WEEKLY_REPORT_ENABLED", "true")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.True(t, cfg.WeeklyReportEnabled)
+	})
+
+	t.Run("parses WEEKLY_REPORT_ENABLED=false", func(t *testing.T) {
+		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
+		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
+		t.Setenv(envWhitelistedUserIDs, "123")
+		t.Setenv("WEEKLY_REPORT_ENABLED", "false")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.False(t, cfg.WeeklyReportEnabled)
+	})
+
+	t.Run("defaults WEEKLY_REPORT_ENABLED to false", func(t *testing.T) {
+		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
+		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
+		t.Setenv(envWhitelistedUserIDs, "123")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.False(t, cfg.WeeklyReportEnabled)
+	})
+
+	t.Run("parses valid WEEKLY_REPORT_DAY", func(t *testing.T) {
+		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
+		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
+		t.Setenv(envWhitelistedUserIDs, "123")
+		t.Setenv("WEEKLY_REPORT_DAY", "3")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Equal(t, time.Wednesday, cfg.WeeklyReportDay)
+	})
+
+	t.Run("defaults WEEKLY_REPORT_DAY to Monday for invalid value", func(t *testing.T) {
+		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
+		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
+		t.Setenv(envWhitelistedUserIDs, "123")
+		t.Setenv("WEEKLY_REPORT_DAY", "7")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Equal(t, time.Monday, cfg.WeeklyReportDay)
+	})
+
+	t.Run("defaults WEEKLY_REPORT_DAY to Monday for non-numeric value", func(t *testing.T) {
+		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
+		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
+		t.Setenv(envWhitelistedUserIDs, "123")
+		t.Setenv("WEEKLY_REPORT_DAY", "abc")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Equal(t, time.Monday, cfg.WeeklyReportDay)
+	})
+
+	t.Run("parses valid WEEKLY_REPORT_HOUR", func(t *testing.T) {
+		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
+		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
+		t.Setenv(envWhitelistedUserIDs, "123")
+		t.Setenv("WEEKLY_REPORT_HOUR", "9")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Equal(t, 9, cfg.WeeklyReportHour)
+	})
+
+	t.Run("defaults WEEKLY_REPORT_HOUR to 9 for invalid value", func(t *testing.T) {
+		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
+		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
+		t.Setenv(envWhitelistedUserIDs, "123")
+		t.Setenv("WEEKLY_REPORT_HOUR", "25")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Equal(t, 9, cfg.WeeklyReportHour)
+	})
+
+	t.Run("defaults WEEKLY_REPORT_HOUR to 9 for non-numeric value", func(t *testing.T) {
+		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
+		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
+		t.Setenv(envWhitelistedUserIDs, "123")
+		t.Setenv("WEEKLY_REPORT_HOUR", "abc")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Equal(t, 9, cfg.WeeklyReportHour)
+	})
+
+	t.Run("parses all weekly report config together", func(t *testing.T) {
+		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
+		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
+		t.Setenv(envWhitelistedUserIDs, "123")
+		t.Setenv("WEEKLY_REPORT_ENABLED", "true")
+		t.Setenv("WEEKLY_REPORT_DAY", "0")
+		t.Setenv("WEEKLY_REPORT_HOUR", "8")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.True(t, cfg.WeeklyReportEnabled)
+		require.Equal(t, time.Sunday, cfg.WeeklyReportDay)
+		require.Equal(t, 8, cfg.WeeklyReportHour)
+	})
+}
+
 func TestLoad_Validation(t *testing.T) {
 	t.Run("fails when TELEGRAM_BOT_TOKEN is missing", func(t *testing.T) {
 		t.Setenv(envTelegramKeyVarConfig, "")
