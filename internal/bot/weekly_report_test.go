@@ -66,7 +66,7 @@ func TestCheckAndSendWeeklyReports(t *testing.T) {
 		require.Contains(t, msg.Text, "Apr 27")
 		require.Contains(t, msg.Text, "May 3, 2026")
 		require.Contains(t, msg.Text, "Lunch")
-		require.Contains(t, msg.Text, "SGD: $31.50")
+		require.Contains(t, msg.Text, "SGD: S$31.50")
 		require.Equal(t, "2026-04-27", sent[4001])
 	})
 
