@@ -76,13 +76,7 @@ func (b *Bot) checkAndSendWeeklyReports(ctx context.Context, sent map[int64]stri
 	checkCtx, cancel := context.WithTimeout(ctx, WeeklyReportTimeout)
 	defer cancel()
 
-	// Prune entries older than 2 weeks.
-	cutoff := now.UTC().AddDate(0, 0, -14).Format("2006-01-02")
-	for uid, weekKey := range sent {
-		if weekKey < cutoff {
-			delete(sent, uid)
-		}
-	}
+	pruneWeeklyReportSent(sent, now)
 
 	users, err := b.userRepo.GetAuthorizedUsersForReminder(
 		checkCtx,
@@ -91,67 +85,84 @@ func (b *Bot) checkAndSendWeeklyReports(ctx context.Context, sent map[int64]stri
 	)
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to fetch users for weekly report")
-		if b.metrics != nil {
-			b.metrics.BackgroundJobRuns.Add(ctx, 1, otelmetric.WithAttributes(
-				attribute.String("job", "weekly_report"),
-				attribute.String("status", "error"),
-			))
-			b.metrics.BackgroundJobDuration.Record(ctx, time.Since(start).Seconds(),
-				otelmetric.WithAttributes(attribute.String("job", "weekly_report")))
-		}
+		b.recordWeeklyReportMetrics(ctx, start, "error")
 		return
 	}
 
 	for i := range users {
-		user := &users[i]
+		b.processWeeklyReportUser(checkCtx, &users[i], sent, now)
+	}
 
-		loc := b.userLocation(user.Timezone)
-		userNow := now.In(loc)
+	b.recordWeeklyReportMetrics(ctx, start, "ok")
+}
 
-		if userNow.Weekday() != b.cfg.WeeklyReportDay {
-			continue
+// pruneWeeklyReportSent removes entries older than 2 weeks from the sent map.
+func pruneWeeklyReportSent(sent map[int64]string, now time.Time) {
+	cutoff := now.UTC().AddDate(0, 0, -14).Format("2006-01-02")
+	for uid, weekKey := range sent {
+		if weekKey < cutoff {
+			delete(sent, uid)
 		}
+	}
+}
 
-		if userNow.Hour() != b.cfg.WeeklyReportHour {
-			continue
-		}
+// processWeeklyReportUser checks whether a user should receive a weekly
+// report and sends one if needed.
+func (b *Bot) processWeeklyReportUser(
+	ctx context.Context,
+	user *appmodels.User,
+	sent map[int64]string,
+	now time.Time,
+) {
+	loc := b.userLocation(user.Timezone)
+	userNow := now.In(loc)
 
-		// Build a key from the previous week's Monday date.
-		prevStart, _ := getPreviousWeekRangeAt(userNow)
-		weekKey := prevStart.Format("2006-01-02")
-		if sent[user.ID] == weekKey {
-			continue
-		}
+	if userNow.Weekday() != b.cfg.WeeklyReportDay {
+		return
+	}
+	if userNow.Hour() != b.cfg.WeeklyReportHour {
+		return
+	}
 
-		sentOK, err := b.sendWeeklySummary(checkCtx, user, userNow)
-		if err != nil {
-			logger.Log.Warn().Err(err).
-				Str("user_hash", logger.HashUserID(user.ID)).
-				Msg("Failed to send weekly report")
-			continue
-		}
-		if !sentOK {
-			logger.Log.Debug().
-				Str("user_hash", logger.HashUserID(user.ID)).
-				Msg("No weekly expenses; skipping report")
-			continue
-		}
+	prevStart, _ := getPreviousWeekRangeAt(userNow)
+	weekKey := prevStart.Format("2006-01-02")
+	if sent[user.ID] == weekKey {
+		return
+	}
 
-		sent[user.ID] = weekKey
+	sentOK, err := b.sendWeeklySummary(ctx, user, userNow)
+	if err != nil {
+		logger.Log.Warn().Err(err).
+			Str("user_hash", logger.HashUserID(user.ID)).
+			Msg("Failed to send weekly report")
+		return
+	}
+	if !sentOK {
 		logger.Log.Debug().
 			Str("user_hash", logger.HashUserID(user.ID)).
-			Str("timezone", loc.String()).
-			Msg("Sent weekly report")
+			Msg("No weekly expenses; skipping report")
+		return
 	}
 
-	if b.metrics != nil {
-		b.metrics.BackgroundJobRuns.Add(ctx, 1, otelmetric.WithAttributes(
-			attribute.String("job", "weekly_report"),
-			attribute.String("status", "ok"),
-		))
-		b.metrics.BackgroundJobDuration.Record(ctx, time.Since(start).Seconds(),
-			otelmetric.WithAttributes(attribute.String("job", "weekly_report")))
+	sent[user.ID] = weekKey
+	logger.Log.Debug().
+		Str("user_hash", logger.HashUserID(user.ID)).
+		Str("timezone", loc.String()).
+		Msg("Sent weekly report")
+}
+
+// recordWeeklyReportMetrics records background job metrics for the
+// weekly report run.
+func (b *Bot) recordWeeklyReportMetrics(ctx context.Context, start time.Time, status string) {
+	if b.metrics == nil {
+		return
 	}
+	b.metrics.BackgroundJobRuns.Add(ctx, 1, otelmetric.WithAttributes(
+		attribute.String("job", "weekly_report"),
+		attribute.String("status", status),
+	))
+	b.metrics.BackgroundJobDuration.Record(ctx, time.Since(start).Seconds(),
+		otelmetric.WithAttributes(attribute.String("job", "weekly_report")))
 }
 
 // sendWeeklySummary sends a weekly expense summary to the user.
