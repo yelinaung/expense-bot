@@ -40,8 +40,10 @@ RUN pipx install semgrep=="${SEMGREP_VERSION}" && \
       "https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/mise-v${MISE_VERSION}-linux-x64.tar.gz" | \
     tar -xz -C /usr/local/bin --strip-components=2 mise/bin/mise && \
     curl --proto "=https" --tlsv1.2 -sSf -L \
-      "https://raw.githubusercontent.com/golangci/golangci-lint/${GOLANGCI_LINT_INSTALL_COMMIT}/install.sh" | \
-    sh -s -- -b "${GOBIN}" "v${GOLANGCI_LINT_VERSION}" && \
+      "https://raw.githubusercontent.com/golangci/golangci-lint/${GOLANGCI_LINT_INSTALL_COMMIT}/install.sh" \
+      -o /tmp/golangci-lint-install.sh && \
+    sh /tmp/golangci-lint-install.sh -- -b "${GOBIN}" "v${GOLANGCI_LINT_VERSION}" && \
+    rm /tmp/golangci-lint-install.sh && \
     curl --proto "=https" --tlsv1.2 -sSf -L "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | \
     tar -xz -C /usr/local/bin gitleaks && \
     curl --proto "=https" --tlsv1.2 -sSf -L "https://github.com/goreleaser/goreleaser/releases/download/v${GORELEASER_VERSION}/goreleaser_Linux_x86_64.tar.gz" | \
