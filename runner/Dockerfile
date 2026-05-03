@@ -33,9 +33,9 @@ ENV PATH="/root/.local/bin:/opt/hostedtoolcache/go/${GO_VERSION}/x64/bin:/opt/ho
     GOBIN="/opt/hostedtoolcache/go/${GO_VERSION}/x64/packages/bin"
 
 RUN pipx install semgrep=="${SEMGREP_VERSION}" && \
-    go install "mvdan.cc/gofumpt@v${GOFUMPT_VERSION}" && \ # NOSONAR
-    go install "golang.org/x/vuln/cmd/govulncheck@v${GOVULNCHECK_VERSION}" && \ # NOSONAR
-    go install "github.com/securego/gosec/v2/cmd/gosec@v${GOSEC_VERSION}" && \ # NOSONAR
+    go install "mvdan.cc/gofumpt@v${GOFUMPT_VERSION}" && \
+    go install "golang.org/x/vuln/cmd/govulncheck@v${GOVULNCHECK_VERSION}" && \
+    go install "github.com/securego/gosec/v2/cmd/gosec@v${GOSEC_VERSION}" && \
     curl --proto "=https" --tlsv1.2 -sSf -L \
       "https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/mise-v${MISE_VERSION}-linux-x64.tar.gz" | \
     tar -xz -C /usr/local/bin --strip-components=2 mise/bin/mise && \
