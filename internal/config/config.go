@@ -35,7 +35,7 @@ type Config struct {
 
 	// Weekly report configuration.
 	WeeklyReportEnabled bool
-	WeeklyReportDay     int
+	WeeklyReportDay     time.Weekday
 	WeeklyReportHour    int
 
 	// OpenTelemetry configuration.
@@ -134,12 +134,12 @@ func applyReminderConfig(cfg *Config) {
 
 func applyWeeklyReportConfig(cfg *Config) {
 	cfg.WeeklyReportEnabled = os.Getenv("WEEKLY_REPORT_ENABLED") == envTrue
-	cfg.WeeklyReportDay = 1 // Monday
+	cfg.WeeklyReportDay = time.Monday
 	if dayStr := os.Getenv("WEEKLY_REPORT_DAY"); dayStr != "" {
 		if d, err := strconv.Atoi(dayStr); err == nil && d >= 0 && d <= 6 {
-			cfg.WeeklyReportDay = d
+			cfg.WeeklyReportDay = time.Weekday(d)
 		} else {
-			log.Printf("invalid WEEKLY_REPORT_DAY %q, using default day %d", dayStr, cfg.WeeklyReportDay)
+			log.Printf("invalid WEEKLY_REPORT_DAY %q, using default day %s", dayStr, cfg.WeeklyReportDay)
 		}
 	}
 	cfg.WeeklyReportHour = 9

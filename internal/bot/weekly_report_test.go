@@ -8,6 +8,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
+
 	"gitlab.com/yelinaung/expense-bot/internal/bot/mocks"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 )
@@ -25,8 +26,8 @@ func TestCheckAndSendWeeklyReports(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.WeeklyReportEnabled = true
-		b.cfg.WeeklyReportDay = 1  // Monday
-		b.cfg.WeeklyReportHour = 9 // 9 AM
+		b.cfg.WeeklyReportDay = time.Monday
+		b.cfg.WeeklyReportHour = 9
 		b.cfg.WhitelistedUserIDs = []int64{4001}
 
 		err := b.userRepo.UpsertUser(ctx, &models.User{
@@ -65,6 +66,7 @@ func TestCheckAndSendWeeklyReports(t *testing.T) {
 		require.Contains(t, msg.Text, "Apr 27")
 		require.Contains(t, msg.Text, "May 3, 2026")
 		require.Contains(t, msg.Text, "Lunch")
+		require.Contains(t, msg.Text, "SGD: $31.50")
 		require.Equal(t, "2026-04-27", sent[4001])
 	})
 
@@ -76,7 +78,7 @@ func TestCheckAndSendWeeklyReports(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.WeeklyReportEnabled = true
-		b.cfg.WeeklyReportDay = 1
+		b.cfg.WeeklyReportDay = time.Monday
 		b.cfg.WeeklyReportHour = 9
 		b.cfg.WhitelistedUserIDs = []int64{4002}
 
@@ -103,8 +105,8 @@ func TestCheckAndSendWeeklyReports(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.WeeklyReportEnabled = true
-		b.cfg.WeeklyReportDay = 1  // Monday
-		b.cfg.WeeklyReportHour = 9 // 9 AM
+		b.cfg.WeeklyReportDay = time.Monday
+		b.cfg.WeeklyReportHour = 9
 		b.cfg.WhitelistedUserIDs = []int64{4003}
 
 		tuesdayUTC := time.Date(2026, 5, 5, 1, 0, 0, 0, time.UTC) // Tuesday
@@ -132,7 +134,7 @@ func TestCheckAndSendWeeklyReports(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.WeeklyReportEnabled = true
-		b.cfg.WeeklyReportDay = 1
+		b.cfg.WeeklyReportDay = time.Monday
 		b.cfg.WeeklyReportHour = 9
 		b.cfg.WhitelistedUserIDs = []int64{4004}
 
@@ -161,7 +163,7 @@ func TestCheckAndSendWeeklyReports(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.WeeklyReportEnabled = true
-		b.cfg.WeeklyReportDay = 1
+		b.cfg.WeeklyReportDay = time.Monday
 		b.cfg.WeeklyReportHour = 9
 		b.cfg.WhitelistedUserIDs = []int64{4005}
 
@@ -190,7 +192,7 @@ func TestCheckAndSendWeeklyReports(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.WeeklyReportEnabled = true
-		b.cfg.WeeklyReportDay = 1
+		b.cfg.WeeklyReportDay = time.Monday
 		b.cfg.WeeklyReportHour = 9
 		b.cfg.WhitelistedUserIDs = nil
 
@@ -216,7 +218,7 @@ func TestCheckAndSendWeeklyReports(t *testing.T) {
 		mockBot.SendMessageError = errors.New("user blocked bot")
 		b.messageSender = mockBot
 		b.cfg.WeeklyReportEnabled = true
-		b.cfg.WeeklyReportDay = 1
+		b.cfg.WeeklyReportDay = time.Monday
 		b.cfg.WeeklyReportHour = 9
 		b.cfg.WhitelistedUserIDs = []int64{4007}
 
@@ -229,7 +231,7 @@ func TestCheckAndSendWeeklyReports(t *testing.T) {
 		err = b.userRepo.UpdateTimezone(ctx, 4007, "Etc/GMT-8")
 		require.NoError(t, err)
 
-		// Create an expense in previous week.
+		// Create an expense in the previous week.
 		prevMonday := time.Date(2026, 4, 27, 10, 0, 0, 0, loc)
 		expense := &models.Expense{
 			UserID:      4007,
@@ -249,8 +251,8 @@ func TestCheckAndSendWeeklyReports(t *testing.T) {
 		_, exists := sent[4007]
 		require.False(t, exists, "should not mark as sent on failure")
 		// No message was actually sent because the mock returns an
-		// error before recording. This distinguishes "attempted
-		// but failed" from "skipped entirely."
+		// error before recording. This distinguishes "attempted but
+		// failed" from "skipped entirely."
 		require.Equal(t, 0, mockBot.SentMessageCount())
 	})
 
@@ -262,14 +264,14 @@ func TestCheckAndSendWeeklyReports(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.WeeklyReportEnabled = true
-		b.cfg.WeeklyReportDay = 1
+		b.cfg.WeeklyReportDay = time.Monday
 		b.cfg.WeeklyReportHour = 9
 		b.cfg.WhitelistedUserIDs = []int64{4008}
 
 		sent := map[int64]string{
-			9001: "2026-04-01", // month ago — should be pruned
-			9002: "2026-04-20", // 2 weeks ago — should survive (cutoff is 14 days)
-			9003: "2026-04-27", // last week — should survive
+			9001: "2026-04-01", // A month ago — should be pruned.
+			9002: "2026-04-20", // Two weeks ago — should survive (cutoff is 14 days).
+			9003: "2026-04-27", // Last week — should survive.
 		}
 
 		b.checkAndSendWeeklyReports(ctx, sent, monday9amUTC)
@@ -288,7 +290,7 @@ func TestCheckAndSendWeeklyReports(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.WeeklyReportEnabled = true
-		b.cfg.WeeklyReportDay = 1
+		b.cfg.WeeklyReportDay = time.Monday
 		b.cfg.WeeklyReportHour = 9
 		b.cfg.WhitelistedUserIDs = []int64{4009}
 
@@ -301,7 +303,7 @@ func TestCheckAndSendWeeklyReports(t *testing.T) {
 		err = b.userRepo.UpdateTimezone(ctx, 4009, "")
 		require.NoError(t, err)
 
-		// Create expense in previous week.
+		// Create expense in the previous week.
 		prevMonday := time.Date(2026, 4, 27, 10, 0, 0, 0, loc)
 		expense := &models.Expense{
 			UserID:      4009,
@@ -329,11 +331,12 @@ func TestCheckAndSendWeeklyReports(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		b.messageSender = mockBot
 		b.cfg.WeeklyReportEnabled = true
-		b.cfg.WeeklyReportDay = 1  // Monday
-		b.cfg.WeeklyReportHour = 9 // 9 AM
+		b.cfg.WeeklyReportDay = time.Monday
+		b.cfg.WeeklyReportHour = 9
 		b.cfg.WhitelistedUserIDs = []int64{4101, 4102}
 
-		// User in GMT+8: at 01:00 UTC Monday = 09:00 local → matches
+		// Etc/GMT-8 means UTC+8. At 01:00 UTC Monday it is
+		// 09:00 local Monday — matches the configured hour.
 		err := b.userRepo.UpsertUser(ctx, &models.User{
 			ID:        4101,
 			Username:  "sguser",
@@ -343,17 +346,18 @@ func TestCheckAndSendWeeklyReports(t *testing.T) {
 		err = b.userRepo.UpdateTimezone(ctx, 4101, "Etc/GMT-8")
 		require.NoError(t, err)
 
-		// User in GMT+5: at 01:00 UTC Monday = 06:00 local → doesn't match
+		// Etc/GMT+5 means UTC-5. At 01:00 UTC Monday it is
+		// 20:00 (8 PM) Sunday local — does not match.
 		err = b.userRepo.UpsertUser(ctx, &models.User{
 			ID:        4102,
-			Username:  "eastuser",
-			FirstName: "East",
+			Username:  "westuser",
+			FirstName: "West",
 		})
 		require.NoError(t, err)
 		err = b.userRepo.UpdateTimezone(ctx, 4102, "Etc/GMT+5")
 		require.NoError(t, err)
 
-		// Create expense for both users in previous week.
+		// Create expense for both users in the previous week.
 		prevMonday := time.Date(2026, 4, 27, 10, 0, 0, 0, time.UTC)
 		for _, uid := range []int64{4101, 4102} {
 			expense := &models.Expense{
@@ -386,7 +390,7 @@ func TestCheckAndSendWeeklyReports(t *testing.T) {
 		b.messageSender = mockBot
 		b.tagRepo = nil
 		b.cfg.WeeklyReportEnabled = true
-		b.cfg.WeeklyReportDay = 1
+		b.cfg.WeeklyReportDay = time.Monday
 		b.cfg.WeeklyReportHour = 9
 		b.cfg.WhitelistedUserIDs = []int64{4103}
 
@@ -464,8 +468,8 @@ func TestStartWeeklyReportLoop_RunsImmediateCheck(t *testing.T) {
 	mockBot := mocks.NewMockBot()
 	b.messageSender = mockBot
 	b.cfg.WeeklyReportEnabled = true
-	b.cfg.WeeklyReportDay = 1  // Monday
-	b.cfg.WeeklyReportHour = 9 // 9 AM
+	b.cfg.WeeklyReportDay = time.Monday
+	b.cfg.WeeklyReportHour = 9
 	b.cfg.WhitelistedUserIDs = []int64{5001}
 
 	err := b.userRepo.UpsertUser(ctx, &models.User{
@@ -521,13 +525,14 @@ func TestSendWeeklySummary_FetchError(t *testing.T) {
 	canceledCtx, cancel := context.WithCancel(ctx)
 	cancel()
 
-	err := b.sendWeeklySummary(
+	sent, err := b.sendWeeklySummary(
 		canceledCtx,
 		&models.User{ID: 5002, FirstName: "Err"},
 		time.Now(),
 	)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed to fetch weekly expenses")
+	require.False(t, sent)
 }
 
 func TestCheckAndSendWeeklyReports_FetchUsersError(t *testing.T) {
@@ -535,7 +540,7 @@ func TestCheckAndSendWeeklyReports_FetchUsersError(t *testing.T) {
 	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	b.cfg.WeeklyReportEnabled = true
-	b.cfg.WeeklyReportDay = 1
+	b.cfg.WeeklyReportDay = time.Monday
 	b.cfg.WeeklyReportHour = 9
 	b.cfg.WhitelistedUserIDs = []int64{5003}
 

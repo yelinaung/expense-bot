@@ -3,12 +3,16 @@ package bot
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	tgbot "github.com/go-telegram/bot"
 	tgmodels "github.com/go-telegram/bot/models"
+	"github.com/shopspring/decimal"
+
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
+
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	otelmetric "go.opentelemetry.io/otel/metric"
@@ -30,7 +34,7 @@ func (b *Bot) startWeeklyReportLoop(ctx context.Context) {
 	}
 
 	logger.Log.Info().
-		Int("day", b.cfg.WeeklyReportDay).
+		Str("day", b.cfg.WeeklyReportDay.String()).
 		Int("hour", b.cfg.WeeklyReportHour).
 		Msg("Weekly report loop started (per-user timezone)")
 
@@ -45,7 +49,8 @@ func (b *Bot) startWeeklyReportLoop(ctx context.Context) {
 	default:
 	}
 
-	// Run one check immediately.
+	// Run one check immediately so reports aren't skipped when the
+	// process starts during the configured window.
 	b.checkAndSendWeeklyReports(ctx, sent, b.now())
 
 	for {
@@ -102,7 +107,7 @@ func (b *Bot) checkAndSendWeeklyReports(ctx context.Context, sent map[int64]stri
 		loc := b.userLocation(user.Timezone)
 		userNow := now.In(loc)
 
-		if int(userNow.Weekday()) != b.cfg.WeeklyReportDay {
+		if userNow.Weekday() != b.cfg.WeeklyReportDay {
 			continue
 		}
 
@@ -117,14 +122,25 @@ func (b *Bot) checkAndSendWeeklyReports(ctx context.Context, sent map[int64]stri
 			continue
 		}
 
-		err = b.sendWeeklySummary(checkCtx, user, userNow)
+		sentOK, err := b.sendWeeklySummary(checkCtx, user, userNow)
 		if err != nil {
-			logger.Log.Warn().Err(err).Str("user_hash", logger.HashUserID(user.ID)).Msg("Failed to send weekly report")
+			logger.Log.Warn().Err(err).
+				Str("user_hash", logger.HashUserID(user.ID)).
+				Msg("Failed to send weekly report")
+			continue
+		}
+		if !sentOK {
+			logger.Log.Debug().
+				Str("user_hash", logger.HashUserID(user.ID)).
+				Msg("No weekly expenses; skipping report")
 			continue
 		}
 
 		sent[user.ID] = weekKey
-		logger.Log.Debug().Str("user_hash", logger.HashUserID(user.ID)).Str("timezone", loc.String()).Msg("Sent weekly report")
+		logger.Log.Debug().
+			Str("user_hash", logger.HashUserID(user.ID)).
+			Str("timezone", loc.String()).
+			Msg("Sent weekly report")
 	}
 
 	if b.metrics != nil {
@@ -137,29 +153,36 @@ func (b *Bot) checkAndSendWeeklyReports(ctx context.Context, sent map[int64]stri
 	}
 }
 
+// sendWeeklySummary sends a weekly expense summary to the user.
+// The returned bool indicates whether a message was actually sent.
+// When there are no expenses, (false, nil) is returned.
 func (b *Bot) sendWeeklySummary(
 	ctx context.Context,
 	user *appmodels.User,
 	userNow time.Time,
-) error {
+) (bool, error) {
 	startOfWeek, endOfWeek := getPreviousWeekRangeAt(userNow)
 
 	expenses, err := b.expenseRepo.GetByUserIDAndDateRange(ctx, user.ID, startOfWeek, endOfWeek)
 	if err != nil {
-		return fmt.Errorf("failed to fetch weekly expenses: %w", err)
+		return false, fmt.Errorf("failed to fetch weekly expenses: %w", err)
 	}
 
 	if len(expenses) == 0 {
-		return nil // No expenses this week, skip silently.
+		return false, nil
 	}
 
-	total := sumExpenseAmounts(expenses)
-	header := fmt.Sprintf("📊 <b>Weekly Expenses</b> (%s to %s)\nTotal: $%s | %d expenses",
+	totalsByCurrency := sumExpenseAmountsByCurrency(expenses)
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "📊 <b>Weekly Expenses</b> (%s to %s)\n%d expenses",
 		startOfWeek.Format("Jan 2"),
 		endOfWeek.AddDate(0, 0, -1).Format("Jan 2, 2006"),
-		total.StringFixed(2),
 		len(expenses),
 	)
+	for cur, total := range totalsByCurrency {
+		fmt.Fprintf(&sb, "\n  %s: %s%s", cur, currencySymbol(cur), total.StringFixed(2))
+	}
+	header := sb.String()
 
 	expenseIDs := make([]int, len(expenses))
 	for i := range expenses {
@@ -182,7 +205,25 @@ func (b *Bot) sendWeeklySummary(
 		ParseMode: tgmodels.ParseModeHTML,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to send weekly summary: %w", err)
+		return false, fmt.Errorf("failed to send weekly summary: %w", err)
 	}
-	return nil
+	return true, nil
+}
+
+// sumExpenseAmountsByCurrency returns expense totals grouped by currency.
+func sumExpenseAmountsByCurrency(expenses []appmodels.Expense) map[string]decimal.Decimal {
+	totals := make(map[string]decimal.Decimal)
+	for i := range expenses {
+		e := expenses[i]
+		totals[e.Currency] = totals[e.Currency].Add(e.Amount)
+	}
+	return totals
+}
+
+// currencySymbol returns the display symbol for a currency code.
+func currencySymbol(code string) string {
+	if s := appmodels.SupportedCurrencies[code]; s != "" {
+		return s
+	}
+	return code
 }

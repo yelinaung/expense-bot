@@ -319,10 +319,10 @@ func TestLoad_WeeklyReport(t *testing.T) {
 
 		cfg, err := Load()
 		require.NoError(t, err)
-		require.Equal(t, 3, cfg.WeeklyReportDay)
+		require.Equal(t, time.Wednesday, cfg.WeeklyReportDay)
 	})
 
-	t.Run("defaults WEEKLY_REPORT_DAY to 1 for invalid value", func(t *testing.T) {
+	t.Run("defaults WEEKLY_REPORT_DAY to Monday for invalid value", func(t *testing.T) {
 		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
 		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
 		t.Setenv(envWhitelistedUserIDs, "123")
@@ -330,10 +330,10 @@ func TestLoad_WeeklyReport(t *testing.T) {
 
 		cfg, err := Load()
 		require.NoError(t, err)
-		require.Equal(t, 1, cfg.WeeklyReportDay)
+		require.Equal(t, time.Monday, cfg.WeeklyReportDay)
 	})
 
-	t.Run("defaults WEEKLY_REPORT_DAY to 1 for non-numeric value", func(t *testing.T) {
+	t.Run("defaults WEEKLY_REPORT_DAY to Monday for non-numeric value", func(t *testing.T) {
 		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
 		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
 		t.Setenv(envWhitelistedUserIDs, "123")
@@ -341,7 +341,7 @@ func TestLoad_WeeklyReport(t *testing.T) {
 
 		cfg, err := Load()
 		require.NoError(t, err)
-		require.Equal(t, 1, cfg.WeeklyReportDay)
+		require.Equal(t, time.Monday, cfg.WeeklyReportDay)
 	})
 
 	t.Run("parses valid WEEKLY_REPORT_HOUR", func(t *testing.T) {
@@ -388,7 +388,7 @@ func TestLoad_WeeklyReport(t *testing.T) {
 		cfg, err := Load()
 		require.NoError(t, err)
 		require.True(t, cfg.WeeklyReportEnabled)
-		require.Equal(t, 0, cfg.WeeklyReportDay)
+		require.Equal(t, time.Sunday, cfg.WeeklyReportDay)
 		require.Equal(t, 8, cfg.WeeklyReportHour)
 	})
 }

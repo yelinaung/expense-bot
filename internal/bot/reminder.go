@@ -3,13 +3,15 @@ package bot
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	tgbot "github.com/go-telegram/bot"
 	tgmodels "github.com/go-telegram/bot/models"
-	"github.com/shopspring/decimal"
+
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
+
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	otelmetric "go.opentelemetry.io/otel/metric"
@@ -155,9 +157,13 @@ func (b *Bot) sendReminderOrDailySummary(
 		return b.sendNoExpenseReminder(ctx, user)
 	}
 
-	total := sumExpenseAmounts(expenses)
-	header := fmt.Sprintf("\U0001f4c5 <b>Today's Expenses</b> (Total: $%s)", total.StringFixed(2))
-	return b.sendTodaySummary(ctx, user.ID, expenses, header)
+	totalsByCurrency := sumExpenseAmountsByCurrency(expenses)
+	var sb strings.Builder
+	sb.WriteString("\U0001f4c5 <b>Today's Expenses</b>")
+	for cur, total := range totalsByCurrency {
+		fmt.Fprintf(&sb, "\n  %s: %s%s", cur, currencySymbol(cur), total.StringFixed(2))
+	}
+	return b.sendTodaySummary(ctx, user.ID, expenses, sb.String())
 }
 
 func (b *Bot) sendNoExpenseReminder(ctx context.Context, user *appmodels.User) error {
@@ -211,12 +217,4 @@ func (b *Bot) sendTodaySummary(
 		return fmt.Errorf("failed to send daily summary: %w", err)
 	}
 	return nil
-}
-
-func sumExpenseAmounts(expenses []appmodels.Expense) decimal.Decimal {
-	total := decimal.Zero
-	for i := range expenses {
-		total = total.Add(expenses[i].Amount)
-	}
-	return total
 }
