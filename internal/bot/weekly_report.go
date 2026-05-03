@@ -3,6 +3,7 @@ package bot
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -173,14 +174,18 @@ func (b *Bot) sendWeeklySummary(
 	}
 
 	totalsByCurrency := sumExpenseAmountsByCurrency(expenses)
+	currencies := sortedCurrencyKeys(totalsByCurrency)
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "📊 <b>Weekly Expenses</b> (%s to %s)\n%d expenses",
 		startOfWeek.Format("Jan 2"),
 		endOfWeek.AddDate(0, 0, -1).Format("Jan 2, 2006"),
 		len(expenses),
 	)
-	for cur, total := range totalsByCurrency {
-		fmt.Fprintf(&sb, "\n  %s: %s%s", cur, currencySymbol(cur), total.StringFixed(2))
+	for _, cur := range currencies {
+		fmt.Fprintf(&sb, "\n  %s: %s%s",
+			escapeHTML(cur),
+			escapeHTML(currencySymbol(cur)),
+			totalsByCurrency[cur].StringFixed(2))
 	}
 	header := sb.String()
 
@@ -226,4 +231,15 @@ func currencySymbol(code string) string {
 		return s
 	}
 	return code
+}
+
+// sortedCurrencyKeys returns the keys of a currency→amount map sorted
+// alphabetically for deterministic output ordering.
+func sortedCurrencyKeys(totals map[string]decimal.Decimal) []string {
+	keys := make([]string, 0, len(totals))
+	for k := range totals {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }

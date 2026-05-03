@@ -158,10 +158,14 @@ func (b *Bot) sendReminderOrDailySummary(
 	}
 
 	totalsByCurrency := sumExpenseAmountsByCurrency(expenses)
+	currencies := sortedCurrencyKeys(totalsByCurrency)
 	var sb strings.Builder
 	sb.WriteString("\U0001f4c5 <b>Today's Expenses</b>")
-	for cur, total := range totalsByCurrency {
-		fmt.Fprintf(&sb, "\n  %s: %s%s", cur, currencySymbol(cur), total.StringFixed(2))
+	for _, cur := range currencies {
+		fmt.Fprintf(&sb, "\n  %s: %s%s",
+			escapeHTML(cur),
+			escapeHTML(currencySymbol(cur)),
+			totalsByCurrency[cur].StringFixed(2))
 	}
 	return b.sendTodaySummary(ctx, user.ID, expenses, sb.String())
 }
