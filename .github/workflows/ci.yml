@@ -140,22 +140,40 @@ jobs:
         env:
           # renovate: datasource=github-releases depName=j178/prek
           PREK_VERSION: "0.3.11"
+          # renovate: datasource=github-releases depName=golangci/golangci-lint
+          GOLANGCI_LINT_VERSION: "2.11.4"
         run: |
           set -euo pipefail
-          ARCH="x86_64-unknown-linux-gnu"
-          BASE="https://github.com/j178/prek/releases/download/v${PREK_VERSION}"
-          TARBALL="prek-${ARCH}.tar.gz"
-          TMPDIR="$(mktemp -d)"
-          curl --proto '=https' --tlsv1.2 -sSfL -o "${TMPDIR}/${TARBALL}"        "${BASE}/${TARBALL}"
-          curl --proto '=https' --tlsv1.2 -sSfL -o "${TMPDIR}/${TARBALL}.sha256" "${BASE}/${TARBALL}.sha256"
-          ( cd "${TMPDIR}" && sha256sum --check --status "${TARBALL}.sha256" ) || { echo "prek tarball checksum failed"; exit 1; }
           mkdir -p "${HOME}/.local/bin"
-          tar -xzf "${TMPDIR}/${TARBALL}" -C "${HOME}/.local/bin" --strip-components=1 "prek-${ARCH}/prek"
-          rm -rf "${TMPDIR}"
+          GOBIN_DIR="$(go env GOPATH)/bin"
+          mkdir -p "${GOBIN_DIR}"
+
+          # --- prek ---
+          PREK_ARCH="x86_64-unknown-linux-gnu"
+          PREK_BASE="https://github.com/j178/prek/releases/download/v${PREK_VERSION}"
+          PREK_TARBALL="prek-${PREK_ARCH}.tar.gz"
+          PREK_TMP="$(mktemp -d)"
+          curl --proto '=https' --tlsv1.2 -sSfL -o "${PREK_TMP}/${PREK_TARBALL}"        "${PREK_BASE}/${PREK_TARBALL}"
+          curl --proto '=https' --tlsv1.2 -sSfL -o "${PREK_TMP}/${PREK_TARBALL}.sha256" "${PREK_BASE}/${PREK_TARBALL}.sha256"
+          ( cd "${PREK_TMP}" && sha256sum --check --status "${PREK_TARBALL}.sha256" ) || { echo "prek tarball checksum failed"; exit 1; }
+          tar -xzf "${PREK_TMP}/${PREK_TARBALL}" -C "${HOME}/.local/bin" --strip-components=1 "prek-${PREK_ARCH}/prek"
+          rm -rf "${PREK_TMP}"
           echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+
+          # --- goimports ---
           go install golang.org/x/tools/cmd/goimports@v0.30.0
-          # renovate: datasource=github-releases depName=golangci/golangci-lint
-          curl --proto '=https' --tlsv1.2 -sSfL https://golangci-lint.run/install.sh -o /tmp/golangci-lint-install.sh && sh /tmp/golangci-lint-install.sh -b "$(go env GOPATH)/bin" v2.11.4 && rm /tmp/golangci-lint-install.sh
+
+          # --- golangci-lint ---
+          GLCI_ARCH="linux-amd64"
+          GLCI_BASE="https://github.com/golangci/golangci-lint/releases/download/v${GOLANGCI_LINT_VERSION}"
+          GLCI_TARBALL="golangci-lint-${GOLANGCI_LINT_VERSION}-${GLCI_ARCH}.tar.gz"
+          GLCI_CHECKSUMS="golangci-lint-${GOLANGCI_LINT_VERSION}-checksums.txt"
+          GLCI_TMP="$(mktemp -d)"
+          curl --proto '=https' --tlsv1.2 -sSfL -o "${GLCI_TMP}/${GLCI_TARBALL}"   "${GLCI_BASE}/${GLCI_TARBALL}"
+          curl --proto '=https' --tlsv1.2 -sSfL -o "${GLCI_TMP}/${GLCI_CHECKSUMS}" "${GLCI_BASE}/${GLCI_CHECKSUMS}"
+          ( cd "${GLCI_TMP}" && grep " ${GLCI_TARBALL}\$" "${GLCI_CHECKSUMS}" | sha256sum --check --status ) || { echo "golangci-lint tarball checksum failed"; exit 1; }
+          tar -xzf "${GLCI_TMP}/${GLCI_TARBALL}" -C "${GOBIN_DIR}" --strip-components=1 "golangci-lint-${GOLANGCI_LINT_VERSION}-${GLCI_ARCH}/golangci-lint"
+          rm -rf "${GLCI_TMP}"
 
       - name: Run prek
         run: prek run --all-files --show-diff-on-failure --color always
