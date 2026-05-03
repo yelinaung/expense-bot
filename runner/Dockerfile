@@ -5,8 +5,6 @@
 FROM myoung34/github-runner:2.334.0-ubuntu-noble@sha256:54ff99a42b92c94421046dc9a9c5e3ae7eeb63590d2d871faeea16c4d41e7868
 
 ARG GO_VERSION=1.26.2
-ARG GOFUMPT_VERSION=0.9.2
-ARG GOVULNCHECK_VERSION=1.3.0
 ARG GOLANGCI_LINT_VERSION=2.11.4
 ARG GORELEASER_VERSION=2.15.4
 ARG GITLEAKS_VERSION=8.30.1
@@ -21,6 +19,8 @@ ARG GOSEC_INSTALL_COMMIT=5f4eec95fa28ce5dc6cf555de8c242cb57545f01
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 COPY sources.list /etc/apt/sources.list
+COPY tools/gofumpt /tmp/tools/gofumpt
+COPY tools/govulncheck /tmp/tools/govulncheck
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends file jq pipx && \
     rm -rf /var/lib/apt/lists/* && \
@@ -34,8 +34,8 @@ ENV PATH="/root/.local/bin:/opt/hostedtoolcache/go/${GO_VERSION}/x64/bin:/opt/ho
     GOBIN="/opt/hostedtoolcache/go/${GO_VERSION}/x64/packages/bin"
 
 RUN pipx install semgrep=="${SEMGREP_VERSION}" && \
-    go install "mvdan.cc/gofumpt@v${GOFUMPT_VERSION}" && \
-    go install "golang.org/x/vuln/cmd/govulncheck@v${GOVULNCHECK_VERSION}" && \
+    (cd /tmp/tools/gofumpt && go install -mod=readonly mvdan.cc/gofumpt) && \
+    (cd /tmp/tools/govulncheck && go install -mod=readonly golang.org/x/vuln/cmd/govulncheck) && \
     go install "github.com/securego/gosec/v2/cmd/gosec@${GOSEC_INSTALL_COMMIT}" && \
     curl --proto "=https" --tlsv1.2 -sSf -L \
       "https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/mise-v${MISE_VERSION}-linux-x64.tar.gz" | \
