@@ -236,6 +236,7 @@ func (b *Bot) Start(ctx context.Context) {
 
 	go b.startDraftCleanupLoop(ctx)
 	go b.startDailyReminderLoop(ctx)
+	go b.startWeeklyReportLoop(ctx)
 
 	logger.Log.Info().Msg("Bot started polling")
 	b.bot.Start(ctx)

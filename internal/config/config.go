@@ -32,6 +32,11 @@ type Config struct {
 	ReminderHour         int
 	ReminderTimezone     string
 
+	// Weekly report configuration.
+	WeeklyReportEnabled bool
+	WeeklyReportDay     int
+	WeeklyReportHour    int
+
 	// OpenTelemetry configuration.
 	OTelEnabled         bool
 	OTelServiceName     string
@@ -59,6 +64,7 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 	applyReminderConfig(cfg)
+	applyWeeklyReportConfig(cfg)
 	applyOTelConfig(cfg)
 	cfg.WhitelistedUserIDs = parseWhitelistedUserIDs(os.Getenv("WHITELISTED_USER_IDS"))
 	cfg.WhitelistedUsernames = parseWhitelistedUsernames(os.Getenv("WHITELISTED_USERNAMES"))
@@ -121,6 +127,22 @@ func applyReminderConfig(cfg *Config) {
 	if tz := os.Getenv("REMINDER_TIMEZONE"); tz != "" {
 		if _, err := time.LoadLocation(tz); err == nil {
 			cfg.ReminderTimezone = tz
+		}
+	}
+}
+
+func applyWeeklyReportConfig(cfg *Config) {
+	cfg.WeeklyReportEnabled = os.Getenv("WEEKLY_REPORT_ENABLED") == envTrue
+	cfg.WeeklyReportDay = 1 // Monday
+	if dayStr := os.Getenv("WEEKLY_REPORT_DAY"); dayStr != "" {
+		if d, err := strconv.Atoi(dayStr); err == nil && d >= 0 && d <= 6 {
+			cfg.WeeklyReportDay = d
+		}
+	}
+	cfg.WeeklyReportHour = 9
+	if hourStr := os.Getenv("WEEKLY_REPORT_HOUR"); hourStr != "" {
+		if h, err := strconv.Atoi(hourStr); err == nil && h >= 0 && h <= 23 {
+			cfg.WeeklyReportHour = h
 		}
 	}
 }

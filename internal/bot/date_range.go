@@ -64,3 +64,12 @@ func getMonthDateRangeAt(current time.Time) (time.Time, time.Time) {
 
 	return startOfMonth, endOfMonth
 }
+
+// getPreviousWeekRangeAt returns the previous week's range as [start, end).
+// On Monday this returns [last Monday, this Monday). On other days this
+// returns the week before the current week. current must already be in the
+// desired display location.
+func getPreviousWeekRangeAt(current time.Time) (time.Time, time.Time) {
+	start, end := getWeekDateRangeAt(current)
+	return start.AddDate(0, 0, -7), end.AddDate(0, 0, -7)
+}
