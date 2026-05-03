@@ -27,7 +27,7 @@ jobs:
           persist-credentials: false
 
       - name: Install prek
-        run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/latest/download/prek-installer.sh | sh
+        run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/latest/download/prek-installer.sh -o /tmp/prek-installer.sh && sh /tmp/prek-installer.sh && rm /tmp/prek-installer.sh
 
       - name: Run prek auto-update
         run: prek auto-update --cooldown-days 3

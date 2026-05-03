@@ -55,7 +55,7 @@ jobs:
       - name: Install Semgrep
         run: |
           if ! command -v semgrep &>/dev/null; then
-            pip install semgrep
+            pip install --only-binary :all: semgrep==1.159.0
           fi
 
       - name: Run Semgrep
@@ -81,7 +81,7 @@ jobs:
       - name: Install gosec
         run: |
           if ! command -v gosec &>/dev/null; then
-            go install github.com/securego/gosec/v2/cmd/gosec@latest
+            go install github.com/securego/gosec/v2/cmd/gosec@v2.25.0
           fi
           gosec --version
 
@@ -138,10 +138,10 @@ jobs:
 
       - name: Install tools
         run: |
-          curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/latest/download/prek-installer.sh | sh
-          go install golang.org/x/tools/cmd/goimports@latest
+          curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/latest/download/prek-installer.sh -o /tmp/prek-installer.sh && sh /tmp/prek-installer.sh && rm /tmp/prek-installer.sh
+          go install golang.org/x/tools/cmd/goimports@v0.30.0
           # renovate: datasource=github-releases depName=golangci/golangci-lint
-          curl --proto '=https' --tlsv1.2 -sSfL https://golangci-lint.run/install.sh | sh -s -- -b "$(go env GOPATH)/bin" v2.11.4
+          curl --proto '=https' --tlsv1.2 -sSfL https://golangci-lint.run/install.sh -o /tmp/golangci-lint-install.sh && sh /tmp/golangci-lint-install.sh -- -b "$(go env GOPATH)/bin" v2.11.4 && rm /tmp/golangci-lint-install.sh
 
       - name: Run prek
         run: prek run --all-files --show-diff-on-failure --color always
