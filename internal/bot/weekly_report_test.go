@@ -448,3 +448,106 @@ func TestGetPreviousWeekRangeAt(t *testing.T) {
 		require.Equal(t, mEnd, wEnd)
 	})
 }
+
+func TestStartWeeklyReportLoop_RunsImmediateCheck(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	pool := testDB(ctx, t)
+	b := setupTestBot(t, pool)
+
+	loc := time.FixedZone("GMT+8", 8*60*60)
+	b.displayLocation = loc
+	// Fixed time: Monday 9 AM GMT+8 = 01:00 UTC.
+	fixedNow := time.Date(2026, 5, 4, 1, 0, 0, 0, time.UTC)
+	b.nowFunc = func() time.Time { return fixedNow }
+
+	mockBot := mocks.NewMockBot()
+	b.messageSender = mockBot
+	b.cfg.WeeklyReportEnabled = true
+	b.cfg.WeeklyReportDay = 1  // Monday
+	b.cfg.WeeklyReportHour = 9 // 9 AM
+	b.cfg.WhitelistedUserIDs = []int64{5001}
+
+	err := b.userRepo.UpsertUser(ctx, &models.User{
+		ID:        5001,
+		Username:  "loopcheck",
+		FirstName: "Nora",
+	})
+	require.NoError(t, err)
+	err = b.userRepo.UpdateTimezone(ctx, 5001, "Etc/GMT-8")
+	require.NoError(t, err)
+
+	// Create an expense in the previous week (Apr 27 - May 3).
+	prevMonday := time.Date(2026, 4, 27, 10, 0, 0, 0, loc)
+	expense := &models.Expense{
+		UserID:      5001,
+		Amount:      decimal.NewFromFloat(10.00),
+		Currency:    "SGD",
+		Description: "Lunch",
+		Status:      models.ExpenseStatusConfirmed,
+	}
+	err = b.expenseRepo.Create(ctx, expense)
+	require.NoError(t, err)
+	_, err = b.db.Exec(ctx, testUpdateExpenseTimeSQL, prevMonday, expense.ID)
+	require.NoError(t, err)
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		b.startWeeklyReportLoop(ctx)
+	}()
+
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if mockBot.SentMessageCount() > 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	cancel()
+	<-done
+
+	require.Equal(t, 1, mockBot.SentMessageCount(), "should send weekly report on immediate startup check")
+	msg := mockBot.LastSentMessage()
+	require.Contains(t, msg.Text, "Weekly Expenses")
+}
+
+func TestSendWeeklySummary_FetchError(t *testing.T) {
+	ctx := context.Background()
+	pool := testDB(ctx, t)
+	b := setupTestBot(t, pool)
+
+	canceledCtx, cancel := context.WithCancel(ctx)
+	cancel()
+
+	err := b.sendWeeklySummary(
+		canceledCtx,
+		&models.User{ID: 5002, FirstName: "Err"},
+		time.Now(),
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to fetch weekly expenses")
+}
+
+func TestCheckAndSendWeeklyReports_FetchUsersError(t *testing.T) {
+	ctx := context.Background()
+	pool := testDB(ctx, t)
+	b := setupTestBot(t, pool)
+	b.cfg.WeeklyReportEnabled = true
+	b.cfg.WeeklyReportDay = 1
+	b.cfg.WeeklyReportHour = 9
+	b.cfg.WhitelistedUserIDs = []int64{5003}
+
+	loc := time.FixedZone("GMT+8", 8*60*60)
+	monday9amUTC := time.Date(2026, 5, 4, 1, 0, 0, 0, time.UTC)
+	b.displayLocation = loc
+
+	canceledCtx, cancel := context.WithCancel(ctx)
+	cancel()
+
+	sent := make(map[int64]string)
+	// Should not panic when fetching users fails.
+	b.checkAndSendWeeklyReports(canceledCtx, sent, monday9amUTC)
+	require.Empty(t, sent)
+}
