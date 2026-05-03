@@ -12,9 +12,11 @@ repos:
     hooks:
       - id: go-fmt
       - id: go-vet-mod
+        exclude: ^\.github/tools/
       - id: go-imports
       - id: go-mod-tidy
       - id: go-test-mod
+        exclude: ^\.github/tools/
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.1
     hooks:
