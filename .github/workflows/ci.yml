@@ -141,7 +141,7 @@ jobs:
           curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/latest/download/prek-installer.sh -o /tmp/prek-installer.sh && sh /tmp/prek-installer.sh && rm /tmp/prek-installer.sh
           go install golang.org/x/tools/cmd/goimports@v0.30.0
           # renovate: datasource=github-releases depName=golangci/golangci-lint
-          curl --proto '=https' --tlsv1.2 -sSfL https://golangci-lint.run/install.sh -o /tmp/golangci-lint-install.sh && sh /tmp/golangci-lint-install.sh -- -b "$(go env GOPATH)/bin" v2.11.4 && rm /tmp/golangci-lint-install.sh
+          curl --proto '=https' --tlsv1.2 -sSfL https://golangci-lint.run/install.sh -o /tmp/golangci-lint-install.sh && sh /tmp/golangci-lint-install.sh -b "$(go env GOPATH)/bin" v2.11.4 && rm /tmp/golangci-lint-install.sh
 
       - name: Run prek
         run: prek run --all-files --show-diff-on-failure --color always
