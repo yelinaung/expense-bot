@@ -290,6 +290,17 @@ func TestLoad_WeeklyReport(t *testing.T) {
 		require.True(t, cfg.WeeklyReportEnabled)
 	})
 
+	t.Run("parses WEEKLY_REPORT_ENABLED=false", func(t *testing.T) {
+		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
+		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
+		t.Setenv(envWhitelistedUserIDs, "123")
+		t.Setenv("WEEKLY_REPORT_ENABLED", "false")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.False(t, cfg.WeeklyReportEnabled)
+	})
+
 	t.Run("defaults WEEKLY_REPORT_ENABLED to false", func(t *testing.T) {
 		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
 		t.Setenv(envDatabaseURL, testDatabaseURLConfig)

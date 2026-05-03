@@ -248,6 +248,10 @@ func TestCheckAndSendWeeklyReports(t *testing.T) {
 
 		_, exists := sent[4007]
 		require.False(t, exists, "should not mark as sent on failure")
+		// No message was actually sent because the mock returns an
+		// error before recording. This distinguishes "attempted
+		// but failed" from "skipped entirely."
+		require.Equal(t, 0, mockBot.SentMessageCount())
 	})
 
 	t.Run("prunes stale entries from sent map", func(t *testing.T) {

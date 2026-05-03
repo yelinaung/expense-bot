@@ -4,6 +4,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"slices"
 	"strconv"
@@ -137,12 +138,16 @@ func applyWeeklyReportConfig(cfg *Config) {
 	if dayStr := os.Getenv("WEEKLY_REPORT_DAY"); dayStr != "" {
 		if d, err := strconv.Atoi(dayStr); err == nil && d >= 0 && d <= 6 {
 			cfg.WeeklyReportDay = d
+		} else {
+			log.Printf("invalid WEEKLY_REPORT_DAY %q, using default day %d", dayStr, cfg.WeeklyReportDay)
 		}
 	}
 	cfg.WeeklyReportHour = 9
 	if hourStr := os.Getenv("WEEKLY_REPORT_HOUR"); hourStr != "" {
 		if h, err := strconv.Atoi(hourStr); err == nil && h >= 0 && h <= 23 {
 			cfg.WeeklyReportHour = h
+		} else {
+			log.Printf("invalid WEEKLY_REPORT_HOUR %q, using default hour %d", hourStr, cfg.WeeklyReportHour)
 		}
 	}
 }
