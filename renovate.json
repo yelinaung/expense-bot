@@ -104,18 +104,6 @@
         "/^runner\\/Dockerfile$/"
       ],
       "matchStrings": [
-        "(?m)^ARG\\s+GOSEC_VERSION=(?<currentValue>[0-9A-Za-z._-]+)\\s*$"
-      ],
-      "datasourceTemplate": "go",
-      "depNameTemplate": "github.com/securego/gosec/v2",
-      "versioningTemplate": "semver"
-    },
-    {
-      "customType": "regex",
-      "managerFilePatterns": [
-        "/^runner\\/Dockerfile$/"
-      ],
-      "matchStrings": [
         "(?m)^ARG\\s+GOLANGCI_LINT_VERSION=(?<currentValue>[0-9A-Za-z._-]+)\\s*$"
       ],
       "datasourceTemplate": "github-releases",

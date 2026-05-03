@@ -7,7 +7,6 @@ FROM myoung34/github-runner:2.334.0-ubuntu-noble@sha256:54ff99a42b92c94421046dc9
 ARG GO_VERSION=1.26.2
 ARG GOFUMPT_VERSION=0.9.2
 ARG GOVULNCHECK_VERSION=1.3.0
-ARG GOSEC_VERSION=2.26.1
 ARG GOLANGCI_LINT_VERSION=2.11.4
 ARG GORELEASER_VERSION=2.15.4
 ARG GITLEAKS_VERSION=8.30.1
@@ -15,6 +14,8 @@ ARG SEMGREP_VERSION=1.161.0
 ARG MISE_VERSION=2026.4.27
 # renovate: datasource=github-commits depName=golangci/golangci-lint
 ARG GOLANGCI_LINT_INSTALL_COMMIT=870ddc133592c3609f26af3b6f05ce2dd4a7afda
+# renovate: datasource=github-commits depName=securego/gosec
+ARG GOSEC_INSTALL_COMMIT=5f4eec95fa28ce5dc6cf555de8c242cb57545f01
 
 # Use bash with pipefail for RUN steps that use curl|tar pipelines.
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -35,7 +36,7 @@ ENV PATH="/root/.local/bin:/opt/hostedtoolcache/go/${GO_VERSION}/x64/bin:/opt/ho
 RUN pipx install semgrep=="${SEMGREP_VERSION}" && \
     go install "mvdan.cc/gofumpt@v${GOFUMPT_VERSION}" && \
     go install "golang.org/x/vuln/cmd/govulncheck@v${GOVULNCHECK_VERSION}" && \
-    go install "github.com/securego/gosec/v2/cmd/gosec@v${GOSEC_VERSION}" && \
+    go install "github.com/securego/gosec/v2/cmd/gosec@${GOSEC_INSTALL_COMMIT}" && \
     curl --proto "=https" --tlsv1.2 -sSf -L \
       "https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/mise-v${MISE_VERSION}-linux-x64.tar.gz" | \
     tar -xz -C /usr/local/bin --strip-components=2 mise/bin/mise && \
