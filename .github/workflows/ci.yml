@@ -137,8 +137,22 @@ jobs:
           persist-credentials: false
 
       - name: Install tools
+        env:
+          # renovate: datasource=github-releases depName=j178/prek
+          PREK_VERSION: "0.3.11"
         run: |
-          curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/latest/download/prek-installer.sh -o /tmp/prek-installer.sh && sh /tmp/prek-installer.sh && rm /tmp/prek-installer.sh
+          set -euo pipefail
+          ARCH="x86_64-unknown-linux-gnu"
+          BASE="https://github.com/j178/prek/releases/download/v${PREK_VERSION}"
+          TARBALL="prek-${ARCH}.tar.gz"
+          TMPDIR="$(mktemp -d)"
+          curl --proto '=https' --tlsv1.2 -sSfL -o "${TMPDIR}/${TARBALL}"        "${BASE}/${TARBALL}"
+          curl --proto '=https' --tlsv1.2 -sSfL -o "${TMPDIR}/${TARBALL}.sha256" "${BASE}/${TARBALL}.sha256"
+          ( cd "${TMPDIR}" && sha256sum --check --status "${TARBALL}.sha256" ) || { echo "prek tarball checksum failed"; exit 1; }
+          mkdir -p "${HOME}/.local/bin"
+          tar -xzf "${TMPDIR}/${TARBALL}" -C "${HOME}/.local/bin" --strip-components=1 "prek-${ARCH}/prek"
+          rm -rf "${TMPDIR}"
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
           go install golang.org/x/tools/cmd/goimports@v0.30.0
           # renovate: datasource=github-releases depName=golangci/golangci-lint
           curl --proto '=https' --tlsv1.2 -sSfL https://golangci-lint.run/install.sh -o /tmp/golangci-lint-install.sh && sh /tmp/golangci-lint-install.sh -b "$(go env GOPATH)/bin" v2.11.4 && rm /tmp/golangci-lint-install.sh
