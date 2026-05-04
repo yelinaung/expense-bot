@@ -99,7 +99,7 @@ func TestDatabaseOperations(t *testing.T) {
 
 ```diff
 test-integration: test-db-up
-	@TEST_DATABASE_URL="postgres://$${POSTGRES_USER:-test}:$${POSTGRES_PASSWORD:-test}@localhost:5433/$${POSTGRES_DB:-expense_bot_test}?sslmode=disable" \
+	@TEST_DATABASE_URL="postgres://YOUR_DATABASE_URL" \
 -		go test -v -coverprofile=coverage.out -covermode=atomic -p 1 ./... 2>&1 | grep -v "no such tool" || true
 +		go test -v -coverprofile=coverage.out -covermode=atomic ./... 2>&1 | grep -v "no such tool" || true
 	@go tool cover -func=coverage.out
