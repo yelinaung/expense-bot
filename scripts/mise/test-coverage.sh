@@ -20,7 +20,7 @@ if [[ -z "${TEST_DATABASE_URL:-}" ]]; then
 	docker compose -f docker-compose.test.yml up -d
 	echo "Waiting for PostgreSQL to be ready..."
 	sleep 5
-	TEST_DATABASE_URL="postgres://${POSTGRES_USER:-test}:${POSTGRES_PASSWORD:-test}@localhost:5433/${POSTGRES_DB:-expense_bot_test}?sslmode=disable"
+	TEST_DATABASE_URL="postgres://${POSTGRES_USER:-test}:${POSTGRES_PASSWORD:-test}@localhost:5433/${POSTGRES_DB:-expense_bot_test}?sslmode=disable" # gitleaks:allow
 	export TEST_DATABASE_URL
 fi
 

@@ -17,7 +17,7 @@ trap cleanup EXIT
 
 out_file="$(mktemp)"
 test_status=0
-test_db_url="postgres://${POSTGRES_USER:-test}:${POSTGRES_PASSWORD:-test}@localhost:5433/${POSTGRES_DB:-expense_bot_test}?sslmode=disable"
+test_db_url="postgres://${POSTGRES_USER:-test}:${POSTGRES_PASSWORD:-test}@localhost:5433/${POSTGRES_DB:-expense_bot_test}?sslmode=disable" # gitleaks:allow
 
 if ! TEST_DATABASE_URL="${test_db_url}" go test -v -coverprofile=coverage.out -covermode=atomic -p 1 ./... >"${out_file}" 2>&1; then
 	test_status=$?
