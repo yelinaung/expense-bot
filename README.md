@@ -704,6 +704,7 @@ See LICENSE file for details.
 
 Additional documentation is available in the [`docs/`](./docs) directory:
 
+- **[How This Bot Works](./docs/HOW_THIS_BOT_WORKS.md)** - Architecture, data flows, Mermaid diagrams, and operational behavior
 - **[Privacy Policy](./docs/PRIVACY.md)** - How receipt photos and user data are processed
 - **[Scalability Guide](./docs/SCALABILITY.md)** - Scaling strategies and multi-instance deployment
 - **[Development Agents](./AGENTS.md)** - Claude Code AI agents used in development
