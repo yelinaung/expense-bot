@@ -47,6 +47,7 @@ database URL, or user whitelist prevents the process from running.
 sequenceDiagram
     participant Main as main.go
     participant Config as config.Load
+    participant Logger as logger
     participant OTel as telemetry.Init
     participant DB as PostgreSQL
     participant Bot as bot.New
@@ -54,13 +55,16 @@ sequenceDiagram
 
     Main->>Config: Load .env and environment
     Config-->>Main: Config with bot, DB, auth, OTel, jobs, FX
+    Main->>Logger: Set log level and initialize hash salt
     Main->>OTel: Initialize providers if enabled
     Main->>DB: Connect with pgxpool
     Main->>DB: Run migrations
     Main->>DB: Seed default categories
     Main->>Bot: Create repositories, clients, middleware, handlers
-    Main->>TG: Delete webhook, register commands, start polling
-    Bot->>Bot: Start draft cleanup, reminders, weekly reports
+    Bot->>TG: Delete webhook and register commands
+    Bot->>Bot: Run initial draft cleanup synchronously
+    Bot->>Bot: Launch draft cleanup, reminder, weekly report loops
+    Bot->>TG: Start polling
 ```
 
 Key startup work:
@@ -323,7 +327,7 @@ and superadmin bindings.
 ```mermaid
 erDiagram
     USERS ||--o{ EXPENSES : owns
-    USERS ||--o{ USER_EXPENSE_COUNTERS : has
+    USERS ||--|| USER_EXPENSE_COUNTERS : has
     CATEGORIES ||--o{ EXPENSES : categorizes
     EXPENSES ||--o{ EXPENSE_TAGS : has
     TAGS ||--o{ EXPENSE_TAGS : labels
