@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.11.0] - 2026-05-07 - Weekly Reports & CI Supply Chain Hardening
+
+### Added
+- **Scheduled Weekly Expense Report**:
+  - Added a scheduled weekly summary flow for sending users an expense report
+    for the previous week.
+  - Added currency-aware report totals and deterministic period handling for
+    weekly summaries.
+
+### Changed
+- **Report Rendering**:
+  - Sorted currency keys for deterministic report output.
+  - Reduced weekly report handler complexity by extracting helper functions.
+- **CI Tool Installation**:
+  - Locked Semgrep installation with a hash-pinned requirements file.
+  - Locked CI `gosec` and `goimports` installs through dedicated Go tool
+    modules and `go install -mod=readonly`.
+  - Locked runner image `gofumpt` and `govulncheck` installs through dedicated
+    Go tool modules and `go install -mod=readonly`.
+
+### Fixed
+- **Weekly Report Reliability**:
+  - Fixed weekly summary bugs around currency-aware totals and report headers.
+  - Added misconfiguration warnings and expanded weekly report test coverage.
+- **CI and Runner Linting**:
+  - Fixed runner Dockerfile lint findings while preserving lock-file-enforced
+    Go tool installs.
+  - Fixed GolangCI-Lint installation command handling in the pre-commit job.
+- **Security Scanner Hygiene**:
+  - Removed obsolete `gosec` suppression comments and annotated trusted test
+    fixture database URLs for secret scanning.
+
+### Dependencies
+- Updated `golang.org/x/tools` to v0.44.0.
+- Updated `google.golang.org/genai` to v1.55.0.
+- Updated `pgregory.net/rapid` to v1.3.0.
+- Updated `github.com/securego/gosec/v2` to v2.26.1.
+- Updated `semgrep` to v1.161.0 and related runner/security tooling.
+
 ## [v0.10.1] - 2026-03-29
 
 ### Fixed
