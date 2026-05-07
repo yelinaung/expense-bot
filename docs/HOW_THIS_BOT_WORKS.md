@@ -170,12 +170,19 @@ sequenceDiagram
 
 Category assignment order for text expenses:
 
-1. If the user explicitly supplies a known category, use it.
-2. If Gemini is configured, ask Gemini to suggest an existing category or a new
-   category name.
-3. Match the suggestion against known categories using exact, contains,
-   contained, and word-based matching.
-4. Leave the expense uncategorized when no reliable match exists.
+1. If the user explicitly supplies a known category, match it by
+   case-insensitive exact name and use it.
+2. If Gemini is configured and the description is non-empty, ask Gemini for a
+   category suggestion.
+3. If Gemini returns a matched category with confidence above `0.5`, apply it
+   only when the suggested category exactly matches an existing category name
+   case-insensitively.
+4. If Gemini proposes a new category name with confidence at least `0.8`, create
+   that category when it does not already exist, then assign it.
+5. If no parsed or Gemini category is assigned, fall back to the seeded
+   `Others` category. The richer `MatchCategory` fuzzy strategy is used here
+   only to find that fallback category.
+6. Leave the expense uncategorized only if the fallback category is missing.
 
 Currency behavior:
 
