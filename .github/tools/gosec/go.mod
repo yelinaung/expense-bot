@@ -1,6 +1,6 @@
 module gitlab.com/yelinaung/expense-bot/tools/gosec
 
-go 1.26.2
+go 1.26.3
 
 tool github.com/securego/gosec/v2/cmd/gosec
 
