@@ -111,7 +111,7 @@ flowchart TD
     Default --> Photo[Receipt photo]
     Default --> Pending[Pending edit text]
     Default --> FreeText[Free-text expense parser]
-    Default --> Help[Fallback help]
+    Default --> Help[Fallback hint]
 ```
 
 Authorization sources:
@@ -242,6 +242,8 @@ Receipt-specific safety behavior:
 - The bot downloads Telegram files through `downloadFile`, which enforces a
   10 MiB maximum response size.
 - Gemini receipt parsing has a 30 second timeout.
+- Receipt parsing uses Gemini's hardcoded `DefaultCategories` list and does not
+  receive user-added categories.
 - Partial extraction is allowed; the user sees a warning and must confirm or
   edit.
 - Unknown merchants are saved as `Unknown merchant`.
@@ -402,7 +404,9 @@ Important data model details:
 
 - `expenses.id` is the internal global identifier.
 - `expenses.user_expense_number` is the user-facing ID shown in commands and
-  messages. A database trigger assigns it per user.
+  messages. A database trigger assigns it per user when the row is inserted,
+  including drafts. Cancelled drafts therefore leave gaps in the per-user
+  sequence.
 - `expenses.status` is `confirmed` for normal text expenses and `draft` for
   receipt or voice expenses awaiting confirmation.
 - Deleting a category nullifies the category on existing expenses before the
