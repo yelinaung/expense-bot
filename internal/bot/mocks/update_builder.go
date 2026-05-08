@@ -4,6 +4,13 @@ import (
 	"github.com/go-telegram/bot/models"
 )
 
+const (
+	chatTypePrivate  = "private"
+	defaultFirstName = "Test"
+	defaultLastName  = "User"
+	defaultUsername  = "testuser"
+)
+
 // UpdateBuilder helps construct test Update objects.
 type UpdateBuilder struct {
 	update *models.Update
@@ -22,13 +29,13 @@ func (b *UpdateBuilder) WithMessage(chatID, userID int64, text string) *UpdateBu
 		ID: 1,
 		Chat: models.Chat{
 			ID:   chatID,
-			Type: "private",
+			Type: chatTypePrivate,
 		},
 		From: &models.User{
 			ID:        userID,
-			FirstName: "Test",
-			LastName:  "User",
-			Username:  "testuser",
+			FirstName: defaultFirstName,
+			LastName:  defaultLastName,
+			Username:  defaultUsername,
 		},
 		Text: text,
 	}
@@ -71,16 +78,16 @@ func (b *UpdateBuilder) WithCallbackQuery(
 		ID: callbackID,
 		From: models.User{
 			ID:        userID,
-			FirstName: "Test",
-			LastName:  "User",
-			Username:  "testuser",
+			FirstName: defaultFirstName,
+			LastName:  defaultLastName,
+			Username:  defaultUsername,
 		},
 		Message: models.MaybeInaccessibleMessage{
 			Message: &models.Message{
 				ID: messageID,
 				Chat: models.Chat{
 					ID:   chatID,
-					Type: "private",
+					Type: chatTypePrivate,
 				},
 			},
 		},
@@ -145,13 +152,13 @@ func (b *UpdateBuilder) WithEditedMessage(chatID, userID int64, text string) *Up
 		ID: 1,
 		Chat: models.Chat{
 			ID:   chatID,
-			Type: "private",
+			Type: chatTypePrivate,
 		},
 		From: &models.User{
 			ID:        userID,
-			FirstName: "Test",
-			LastName:  "User",
-			Username:  "testuser",
+			FirstName: defaultFirstName,
+			LastName:  defaultLastName,
+			Username:  defaultUsername,
 		},
 		Text: text,
 	}

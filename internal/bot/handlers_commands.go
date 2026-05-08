@@ -23,6 +23,7 @@ import (
 const (
 	failedFetchCategoriesMsg = "❌ Failed to fetch categories. Please try again."
 	failedFetchExpensesMsg   = "❌ Failed to fetch expenses. Please try again."
+	failedSaveExpenseMsg     = "❌ Failed to save expense. Please try again."
 )
 
 // extractCommandArgs strips the /command prefix (and optional @botname suffix)
@@ -609,7 +610,7 @@ func (b *Bot) saveExpenseCore(
 		}
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Failed to save expense. Please try again.",
+			Text:   failedSaveExpenseMsg,
 		})
 		return
 	}

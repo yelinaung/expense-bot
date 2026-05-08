@@ -423,13 +423,17 @@ func (b *Bot) processDescriptionEditCore(
 		},
 	}
 
+	currencySymbol := getCurrencyOrCodeSymbol(expense.Currency)
+
 	text := fmt.Sprintf(`✅ <b>Description Updated!</b>
 
-💰 Amount: $%s SGD
+💰 Amount: %s%s %s
 📝 Description: %s
 📁 Category: %s
 🆔 #%d`,
+		currencySymbol,
 		expense.Amount.StringFixed(2),
+		expense.Currency,
 		escapeHTML(expense.Description),
 		categoryText,
 		expense.UserExpenseNumber)

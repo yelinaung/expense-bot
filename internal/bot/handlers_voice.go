@@ -145,7 +145,7 @@ func (b *Bot) handleVoiceCore(ctx context.Context, tg TelegramAPI, update *model
 		logger.Log.Error().Err(err).Msg("Failed to create draft expense from voice")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Failed to save expense. Please try again.",
+			Text:   failedSaveExpenseMsg,
 		})
 		return
 	}
