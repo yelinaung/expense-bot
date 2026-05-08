@@ -635,8 +635,8 @@ func (b *Bot) saveExpenseCore(
 	keyboard := &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{
 			{
-				{Text: "✏️ Edit", CallbackData: fmt.Sprintf("edit_expense_%d", expense.ID)},
-				{Text: "🗑️ Delete", CallbackData: fmt.Sprintf("delete_expense_%d", expense.ID)},
+				{Text: editExpenseButtonTextCB, CallbackData: fmt.Sprintf(editExpenseCallbackFmtCB, expense.ID)},
+				{Text: deleteExpenseButtonTextCB, CallbackData: fmt.Sprintf(deleteExpenseCallbackFmtCB, expense.ID)},
 			},
 		},
 	}

@@ -25,9 +25,14 @@ const (
 	logFieldDataCB                 = "data"
 	actionEditExpenseCB            = "edit_expense"
 	actionDeleteExpenseCB          = "delete_expense"
+	editExpenseCallbackFmtCB       = "edit_expense_%d"
+	deleteExpenseCallbackFmtCB     = "delete_expense_%d"
+	editExpenseButtonTextCB        = "✏️ Edit"
+	deleteExpenseButtonTextCB      = "🗑️ Delete"
 	backToExpenseCallbackFmtCB     = "back_to_expense_%d"
 	editTypeAmountCB               = "amount"
 	editTypeMerchantCB             = "merchant"
+	editTypeDescriptionCB          = "desc"
 	userMismatchOnEditMsgCB        = "User mismatch on edit"
 	userMismatchMsgCB              = "User mismatch"
 	expenseNotFoundForEditLogMsgCB = "Expense not found for edit"
@@ -85,6 +90,9 @@ func (b *Bot) handleEditCallbackCore(ctx context.Context, tg TelegramAPI, update
 	case editTypeMerchantCB:
 		b.promptEditMerchantCore(ctx, tg, chatID, messageID, expense)
 
+	case editTypeDescriptionCB:
+		b.promptEditDescriptionCore(ctx, tg, chatID, messageID, expense)
+
 	case logFieldCategoryCB:
 		b.showCategorySelectionCore(ctx, tg, chatID, messageID, expense)
 	}
@@ -113,6 +121,46 @@ Current amount: $%s SGD
 
 Please type the new amount (e.g., <code>25.50</code>):`,
 		expense.Amount.StringFixed(2))
+
+	keyboard := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{Text: editCancelText, CallbackData: fmt.Sprintf(cancelEditCallback, expense.ID)},
+			},
+		},
+	}
+
+	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:      chatID,
+		MessageID:   messageID,
+		Text:        text,
+		ParseMode:   models.ParseModeHTML,
+		ReplyMarkup: keyboard,
+	})
+}
+
+// promptEditDescriptionCore prompts the user to enter a new description.
+func (b *Bot) promptEditDescriptionCore(
+	ctx context.Context,
+	tg TelegramAPI,
+	chatID int64,
+	messageID int,
+	expense *appmodels.Expense,
+) {
+	b.pendingEditsMu.Lock()
+	b.pendingEdits[chatID] = &pendingEdit{
+		ExpenseID: expense.ID,
+		EditType:  editTypeDescriptionCB,
+		MessageID: messageID,
+	}
+	b.pendingEditsMu.Unlock()
+
+	text := fmt.Sprintf(`📝 <b>Edit Description</b>
+
+Current description: %s
+
+Please type the new description:`,
+		escapeHTML(expense.Description))
 
 	keyboard := &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{
@@ -196,6 +244,8 @@ func (b *Bot) handlePendingEditCore(ctx context.Context, tg TelegramAPI, update 
 	switch pending.EditType {
 	case editTypeAmountCB:
 		return b.processAmountEditCore(ctx, tg, chatID, userID, pending, update.Message.Text)
+	case editTypeDescriptionCB:
+		return b.processDescriptionEditCore(ctx, tg, chatID, userID, pending, update.Message.Text)
 	case editTypeMerchantCB:
 		return b.processMerchantEditCore(ctx, tg, chatID, userID, pending, update.Message.Text)
 	case logFieldCategoryCB:
@@ -291,6 +341,99 @@ Amount updated. Confirm to save.`,
 		categoryText)
 
 	// Edit the original message.
+	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:      chatID,
+		MessageID:   pending.MessageID,
+		Text:        text,
+		ParseMode:   models.ParseModeHTML,
+		ReplyMarkup: keyboard,
+	})
+
+	return true
+}
+
+// processDescriptionEditCore processes user input for description editing.
+func (b *Bot) processDescriptionEditCore(
+	ctx context.Context,
+	tg TelegramAPI,
+	chatID int64,
+	userID int64,
+	pending *pendingEdit,
+	input string,
+) bool {
+	b.pendingEditsMu.Lock()
+	delete(b.pendingEdits, chatID)
+	b.pendingEditsMu.Unlock()
+
+	description := strings.TrimSpace(input)
+	if description == "" {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Description cannot be empty.",
+		})
+		return true
+	}
+
+	expense, err := b.expenseRepo.GetByID(ctx, pending.ExpenseID)
+	if err != nil {
+		logger.Log.Error().Err(err).Int(logFieldExpenseIDCB, pending.ExpenseID).Msg(expenseNotFoundForEditLogMsgCB)
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   expenseNotFoundMsgCB,
+		})
+		return true
+	}
+
+	if expense.UserID != userID {
+		logger.Log.Warn().Str(logFieldUserHashCB, logger.HashUserID(userID)).Int(logFieldExpenseIDCB, pending.ExpenseID).Msg(userMismatchOnEditMsgCB)
+		return true
+	}
+
+	expense.Description = description
+	if err := b.expenseRepo.Update(ctx, expense); err != nil {
+		logger.Log.Error().Err(err).Int(logFieldExpenseIDCB, expense.ID).Msg("Failed to update description")
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "❌ Failed to update description. Please try again.",
+		})
+		return true
+	}
+
+	logger.Log.Info().
+		Int(logFieldExpenseIDCB, expense.ID).
+		Str("new_description", logger.SanitizeDescription(description)).
+		Msg("Description updated via pending edit")
+
+	categoryText := categoryUncategorized
+	if expense.Category != nil {
+		categoryText = escapeHTML(expense.Category.Name)
+	} else if expense.CategoryID != nil {
+		cat, err := b.categoryRepo.GetByID(ctx, *expense.CategoryID)
+		if err == nil {
+			categoryText = escapeHTML(cat.Name)
+		}
+	}
+
+	keyboard := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{Text: editExpenseButtonTextCB, CallbackData: fmt.Sprintf(editExpenseCallbackFmtCB, expense.ID)},
+				{Text: deleteExpenseButtonTextCB, CallbackData: fmt.Sprintf(deleteExpenseCallbackFmtCB, expense.ID)},
+			},
+		},
+	}
+
+	text := fmt.Sprintf(`✅ <b>Description Updated!</b>
+
+💰 Amount: $%s SGD
+📝 Description: %s
+📁 Category: %s
+🆔 #%d`,
+		expense.Amount.StringFixed(2),
+		escapeHTML(expense.Description),
+		categoryText,
+		expense.UserExpenseNumber)
+
 	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      chatID,
 		MessageID:   pending.MessageID,
@@ -1048,8 +1191,8 @@ func (b *Bot) handleBackToExpenseCallbackCore(ctx context.Context, tg TelegramAP
 	keyboard := &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{
 			{
-				{Text: "✏️ Edit", CallbackData: fmt.Sprintf("edit_expense_%d", expense.ID)},
-				{Text: "🗑️ Delete", CallbackData: fmt.Sprintf("delete_expense_%d", expense.ID)},
+				{Text: editExpenseButtonTextCB, CallbackData: fmt.Sprintf(editExpenseCallbackFmtCB, expense.ID)},
+				{Text: deleteExpenseButtonTextCB, CallbackData: fmt.Sprintf(deleteExpenseCallbackFmtCB, expense.ID)},
 			},
 		},
 	}

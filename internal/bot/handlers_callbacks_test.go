@@ -21,6 +21,7 @@ const (
 	newRestaurantTextCBT            = "New Restaurant"
 	amountTypeCBT                   = "amount"
 	merchantTypeCBT                 = "merchant"
+	descriptionTypeCBT              = "desc"
 	categoryTypeCBT                 = "category"
 	otherFirstNameCBT               = "Other"
 	amount25CBT                     = "25.00"
@@ -141,6 +142,38 @@ func TestHandleEditCallbackCore(t *testing.T) {
 		require.Len(t, mockBot.AnsweredCallbacks, 1)
 		require.Len(t, mockBot.EditedMessages, 1)
 		require.Contains(t, mockBot.EditedMessages[0].Text, selectCategoryTextCBT)
+	})
+
+	t.Run("edit description action shows prompt", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+
+		expense := &appmodels.Expense{
+			UserID:      userID,
+			Amount:      mustParseDecimal("65.00"),
+			Currency:    testCurrencySGD,
+			Description: "Description Test",
+			Status:      appmodels.ExpenseStatusConfirmed,
+		}
+		err := b.expenseRepo.Create(ctx, expense)
+		require.NoError(t, err)
+
+		update := &models.Update{
+			CallbackQuery: &models.CallbackQuery{
+				ID:   callbackIDHandlers,
+				From: models.User{ID: userID},
+				Data: fmt.Sprintf("edit_desc_%d", expense.ID),
+				Message: models.MaybeInaccessibleMessage{
+					Message: &models.Message{
+						ID:   100,
+						Chat: models.Chat{ID: 12345},
+					},
+				},
+			},
+		}
+		b.handleEditCallbackCore(ctx, mockBot, update)
+		require.Len(t, mockBot.AnsweredCallbacks, 1)
+		require.Len(t, mockBot.EditedMessages, 1)
+		require.Contains(t, mockBot.EditedMessages[0].Text, "Edit Description")
 	})
 
 	t.Run("edit_expense callback is delegated to inline action handler", func(t *testing.T) {
@@ -339,6 +372,89 @@ func TestHandlePendingEditCore(t *testing.T) {
 		updated, err := b.expenseRepo.GetByID(ctx, expense.ID)
 		require.NoError(t, err)
 		require.Equal(t, "35", updated.Amount.StringFixed(0))
+	})
+
+	t.Run("processes description edit when pending", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+
+		expense := &appmodels.Expense{
+			UserID:      userID,
+			Amount:      mustParseDecimal(amount10CBT),
+			Currency:    testCurrencySGD,
+			Description: "Old description",
+			Merchant:    "Original merchant",
+			Status:      appmodels.ExpenseStatusConfirmed,
+		}
+		err := b.expenseRepo.Create(ctx, expense)
+		require.NoError(t, err)
+
+		chatID := int64(500004)
+		b.pendingEditsMu.Lock()
+		b.pendingEdits[chatID] = &pendingEdit{
+			ExpenseID: expense.ID,
+			EditType:  descriptionTypeCBT,
+			MessageID: 100,
+		}
+		b.pendingEditsMu.Unlock()
+
+		update := &models.Update{
+			Message: &models.Message{
+				Chat: models.Chat{ID: chatID},
+				From: &models.User{ID: userID},
+				Text: "New description",
+			},
+		}
+
+		result := b.handlePendingEditCore(ctx, mockBot, update)
+		require.True(t, result)
+
+		updated, err := b.expenseRepo.GetByID(ctx, expense.ID)
+		require.NoError(t, err)
+		require.Equal(t, "New description", updated.Description)
+		require.Equal(t, "Original merchant", updated.Merchant)
+	})
+}
+
+func TestPromptEditDescriptionCore(t *testing.T) {
+	ctx := context.Background()
+	pool := testDB(ctx, t)
+	b := setupTestBot(t, pool)
+	userID := int64(500030)
+
+	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+		ID:        userID,
+		Username:  "descriptionpromptuser",
+		FirstName: "DescriptionPrompt",
+	})
+	require.NoError(t, err)
+
+	t.Run(storesPendingEditPromptCBT, func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+
+		expense := &appmodels.Expense{
+			UserID:      userID,
+			Amount:      mustParseDecimal(amount15CBT),
+			Currency:    testCurrencySGD,
+			Description: oldNameTextCBT,
+			Merchant:    oldMerchantTextCBT,
+			Status:      appmodels.ExpenseStatusConfirmed,
+		}
+		err := b.expenseRepo.Create(ctx, expense)
+		require.NoError(t, err)
+
+		chatID := int64(22223)
+		b.promptEditDescriptionCore(ctx, mockBot, chatID, 100, expense)
+
+		require.Len(t, mockBot.EditedMessages, 1)
+		require.Contains(t, mockBot.EditedMessages[0].Text, "Edit Description")
+		require.Contains(t, mockBot.EditedMessages[0].Text, oldNameTextCBT)
+
+		b.pendingEditsMu.RLock()
+		pending, exists := b.pendingEdits[chatID]
+		b.pendingEditsMu.RUnlock()
+		require.True(t, exists)
+		require.Equal(t, expense.ID, pending.ExpenseID)
+		require.Equal(t, descriptionTypeCBT, pending.EditType)
 	})
 }
 
