@@ -24,6 +24,9 @@ const (
 	failedFetchCategoriesMsg = "❌ Failed to fetch categories. Please try again."
 	failedFetchExpensesMsg   = "❌ Failed to fetch expenses. Please try again."
 	failedSaveExpenseMsg     = "❌ Failed to save expense. Please try again."
+	failedDeleteExpenseMsg   = "❌ Failed to delete expense. Please try again."
+
+	editAction = "edit"
 )
 
 // extractCommandArgs strips the /command prefix (and optional @botname suffix)
@@ -1327,7 +1330,7 @@ func (b *Bot) handleEditCore(ctx context.Context, tg TelegramAPI, update *models
 	if err := b.expenseRepo.Update(ctx, expense); err != nil {
 		logger.Log.Error().Err(err).Int64("expense_num", expenseNum).Msg("Failed to update expense")
 		if b.metrics != nil {
-			b.metrics.ExpenseOps.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("operation", "edit"), attribute.String("status", "error")))
+			b.metrics.ExpenseOps.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("operation", editAction), attribute.String("status", "error")))
 		}
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
@@ -1337,7 +1340,7 @@ func (b *Bot) handleEditCore(ctx context.Context, tg TelegramAPI, update *models
 	}
 
 	if b.metrics != nil {
-		b.metrics.ExpenseOps.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("operation", "edit"), attribute.String("status", "ok")))
+		b.metrics.ExpenseOps.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("operation", editAction), attribute.String("status", "ok")))
 	}
 
 	logger.Log.Debug().
@@ -1526,7 +1529,7 @@ func (b *Bot) handleDeleteCore(ctx context.Context, tgBot TelegramAPI, update *m
 		}
 		_, _ = tgBot.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "❌ Failed to delete expense. Please try again.",
+			Text:   failedDeleteExpenseMsg,
 		})
 		return
 	}
