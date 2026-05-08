@@ -108,12 +108,13 @@ const (
 	stopWordFor = "for"
 )
 
+var stopWords = map[string]bool{
+	stopWordAnd: true,
+	stopWordThe: true,
+	stopWordFor: true,
+}
+
 // isStopWord returns true for common words that shouldn't be matched.
 func isStopWord(word string) bool {
-	stopWords := map[string]bool{
-		stopWordAnd: true,
-		stopWordThe: true,
-		stopWordFor: true,
-	}
 	return stopWords[word]
 }
