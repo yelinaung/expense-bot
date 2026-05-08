@@ -27,24 +27,44 @@ var ErrParseTimeout = errors.New("receipt parsing timed out")
 // ErrNoData indicates no usable data could be extracted from the receipt.
 var ErrNoData = errors.New("no usable data extracted from receipt")
 
+// Default category names used for suggestions.
+const (
+	CategoryFoodDiningOut   = "Food - Dining Out"
+	CategoryFoodGrocery     = "Food - Grocery"
+	CategoryTransportation  = "Transportation"
+	CategoryCommunication   = "Communication"
+	CategoryHousingMortgage = "Housing - Mortgage"
+	CategoryHousingOthers   = "Housing - Others"
+	CategoryPersonalCare    = "Personal Care"
+	CategoryHealthWellness  = "Health and Wellness"
+	CategoryEducation       = "Education"
+	CategoryEntertainment   = "Entertainment"
+	CategoryDebtPayments    = "Credit/Debt Payments"
+	CategoryOthers          = "Others"
+	CategoryUtilities       = "Utilities"
+	CategoryTravelVacation  = "Travel & Vacation"
+	CategorySubscriptions   = "Subscriptions"
+	CategoryDonations       = "Donations"
+)
+
 // DefaultCategories is the list of expense categories to suggest from.
 var DefaultCategories = []string{
-	"Food - Dining Out",
-	"Food - Grocery",
-	"Transportation",
-	"Communication",
-	"Housing - Mortgage",
-	"Housing - Others",
-	"Personal Care",
-	"Health and Wellness",
-	"Education",
-	"Entertainment",
-	"Credit/Debt Payments",
-	"Others",
-	"Utilities",
-	"Travel & Vacation",
-	"Subscriptions",
-	"Donations",
+	CategoryFoodDiningOut,
+	CategoryFoodGrocery,
+	CategoryTransportation,
+	CategoryCommunication,
+	CategoryHousingMortgage,
+	CategoryHousingOthers,
+	CategoryPersonalCare,
+	CategoryHealthWellness,
+	CategoryEducation,
+	CategoryEntertainment,
+	CategoryDebtPayments,
+	CategoryOthers,
+	CategoryUtilities,
+	CategoryTravelVacation,
+	CategorySubscriptions,
+	CategoryDonations,
 }
 
 // ReceiptData contains the extracted data from a receipt image.
