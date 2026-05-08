@@ -317,7 +317,7 @@ func (b *Bot) handleReceiptCallbackCore(ctx context.Context, tg TelegramAPI, upd
 		b.handleConfirmReceiptCore(ctx, tg, chatID, messageID, expense)
 	case "cancel":
 		b.handleCancelReceiptCore(ctx, tg, chatID, messageID, expense)
-	case "edit":
+	case editAction:
 		b.handleEditReceiptCore(ctx, tg, chatID, messageID, expense)
 	case "back":
 		b.handleBackToReceiptCore(ctx, tg, chatID, messageID, expense)

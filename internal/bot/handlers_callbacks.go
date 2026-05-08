@@ -1105,7 +1105,7 @@ func (b *Bot) handleConfirmDeleteCallbackCore(ctx context.Context, tg TelegramAP
 		_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 			ChatID:    chatID,
 			MessageID: messageID,
-			Text:      "❌ Failed to delete expense. Please try again.",
+			Text:      failedDeleteExpenseMsg,
 		})
 		return
 	}

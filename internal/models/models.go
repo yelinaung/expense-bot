@@ -17,8 +17,10 @@ const DefaultTimezone = "Asia/Singapore"
 const MaxCategoryNameLength = 50
 
 // SupportedCurrencies lists all supported currency codes.
+// The "SGD" key is the explicit ISO code, intentionally kept as a literal
+// so the code-to-symbol mapping stays independent of DefaultCurrency.
 var SupportedCurrencies = map[string]string{
-	"SGD": "S$",
+	"SGD": "S$", //nolint:goconst,nolintlint // explicit ISO code; behavior differs across goconst versions
 	"USD": "$",
 	"EUR": "€",
 	"GBP": "£",

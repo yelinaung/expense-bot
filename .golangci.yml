@@ -134,7 +134,6 @@ linters:
     goconst:
       min-len: 3
       min-occurrences: 3
-      ignore-tests: true
     gocritic:
       disabled-checks:
         - regexpMust
@@ -315,6 +314,7 @@ linters:
           - bodyclose
           - dupl
           - errcheck
+          - goconst
           - gocyclo
           - gosec
           - musttag

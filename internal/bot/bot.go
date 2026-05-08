@@ -256,7 +256,7 @@ func (b *Bot) registerCommands(ctx context.Context) {
 		{Command: "addcategory", Description: "Create a new category"},
 		{Command: "renamecategory", Description: "Rename a category"},
 		{Command: "deletecategory", Description: "Delete a category"},
-		{Command: "edit", Description: "Edit an expense"},
+		{Command: editAction, Description: "Edit an expense"},
 		{Command: "delete", Description: "Delete an expense"},
 		{Command: "currency", Description: "Show your default currency"},
 		{Command: "setcurrency", Description: "Set default currency (e.g. USD, EUR)"},

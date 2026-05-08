@@ -21,6 +21,23 @@ const (
 	currencyCodePatternAnyCase = `[A-Za-z]{3}`
 	tagNamePattern             = `#[a-zA-Z]\w{0,29}`
 	bracketCategoryPattern     = `\[[^\]]+\]`
+
+	currencyCodeUSD = "USD"
+	currencyCodeEUR = "EUR"
+	currencyCodeGBP = "GBP"
+	currencyCodeJPY = "JPY"
+	currencyCodeTHB = "THB"
+	currencyCodePHP = "PHP"
+	currencyCodeVND = "VND"
+	currencyCodeKRW = "KRW"
+	currencyCodeINR = "INR"
+	currencyCodeSGD = "SGD"
+	currencyCodeAUD = "AUD"
+	currencyCodeHKD = "HKD"
+	currencyCodeNZD = "NZD"
+	currencyCodeTWD = "TWD"
+	currencyCodeMYR = "MYR"
+	currencyCodeIDR = "IDR"
 )
 
 func init() {
@@ -100,26 +117,26 @@ var bracketCategoryRegex = regexp.MustCompile(`\s*\[([^\]]+)\]\s*$`)
 
 // currencySymbolToCode maps currency symbols to currency codes.
 var currencySymbolToCode = map[string]string{
-	"$":   "USD", // Mapped here for trailing-$ lookup; leading $ is treated as ambiguous
-	"€":   "EUR",
-	"£":   "GBP",
-	"¥":   "JPY",
-	"฿":   "THB",
-	"₱":   "PHP",
-	"₫":   "VND",
-	"₩":   "KRW",
-	"₹":   "INR",
-	"S$":  "SGD",
-	"A$":  "AUD",
-	"HK$": "HKD",
-	"NZ$": "NZD",
-	"NT$": "TWD",
-	"RM":  "MYR",
-	"Rp":  "IDR",
+	"$":   currencyCodeUSD, // Mapped here for trailing-$ lookup; leading $ is treated as ambiguous
+	"€":   currencyCodeEUR,
+	"£":   currencyCodeGBP,
+	"¥":   currencyCodeJPY,
+	"฿":   currencyCodeTHB,
+	"₱":   currencyCodePHP,
+	"₫":   currencyCodeVND,
+	"₩":   currencyCodeKRW,
+	"₹":   currencyCodeINR,
+	"S$":  currencyCodeSGD,
+	"A$":  currencyCodeAUD,
+	"HK$": currencyCodeHKD,
+	"NZ$": currencyCodeNZD,
+	"NT$": currencyCodeTWD,
+	"RM":  currencyCodeMYR,
+	"Rp":  currencyCodeIDR,
 }
 
 var currencyWordToCode = map[string]string{
-	"BAHT": "THB",
+	"BAHT": currencyCodeTHB,
 }
 
 // currencyPrefixRegex matches currency symbols or codes at the start.

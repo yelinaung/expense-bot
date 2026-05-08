@@ -102,12 +102,19 @@ func extractSignificantWords(s string) []string {
 	return significant
 }
 
+const (
+	stopWordAnd = "and"
+	stopWordThe = "the"
+	stopWordFor = "for"
+)
+
+var stopWords = map[string]bool{
+	stopWordAnd: true,
+	stopWordThe: true,
+	stopWordFor: true,
+}
+
 // isStopWord returns true for common words that shouldn't be matched.
 func isStopWord(word string) bool {
-	stopWords := map[string]bool{
-		"and": true,
-		"the": true,
-		"for": true,
-	}
 	return stopWords[word]
 }
