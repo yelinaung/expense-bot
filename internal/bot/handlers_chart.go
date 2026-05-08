@@ -12,7 +12,12 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
 )
 
-const failedGenerateChartMsg = "❌ Failed to generate chart. Please try again."
+const (
+	failedGenerateChartMsg = "❌ Failed to generate chart. Please try again."
+
+	periodLabelWeek  = "Week"
+	periodLabelMonth = "Month"
+)
 
 // handleChart handles the /chart command to generate visual expense breakdown charts.
 func (b *Bot) handleChart(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
@@ -47,12 +52,12 @@ func (b *Bot) handleChartCore(ctx context.Context, tg TelegramAPI, update *model
 	switch strings.ToLower(args) {
 	case periodWeek:
 		startDate, endDate = getWeekDateRangeAt(current)
-		period = "Week"
+		period = periodLabelWeek
 		title = fmt.Sprintf("Weekly Expenses (%s to %s)",
 			startDate.Format("Jan 2"), endDate.AddDate(0, 0, -1).Format("Jan 2, 2006"))
 	case periodMonth:
 		startDate, endDate = getMonthDateRangeAt(current)
-		period = "Month"
+		period = periodLabelMonth
 		title = fmt.Sprintf("Monthly Expenses (%s)", startDate.Format("January 2006"))
 	default:
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
@@ -113,7 +118,7 @@ func (b *Bot) handleChartCore(ctx context.Context, tg TelegramAPI, update *model
 
 	// Format period range for caption
 	var periodRange string
-	if period == "Week" {
+	if period == periodLabelWeek {
 		periodRange = fmt.Sprintf("%s to %s",
 			startDate.Format("Jan 2"), endDate.AddDate(0, 0, -1).Format("Jan 2, 2006"))
 	} else {
