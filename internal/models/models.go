@@ -17,24 +17,26 @@ const DefaultTimezone = "Asia/Singapore"
 const MaxCategoryNameLength = 50
 
 // SupportedCurrencies lists all supported currency codes.
+// The "SGD" key is the explicit ISO code, intentionally kept as a literal
+// so the code-to-symbol mapping stays independent of DefaultCurrency.
 var SupportedCurrencies = map[string]string{
-	DefaultCurrency: "S$",
-	"USD":           "$",
-	"EUR":           "€",
-	"GBP":           "£",
-	"JPY":           "¥",
-	"CNY":           "¥",
-	"MYR":           "RM",
-	"THB":           "฿",
-	"IDR":           "Rp",
-	"PHP":           "₱",
-	"VND":           "₫",
-	"KRW":           "₩",
-	"INR":           "₹",
-	"AUD":           "A$",
-	"NZD":           "NZ$",
-	"HKD":           "HK$",
-	"TWD":           "NT$",
+	"SGD": "S$", //nolint:goconst // explicit ISO code, see comment above
+	"USD": "$",
+	"EUR": "€",
+	"GBP": "£",
+	"JPY": "¥",
+	"CNY": "¥",
+	"MYR": "RM",
+	"THB": "฿",
+	"IDR": "Rp",
+	"PHP": "₱",
+	"VND": "₫",
+	"KRW": "₩",
+	"INR": "₹",
+	"AUD": "A$",
+	"NZD": "NZ$",
+	"HKD": "HK$",
+	"TWD": "NT$",
 }
 
 // User represents a Telegram user.
