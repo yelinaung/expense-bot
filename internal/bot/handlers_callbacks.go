@@ -998,7 +998,7 @@ What would you like to edit?`,
 				{Text: "📝 Description", CallbackData: fmt.Sprintf("edit_desc_%d", expense.ID)},
 			},
 			{
-				{Text: "📁 Category", CallbackData: fmt.Sprintf("edit_cat_%d", expense.ID)},
+				{Text: "📁 Category", CallbackData: fmt.Sprintf("edit_category_%d", expense.ID)},
 			},
 			{
 				{Text: backButtonTextCB, CallbackData: fmt.Sprintf(backToExpenseCallbackFmtCB, expense.ID)},

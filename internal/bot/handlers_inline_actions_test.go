@@ -70,6 +70,10 @@ func TestHandleExpenseActionCallbackCore(t *testing.T) {
 		// Should have answered the callback and edited the message.
 		require.GreaterOrEqual(t, mockBot.AnsweredCallbackCount(), 1)
 		require.GreaterOrEqual(t, mockBot.EditedMessageCount(), 1)
+
+		keyboard, ok := mockBot.EditedMessages[0].ReplyMarkup.(*tgmodels.InlineKeyboardMarkup)
+		require.True(t, ok)
+		require.Equal(t, "edit_category_"+strconv.Itoa(expense.ID), keyboard.InlineKeyboard[2][0].CallbackData)
 	})
 
 	t.Run("handles delete_expense action", func(t *testing.T) {
