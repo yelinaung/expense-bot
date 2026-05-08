@@ -14,7 +14,25 @@ import (
 const (
 	periodWeek  = "week"
 	periodMonth = "month"
+
+	csvHeaderID          = "ID"
+	csvHeaderDate        = "Date"
+	csvHeaderAmount      = "Amount"
+	csvHeaderCurrency    = "Currency"
+	csvHeaderDescription = "Description"
+	csvHeaderMerchant    = "Merchant"
+	csvHeaderCategory    = "Category"
 )
+
+var csvExpenseHeader = []string{
+	csvHeaderID,
+	csvHeaderDate,
+	csvHeaderAmount,
+	csvHeaderCurrency,
+	csvHeaderDescription,
+	csvHeaderMerchant,
+	csvHeaderCategory,
+}
 
 // sanitizeCSVCell prefixes cell values that could be interpreted as
 // formulas by spreadsheet applications.
@@ -39,14 +57,13 @@ func GenerateExpensesCSV(expenses []models.Expense) ([]byte, error) {
 	writer := csv.NewWriter(&buf)
 
 	// Write header
-	header := []string{"ID", "Date", "Amount", "Currency", "Description", "Merchant", "Category"}
-	if err := writer.Write(header); err != nil {
+	if err := writer.Write(csvExpenseHeader); err != nil {
 		return nil, fmt.Errorf("failed to write CSV header: %w", err)
 	}
 
 	// Write expense rows
 	for i := range expenses {
-		categoryName := "Uncategorized"
+		categoryName := categoryUncategorized
 		if expenses[i].Category != nil {
 			categoryName = expenses[i].Category.Name
 		}

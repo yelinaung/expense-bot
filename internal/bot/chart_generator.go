@@ -71,7 +71,7 @@ func aggregateByCategory(expenses []models.Expense) map[string]decimal.Decimal {
 	categoryTotals := make(map[string]decimal.Decimal)
 
 	for i := range expenses {
-		categoryName := "Uncategorized"
+		categoryName := categoryUncategorized
 		if expenses[i].Category != nil {
 			categoryName = expenses[i].Category.Name
 		}
