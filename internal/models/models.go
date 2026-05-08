@@ -20,7 +20,7 @@ const MaxCategoryNameLength = 50
 // The "SGD" key is the explicit ISO code, intentionally kept as a literal
 // so the code-to-symbol mapping stays independent of DefaultCurrency.
 var SupportedCurrencies = map[string]string{
-	"SGD": "S$", //nolint:goconst // explicit ISO code, see comment above
+	"SGD": "S$", //nolint:goconst,nolintlint // explicit ISO code; behavior differs across goconst versions
 	"USD": "$",
 	"EUR": "€",
 	"GBP": "£",
