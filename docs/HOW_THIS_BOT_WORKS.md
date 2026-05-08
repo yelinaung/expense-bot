@@ -231,7 +231,8 @@ Receipt and voice-created expenses are stored as `draft` first. The inline
 keyboard lets the user:
 
 - Confirm: update the draft to `confirmed`.
-- Edit: change amount, merchant or description, or category.
+- Edit: change amount, merchant, or category. Description editing belongs to
+  the post-add edit menu for confirmed expenses, not the draft edit menu.
 - Cancel: delete the draft.
 - Create category: add a new category, invalidate the category cache, and assign
   it to the draft.
@@ -417,13 +418,15 @@ Important data model details:
   `draft` expenses older than 10 minutes and records `background.drafts_cleaned`
   when metrics are enabled.
 - Daily reminders run when `DAILY_REMINDER_ENABLED=true`. The loop checks every
-  30 minutes and sends each authorized user at most one message per local day
-  when their local hour matches `REMINDER_HOUR`. If the user has expenses today,
-  it sends a daily summary; otherwise it sends a reminder to log expenses.
+  immediately at startup, then every 30 minutes, and sends each authorized user
+  at most one message per local day when their local hour matches
+  `REMINDER_HOUR`. If the user has expenses today, it sends a daily summary;
+  otherwise it sends a reminder to log expenses.
 - Weekly reports run when `WEEKLY_REPORT_ENABLED=true`. The loop checks every
-  30 minutes and sends the previous week's summary at most once per user/week
-  when the user's local weekday and hour match `WEEKLY_REPORT_DAY` and
-  `WEEKLY_REPORT_HOUR`.
+  immediately at startup, then every 30 minutes, and sends the previous week's
+  summary at most once per user/week when the user's local weekday and hour
+  match `WEEKLY_REPORT_DAY` and `WEEKLY_REPORT_HOUR`. If the user had no
+  expenses in the previous week, it sends nothing.
 
 Both reminder jobs fetch authorized users from the union of superadmins and
 approved users. Per-user timezones come from `users.timezone`, falling back to
