@@ -3,7 +3,10 @@
   "extends": [
     "config:best-practices"
   ],
-  "minimumReleaseAge": "3 days",
+  "minimumReleaseAge": "7 days",
+  "pre-commit": {
+    "enabled": true
+  },
   "packageRules": [
     {
       "matchManagers": [
