@@ -7,6 +7,9 @@
   "pre-commit": {
     "enabled": true
   },
+  "pip-compile": {
+    "managerFilePatterns": ["/^\\.github\\/requirements\\/[^/]+\\.txt$/"]
+  },
   "osvVulnerabilityAlerts": true,
   "vulnerabilityAlerts": {
     "enabled": true,
