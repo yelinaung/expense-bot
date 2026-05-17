@@ -7,6 +7,11 @@
   "pre-commit": {
     "enabled": true
   },
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"]
+  },
   "packageRules": [
     {
       "matchManagers": [
