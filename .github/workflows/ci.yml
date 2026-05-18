@@ -199,16 +199,19 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Start PostgreSQL
+      - name: Resolve PostgreSQL container name
+        run: |
+          echo "PG_CONTAINER=test-postgres-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "${GITHUB_ENV}"
+
+      - name: Start PostgreSQL container
         env:
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
           POSTGRES_DB: ${{ env.POSTGRES_DB }}
         run: |
           set -euo pipefail
-          container_name="test-postgres-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          echo "Using PostgreSQL container: ${container_name}"
-          docker rm -f "${container_name}" 2>/dev/null || true
+          echo "Using PostgreSQL container: ${PG_CONTAINER}"
+          docker rm -f "${PG_CONTAINER}" 2>/dev/null || true
           # Share the runner container's network so localhost:5432 is reachable
           # from the test process. Fall back to --network host for bare-metal runners.
           network_flag="--network container:$(hostname)"
@@ -216,13 +219,17 @@ jobs:
             network_flag="--network host"
           fi
           echo "Network mode: ${network_flag}"
-          docker run -d --name "${container_name}" \
+          docker run -d --name "${PG_CONTAINER}" \
             ${network_flag} \
             --shm-size=256m \
             -e "POSTGRES_USER=${POSTGRES_USER}" \
             -e "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
             -e "POSTGRES_DB=${POSTGRES_DB}" \
             postgres:18-alpine
+
+      - name: Wait for PostgreSQL ready
+        run: |
+          set -euo pipefail
           echo "Waiting for PostgreSQL..."
           ready=0
           for i in $(seq 1 30); do
@@ -233,33 +240,36 @@ jobs:
               break
             fi
             # Check the container hasn't exited
-            if ! docker inspect "${container_name}" --format='{{.State.Running}}' 2>/dev/null | grep -q true; then
+            if ! docker inspect "${PG_CONTAINER}" --format='{{.State.Running}}' 2>/dev/null | grep -q true; then
               echo "PostgreSQL container exited unexpectedly!"
-              docker logs "${container_name}" 2>&1 || true
+              docker logs "${PG_CONTAINER}" 2>&1 || true
               exit 1
             fi
             sleep 1
           done
           if [ "$ready" -ne 1 ]; then
             echo "PostgreSQL failed to become ready within timeout."
-            docker logs "${container_name}" || true
+            docker logs "${PG_CONTAINER}" || true
             exit 1
           fi
+
+      - name: Pre-compile test binaries
+        run: go test -c -covermode=atomic ./... 2>/dev/null || true
+
+      - name: Verify PostgreSQL still reachable
+        run: |
+          set -euo pipefail
+          if ! bash -c 'echo > /dev/tcp/localhost/5432' 2>/dev/null; then
+            echo "PostgreSQL is NOT reachable before test run!"
+            docker inspect "${PG_CONTAINER}" --format='Status: {{.State.Status}}, Running: {{.State.Running}}, ExitCode: {{.State.ExitCode}}' 2>&1 || true
+            docker logs --tail 50 "${PG_CONTAINER}" 2>&1 || true
+            exit 1
+          fi
+          echo "PostgreSQL still healthy — starting tests"
 
       - name: Run tests with coverage
         run: |
           export TEST_DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable"
-          # Pre-compile test binaries first (this is the slow part)
-          go test -c -covermode=atomic ./... 2>/dev/null || true
-          # Verify DB is still reachable after compilation
-          container_name="test-postgres-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          if ! bash -c 'echo > /dev/tcp/localhost/5432' 2>/dev/null; then
-            echo "PostgreSQL is NOT reachable before test run!"
-            docker inspect "${container_name}" --format='Status: {{.State.Status}}, Running: {{.State.Running}}, ExitCode: {{.State.ExitCode}}' 2>&1 || true
-            docker logs --tail 50 "${container_name}" 2>&1 || true
-            exit 1
-          fi
-          echo "PostgreSQL still healthy — starting tests"
           mise run test-coverage
 
       - name: Check coverage threshold
@@ -289,8 +299,7 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
-          container_name="test-postgres-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          docker rm -f "${container_name}" 2>/dev/null || true
+          docker rm -f "${PG_CONTAINER:-test-postgres-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}}" 2>/dev/null || true
 
   test-race:
     name: Race Detection
