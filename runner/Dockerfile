@@ -9,7 +9,7 @@ ARG GOLANGCI_LINT_VERSION=2.12.2
 ARG GORELEASER_VERSION=2.15.4
 ARG GITLEAKS_VERSION=8.30.1
 ARG SEMGREP_VERSION=1.162.0
-ARG MISE_VERSION=2026.5.5
+ARG MISE_VERSION=2026.5.6
 # renovate: datasource=github-commits depName=golangci/golangci-lint
 ARG GOLANGCI_LINT_INSTALL_COMMIT=870ddc133592c3609f26af3b6f05ce2dd4a7afda
 # renovate: datasource=github-commits depName=securego/gosec
