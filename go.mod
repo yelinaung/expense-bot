@@ -3,7 +3,7 @@ module gitlab.com/yelinaung/expense-bot
 go 1.26.3
 
 require (
-	github.com/exaring/otelpgx v0.10.0
+	github.com/exaring/otelpgx v0.11.1
 	github.com/go-analyze/charts v0.5.27
 	github.com/go-telegram/bot v1.20.0
 	github.com/jackc/pgx/v5 v5.9.2
