@@ -35,7 +35,6 @@
       "matchManagers": [
         "gomod"
       ],
-      "minimumReleaseAge": "1 day",
       "postUpdateOptions": [
         "gomodTidy"
       ]
