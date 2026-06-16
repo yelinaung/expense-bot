@@ -221,7 +221,30 @@ func (b *Bot) getOwnedExpense(
 	expenseID int,
 ) (*appmodels.Expense, bool) {
 	expense, err := b.expenseRepo.GetByID(ctx, expenseID)
-	if err != nil || expense.UserID != userID {
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
+				ChatID:    target.chatID,
+				MessageID: target.messageID,
+				Text:      expenseNotFoundMsgCB,
+			})
+			return nil, false
+		}
+
+		logger.Log.Error().
+			Err(err).
+			Int(logFieldExpenseIDCB, expenseID).
+			Str(logFieldUserHashCB, logger.HashUserID(userID)).
+			Msg("Failed to get expense for reflection")
+		_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
+			ChatID:    target.chatID,
+			MessageID: target.messageID,
+			Text:      expenseUnexpectedErrorMsgCB,
+		})
+		return nil, false
+	}
+
+	if expense.UserID != userID {
 		_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 			ChatID:    target.chatID,
 			MessageID: target.messageID,
@@ -410,7 +433,7 @@ func formatReviewPrompt(expense *appmodels.Expense, loc *time.Location) string {
 		escapeHTML(expense.Amount.StringFixed(2)),
 		escapeHTML(expense.Currency),
 		escapeHTML(description),
-		escapeHTML(categoryText),
+		categoryText,
 		escapeHTML(expense.CreatedAt.In(normalizeLocation(loc)).Format("02 Jan 2006 15:04")),
 	)
 }

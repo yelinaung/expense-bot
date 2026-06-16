@@ -206,8 +206,8 @@ func (r *ExpenseRepository) UpdateReflection(
 			spend_driver = $4,
 			reviewed_at = NOW(),
 			updated_at = NOW()
-		WHERE id = $1 AND user_id = $2
-	`, expenseID, userID, worthIt, driverValue)
+		WHERE id = $1 AND user_id = $2 AND status = $5
+	`, expenseID, userID, worthIt, driverValue, models.ExpenseStatusConfirmed)
 	if err != nil {
 		return fmt.Errorf("failed to update expense reflection: %w", err)
 	}

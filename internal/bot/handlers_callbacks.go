@@ -17,6 +17,7 @@ const (
 	editCancelText                 = "⬅️ Cancel"
 	cancelEditCallback             = "cancel_edit_%d"
 	expenseNotFoundMsgCB           = "❌ Expense not found."
+	expenseUnexpectedErrorMsgCB    = "❌ Something went wrong while loading this expense. Please try again later."
 	backButtonTextCB               = "⬅️ Back"
 	logFieldExpenseIDCB            = "expense_id"
 	logFieldUserHashCB             = "user_hash"

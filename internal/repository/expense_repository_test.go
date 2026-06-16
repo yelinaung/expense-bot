@@ -765,6 +765,13 @@ func TestExpenseRepository_ReflectionWorkflow(t *testing.T) {
 	err = expenseRepo.UpdateReflection(ctx, newer.ID, otherUser.ID, &worth, "Necessity")
 	require.Error(t, err)
 
+	err = expenseRepo.UpdateReflection(ctx, draft.ID, user.ID, &worth, "Necessity")
+	require.Error(t, err)
+	var draftReviewedAt *time.Time
+	err = expenseRepo.Pool().QueryRow(ctx, `SELECT reviewed_at FROM expenses WHERE id = $1`, draft.ID).Scan(&draftReviewedAt)
+	require.NoError(t, err)
+	require.Nil(t, draftReviewedAt)
+
 	err = expenseRepo.UpdateReflection(ctx, newer.ID, user.ID, &worth, "Necessity")
 	require.NoError(t, err)
 

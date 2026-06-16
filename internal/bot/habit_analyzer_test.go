@@ -9,7 +9,7 @@ import (
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
-func TestAnalyzeExpenseHabit_MultiCurrencyAndCategoryRules(t *testing.T) {
+func TestAnalyzeExpenseHabit(t *testing.T) {
 	t.Parallel()
 
 	loc := time.FixedZone("SGT", 8*60*60)
@@ -66,36 +66,82 @@ func TestAnalyzeExpenseHabit_MultiCurrencyAndCategoryRules(t *testing.T) {
 			CreatedAt:  time.Date(2026, 6, 12, 10, 0, 0, 0, loc),
 		},
 	}
-	all := append([]appmodels.Expense{}, reviewed...)
-	all = append(all, appmodels.Expense{Amount: decimal.RequireFromString("9.00"), Currency: "SGD"})
 
-	summary := analyzeExpenseHabit(len(all), reviewed, loc, "June 2026")
+	tests := []struct {
+		name                         string
+		totalCount                   int
+		reviewed                     []appmodels.Expense
+		loc                          *time.Location
+		periodLabel                  string
+		wantReviewedCount            int
+		wantWorthItCount             int
+		wantNotWorthItCount          int
+		wantWorthItByCurrency        map[string]string
+		wantNotWorthItByCurrency     map[string]string
+		wantBestValueCategory        string
+		wantMostRegrettedCategory    string
+		wantTopDriver                spendingDriver
+		wantBusiestNotWorthItWeekday time.Weekday
+		wantHasBusiestWeekday        bool
+	}{
+		{
+			name:                         "multi-currency and category rules",
+			totalCount:                   6,
+			reviewed:                     reviewed,
+			loc:                          loc,
+			periodLabel:                  "June 2026",
+			wantReviewedCount:            5,
+			wantWorthItCount:             2,
+			wantNotWorthItCount:          3,
+			wantWorthItByCurrency:        map[string]string{"SGD": "10.00", "USD": "12.00"},
+			wantNotWorthItByCurrency:     map[string]string{"SGD": "75.00"},
+			wantBestValueCategory:        "Food",
+			wantMostRegrettedCategory:    "Travel",
+			wantTopDriver:                spendingDriver("Necessity"),
+			wantBusiestNotWorthItWeekday: time.Thursday,
+			wantHasBusiestWeekday:        true,
+		},
+		{
+			name:                     "no reviewed expenses",
+			totalCount:               1,
+			loc:                      time.UTC,
+			periodLabel:              "This week",
+			wantWorthItByCurrency:    map[string]string{},
+			wantNotWorthItByCurrency: map[string]string{},
+		},
+	}
 
-	require.Equal(t, "June 2026", summary.PeriodLabel)
-	require.Equal(t, 6, summary.TotalCount)
-	require.Equal(t, 5, summary.ReviewedCount)
-	require.Equal(t, 2, summary.WorthItCount)
-	require.Equal(t, 3, summary.NotWorthItCount)
-	require.True(t, decimal.RequireFromString("10.00").Equal(summary.WorthItByCurrency["SGD"]))
-	require.True(t, decimal.RequireFromString("12.00").Equal(summary.WorthItByCurrency["USD"]))
-	require.True(t, decimal.RequireFromString("75.00").Equal(summary.NotWorthItByCurrency["SGD"]))
-	require.Equal(t, "Food", summary.BestValueCategory)
-	require.Equal(t, "Travel", summary.MostRegrettedCategory)
-	require.Equal(t, spendingDriver("Necessity"), summary.TopDriver)
-	require.True(t, summary.HasBusiestNotWorthItWeekday)
-	require.Equal(t, time.Thursday, summary.BusiestNotWorthItWeekday)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			summary := analyzeExpenseHabit(tt.totalCount, tt.reviewed, tt.loc, tt.periodLabel)
+
+			require.Equal(t, tt.periodLabel, summary.PeriodLabel)
+			require.Equal(t, tt.totalCount, summary.TotalCount)
+			require.Equal(t, tt.wantReviewedCount, summary.ReviewedCount)
+			require.Equal(t, tt.wantWorthItCount, summary.WorthItCount)
+			require.Equal(t, tt.wantNotWorthItCount, summary.NotWorthItCount)
+			requireCurrencyTotals(t, tt.wantWorthItByCurrency, summary.WorthItByCurrency)
+			requireCurrencyTotals(t, tt.wantNotWorthItByCurrency, summary.NotWorthItByCurrency)
+			require.Equal(t, tt.wantBestValueCategory, summary.BestValueCategory)
+			require.Equal(t, tt.wantMostRegrettedCategory, summary.MostRegrettedCategory)
+			require.Equal(t, tt.wantTopDriver, summary.TopDriver)
+			require.Equal(t, tt.wantHasBusiestWeekday, summary.HasBusiestNotWorthItWeekday)
+			if tt.wantHasBusiestWeekday {
+				require.Equal(t, tt.wantBusiestNotWorthItWeekday, summary.BusiestNotWorthItWeekday)
+			}
+		})
+	}
 }
 
-func TestAnalyzeExpenseHabit_NoReviewedExpenses(t *testing.T) {
-	t.Parallel()
+func requireCurrencyTotals(t *testing.T, want map[string]string, got map[string]decimal.Decimal) {
+	t.Helper()
 
-	summary := analyzeExpenseHabit(1, nil, time.UTC, "This week")
-
-	require.Equal(t, 1, summary.TotalCount)
-	require.Zero(t, summary.ReviewedCount)
-	require.Empty(t, summary.BestValueCategory)
-	require.Empty(t, summary.MostRegrettedCategory)
-	require.False(t, summary.HasBusiestNotWorthItWeekday)
+	require.Len(t, got, len(want))
+	for currency, amount := range want {
+		require.True(t, decimal.RequireFromString(amount).Equal(got[currency]))
+	}
 }
 
 func TestReviewCallbackDataAndKeyboards(t *testing.T) {
