@@ -408,6 +408,7 @@ func scanExpenses(rows interface {
 }
 
 // scanExpensesWithReflection scans expense rows with category and reflection data.
+// TODO: Unify this with scanExpenses after reflection columns are selected everywhere.
 func scanExpensesWithReflection(rows interface {
 	Next() bool
 	Scan(dest ...any) error

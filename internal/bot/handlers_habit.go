@@ -22,6 +22,12 @@ const (
 	reviewLaterPrefix    = "review_later_"
 	reviewSkipPrefix     = "review_skip_"
 	reviewDriverPrefix   = "review_driver_"
+
+	noExpensesToReviewMsg   = "No expenses to review."
+	noMoreExpensesReviewMsg = "No more expenses to review."
+	driverPromptHTML        = "<b>What drove this spend?</b>"
+	failedSaveReflectionMsg = "Failed to save reflection. Please try again."
+	invalidHabitPeriodMsg   = "Invalid habit period. Use <code>/habit week</code>, <code>/habit month</code>, or <code>/habit 90d</code>."
 )
 
 func (b *Bot) handleReview(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
@@ -42,7 +48,7 @@ func (b *Bot) handleReviewCore(ctx context.Context, tg TelegramAPI, update *mode
 		return
 	}
 	if len(expenses) == 0 {
-		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{ChatID: chatID, Text: "No expenses to review."})
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{ChatID: chatID, Text: noExpensesToReviewMsg})
 		return
 	}
 
@@ -77,7 +83,7 @@ func (b *Bot) handleHabitCore(ctx context.Context, tg TelegramAPI, update *model
 	if !ok {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      "Invalid habit period. Use <code>/habit week</code>, <code>/habit month</code>, or <code>/habit 90d</code>.",
+			Text:      invalidHabitPeriodMsg,
 			ParseMode: models.ParseModeHTML,
 		})
 		return
@@ -97,7 +103,7 @@ func (b *Bot) handleHabitCore(ctx context.Context, tg TelegramAPI, update *model
 		return
 	}
 
-	summary := AnalyzeExpenseHabit(expenses, reviewed, loc, label)
+	summary := analyzeExpenseHabit(len(expenses), reviewed, loc, label)
 	_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    chatID,
 		Text:      formatHabitSummary(&summary),
@@ -162,7 +168,7 @@ func (b *Bot) showDriverPrompt(
 	}
 
 	loc := b.locationForUser(ctx, userID)
-	text := formatReviewPrompt(expense, loc) + "\n\n<b>What drove this spend?</b>"
+	text := formatReviewPrompt(expense, loc) + "\n\n" + driverPromptHTML
 	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      chatID,
 		MessageID:   messageID,
@@ -180,27 +186,26 @@ func (b *Bot) handleReviewDriverCallback(
 	userID int64,
 	data string,
 ) {
-	expenseID, worthIt, driverIndex, ok := parseDriverCallback(data)
-	if !ok || driverIndex < 0 || driverIndex >= len(spendingDrivers) {
+	callback := parseDriverCallback(data)
+	if !callback.ok || callback.driverIndex < 0 || callback.driverIndex >= len(spendingDrivers) {
 		return
 	}
-	if _, ok := b.getOwnedExpense(ctx, tg, updateTarget{chatID: chatID, messageID: messageID}, userID, expenseID); !ok {
+	if _, ok := b.getOwnedExpense(ctx, tg, updateTarget{chatID: chatID, messageID: messageID}, userID, callback.expenseID); !ok {
 		return
 	}
 
-	worth := worthIt
-	driver := string(spendingDrivers[driverIndex])
-	if err := b.expenseRepo.UpdateReflection(ctx, expenseID, userID, &worth, driver); err != nil {
-		logger.Log.Error().Err(err).Int("expense_id", expenseID).Msg("Failed to update reflection")
+	driver := string(spendingDrivers[callback.driverIndex])
+	if err := b.expenseRepo.UpdateReflection(ctx, callback.expenseID, userID, &callback.worthIt, driver); err != nil {
+		logger.Log.Error().Err(err).Int("expense_id", callback.expenseID).Msg("Failed to update reflection")
 		_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 			ChatID:    chatID,
 			MessageID: messageID,
-			Text:      "Failed to save reflection. Please try again.",
+			Text:      failedSaveReflectionMsg,
 		})
 		return
 	}
 
-	b.editToNextReviewOrDone(ctx, tg, chatID, messageID, userID, expenseID)
+	b.editToNextReviewOrDone(ctx, tg, chatID, messageID, userID, callback.expenseID)
 }
 
 type updateTarget struct {
@@ -262,7 +267,7 @@ func (b *Bot) editToNextReviewOrDone(
 			_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 				ChatID:    chatID,
 				MessageID: messageID,
-				Text:      "No more expenses to review.",
+				Text:      noMoreExpensesReviewMsg,
 			})
 			return
 		}
@@ -349,25 +354,37 @@ func parseReviewID(data, prefix string) (int, bool) {
 	return expenseID, err == nil
 }
 
-func parseDriverCallback(data string) (int, bool, int, bool) {
+type reviewDriverCallback struct {
+	expenseID   int
+	worthIt     bool
+	driverIndex int
+	ok          bool
+}
+
+func parseDriverCallback(data string) reviewDriverCallback {
 	payload := strings.TrimPrefix(data, reviewDriverPrefix)
 	parts := strings.Split(payload, "_")
 	if len(parts) != 3 {
-		return 0, false, 0, false
+		return reviewDriverCallback{}
 	}
 	expenseID, err := strconv.Atoi(parts[0])
 	if err != nil {
-		return 0, false, 0, false
+		return reviewDriverCallback{}
 	}
 	worthBit, err := strconv.Atoi(parts[1])
 	if err != nil || (worthBit != 0 && worthBit != 1) {
-		return 0, false, 0, false
+		return reviewDriverCallback{}
 	}
 	driverIndex, err := strconv.Atoi(parts[2])
 	if err != nil {
-		return 0, false, 0, false
+		return reviewDriverCallback{}
 	}
-	return expenseID, worthBit == 1, driverIndex, true
+	return reviewDriverCallback{
+		expenseID:   expenseID,
+		worthIt:     worthBit == 1,
+		driverIndex: driverIndex,
+		ok:          true,
+	}
 }
 
 func formatReviewPrompt(expense *appmodels.Expense, loc *time.Location) string {
@@ -414,7 +431,7 @@ func habitPeriodRange(period string, current time.Time) (time.Time, time.Time, s
 	}
 }
 
-func formatHabitSummary(summary *HabitSummary) string {
+func formatHabitSummary(summary *habitSummary) string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "<b>Spending Reflection</b>\n%s\n\n", escapeHTML(summary.PeriodLabel))
 	fmt.Fprintf(&sb, "Reviewed: %d/%d\n", summary.ReviewedCount, summary.TotalCount)
@@ -439,8 +456,21 @@ func formatHabitSummary(summary *HabitSummary) string {
 		sb.WriteString("Not-worth-it weekday: Not enough data\n")
 	}
 
-	fmt.Fprintf(&sb, "\n%s", escapeHTML(summary.Insight))
+	fmt.Fprintf(&sb, "\n%s", escapeHTML(formatHabitInsight(summary)))
 	return sb.String()
+}
+
+func formatHabitInsight(summary *habitSummary) string {
+	switch {
+	case summary.ReviewedCount == 0:
+		return "Review a few expenses with /review to build your spending reflection."
+	case summary.MostRegrettedCategory != "":
+		return "Your not-worth-it spending showed up most often in " + summary.MostRegrettedCategory + "."
+	case summary.TopDriver != "":
+		return "Your most common spending driver was " + string(summary.TopDriver) + "."
+	default:
+		return "Keep reviewing expenses to reveal stronger spending patterns."
+	}
 }
 
 func appendCurrencyTotals(sb *strings.Builder, totals map[string]decimal.Decimal) {

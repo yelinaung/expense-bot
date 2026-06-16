@@ -69,7 +69,7 @@ func TestAnalyzeExpenseHabit_MultiCurrencyAndCategoryRules(t *testing.T) {
 	all := append([]appmodels.Expense{}, reviewed...)
 	all = append(all, appmodels.Expense{Amount: decimal.RequireFromString("9.00"), Currency: "SGD"})
 
-	summary := AnalyzeExpenseHabit(all, reviewed, loc, "June 2026")
+	summary := analyzeExpenseHabit(len(all), reviewed, loc, "June 2026")
 
 	require.Equal(t, "June 2026", summary.PeriodLabel)
 	require.Equal(t, 6, summary.TotalCount)
@@ -81,24 +81,21 @@ func TestAnalyzeExpenseHabit_MultiCurrencyAndCategoryRules(t *testing.T) {
 	require.True(t, decimal.RequireFromString("75.00").Equal(summary.NotWorthItByCurrency["SGD"]))
 	require.Equal(t, "Food", summary.BestValueCategory)
 	require.Equal(t, "Travel", summary.MostRegrettedCategory)
-	require.Equal(t, SpendingDriver("Necessity"), summary.TopDriver)
+	require.Equal(t, spendingDriver("Necessity"), summary.TopDriver)
 	require.True(t, summary.HasBusiestNotWorthItWeekday)
 	require.Equal(t, time.Thursday, summary.BusiestNotWorthItWeekday)
-	require.Contains(t, summary.Insight, "Travel")
-	require.Contains(t, summary.NotWorthItByCategoryAndCurrency, categoryUncategorized)
 }
 
 func TestAnalyzeExpenseHabit_NoReviewedExpenses(t *testing.T) {
 	t.Parallel()
 
-	summary := AnalyzeExpenseHabit([]appmodels.Expense{{Currency: "SGD"}}, nil, time.UTC, "This week")
+	summary := analyzeExpenseHabit(1, nil, time.UTC, "This week")
 
 	require.Equal(t, 1, summary.TotalCount)
 	require.Zero(t, summary.ReviewedCount)
 	require.Empty(t, summary.BestValueCategory)
 	require.Empty(t, summary.MostRegrettedCategory)
 	require.False(t, summary.HasBusiestNotWorthItWeekday)
-	require.Contains(t, summary.Insight, "/review")
 }
 
 func TestReviewCallbackDataAndKeyboards(t *testing.T) {
@@ -110,11 +107,11 @@ func TestReviewCallbackDataAndKeyboards(t *testing.T) {
 	require.Equal(t, "Necessity", first.Text)
 	require.LessOrEqual(t, len(first.CallbackData), 64)
 
-	expenseID, worthIt, driverIndex, ok := parseDriverCallback(first.CallbackData)
-	require.True(t, ok)
-	require.Equal(t, 123, expenseID)
-	require.True(t, worthIt)
-	require.Zero(t, driverIndex)
+	callback := parseDriverCallback(first.CallbackData)
+	require.True(t, callback.ok)
+	require.Equal(t, 123, callback.expenseID)
+	require.True(t, callback.worthIt)
+	require.Zero(t, callback.driverIndex)
 
 	reflectionKeyboard := buildExpenseReflectionKeyboard(456)
 	require.Len(t, reflectionKeyboard.InlineKeyboard, 2)
@@ -125,7 +122,7 @@ func TestReviewCallbackDataAndKeyboards(t *testing.T) {
 func TestFormatHabitSummary_PerCurrencyTotals(t *testing.T) {
 	t.Parallel()
 
-	summary := HabitSummary{
+	summary := habitSummary{
 		PeriodLabel:           "Last 90 days",
 		TotalCount:            3,
 		ReviewedCount:         2,
@@ -136,7 +133,6 @@ func TestFormatHabitSummary_PerCurrencyTotals(t *testing.T) {
 		TopDriver:             "Convenience",
 		BestValueCategory:     "Food",
 		MostRegrettedCategory: "Travel",
-		Insight:               "Keep going.",
 	}
 
 	text := formatHabitSummary(&summary)
@@ -145,4 +141,5 @@ func TestFormatHabitSummary_PerCurrencyTotals(t *testing.T) {
 	require.Contains(t, text, "USD: $8.25")
 	require.Contains(t, text, "Best-value category: Food")
 	require.Contains(t, text, "Most-regretted category: Travel")
+	require.Contains(t, text, "not-worth-it spending showed up most often in Travel")
 }

@@ -1,22 +1,23 @@
 package bot
 
 import (
-	"sort"
+	"cmp"
+	"slices"
 	"time"
 
 	"github.com/shopspring/decimal"
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
-type SpendingDriver string
+type spendingDriver string
 
 const (
 	minCategoryReflectionSample = 2
-	spendingDriverOther         = SpendingDriver("Other")
+	spendingDriverOther         = spendingDriver("Other")
 )
 
 // Keep this list append-only and in stable order because callbacks encode indices.
-var spendingDrivers = []SpendingDriver{
+var spendingDrivers = []spendingDriver{
 	"Necessity",
 	"Convenience",
 	"Ritual",
@@ -31,22 +32,19 @@ var spendingDrivers = []SpendingDriver{
 	spendingDriverOther,
 }
 
-type HabitSummary struct {
-	PeriodLabel                     string
-	TotalCount                      int
-	ReviewedCount                   int
-	WorthItCount                    int
-	NotWorthItCount                 int
-	WorthItByCurrency               map[string]decimal.Decimal
-	NotWorthItByCurrency            map[string]decimal.Decimal
-	WorthItByCategoryAndCurrency    map[string]map[string]decimal.Decimal
-	NotWorthItByCategoryAndCurrency map[string]map[string]decimal.Decimal
-	TopDriver                       SpendingDriver
-	BestValueCategory               string
-	MostRegrettedCategory           string
-	BusiestNotWorthItWeekday        time.Weekday
-	HasBusiestNotWorthItWeekday     bool
-	Insight                         string
+type habitSummary struct {
+	PeriodLabel                 string
+	TotalCount                  int
+	ReviewedCount               int
+	WorthItCount                int
+	NotWorthItCount             int
+	WorthItByCurrency           map[string]decimal.Decimal
+	NotWorthItByCurrency        map[string]decimal.Decimal
+	TopDriver                   spendingDriver
+	BestValueCategory           string
+	MostRegrettedCategory       string
+	BusiestNotWorthItWeekday    time.Weekday
+	HasBusiestNotWorthItWeekday bool
 }
 
 type categoryReflectionStats struct {
@@ -55,51 +53,53 @@ type categoryReflectionStats struct {
 	notWorth int
 }
 
-func AnalyzeExpenseHabit(
-	allExpenses []appmodels.Expense,
+type categoryRank struct {
+	name        string
+	rate        float64
+	targetCount int
+}
+
+func analyzeExpenseHabit(
+	totalCount int,
 	reviewedExpenses []appmodels.Expense,
 	loc *time.Location,
 	periodLabel string,
-) HabitSummary {
+) habitSummary {
 	loc = normalizeLocation(loc)
-	summary := HabitSummary{
-		PeriodLabel:                     periodLabel,
-		TotalCount:                      len(allExpenses),
-		WorthItByCurrency:               make(map[string]decimal.Decimal),
-		NotWorthItByCurrency:            make(map[string]decimal.Decimal),
-		WorthItByCategoryAndCurrency:    make(map[string]map[string]decimal.Decimal),
-		NotWorthItByCategoryAndCurrency: make(map[string]map[string]decimal.Decimal),
+	summary := habitSummary{
+		PeriodLabel:          periodLabel,
+		TotalCount:           totalCount,
+		WorthItByCurrency:    make(map[string]decimal.Decimal),
+		NotWorthItByCurrency: make(map[string]decimal.Decimal),
 	}
 
-	driverCounts := make(map[SpendingDriver]int)
+	driverCounts := make(map[spendingDriver]int)
 	categoryStats := make(map[string]categoryReflectionStats)
 	weekdayCounts := make(map[time.Weekday]int)
 
 	for i := range reviewedExpenses {
-		expense := reviewedExpenses[i]
+		expense := &reviewedExpenses[i]
 		if expense.WorthIt == nil {
 			continue
 		}
 
 		summary.ReviewedCount++
-		categoryName := habitCategoryName(&expense)
+		categoryName := habitCategoryName(expense)
 		stats := categoryStats[categoryName]
 		stats.reviewed++
 
 		if expense.SpendDriver != nil && *expense.SpendDriver != "" {
-			driverCounts[SpendingDriver(*expense.SpendDriver)]++
+			driverCounts[spendingDriver(*expense.SpendDriver)]++
 		}
 
 		if *expense.WorthIt {
 			summary.WorthItCount++
 			stats.worth++
 			summary.WorthItByCurrency[expense.Currency] = summary.WorthItByCurrency[expense.Currency].Add(expense.Amount)
-			addCategoryCurrencyTotal(summary.WorthItByCategoryAndCurrency, categoryName, expense.Currency, expense.Amount)
 		} else {
 			summary.NotWorthItCount++
 			stats.notWorth++
 			summary.NotWorthItByCurrency[expense.Currency] = summary.NotWorthItByCurrency[expense.Currency].Add(expense.Amount)
-			addCategoryCurrencyTotal(summary.NotWorthItByCategoryAndCurrency, categoryName, expense.Currency, expense.Amount)
 			weekdayCounts[expense.CreatedAt.In(loc).Weekday()]++
 		}
 
@@ -110,7 +110,6 @@ func AnalyzeExpenseHabit(
 	summary.BestValueCategory = bestValueCategory(categoryStats)
 	summary.MostRegrettedCategory = mostRegrettedCategory(categoryStats)
 	summary.BusiestNotWorthItWeekday, summary.HasBusiestNotWorthItWeekday = busiestWeekday(weekdayCounts)
-	summary.Insight = buildHabitInsight(&summary)
 
 	return summary
 }
@@ -122,20 +121,8 @@ func habitCategoryName(expense *appmodels.Expense) string {
 	return categoryUncategorized
 }
 
-func addCategoryCurrencyTotal(
-	totals map[string]map[string]decimal.Decimal,
-	categoryName string,
-	currency string,
-	amount decimal.Decimal,
-) {
-	if totals[categoryName] == nil {
-		totals[categoryName] = make(map[string]decimal.Decimal)
-	}
-	totals[categoryName][currency] = totals[categoryName][currency].Add(amount)
-}
-
-func topSpendingDriver(counts map[SpendingDriver]int) SpendingDriver {
-	var top SpendingDriver
+func topSpendingDriver(counts map[spendingDriver]int) spendingDriver {
+	var top spendingDriver
 	bestCount := 0
 	for driver, count := range counts {
 		if count > bestCount || (count == bestCount && (top == "" || string(driver) < string(top))) {
@@ -155,30 +142,32 @@ func mostRegrettedCategory(stats map[string]categoryReflectionStats) string {
 }
 
 func rankedCategory(stats map[string]categoryReflectionStats, numerator func(categoryReflectionStats) int) string {
-	categories := make([]string, 0, len(stats))
+	ranks := make([]categoryRank, 0, len(stats))
 	for categoryName, stat := range stats {
 		if stat.reviewed >= minCategoryReflectionSample {
-			categories = append(categories, categoryName)
+			targetCount := numerator(stat)
+			ranks = append(ranks, categoryRank{
+				name:        categoryName,
+				rate:        float64(targetCount) / float64(stat.reviewed),
+				targetCount: targetCount,
+			})
 		}
 	}
-	sort.Strings(categories)
 
-	bestCategory := ""
-	bestNumerator := -1
-	bestDenominator := 1
-	bestCount := -1
-	for _, categoryName := range categories {
-		stat := stats[categoryName]
-		currentNumerator := numerator(stat)
-		if bestCategory == "" || currentNumerator*bestDenominator > bestNumerator*stat.reviewed ||
-			(currentNumerator*bestDenominator == bestNumerator*stat.reviewed && currentNumerator > bestCount) {
-			bestCategory = categoryName
-			bestNumerator = currentNumerator
-			bestDenominator = stat.reviewed
-			bestCount = currentNumerator
+	slices.SortFunc(ranks, func(a, b categoryRank) int {
+		if rateOrder := cmp.Compare(b.rate, a.rate); rateOrder != 0 {
+			return rateOrder
 		}
+		if countOrder := cmp.Compare(b.targetCount, a.targetCount); countOrder != 0 {
+			return countOrder
+		}
+		return cmp.Compare(a.name, b.name)
+	})
+
+	if len(ranks) == 0 {
+		return ""
 	}
-	return bestCategory
+	return ranks[0].name
 }
 
 func busiestWeekday(counts map[time.Weekday]int) (time.Weekday, bool) {
@@ -191,17 +180,4 @@ func busiestWeekday(counts map[time.Weekday]int) (time.Weekday, bool) {
 		}
 	}
 	return top, bestCount > 0
-}
-
-func buildHabitInsight(summary *HabitSummary) string {
-	switch {
-	case summary.ReviewedCount == 0:
-		return "Review a few expenses with /review to build your spending reflection."
-	case summary.MostRegrettedCategory != "":
-		return "Your not-worth-it spending showed up most often in " + summary.MostRegrettedCategory + "."
-	case summary.TopDriver != "":
-		return "Your most common spending driver was " + string(summary.TopDriver) + "."
-	default:
-		return "Keep reviewing expenses to reveal stronger spending patterns."
-	}
 }
