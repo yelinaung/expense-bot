@@ -482,7 +482,7 @@ func appendCurrencyTotals(sb *strings.Builder, totals map[string]decimal.Decimal
 		fmt.Fprintf(
 			sb, "  %s: %s%s\n",
 			escapeHTML(currency),
-			escapeHTML(currencySymbol(currency)),
+			escapeHTML(getCurrencyOrCodeSymbol(currency)),
 			totals[currency].StringFixed(2),
 		)
 	}
