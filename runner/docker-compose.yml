@@ -9,6 +9,7 @@ services:
       RUNNER_NAME: expense-bot-runner1
       RUNNER_WORKDIR: /tmp/github-runner-expense-bot
       LABELS: 'playground-ubuntu,self-hosted'
+      EPHEMERAL: 'true'
     volumes:
       - '/var/run/docker.sock:/var/run/docker.sock'
       - 'runner1-work:/tmp/github-runner-expense-bot'
@@ -22,6 +23,7 @@ services:
       RUNNER_NAME: expense-bot-runner2
       RUNNER_WORKDIR: /tmp/github-runner-expense-bot
       LABELS: 'playground-ubuntu,self-hosted'
+      EPHEMERAL: 'true'
     volumes:
       - '/var/run/docker.sock:/var/run/docker.sock'
       - 'runner2-work:/tmp/github-runner-expense-bot'
@@ -35,6 +37,7 @@ services:
       RUNNER_NAME: expense-bot-runner3
       RUNNER_WORKDIR: /tmp/github-runner-expense-bot
       LABELS: 'playground-ubuntu,self-hosted'
+      EPHEMERAL: 'true'
     volumes:
       - '/var/run/docker.sock:/var/run/docker.sock'
       - 'runner3-work:/tmp/github-runner-expense-bot'
@@ -49,6 +52,7 @@ services:
       RUNNER_NAME: expense-bot-runner4
       RUNNER_WORKDIR: /tmp/github-runner-expense-bot
       LABELS: 'playground-ubuntu,self-hosted'
+      EPHEMERAL: 'true'
     volumes:
       - '/var/run/docker.sock:/var/run/docker.sock'
       - 'runner4-work:/tmp/github-runner-expense-bot'

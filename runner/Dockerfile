@@ -11,7 +11,7 @@ ARG GITLEAKS_VERSION=8.30.1
 ARG SEMGREP_VERSION=1.164.0
 ARG MISE_VERSION=2026.5.16
 # renovate: datasource=github-commits depName=golangci/golangci-lint
-ARG GOLANGCI_LINT_INSTALL_COMMIT=870ddc133592c3609f26af3b6f05ce2dd4a7afda
+ARG GOLANGCI_LINT_INSTALL_COMMIT=2c56c9c84fbfa69db9c3fa70b0cc763d6d1a1746
 # renovate: datasource=github-commits depName=securego/gosec
 ARG GOSEC_INSTALL_COMMIT=5f4eec95fa28ce5dc6cf555de8c242cb57545f01
 
@@ -44,7 +44,7 @@ RUN pipx install semgrep=="${SEMGREP_VERSION}" && \
     curl --proto "=https" --tlsv1.2 -sSf -L \
       "https://raw.githubusercontent.com/golangci/golangci-lint/${GOLANGCI_LINT_INSTALL_COMMIT}/install.sh" \
       -o /tmp/golangci-lint-install.sh && \
-    sh /tmp/golangci-lint-install.sh -- -b "${GOBIN}" "v${GOLANGCI_LINT_VERSION}" && \
+    sh /tmp/golangci-lint-install.sh -b "${GOBIN}" "v${GOLANGCI_LINT_VERSION}" && \
     rm /tmp/golangci-lint-install.sh && \
     curl --proto "=https" --tlsv1.2 -sSf -L "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | \
     tar -xz -C /usr/local/bin gitleaks && \
