@@ -121,6 +121,28 @@ func TestMigrations_SchemaDetails(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, exists, "expenses.status should exist as text")
 	})
+
+	t.Run("expenses table has reflection columns", func(t *testing.T) {
+		expectedColumns := map[string]string{
+			"worth_it":     "boolean",
+			"spend_driver": "text",
+			"reviewed_at":  "timestamp with time zone",
+		}
+
+		for columnName, dataType := range expectedColumns {
+			var exists bool
+			err := pool.QueryRow(ctx, `
+				SELECT EXISTS (
+					SELECT FROM information_schema.columns
+					WHERE table_name = 'expenses'
+					AND column_name = $1
+					AND data_type = $2
+				)
+			`, columnName, dataType).Scan(&exists)
+			require.NoError(t, err)
+			require.True(t, exists, "expenses.%s should exist as %s", columnName, dataType)
+		}
+	})
 }
 
 // TestMigrations_Indexes verifies all indexes are created.

@@ -65,6 +65,18 @@ func getMonthDateRangeAt(current time.Time) (time.Time, time.Time) {
 	return startOfMonth, endOfMonth
 }
 
+// getRollingDayRangeAt returns the trailing day range as [start, end).
+// current must already be in the desired display location.
+func getRollingDayRangeAt(current time.Time, days int) (time.Time, time.Time) {
+	if days < 1 {
+		days = 1
+	}
+	end := current
+	start := end.AddDate(0, 0, -days)
+
+	return start, end
+}
+
 // getPreviousWeekRangeAt returns the previous week's range as [start, end).
 // On Monday this returns [last Monday, this Monday). On other days this
 // returns the week before the current week. current must already be in the

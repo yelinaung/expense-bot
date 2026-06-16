@@ -700,3 +700,95 @@ func TestExpenseRepository_NullifyCategoryOnExpenses(t *testing.T) {
 		require.Equal(t, otherCat.ID, *fetched.CategoryID)
 	})
 }
+
+func TestExpenseRepository_ReflectionWorkflow(t *testing.T) {
+	expenseRepo, userRepo, categoryRepo, ctx := setupExpenseTest(t)
+
+	user := &models.User{ID: 980, Username: "reflectionuser", FirstName: testFirstName, LastName: testLastName}
+	err := userRepo.UpsertUser(ctx, user)
+	require.NoError(t, err)
+	otherUser := &models.User{ID: 981, Username: "otherreflection", FirstName: testFirstName, LastName: testLastName}
+	err = userRepo.UpsertUser(ctx, otherUser)
+	require.NoError(t, err)
+
+	cat, err := categoryRepo.Create(ctx, "Reflection Test Category")
+	require.NoError(t, err)
+
+	newer := &models.Expense{
+		UserID:      user.ID,
+		Amount:      decimal.RequireFromString("12.40"),
+		Currency:    testCurrencySGD,
+		Description: "Newer reflection",
+		CategoryID:  &cat.ID,
+		Status:      models.ExpenseStatusConfirmed,
+	}
+	err = expenseRepo.Create(ctx, newer)
+	require.NoError(t, err)
+
+	older := &models.Expense{
+		UserID:      user.ID,
+		Amount:      decimal.RequireFromString("9.10"),
+		Currency:    "USD",
+		Description: "Older reflection",
+		Status:      models.ExpenseStatusConfirmed,
+	}
+	err = expenseRepo.Create(ctx, older)
+	require.NoError(t, err)
+
+	draft := &models.Expense{
+		UserID:      user.ID,
+		Amount:      decimal.RequireFromString("3.00"),
+		Currency:    testCurrencySGD,
+		Description: "Draft reflection",
+		Status:      models.ExpenseStatusDraft,
+	}
+	err = expenseRepo.Create(ctx, draft)
+	require.NoError(t, err)
+
+	baseTime := time.Date(2026, 6, 14, 12, 0, 0, 0, time.UTC)
+	_, err = expenseRepo.Pool().Exec(ctx, `UPDATE expenses SET created_at = $1 WHERE id = $2`, baseTime, newer.ID)
+	require.NoError(t, err)
+	_, err = expenseRepo.Pool().Exec(ctx, `UPDATE expenses SET created_at = $1 WHERE id = $2`, baseTime.Add(-time.Minute), older.ID)
+	require.NoError(t, err)
+	_, err = expenseRepo.Pool().Exec(ctx, `UPDATE expenses SET created_at = $1 WHERE id = $2`, baseTime.Add(time.Minute), draft.ID)
+	require.NoError(t, err)
+
+	unreviewed, err := expenseRepo.GetUnreviewedByUserID(ctx, user.ID, 10)
+	require.NoError(t, err)
+	require.Len(t, unreviewed, 2)
+	require.Equal(t, newer.ID, unreviewed[0].ID)
+	require.Equal(t, older.ID, unreviewed[1].ID)
+	require.NotNil(t, unreviewed[0].Category)
+	require.Equal(t, "Reflection Test Category", unreviewed[0].Category.Name)
+
+	worth := true
+	err = expenseRepo.UpdateReflection(ctx, newer.ID, otherUser.ID, &worth, "Necessity")
+	require.Error(t, err)
+
+	err = expenseRepo.UpdateReflection(ctx, newer.ID, user.ID, &worth, "Necessity")
+	require.NoError(t, err)
+
+	next, err := expenseRepo.GetNextUnreviewedByUserID(ctx, user.ID, newer.ID)
+	require.NoError(t, err)
+	require.Equal(t, older.ID, next.ID)
+
+	notWorth := false
+	err = expenseRepo.UpdateReflection(ctx, older.ID, user.ID, &notWorth, "")
+	require.NoError(t, err)
+
+	reviewed, err := expenseRepo.GetReviewedByUserIDAndDateRange(ctx, user.ID, baseTime.Add(-time.Hour), baseTime.Add(time.Hour))
+	require.NoError(t, err)
+	require.Len(t, reviewed, 2)
+	require.NotNil(t, reviewed[0].WorthIt)
+	require.True(t, *reviewed[0].WorthIt)
+	require.NotNil(t, reviewed[0].SpendDriver)
+	require.Equal(t, "Necessity", *reviewed[0].SpendDriver)
+	require.NotNil(t, reviewed[0].ReviewedAt)
+	require.NotNil(t, reviewed[1].WorthIt)
+	require.False(t, *reviewed[1].WorthIt)
+	require.Nil(t, reviewed[1].SpendDriver)
+
+	unreviewed, err = expenseRepo.GetUnreviewedByUserID(ctx, user.ID, 10)
+	require.NoError(t, err)
+	require.Empty(t, unreviewed)
+}

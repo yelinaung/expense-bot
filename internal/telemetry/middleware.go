@@ -31,7 +31,8 @@ func TracingMiddleware(metrics *BotMetrics) func(next bot.HandlerFunc) bot.Handl
 			spanName := classifyUpdate(update)
 			attrs := updateAttributes(update)
 
-			ctx, span := tracer.Start(ctx, spanName,
+			ctx, span := tracer.Start(
+				ctx, spanName,
 				trace.WithSpanKind(trace.SpanKindServer),
 				trace.WithAttributes(attrs...),
 			)
@@ -131,29 +132,35 @@ func updateAttributes(update *models.Update) []attribute.KeyValue {
 
 	switch {
 	case update.Message != nil:
-		attrs = append(attrs,
+		attrs = append(
+			attrs,
 			attribute.String(telegramChatId, logger.HashChatID(update.Message.Chat.ID)),
 		)
 		if update.Message.From != nil {
-			attrs = append(attrs,
+			attrs = append(
+				attrs,
 				attribute.String(telegramUserId, logger.HashUserID(update.Message.From.ID)),
 			)
 		}
 	case update.CallbackQuery != nil:
-		attrs = append(attrs,
+		attrs = append(
+			attrs,
 			attribute.String(telegramUserId, logger.HashUserID(update.CallbackQuery.From.ID)),
 		)
 		if update.CallbackQuery.Message.Message != nil {
-			attrs = append(attrs,
+			attrs = append(
+				attrs,
 				attribute.String(telegramChatId, logger.HashChatID(update.CallbackQuery.Message.Message.Chat.ID)),
 			)
 		}
 	case update.EditedMessage != nil:
-		attrs = append(attrs,
+		attrs = append(
+			attrs,
 			attribute.String(telegramChatId, logger.HashChatID(update.EditedMessage.Chat.ID)),
 		)
 		if update.EditedMessage.From != nil {
-			attrs = append(attrs,
+			attrs = append(
+				attrs,
 				attribute.String(telegramUserId, logger.HashUserID(update.EditedMessage.From.ID)),
 			)
 		}

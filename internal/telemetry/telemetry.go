@@ -71,7 +71,8 @@ func Init(ctx context.Context, cfg *Config) (*Providers, error) {
 		return nil, err
 	}
 
-	res, err := resource.New(ctx,
+	res, err := resource.New(
+		ctx,
 		resource.WithAttributes(
 			semconv.ServiceName(cfg.ServiceName),
 			semconv.ServiceVersion(cfg.ServiceVersion),

@@ -120,12 +120,15 @@ func (b *Bot) handleHelpCore(ctx context.Context, tg TelegramAPI, update *models
 • <code>/today</code> - Show today's expenses
 • <code>/week</code> - Show this week's expenses
 • <code>/category &lt;name&gt;</code> - Filter expenses by category
+• <code>/review</code> - Review recent spending as worth it or not worth it
 
 <b>Reports:</b>
 • <code>/report week</code> - Generate weekly CSV report
 • <code>/report month</code> - Generate monthly CSV report
 • <code>/chart week</code> - Generate weekly expense chart
 • <code>/chart month</code> - Generate monthly expense chart
+• <code>/habit</code> - Show this month's spending reflection
+• <code>/habit week</code> or <code>/habit 90d</code> - Change reflection period
 
 <b>Categories:</b>
 • <code>/categories</code> - List all categories
@@ -635,15 +638,7 @@ func (b *Bot) saveExpenseCore(
 
 	text := buildExpenseAddedMessage(expense, parsed.Tags)
 
-	// Add inline edit/delete buttons
-	keyboard := &models.InlineKeyboardMarkup{
-		InlineKeyboard: [][]models.InlineKeyboardButton{
-			{
-				{Text: editExpenseButtonTextCB, CallbackData: fmt.Sprintf(editExpenseCallbackFmtCB, expense.ID)},
-				{Text: deleteExpenseButtonTextCB, CallbackData: fmt.Sprintf(deleteExpenseCallbackFmtCB, expense.ID)},
-			},
-		},
-	}
+	keyboard := buildExpenseReflectionKeyboard(expense.ID)
 
 	if _, err := tg.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:      chatID,

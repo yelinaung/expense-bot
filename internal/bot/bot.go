@@ -247,6 +247,8 @@ func (b *Bot) registerCommands(ctx context.Context) {
 	commands := []tgmodels.BotCommand{
 		{Command: "add", Description: "Add an expense"},
 		{Command: "list", Description: "Show recent expenses"},
+		{Command: "review", Description: "Review recent spending"},
+		{Command: "habit", Description: "Show spending reflection summary"},
 		{Command: "today", Description: "Show today's expenses"},
 		{Command: "week", Description: "Show this week's expenses"},
 		{Command: "category", Description: "Filter expenses by category"},
@@ -325,6 +327,8 @@ func (b *Bot) registerHandlers() {
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/categories", bot.MatchTypePrefix, b.handleCategories)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/add", bot.MatchTypePrefix, b.handleAdd)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/list", bot.MatchTypePrefix, b.handleList)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/review", bot.MatchTypePrefix, b.handleReview)
+	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/habit", bot.MatchTypePrefix, b.handleHabit)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/today", bot.MatchTypePrefix, b.handleToday)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/week", bot.MatchTypePrefix, b.handleWeek)
 	b.bot.RegisterHandler(bot.HandlerTypeMessageText, "/category", bot.MatchTypePrefix, b.handleCategory)
@@ -358,6 +362,7 @@ func (b *Bot) registerHandlers() {
 	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "delete_expense_", bot.MatchTypePrefix, b.handleExpenseActionCallback)
 	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "confirm_delete_", bot.MatchTypePrefix, b.handleConfirmDeleteCallback)
 	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "back_to_expense_", bot.MatchTypePrefix, b.handleBackToExpenseCallback)
+	b.bot.RegisterHandler(bot.HandlerTypeCallbackQueryData, "review_", bot.MatchTypePrefix, b.handleReviewCallback)
 }
 
 // isAuthorized checks if a user is a superadmin or a DB-approved user.

@@ -35,7 +35,8 @@ const (
 )
 
 func makeCategorySuggestionPayload(reason string, matched bool, newCategoryName string) string {
-	return fmt.Sprintf(`{%q:"",%q:0.95,%q:%q,%q:%t,%q:%q}`,
+	return fmt.Sprintf(
+		`{%q:"",%q:0.95,%q:%q,%q:%t,%q:%q}`,
 		botRespCategoryKeyCoreTest,
 		botRespConfidenceKeyCoreTest,
 		botRespReasoningKeyCoreTest,

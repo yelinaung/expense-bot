@@ -22,9 +22,10 @@ type TelegramAPI interface {
 
 // SentMessage captures a message sent via MockBot.
 type SentMessage struct {
-	ChatID    any
-	Text      string
-	ParseMode models.ParseMode
+	ChatID      any
+	Text        string
+	ParseMode   models.ParseMode
+	ReplyMarkup models.ReplyMarkup
 }
 
 // EditedMessage captures an edited message via MockBot.
@@ -102,9 +103,10 @@ func (m *MockBot) SendMessage(_ context.Context, params *bot.SendMessageParams) 
 	}
 
 	m.SentMessages = append(m.SentMessages, SentMessage{
-		ChatID:    params.ChatID,
-		Text:      params.Text,
-		ParseMode: params.ParseMode,
+		ChatID:      params.ChatID,
+		Text:        params.Text,
+		ParseMode:   params.ParseMode,
+		ReplyMarkup: params.ReplyMarkup,
 	})
 
 	msgID := m.NextMessageID
