@@ -406,7 +406,7 @@ func formatReviewPrompt(expense *appmodels.Expense, loc *time.Location) string {
 %s
 %s
 %s`,
-		escapeHTML(currencySymbol(expense.Currency)),
+		escapeHTML(getCurrencyOrCodeSymbol(expense.Currency)),
 		escapeHTML(expense.Amount.StringFixed(2)),
 		escapeHTML(expense.Currency),
 		escapeHTML(description),
