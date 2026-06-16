@@ -116,7 +116,7 @@ func (b *Bot) handleReviewCallback(ctx context.Context, tgBot *bot.Bot, update *
 }
 
 func (b *Bot) handleReviewCallbackCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
-	if update.CallbackQuery == nil || update.CallbackQuery.Message.Message == nil {
+	if update.CallbackQuery == nil || update.CallbackQuery.Message == nil || update.CallbackQuery.Message.Message == nil {
 		return
 	}
 
