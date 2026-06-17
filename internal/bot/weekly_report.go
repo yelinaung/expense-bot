@@ -187,7 +187,8 @@ func (b *Bot) sendWeeklySummary(
 	totalsByCurrency := sumExpenseAmountsByCurrency(expenses)
 	currencies := sortedCurrencyKeys(totalsByCurrency)
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "📊 <b>Weekly Expenses</b> (%s to %s)\n%d expenses",
+	fmt.Fprintf(
+		&sb, "📊 <b>Weekly Expenses</b> (%s to %s)\n%d expenses",
 		startOfWeek.Format("Jan 2"),
 		endOfWeek.AddDate(0, 0, -1).Format("Jan 2, 2006"),
 		len(expenses),

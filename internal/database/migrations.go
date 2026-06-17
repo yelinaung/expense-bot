@@ -139,6 +139,10 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		)`,
 
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone TEXT NOT NULL DEFAULT 'Asia/Singapore'`,
+
+		`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS worth_it BOOLEAN`,
+		`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS spend_driver TEXT`,
+		`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ`,
 	}
 
 	for i, migration := range migrations {
@@ -172,7 +176,8 @@ func SeedCategories(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 
 	for _, cat := range categories {
-		_, err := pool.Exec(ctx,
+		_, err := pool.Exec(
+			ctx,
 			`INSERT INTO categories (name) VALUES ($1) ON CONFLICT (name) DO NOTHING`,
 			cat,
 		)

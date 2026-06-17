@@ -421,10 +421,11 @@ Expense #%d has been saved.`,
 		Msg("Expense confirmed via callback")
 
 	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
-		ChatID:    chatID,
-		MessageID: messageID,
-		Text:      text,
-		ParseMode: models.ParseModeHTML,
+		ChatID:      chatID,
+		MessageID:   messageID,
+		Text:        text,
+		ParseMode:   models.ParseModeHTML,
+		ReplyMarkup: buildExpenseReflectionKeyboard(expense.ID),
 	})
 }
 

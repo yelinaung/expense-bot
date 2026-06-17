@@ -100,6 +100,9 @@ type Expense struct {
 	Tags              []Tag
 	ReceiptFileID     string
 	Status            ExpenseStatus
+	WorthIt           *bool
+	SpendDriver       *string
+	ReviewedAt        *time.Time
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 }

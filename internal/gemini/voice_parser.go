@@ -62,7 +62,8 @@ func (c *Client) ParseVoiceExpense(
 		mimeType = "audio/ogg"
 	}
 
-	ctx, span := geminiTracer.Start(ctx, "gemini.generate_content",
+	ctx, span := geminiTracer.Start(
+		ctx, "gemini.generate_content",
 		trace.WithAttributes(
 			attribute.String("gemini.model", ModelName),
 			attribute.String("gemini.operation", "parse_voice"),

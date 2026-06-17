@@ -111,11 +111,13 @@ func FuzzSanitizeDescription(f *testing.F) {
 func assertSanitizedDescriptionInvariants(t *testing.T, input, result string) {
 	t.Helper()
 
-	assertDescriptionExcludesAny(t, input, result,
+	assertDescriptionExcludesAny(
+		t, input, result,
 		[]string{`"`, "`"},
 		[]string{"double quote", "backtick"},
 	)
-	assertDescriptionExcludesAny(t, input, result,
+	assertDescriptionExcludesAny(
+		t, input, result,
 		[]string{"\n", "\r", "\x00"},
 		[]string{"newline", "carriage return", "null byte"},
 	)
@@ -251,11 +253,13 @@ func FuzzSanitizeCategoryName(f *testing.F) {
 func assertSanitizedCategoryNameInvariants(t *testing.T, input, result string) {
 	t.Helper()
 
-	assertCategoryNameExcludesAny(t, input, result,
+	assertCategoryNameExcludesAny(
+		t, input, result,
 		[]string{`"`, "`"},
 		[]string{"double quote", "backtick"},
 	)
-	assertCategoryNameExcludesAny(t, input, result,
+	assertCategoryNameExcludesAny(
+		t, input, result,
 		[]string{"\n", "\r", "\x00"},
 		[]string{"newline", "carriage return", "null byte"},
 	)

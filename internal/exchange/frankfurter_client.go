@@ -70,7 +70,8 @@ func (c *FrankfurterClient) Convert(
 		}, nil
 	}
 
-	endpoint := fmt.Sprintf("%s/latest?from=%s&to=%s",
+	endpoint := fmt.Sprintf(
+		"%s/latest?from=%s&to=%s",
 		c.baseURL,
 		url.QueryEscape(from),
 		url.QueryEscape(to),

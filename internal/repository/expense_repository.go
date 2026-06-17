@@ -2,8 +2,12 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 
 	"github.com/shopspring/decimal"
 	"gitlab.com/yelinaung/expense-bot/internal/database"
@@ -31,7 +35,8 @@ func (r *ExpenseRepository) Create(ctx context.Context, expense *models.Expense)
 	if expense.Status == models.ExpenseStatusUnset {
 		expense.Status = models.ExpenseStatusConfirmed
 	}
-	err := r.db.QueryRow(ctx, `
+	err := r.db.QueryRow(
+		ctx, `
 		INSERT INTO expenses (user_id, amount, currency, description, merchant, category_id, receipt_file_id, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, user_expense_number, created_at, updated_at
@@ -182,6 +187,36 @@ func (r *ExpenseRepository) Update(ctx context.Context, expense *models.Expense)
 	return nil
 }
 
+// UpdateReflection stores a user reflection for an expense.
+func (r *ExpenseRepository) UpdateReflection(
+	ctx context.Context,
+	expenseID int,
+	userID int64,
+	worthIt *bool,
+	driver string,
+) error {
+	var driverValue *string
+	if strings.TrimSpace(driver) != "" {
+		driverValue = &driver
+	}
+
+	result, err := r.db.Exec(ctx, `
+		UPDATE expenses SET
+			worth_it = $3,
+			spend_driver = $4,
+			reviewed_at = NOW(),
+			updated_at = NOW()
+		WHERE id = $1 AND user_id = $2 AND status = $5
+	`, expenseID, userID, worthIt, driverValue, models.ExpenseStatusConfirmed)
+	if err != nil {
+		return fmt.Errorf("failed to update expense reflection: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return errors.New("failed to update expense reflection: no matching expense")
+	}
+	return nil
+}
+
 // Delete removes an expense by ID.
 func (r *ExpenseRepository) Delete(ctx context.Context, id int) error {
 	_, err := r.db.Exec(ctx, `DELETE FROM expenses WHERE id = $1`, id)
@@ -203,6 +238,91 @@ func (r *ExpenseRepository) DeleteExpiredDrafts(ctx context.Context, olderThan t
 		return 0, fmt.Errorf("failed to delete expired drafts: %w", err)
 	}
 	return int(result.RowsAffected()), nil
+}
+
+// GetUnreviewedByUserID retrieves confirmed expenses that have not been reviewed.
+func (r *ExpenseRepository) GetUnreviewedByUserID(ctx context.Context, userID int64, limit int) ([]models.Expense, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT e.id, e.user_expense_number, e.user_id, e.amount, e.currency, e.description, e.merchant, e.category_id,
+		       e.receipt_file_id, e.status, e.worth_it, e.spend_driver, e.reviewed_at, e.created_at, e.updated_at,
+		       c.id, c.name, c.created_at
+		FROM expenses e
+		LEFT JOIN categories c ON e.category_id = c.id
+		WHERE e.user_id = $1 AND e.status = $2 AND e.reviewed_at IS NULL
+		ORDER BY e.created_at DESC, e.id DESC
+		LIMIT $3
+	`, userID, models.ExpenseStatusConfirmed, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query unreviewed expenses: %w", err)
+	}
+	defer rows.Close()
+
+	return scanExpensesWithReflection(rows)
+}
+
+// GetNextUnreviewedByUserID retrieves the next unreviewed expense after a cursor.
+func (r *ExpenseRepository) GetNextUnreviewedByUserID(ctx context.Context, userID int64, afterExpenseID int) (*models.Expense, error) {
+	var currentCreatedAt time.Time
+	if err := r.db.QueryRow(ctx, `
+		SELECT created_at FROM expenses
+		WHERE id = $1 AND user_id = $2
+	`, afterExpenseID, userID).Scan(&currentCreatedAt); err != nil {
+		return nil, fmt.Errorf("failed to get current expense cursor: %w", err)
+	}
+
+	rows, err := r.db.Query(ctx, `
+		SELECT e.id, e.user_expense_number, e.user_id, e.amount, e.currency, e.description, e.merchant, e.category_id,
+		       e.receipt_file_id, e.status, e.worth_it, e.spend_driver, e.reviewed_at, e.created_at, e.updated_at,
+		       c.id, c.name, c.created_at
+		FROM expenses e
+		LEFT JOIN categories c ON e.category_id = c.id
+		WHERE e.user_id = $1
+		  AND e.status = $2
+		  AND e.reviewed_at IS NULL
+		  AND (e.created_at < $3 OR (e.created_at = $3 AND e.id < $4))
+		ORDER BY e.created_at DESC, e.id DESC
+		LIMIT 1
+	`, userID, models.ExpenseStatusConfirmed, currentCreatedAt, afterExpenseID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query next unreviewed expense: %w", err)
+	}
+	defer rows.Close()
+
+	expenses, err := scanExpensesWithReflection(rows)
+	if err != nil {
+		return nil, err
+	}
+	if len(expenses) == 0 {
+		return nil, fmt.Errorf("failed to get next unreviewed expense: %w", pgx.ErrNoRows)
+	}
+	return &expenses[0], nil
+}
+
+// GetReviewedByUserIDAndDateRange retrieves confirmed reflected expenses in a date range.
+func (r *ExpenseRepository) GetReviewedByUserIDAndDateRange(
+	ctx context.Context,
+	userID int64,
+	startDate, endDate time.Time,
+) ([]models.Expense, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT e.id, e.user_expense_number, e.user_id, e.amount, e.currency, e.description, e.merchant, e.category_id,
+		       e.receipt_file_id, e.status, e.worth_it, e.spend_driver, e.reviewed_at, e.created_at, e.updated_at,
+		       c.id, c.name, c.created_at
+		FROM expenses e
+		LEFT JOIN categories c ON e.category_id = c.id
+		WHERE e.user_id = $1
+		  AND e.created_at >= $2
+		  AND e.created_at < $3
+		  AND e.status = $4
+		  AND e.reviewed_at IS NOT NULL
+		ORDER BY e.created_at DESC, e.id DESC
+	`, userID, startDate, endDate, models.ExpenseStatusConfirmed)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query reviewed expenses by date range: %w", err)
+	}
+	defer rows.Close()
+
+	return scanExpensesWithReflection(rows)
 }
 
 // GetTotalByUserIDAndDateRange calculates total spending for confirmed expenses in a date range.
@@ -283,6 +403,51 @@ func scanExpenses(rows interface {
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error iterating expenses: %w", err)
+	}
+	return expenses, nil
+}
+
+// scanExpensesWithReflection scans expense rows with category and reflection data.
+// TODO: Unify this with scanExpenses after reflection columns are selected everywhere.
+func scanExpensesWithReflection(rows interface {
+	Next() bool
+	Scan(dest ...any) error
+	Err() error
+},
+) ([]models.Expense, error) {
+	var expenses []models.Expense
+	for rows.Next() {
+		var exp models.Expense
+		var categoryID, catID *int
+		var worthIt *bool
+		var spendDriver *string
+		var reviewedAt *time.Time
+		var catName *string
+		var catCreatedAt *time.Time
+
+		if err := rows.Scan(
+			&exp.ID, &exp.UserExpenseNumber, &exp.UserID, &exp.Amount, &exp.Currency, &exp.Description,
+			&exp.Merchant, &categoryID, &exp.ReceiptFileID, &exp.Status, &worthIt, &spendDriver, &reviewedAt,
+			&exp.CreatedAt, &exp.UpdatedAt, &catID, &catName, &catCreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan expense with reflection: %w", err)
+		}
+
+		exp.CategoryID = categoryID
+		exp.WorthIt = worthIt
+		exp.SpendDriver = spendDriver
+		exp.ReviewedAt = reviewedAt
+		if catID != nil {
+			exp.Category = &models.Category{
+				ID:        *catID,
+				Name:      *catName,
+				CreatedAt: *catCreatedAt,
+			}
+		}
+		expenses = append(expenses, exp)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating expenses with reflection: %w", err)
 	}
 	return expenses, nil
 }
