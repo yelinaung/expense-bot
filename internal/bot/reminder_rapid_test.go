@@ -8,6 +8,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
+	"hegel.dev/go/hegel"
 	"pgregory.net/rapid"
 )
 
@@ -18,6 +19,18 @@ func genExpenseWithCurrency() *rapid.Generator[appmodels.Expense] {
 		v := rapid.IntRange(0, 1_000_000).Draw(t, "v")
 		exp := rapid.IntRange(-4, 2).Draw(t, "exp")
 		cur := rapid.SampledFrom([]string{"SGD", "USD", "EUR"}).Draw(t, "cur")
+		return appmodels.Expense{
+			Amount:   decimal.New(int64(v), int32(exp)),
+			Currency: cur,
+		}
+	})
+}
+
+func genHegelExpenseWithCurrency() hegel.Generator[appmodels.Expense] {
+	return hegel.Composite(func(tc hegel.TestCase) appmodels.Expense {
+		v := hegel.Draw(tc, hegel.Integers(0, 1_000_000))
+		exp := hegel.Draw(tc, hegel.Integers(-4, 2))
+		cur := hegel.Draw(tc, hegel.SampledFrom([]string{"SGD", "USD", "EUR"}))
 		return appmodels.Expense{
 			Amount:   decimal.New(int64(v), int32(exp)),
 			Currency: cur,
@@ -81,6 +94,41 @@ func TestSumExpenseAmountsByCurrencyAssociativeSplit(t *testing.T) {
 		right := sumExpenseAmountsByCurrency(xs[k:])
 		merged := mergeCurrencyTotals(left, right)
 		require.Equal(t, whole, merged)
+	})
+}
+
+// TestHegelSumExpenseAmountsByCurrencyAssociativeSplit checks the same
+// aggregation law with Hegel-generated expense slices and split points.
+func TestHegelSumExpenseAmountsByCurrencyAssociativeSplit(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		xs := hegel.Draw(ht, hegel.Lists(genHegelExpenseWithCurrency()).MinSize(1).MaxSize(12))
+		k := hegel.Draw(ht, hegel.Integers(0, len(xs)))
+		whole := sumExpenseAmountsByCurrency(xs)
+		left := sumExpenseAmountsByCurrency(xs[:k])
+		right := sumExpenseAmountsByCurrency(xs[k:])
+		merged := mergeCurrencyTotals(left, right)
+		require.Equal(ht, whole, merged)
+	})
+}
+
+// TestHegelSumExpenseAmountsByCurrencyOrderInvariant checks that permuting the
+// input slice doesn't change the per-currency totals. The permutation is built
+// from Hegel-drawn swap indices (a Fisher-Yates shuffle) rather than a seeded
+// RNG, so a failing order shrinks to a minimal permutation instead of an opaque
+// seed.
+func TestHegelSumExpenseAmountsByCurrencyOrderInvariant(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		xs := hegel.Draw(ht, hegel.Lists(genHegelExpenseWithCurrency()).MaxSize(12))
+		ys := make([]appmodels.Expense, len(xs))
+		copy(ys, xs)
+		for i := len(ys) - 1; i > 0; i-- {
+			j := hegel.Draw(ht, hegel.Integers(0, i))
+			ys[i], ys[j] = ys[j], ys[i]
+		}
+
+		require.Equal(ht, sumExpenseAmountsByCurrency(xs), sumExpenseAmountsByCurrency(ys))
 	})
 }
 
