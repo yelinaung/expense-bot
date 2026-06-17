@@ -18,11 +18,8 @@ func genExpenseWithCurrency() *rapid.Generator[appmodels.Expense] {
 	return rapid.Custom(func(t *rapid.T) appmodels.Expense {
 		v := rapid.IntRange(0, 1_000_000).Draw(t, "v")
 		exp := rapid.IntRange(-4, 2).Draw(t, "exp")
-		cur := rapid.SampledFrom([]string{"SGD", "USD", "EUR"}).Draw(t, "cur")
-		return appmodels.Expense{
-			Amount:   decimal.New(int64(v), int32(exp)),
-			Currency: cur,
-		}
+		cur := rapid.SampledFrom(expenseTestCurrencies).Draw(t, "cur")
+		return newExpenseWithCurrency(v, exp, cur)
 	})
 }
 
@@ -30,11 +27,8 @@ func genHegelExpenseWithCurrency() hegel.Generator[appmodels.Expense] {
 	return hegel.Composite(func(tc hegel.TestCase) appmodels.Expense {
 		v := hegel.Draw(tc, hegel.Integers(0, 1_000_000))
 		exp := hegel.Draw(tc, hegel.Integers(-4, 2))
-		cur := hegel.Draw(tc, hegel.SampledFrom([]string{"SGD", "USD", "EUR"}))
-		return appmodels.Expense{
-			Amount:   decimal.New(int64(v), int32(exp)),
-			Currency: cur,
-		}
+		cur := hegel.Draw(tc, hegel.SampledFrom(expenseTestCurrencies))
+		return newExpenseWithCurrency(v, exp, cur)
 	})
 }
 
