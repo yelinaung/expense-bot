@@ -23,6 +23,7 @@ A Telegram bot for tracking personal expenses with multi-currency support, AI-po
 - **Category Management**: Organize expenses with predefined or custom categories
 - **Expense Queries**: View expenses by time period (today, this week, recent)
 - **Expense Editing**: Modify or delete existing expenses with inline buttons
+- **Spending Reflection**: Review expenses with `/review` and summarize habits with `/habit`
 - **User Whitelisting**: Control who can access your bot (by user ID or username)
 - **Expense Tags**: Label expenses with hashtags like `#work`, `#travel` for flexible cross-category organization
 - **Category Rename/Delete**: Rename categories with `/renamecategory Old -> New` and delete with `/deletecategory`
@@ -201,6 +202,8 @@ go run main.go
 | `/list` | Show recent expenses (last 10) | `/list` |
 | `/today` | Show today's expenses with total | `/today` |
 | `/week` | Show this week's expenses with total | `/week` |
+| `/review` | Review confirmed expenses one at a time | `/review` |
+| `/habit [week\|month\|90d]` | Summarize spending reflection habits | `/habit month` |
 | `/category <name>` | Filter expenses by category | `/category Food - Dining Out` |
 | `/report week` | Generate weekly expense report (CSV) | `/report week` |
 | `/report month` | Generate monthly expense report (CSV) | `/report month` |
@@ -518,6 +521,9 @@ openssl rand -hex 32
 - `category_id` (INT, FK) - References categories
 - `receipt_file_id` (TEXT) - Telegram file ID
 - `status` (TEXT) - 'draft' or 'confirmed'
+- `worth_it` (BOOL) - Spending reflection answer
+- `spend_driver` (TEXT) - Reason selected for the reflection
+- `reviewed_at` (TIMESTAMP) - When the reflection was recorded
 - `created_at`, `updated_at` - Timestamps
 
 **Indexes**: user_id, created_at, category_id, status

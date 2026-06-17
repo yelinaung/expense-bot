@@ -141,7 +141,7 @@ func (b *Bot) handleReviewCallbackCore(ctx context.Context, tg TelegramAPI, upda
 	case strings.HasPrefix(data, reviewLaterPrefix):
 		expenseID, ok := parseReviewID(data, reviewLaterPrefix)
 		if ok {
-			b.dismissReflectionButtons(ctx, tg, chatID, messageID, userID, expenseID)
+			b.dismissReflectionButtons(ctx, tg, chatID, messageID, userID, expenseID, update.CallbackQuery.Message.Message.Text)
 		}
 	case strings.HasPrefix(data, reviewSkipPrefix):
 		expenseID, ok := parseReviewID(data, reviewSkipPrefix)
@@ -262,15 +262,19 @@ func (b *Bot) dismissReflectionButtons(
 	messageID int,
 	userID int64,
 	expenseID int,
+	text string,
 ) {
 	expense, ok := b.getOwnedExpense(ctx, tg, updateTarget{chatID: chatID, messageID: messageID}, userID, expenseID)
 	if !ok {
 		return
 	}
+	if text == "" {
+		text = buildExpenseAddedMessage(expense, nil)
+	}
 	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      chatID,
 		MessageID:   messageID,
-		Text:        buildExpenseAddedMessage(expense, nil),
+		Text:        text,
 		ParseMode:   models.ParseModeHTML,
 		ReplyMarkup: buildExpenseActionKeyboard(expense.ID),
 	})

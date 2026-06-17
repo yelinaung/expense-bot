@@ -188,6 +188,46 @@ func TestHandleReviewCallbackCore(t *testing.T) {
 		require.Equal(t, newer.ID, unreviewed[0].ID)
 	})
 
+	t.Run("later preserves message text and restores actions", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+		userID := int64(73205)
+		upsertHabitTestUser(t, ctx, b, userID)
+		expense := createHabitTestExpense(
+			t,
+			ctx,
+			b,
+			userID,
+			"Later coffee",
+			"7.50",
+			time.Date(2026, 6, 16, 11, 0, 0, 0, time.UTC),
+		)
+
+		originalText := "<b>Saved expense</b> with <i>tags</i> intact."
+		update := &tgmodels.Update{
+			CallbackQuery: &tgmodels.CallbackQuery{
+				ID:   "callback-query-id",
+				From: tgmodels.User{ID: userID},
+				Message: tgmodels.MaybeInaccessibleMessage{
+					Type: tgmodels.MaybeInaccessibleMessageTypeMessage,
+					Message: &tgmodels.Message{
+						ID:   habitTestMessage,
+						Chat: tgmodels.Chat{ID: habitTestChatID, Type: "private"},
+						Text: originalText,
+					},
+				},
+				Data: fmt.Sprintf("%s%d", reviewLaterPrefix, expense.ID),
+			},
+		}
+
+		b.handleReviewCallbackCore(ctx, mockBot, update)
+
+		require.Equal(t, 1, mockBot.AnsweredCallbackCount())
+		require.Equal(t, 1, mockBot.EditedMessageCount())
+		msg := mockBot.LastEditedMessage()
+		require.Equal(t, originalText, msg.Text)
+		require.Equal(t, buildExpenseActionKeyboard(expense.ID), msg.ReplyMarkup)
+	})
+
 	t.Run("skip last expense shows done", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		userID := int64(73204)
