@@ -1,12 +1,14 @@
 package bot
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
+	"hegel.dev/go/hegel"
 	"pgregory.net/rapid"
 )
 
@@ -16,34 +18,15 @@ func genPositiveAmountString() *rapid.Generator[string] {
 		whole := rapid.IntRange(0, 1_000_000).Draw(t, "whole")
 		frac := rapid.IntRange(0, 99).Draw(t, "frac")
 		hasFrac := rapid.Bool().Draw(t, "hasFrac")
-		if !hasFrac {
-			if whole == 0 {
-				whole = 1
-			}
-			return decimal.NewFromInt(int64(whole)).String()
-		}
-		if whole == 0 && frac == 0 {
-			frac = 1
-		}
-		return decimal.New(int64(whole*100+frac), -2).String()
+		return buildPositiveAmountString(whole, frac, hasFrac)
 	})
 }
 
-// genDescWord generates a single lowercase word with no digits / tag / bracket markers.
-// Filters out words that collide with currency codes (e.g. "usd") or currency
-// words (e.g. "baht") since the parser would extract those as the currency and
-// shrink the description, breaking downstream assertions.
+// genDescWord generates a single lowercase word with no digits / tag / bracket
+// markers, filtering out words that collide with currency codes or words (see
+// isUsableDescWord) so the parser doesn't strip them from the description.
 func genDescWord() *rapid.Generator[string] {
-	return rapid.StringMatching(`[a-z]{1,10}`).Filter(func(w string) bool {
-		u := strings.ToUpper(w)
-		if _, ok := models.SupportedCurrencies[u]; ok {
-			return false
-		}
-		if _, ok := currencyWordToCode[u]; ok {
-			return false
-		}
-		return true
-	})
+	return rapid.StringMatching(`[a-z]{1,10}`).Filter(isUsableDescWord)
 }
 
 // genDescription generates a description of 1..4 words, no digits, no special chars.
@@ -58,21 +41,54 @@ func genDescription() *rapid.Generator[string] {
 	})
 }
 
+func drawHegelPositiveAmountString(ht *hegel.T) string {
+	whole := hegel.Draw(ht, hegel.Integers(0, 1_000_000))
+	frac := hegel.Draw(ht, hegel.Integers(0, 99))
+	hasFrac := hegel.Draw(ht, hegel.Booleans())
+	return buildPositiveAmountString(whole, frac, hasFrac)
+}
+
+// hegelLowerLetters is the lowercase ASCII alphabet for description words and
+// tag names that won't collide with digit/symbol markers; hegelLetters adds the
+// uppercase half for tag-casing coverage.
+const (
+	hegelLowerLetters = "abcdefghijklmnopqrstuvwxyz"
+	hegelLetters      = hegelLowerLetters + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+)
+
+// hegelDescWordGen is the Hegel analog of genDescWord: a single lowercase word
+// kept clear of currency codes/words by the shared isUsableDescWord predicate.
+func hegelDescWordGen() hegel.Generator[string] {
+	return hegel.Filter(
+		hegel.Text().Alphabet(hegelLowerLetters).MinSize(1).MaxSize(10),
+		isUsableDescWord,
+	)
+}
+
+// hegelDescriptionGen is the Hegel analog of genDescription: 1..4 words joined
+// by single spaces, no digits or special characters.
+func hegelDescriptionGen() hegel.Generator[string] {
+	return hegel.Map(
+		hegel.Lists(hegelDescWordGen()).MinSize(1).MaxSize(4),
+		func(words []string) string { return strings.Join(words, " ") },
+	)
+}
+
 // TestParseAmountAcceptsPositiveDecimals: parseAmount accepts positive decimal strings.
 func TestParseAmountAcceptsPositiveDecimals(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
-		s := genPositiveAmountString().Draw(t, "amountStr")
-		amt, err := parseAmount(s)
-		require.NoError(t, err, "parseAmount(%q)", s)
-		require.True(t, amt.GreaterThan(decimal.Zero), "parseAmount(%q) = %s", s, amt)
+		requirePositiveAmountParses(t, genPositiveAmountString().Draw(t, "amountStr"))
+	})
+}
 
-		if strings.Contains(s, ".") {
-			commaStr := strings.ReplaceAll(s, ".", ",")
-			amt2, err2 := parseAmount(commaStr)
-			require.NoError(t, err2, "parseAmount(%q)", commaStr)
-			require.True(t, amt.Equal(amt2), "comma variant mismatch: %s vs %s", amt, amt2)
-		}
+// TestHegelParseAmountAcceptsPositiveDecimals is the Hegel equivalent of the
+// positive amount contract: generated positive decimal strings parse as
+// strictly positive decimal amounts.
+func TestHegelParseAmountAcceptsPositiveDecimals(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		requirePositiveAmountParses(ht, drawHegelPositiveAmountString(ht))
 	})
 }
 
@@ -99,28 +115,23 @@ func TestExtractTagsIdempotent(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		n := rapid.IntRange(0, 5).Draw(t, "n")
-		parts := make([]string, 0, 1+n)
-		parts = append(parts, "lunch")
-		for range n {
-			tag := rapid.StringMatching(`[A-Za-z]{1,10}`).Draw(t, "tag")
-			parts = append(parts, "#"+tag)
+		tags := make([]string, n)
+		for i := range tags {
+			tags[i] = rapid.StringMatching(`[A-Za-z]{1,10}`).Draw(t, "tag")
 		}
-		input := strings.Join(parts, " ")
+		requireTagExtractionInvariants(t, taggedInput(tags))
+	})
+}
 
-		tags, cleaned := extractTags(input)
-
-		for _, tag := range tags {
-			require.Equal(t, strings.ToLower(tag), tag, "tag not lowercased: %q", tag)
-		}
-
-		seen := map[string]bool{}
-		for _, tag := range tags {
-			require.False(t, seen[tag], "duplicate tag: %q", tag)
-			seen[tag] = true
-		}
-
-		tags2, _ := extractTags(cleaned)
-		require.Empty(t, tags2, "cleaned text still has tags (cleaned=%q)", cleaned)
+// TestHegelExtractTagsIdempotent is the Hegel equivalent of the tag-extraction
+// idempotence contract: extracted tags are lowercased and de-duplicated, and a
+// second extraction from the cleaned text yields no further tags.
+func TestHegelExtractTagsIdempotent(t *testing.T) {
+	t.Parallel()
+	tagGen := hegel.Text().Alphabet(hegelLetters).MinSize(1).MaxSize(10)
+	hegel.Test(t, func(ht *hegel.T) {
+		tags := hegel.Draw(ht, hegel.Lists(tagGen).MaxSize(5))
+		requireTagExtractionInvariants(ht, taggedInput(tags))
 	})
 }
 
@@ -130,16 +141,19 @@ func TestParseExpenseInputAmountFirst(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		amtStr := genPositiveAmountString().Draw(t, "amount")
 		desc := genDescription().Draw(t, "desc")
-		input := amtStr + " " + desc
+		requireAmountFirstRoundtrip(t, amtStr, desc)
+	})
+}
 
-		parsed := ParseExpenseInput(input)
-		require.NotNil(t, parsed, "ParseExpenseInput(%q)", input)
-
-		wantAmt, err := decimal.NewFromString(amtStr)
-		require.NoError(t, err)
-		require.True(t, parsed.Amount.Equal(wantAmt),
-			"amount mismatch: got %s, want %s (input=%q)", parsed.Amount, wantAmt, input)
-		require.Equal(t, desc, parsed.Description, "input=%q", input)
+// TestHegelParseExpenseInputAmountFirst is the Hegel equivalent of the
+// amount-first roundtrip: constructing "AMOUNT DESCRIPTION" and parsing it back
+// recovers the original amount and description.
+func TestHegelParseExpenseInputAmountFirst(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		amtStr := drawHegelPositiveAmountString(ht)
+		desc := hegel.Draw(ht, hegelDescriptionGen())
+		requireAmountFirstRoundtrip(ht, amtStr, desc)
 	})
 }
 
@@ -195,13 +209,93 @@ func TestParseExpenseInputWithCurrencyPrefix(t *testing.T) {
 	})
 }
 
-// TestContainsDigitMatchesStrings: containsDigit equals stdlib behavior.
-func TestContainsDigitMatchesStrings(t *testing.T) {
+// TestHegelParseExpenseInputInvariants checks the broad parser contract over
+// generated Unicode text: if parsing succeeds, the parsed expense must remain
+// internally valid.
+func TestHegelParseExpenseInputInvariants(t *testing.T) {
+	t.Parallel()
+	tagPattern := regexp.MustCompile(`^[a-z]\w{0,29}$`)
+
+	hegel.Test(t, func(ht *hegel.T) {
+		input := hegel.Draw(ht, hegel.Text().MaxSize(200))
+		parsed := ParseExpenseInput(input)
+		if parsed == nil {
+			return
+		}
+
+		require.True(
+			ht,
+			parsed.Amount.GreaterThan(decimal.Zero),
+			"ParseExpenseInput(%q) returned non-positive amount: %s",
+			input,
+			parsed.Amount,
+		)
+
+		if parsed.Currency != "" {
+			require.Contains(
+				ht,
+				models.SupportedCurrencies,
+				parsed.Currency,
+				"ParseExpenseInput(%q) returned invalid currency: %s",
+				input,
+				parsed.Currency,
+			)
+		}
+
+		seen := map[string]bool{}
+		for _, tag := range parsed.Tags {
+			require.True(
+				ht,
+				tagPattern.MatchString(tag),
+				"ParseExpenseInput(%q) returned invalid tag: %q",
+				input,
+				tag,
+			)
+			require.False(
+				ht,
+				seen[tag],
+				"ParseExpenseInput(%q) returned duplicate tag: %q",
+				input,
+				tag,
+			)
+			seen[tag] = true
+		}
+	})
+}
+
+// containsASCIIDigit reports whether s contains any ASCII digit (0-9).
+// Independent oracle for testing containsDigit via a rune range check
+// rather than delegating to the same strings.ContainsAny call.
+func containsASCIIDigit(s string) bool {
+	for _, r := range s {
+		if r >= '0' && r <= '9' {
+			return true
+		}
+	}
+	return false
+}
+
+// TestContainsDigitMatchesOracle: containsDigit matches an independent
+// ASCII-digit check over arbitrary strings.
+func TestContainsDigitMatchesOracle(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		s := rapid.String().Draw(t, "s")
 		got := containsDigit(s)
-		want := strings.ContainsAny(s, "0123456789")
-		require.Equal(t, want, got, "containsDigit(%q)", s)
+		require.Equal(t, containsASCIIDigit(s), got, "%q: containsDigit=%v, oracle=%v", s, got, containsASCIIDigit(s))
+	})
+}
+
+// TestHegelContainsDigitMatchesOracle is the Hegel equivalent of the
+// containsDigit oracle, run over full-Unicode text so non-ASCII digit
+// characters (e.g. Arabic-Indic or fullwidth digits) exercise the boundary:
+// containsDigit reports only ASCII digits, matching the independent
+// rune-range oracle.
+func TestHegelContainsDigitMatchesOracle(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		s := hegel.Draw(ht, hegel.Text().MaxSize(100))
+		got := containsDigit(s)
+		require.Equal(ht, containsASCIIDigit(s), got, "containsDigit(%q)", s)
 	})
 }

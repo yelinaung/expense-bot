@@ -20,6 +20,9 @@ expense-bot
 testdata/rapid/
 **/testdata/rapid/
 
+# Hegel property-test cache and failure database
+.hegel/
+
 # Go workspace
 go.work
 go.work.sum
