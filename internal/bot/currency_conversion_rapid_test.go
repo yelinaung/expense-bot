@@ -7,6 +7,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
+	"hegel.dev/go/hegel"
 	"pgregory.net/rapid"
 )
 
@@ -113,6 +114,121 @@ func TestAppendConversionUnavailableDescriptionInvariants(t *testing.T) {
 
 		if strings.TrimSpace(desc) != "" {
 			require.True(t, strings.HasPrefix(got, desc+" "),
+				"prefix not preserved: desc=%q got=%q", desc, got)
+		}
+	})
+}
+
+// hegelAmountGen generates a positive decimal with up to 4 fractional digits,
+// the Hegel analog of genAmount. Shared shape: v in [1, 1_000_000], exp in
+// [-4, 2]. The bounds prevent whole*100+frac overflow in test arithmetic
+// (see Generator Discipline: "draw a smaller type so test arithmetic can't
+// overflow"); the decimal domain itself is the contract's full valid range.
+func hegelAmountGen() hegel.Generator[decimal.Decimal] {
+	return hegel.Composite(func(tc hegel.TestCase) decimal.Decimal {
+		v := hegel.Draw(tc, hegel.Integers(1, 1_000_000))
+		exp := hegel.Draw(tc, hegel.Integers(-4, 2))
+		return decimal.New(int64(v), int32(exp))
+	})
+}
+
+// TestHegelNormalizeCurrencyCodeIdempotent is the Hegel equivalent of the
+// currency-code normalizer idempotence contract over full-Unicode input.
+func TestHegelNormalizeCurrencyCodeIdempotent(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		s := hegel.Draw(ht, hegel.Text())
+		once := normalizeCurrencyCode(s)
+		twice := normalizeCurrencyCode(once)
+		require.Equal(ht, once, twice, "not idempotent (in=%q)", s)
+	})
+}
+
+// TestHegelNormalizeCurrencyCodeUppercaseTrimmed is the Hegel equivalent:
+// output is uppercased and trimmed, over full-Unicode input.
+func TestHegelNormalizeCurrencyCodeUppercaseTrimmed(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		s := hegel.Draw(ht, hegel.Text())
+		got := normalizeCurrencyCode(s)
+		require.Equal(ht, strings.ToUpper(got), got, "not uppercased: %q", got)
+		require.Equal(ht, strings.TrimSpace(got), got, "not trimmed: %q", got)
+	})
+}
+
+// TestHegelGetCurrencyOrCodeSymbolSupportedReturnsSymbol is the Hegel equivalent:
+// for supported codes, returns the symbol.
+func TestHegelGetCurrencyOrCodeSymbolSupportedReturnsSymbol(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		code := hegel.Draw(ht, hegel.SampledFrom(sortedSupportedCurrencyCodes()))
+		got := getCurrencyOrCodeSymbol(code)
+		want := appmodels.SupportedCurrencies[code]
+		require.Equal(ht, want, got, "code=%q", code)
+	})
+}
+
+// TestHegelGetCurrencyOrCodeSymbolUnknownReturnsCode is the Hegel equivalent:
+// unsupported code returns the code verbatim. Hegel draws full-Unicode strings;
+// codes that happen to collide with a supported currency are rejected via
+// Assume so the property only runs over the "unknown" domain.
+func TestHegelGetCurrencyOrCodeSymbolUnknownReturnsCode(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		code := hegel.Draw(ht, hegel.Text())
+		_, known := appmodels.SupportedCurrencies[code]
+		ht.Assume(!known)
+		ht.Assume(appmodels.SupportedCurrencies[code] == "")
+
+		got := getCurrencyOrCodeSymbol(code)
+		require.Equal(ht, code, got, "code=%q", code)
+	})
+}
+
+// TestHegelAppendOriginalAmountDescriptionInvariants is the Hegel equivalent of
+// the conversion-metadata description invariants.
+func TestHegelAppendOriginalAmountDescriptionInvariants(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		desc := hegel.Draw(ht, hegel.FromRegex(`[A-Za-z ]{0,20}`, true))
+		origAmt := hegel.Draw(ht, hegelAmountGen())
+		convAmt := hegel.Draw(ht, hegelAmountGen())
+		rate := hegel.Draw(ht, hegelAmountGen())
+		origCur := hegel.Draw(ht, hegel.FromRegex(`[A-Z]{3}`, true))
+		convCur := hegel.Draw(ht, hegel.FromRegex(`[A-Z]{3}`, true))
+		rateDate := "2026-04-18"
+
+		got := appendOriginalAmountDescription(desc, origAmt, origCur, convAmt, convCur, rate, rateDate)
+
+		require.Contains(ht, got, "orig:", "missing marker")
+		require.Contains(ht, got, origCur)
+		require.Contains(ht, got, convCur)
+		require.Contains(ht, got, rateDate)
+
+		if strings.TrimSpace(desc) != "" {
+			require.True(ht, strings.HasPrefix(got, desc+" "),
+				"prefix not preserved: desc=%q got=%q", desc, got)
+		}
+	})
+}
+
+// TestHegelAppendConversionUnavailableDescriptionInvariants is the Hegel
+// equivalent: contains marker and currencies.
+func TestHegelAppendConversionUnavailableDescriptionInvariants(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		desc := hegel.Draw(ht, hegel.FromRegex(`[A-Za-z ]{0,20}`, true))
+		origCur := hegel.Draw(ht, hegel.FromRegex(`[A-Z]{3}`, true))
+		targetCur := hegel.Draw(ht, hegel.FromRegex(`[A-Z]{3}`, true))
+
+		got := appendConversionUnavailableDescription(desc, origCur, targetCur)
+
+		require.Contains(ht, got, "fx_unavailable")
+		require.Contains(ht, got, origCur)
+		require.Contains(ht, got, targetCur)
+
+		if strings.TrimSpace(desc) != "" {
+			require.True(ht, strings.HasPrefix(got, desc+" "),
 				"prefix not preserved: desc=%q got=%q", desc, got)
 		}
 	})

@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
+	"hegel.dev/go/hegel"
 	"pgregory.net/rapid"
 )
 
@@ -211,6 +212,189 @@ func TestMatchCategorySubstringFinds(t *testing.T) {
 
 		got := MatchCategory(sub, cats)
 		require.NotNil(t, got,
+			"MatchCategory(%q) expected match (target=%q)", sub, target)
+	})
+}
+
+// hegelCategoryNameGen is the Hegel analog of genCategoryName: a category name
+// of 1..3 words from letters.
+func hegelCategoryNameGen() hegel.Generator[string] {
+	return hegel.Composite(func(tc hegel.TestCase) string {
+		n := hegel.Draw(tc, hegel.Integers(1, 3))
+		words := make([]string, n)
+		for i := range n {
+			words[i] = hegel.Draw(tc, hegel.FromRegex(`[A-Za-z]{3,10}`, true))
+		}
+		return strings.Join(words, " ")
+	})
+}
+
+// hegelCategoriesGen is the Hegel analog of genCategories: 1..6 unique-name
+// categories. Guarantees at least one category so draws like
+// hegel.Integers(0, len(cats)-1) are safe.
+func hegelCategoriesGen() hegel.Generator[[]models.Category] {
+	return hegel.Composite(func(tc hegel.TestCase) []models.Category {
+		n := hegel.Draw(tc, hegel.Integers(1, 6))
+		seen := map[string]bool{}
+		cats := make([]models.Category, 0, n)
+		for len(cats) < n {
+			name := hegel.Draw(tc, hegelCategoryNameGen())
+			key := strings.ToLower(name)
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			cats = append(cats, models.Category{ID: len(cats) + 1, Name: name})
+		}
+		return cats
+	})
+}
+
+// TestHegelMatchCategoryEmptyInputReturnsNil is the Hegel equivalent: blank
+// suggested returns nil.
+func TestHegelMatchCategoryEmptyInputReturnsNil(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		cats := hegel.Draw(ht, hegelCategoriesGen())
+		spaces := hegel.Draw(ht, hegel.FromRegex(`[ \t]*`, true))
+		got := MatchCategory(spaces, cats)
+		require.Nil(ht, got, "MatchCategory(%q)", spaces)
+	})
+}
+
+// TestHegelMatchCategoryEmptyCategoriesReturnsNil is the Hegel equivalent: nil
+// or empty-slice categories returns nil for any suggested string.
+func TestHegelMatchCategoryEmptyCategoriesReturnsNil(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		s := hegel.Draw(ht, hegel.FromRegex(`[A-Za-z ]{1,20}`, true))
+		require.Nil(ht, MatchCategory(s, nil), "MatchCategory(%q, nil)", s)
+		require.Nil(ht, MatchCategory(s, []models.Category{}), "MatchCategory(%q, empty)", s)
+	})
+}
+
+// TestHegelMatchCategoryExactCaseInsensitive is the Hegel equivalent: exact
+// (case-insensitive) name always matches.
+func TestHegelMatchCategoryExactCaseInsensitive(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		cats := hegel.Draw(ht, hegelCategoriesGen())
+		idx := hegel.Draw(ht, hegel.Integers(0, len(cats)-1))
+		target := cats[idx].Name
+		upper := hegel.Draw(ht, hegel.Booleans())
+		var suggested string
+		if upper {
+			suggested = strings.ToUpper(target)
+		} else {
+			suggested = strings.ToLower(target)
+		}
+
+		got := MatchCategory(suggested, cats)
+		require.NotNil(ht, got, "MatchCategory(%q)", suggested)
+		require.True(ht, strings.EqualFold(got.Name, target),
+			"MatchCategory(%q) = %q, want equalfold %q", suggested, got.Name, target)
+	})
+}
+
+// TestHegelMatchCategoryDeterministic is the Hegel equivalent: same inputs
+// yield the same result.
+func TestHegelMatchCategoryDeterministic(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		cats := hegel.Draw(ht, hegelCategoriesGen())
+		s := hegel.Draw(ht, hegel.FromRegex(`[A-Za-z ]{1,20}`, true))
+		a := MatchCategory(s, cats)
+		b := MatchCategory(s, cats)
+		switch {
+		case a == nil && b == nil:
+			return
+		case a == nil || b == nil:
+			ht.Fatalf("nondeterministic nil: a=%v b=%v", a, b)
+		default:
+			require.Equal(ht, a.ID, b.ID, "nondeterministic match id")
+		}
+	})
+}
+
+// TestHegelExtractSignificantWordsFiltersStopAndShort is the Hegel equivalent:
+// all words are >=3 chars, none are stop words, none contain separator chars,
+// and all are lowercased.
+func TestHegelExtractSignificantWordsFiltersStopAndShort(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		s := hegel.Draw(ht, hegel.FromRegex(`[A-Za-z &/\- ]{0,40}`, true))
+		words := extractSignificantWords(s)
+		for _, w := range words {
+			require.GreaterOrEqual(ht, len(w), 3, "short word: %q (input=%q)", w, s)
+			require.False(ht, isStopWord(w), "stop word returned: %q", w)
+			require.False(ht, strings.ContainsAny(w, "-/&"), "word contains separator: %q", w)
+			require.Equal(ht, strings.ToLower(w), w, "word not lowercased: %q", w)
+		}
+	})
+}
+
+// TestHegelIsStopWordFixedSet is the Hegel equivalent: pins the current
+// stop-word set ("and", "the", "for") as a contract.
+func TestHegelIsStopWordFixedSet(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		s := hegel.Draw(ht, hegel.FromRegex(`[a-z]{0,10}`, true))
+		want := s == "and" || s == "the" || s == "for"
+		got := isStopWord(s)
+		require.Equal(ht, want, got, "isStopWord(%q)", s)
+	})
+}
+
+// TestHegelFindWordBasedCategoryMatchNoSignificantWordsReturnsNil is the Hegel
+// equivalent: when the suggested input contains only stop words or sub-3-char
+// tokens, findWordBasedCategoryMatch returns nil.
+func TestHegelFindWordBasedCategoryMatchNoSignificantWordsReturnsNil(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		cats := hegel.Draw(ht, hegelCategoriesGen())
+		kind := hegel.Draw(ht, hegel.Integers(0, 1))
+		var suggested string
+		switch kind {
+		case 0:
+			n := hegel.Draw(ht, hegel.Integers(1, 5))
+			toks := make([]string, n)
+			for i := range n {
+				toks[i] = hegel.Draw(ht, hegel.SampledFrom([]string{"and", "the", "for"}))
+			}
+			suggested = strings.Join(toks, " ")
+		default:
+			n := hegel.Draw(ht, hegel.Integers(1, 5))
+			toks := make([]string, n)
+			for i := range n {
+				toks[i] = hegel.Draw(ht, hegel.FromRegex(`[A-Za-z]{1,2}`, true))
+			}
+			suggested = strings.Join(toks, " ")
+		}
+
+		require.Empty(ht, extractSignificantWords(suggested),
+			"precondition: expected no significant words in %q", suggested)
+		got := findWordBasedCategoryMatch(suggested, cats)
+		require.Nil(ht, got, "findWordBasedCategoryMatch(%q)", suggested)
+	})
+}
+
+// TestHegelMatchCategorySubstringFinds is the Hegel equivalent: when suggested
+// is a non-empty substring of any category name, MatchCategory returns some
+// category.
+func TestHegelMatchCategorySubstringFinds(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		cats := hegel.Draw(ht, hegelCategoriesGen())
+		idx := hegel.Draw(ht, hegel.Integers(0, len(cats)-1))
+		target := cats[idx].Name
+		ht.Assume(strings.TrimSpace(target) != "")
+		start := hegel.Draw(ht, hegel.Integers(0, len(target)-1))
+		end := hegel.Draw(ht, hegel.Integers(start+1, len(target)))
+		sub := strings.TrimSpace(target[start:end])
+		ht.Assume(sub != "")
+
+		got := MatchCategory(sub, cats)
+		require.NotNil(ht, got,
 			"MatchCategory(%q) expected match (target=%q)", sub, target)
 	})
 }

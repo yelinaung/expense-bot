@@ -10,6 +10,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
+	"hegel.dev/go/hegel"
 	"pgregory.net/rapid"
 )
 
@@ -147,5 +148,116 @@ func TestGenerateExpensesCSVNeutralizesFormulas(t *testing.T) {
 
 		require.Equal(t, "'"+injected, rows[1][4], "description cell")
 		require.Equal(t, "'"+injected, rows[1][5], "merchant cell")
+	})
+}
+
+// TestHegelSanitizeCSVCellIdempotent is the Hegel equivalent of the
+// CSV-formula sanitizer idempotence contract: sanitizing twice yields the
+// same string as sanitizing once, over full-Unicode input.
+func TestHegelSanitizeCSVCellIdempotent(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		s := hegel.Draw(ht, hegel.Text())
+		once := sanitizeCSVCell(s)
+		twice := sanitizeCSVCell(once)
+		require.Equal(ht, once, twice, "not idempotent (in=%q)", s)
+	})
+}
+
+// TestHegelSanitizeCSVCellPrefixesFormulaStart is the Hegel equivalent: cells
+// whose first non-space char is a formula char are prefixed with a single quote.
+func TestHegelSanitizeCSVCellPrefixesFormulaStart(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		leadingSpaces := hegel.Draw(ht, hegel.FromRegex(` {0,5}`, true))
+		first := hegel.Draw(ht, hegel.SampledFrom([]byte(csvFormulaChars)))
+		tail := hegel.Draw(ht, hegel.FromRegex(`[A-Za-z0-9 ]{0,20}`, true))
+		s := leadingSpaces + string(first) + tail
+
+		got := sanitizeCSVCell(s)
+		require.Equal(ht, "'"+s, got, "input=%q", s)
+	})
+}
+
+// TestHegelSanitizeCSVCellSafeUnchanged is the Hegel equivalent: cells that
+// start (after trim) with a safe character are returned unchanged.
+func TestHegelSanitizeCSVCellSafeUnchanged(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		leadingSpaces := hegel.Draw(ht, hegel.FromRegex(` {0,5}`, true))
+		first := hegel.Draw(ht, hegel.FromRegex(`[A-Za-z0-9!?#$%^&*()_.,;:"'/\\]`, true))
+		ht.Assume(!strings.ContainsAny(first, csvFormulaChars))
+		tail := hegel.Draw(ht, hegel.Text())
+		s := leadingSpaces + first + tail
+		ht.Assume(strings.TrimLeft(s, " ") != "")
+
+		got := sanitizeCSVCell(s)
+		require.Equal(ht, s, got, "input=%q", s)
+	})
+}
+
+// TestHegelGenerateExpensesCSVStructure is the Hegel equivalent: output parses
+// as CSV with N+1 rows (header+rows) and 7 fields per row.
+func TestHegelGenerateExpensesCSVStructure(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		n := hegel.Draw(ht, hegel.Integers(0, 10))
+		exps := make([]models.Expense, n)
+		for i := range n {
+			exps[i] = models.Expense{
+				UserExpenseNumber: int64(i + 1),
+				Amount:            decimal.NewFromInt(int64(i + 1)),
+				Currency:          hegel.Draw(ht, hegel.SampledFrom(sortedSupportedCurrencyCodes())),
+				Description:       hegel.Draw(ht, hegel.FromRegex(`[A-Za-z0-9 ]{0,20}`, true)),
+				Merchant:          hegel.Draw(ht, hegel.FromRegex(`[A-Za-z0-9 ]{0,20}`, true)),
+				CreatedAt:         hegel.Draw(ht, hegel.Datetimes()),
+			}
+		}
+
+		data, err := GenerateExpensesCSV(exps)
+		require.NoError(ht, err)
+
+		reader := csv.NewReader(bytes.NewReader(data))
+		rows, err := reader.ReadAll()
+		require.NoError(ht, err)
+		require.Len(ht, rows, n+1, "row count")
+		for _, row := range rows {
+			require.Len(ht, row, 7, "field count")
+		}
+		require.Equal(ht,
+			[]string{"ID", "Date", "Amount", "Currency", "Description", "Merchant", "Category"},
+			rows[0])
+	})
+}
+
+// TestHegelGenerateExpensesCSVNeutralizesFormulas is the Hegel equivalent:
+// formula-leading description/merchant fields appear prefixed with a single
+// quote in the CSV output.
+func TestHegelGenerateExpensesCSVNeutralizesFormulas(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		first := hegel.Draw(ht, hegel.SampledFrom([]byte(csvFormulaChars)))
+		tail := hegel.Draw(ht, hegel.FromRegex(`[A-Za-z0-9 ]{0,10}`, true))
+		injected := string(first) + tail
+
+		exps := []models.Expense{{
+			UserExpenseNumber: 1,
+			Amount:            decimal.NewFromInt(1),
+			Currency:          hegel.Draw(ht, hegel.SampledFrom(sortedSupportedCurrencyCodes())),
+			Description:       injected,
+			Merchant:          injected,
+			CreatedAt:         hegel.Draw(ht, hegel.Datetimes()),
+		}}
+
+		data, err := GenerateExpensesCSV(exps)
+		require.NoError(ht, err)
+
+		reader := csv.NewReader(bytes.NewReader(data))
+		rows, err := reader.ReadAll()
+		require.NoError(ht, err)
+		require.Len(ht, rows, 2)
+
+		require.Equal(ht, "'"+injected, rows[1][4], "description cell")
+		require.Equal(ht, "'"+injected, rows[1][5], "merchant cell")
 	})
 }

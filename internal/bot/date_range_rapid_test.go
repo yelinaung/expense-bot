@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"hegel.dev/go/hegel"
 	"pgregory.net/rapid"
 )
 
@@ -116,5 +117,104 @@ func TestGetMonthDateRangeAtInvariants(t *testing.T) {
 		require.False(t, cur.Before(start))
 		require.True(t, cur.Before(end))
 		require.Equal(t, cur.Location(), start.Location())
+	})
+}
+
+// hegelLocationGen is the Hegel analog of genLocation: a fixed offset location
+// between -12h and +14h.
+func hegelLocationGen() hegel.Generator[*time.Location] {
+	return hegel.Composite(func(tc hegel.TestCase) *time.Location {
+		hours := hegel.Draw(tc, hegel.Integers(-12, 14))
+		return time.FixedZone("gen", hours*3600)
+	})
+}
+
+// hegelTimeInLocationGen is the Hegel analog of genTimeInLocation: a time within
+// 2000..2040 attached to a drawn location.
+func hegelTimeInLocationGen() hegel.Generator[time.Time] {
+	return hegel.Composite(func(tc hegel.TestCase) time.Time {
+		loc := hegel.Draw(tc, hegelLocationGen())
+		year := hegel.Draw(tc, hegel.Integers(2000, 2040))
+		month := hegel.Draw(tc, hegel.Integers(1, 12))
+		day := hegel.Draw(tc, hegel.Integers(1, 28))
+		hour := hegel.Draw(tc, hegel.Integers(0, 23))
+		minute := hegel.Draw(tc, hegel.Integers(0, 59))
+		second := hegel.Draw(tc, hegel.Integers(0, 59))
+		return time.Date(year, time.Month(month), day, hour, minute, second, 0, loc)
+	})
+}
+
+// TestHegelNormalizeLocationNonNilPassthrough is the Hegel equivalent: non-nil
+// input is returned verbatim.
+func TestHegelNormalizeLocationNonNilPassthrough(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		loc := hegel.Draw(ht, hegelLocationGen())
+		require.Same(ht, loc, normalizeLocation(loc))
+	})
+}
+
+// TestHegelGetDayDateRangeAtInvariants is the Hegel equivalent of the day-range
+// contract.
+func TestHegelGetDayDateRangeAtInvariants(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		cur := hegel.Draw(ht, hegelTimeInLocationGen())
+		start, end := getDayDateRangeAt(cur)
+
+		require.Equal(ht, 0, start.Hour())
+		require.Equal(ht, 0, start.Minute())
+		require.Equal(ht, 0, start.Second())
+		require.Equal(ht, 0, start.Nanosecond())
+		require.Equal(ht, cur.Year(), start.Year())
+		require.Equal(ht, cur.Month(), start.Month())
+		require.Equal(ht, cur.Day(), start.Day())
+		require.Equal(ht, start.AddDate(0, 0, 1), end)
+		require.False(ht, cur.Before(start), "cur before start")
+		require.True(ht, cur.Before(end), "cur not before end")
+		require.Equal(ht, cur.Location(), start.Location())
+		require.Equal(ht, cur.Location(), end.Location())
+	})
+}
+
+// TestHegelGetWeekDateRangeAtInvariants is the Hegel equivalent of the
+// week-range contract.
+func TestHegelGetWeekDateRangeAtInvariants(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		cur := hegel.Draw(ht, hegelTimeInLocationGen())
+		start, end := getWeekDateRangeAt(cur)
+
+		require.Equal(ht, time.Monday, start.Weekday(), "start=%s", start)
+		require.Equal(ht, start.AddDate(0, 0, 7), end)
+		require.Equal(ht, 0, start.Hour())
+		require.Equal(ht, 0, start.Minute())
+		require.Equal(ht, 0, start.Second())
+		require.Equal(ht, 0, start.Nanosecond())
+		require.False(ht, cur.Before(start), "cur=%s start=%s", cur, start)
+		require.True(ht, cur.Before(end), "cur=%s end=%s", cur, end)
+		require.Equal(ht, cur.Location(), start.Location())
+	})
+}
+
+// TestHegelGetMonthDateRangeAtInvariants is the Hegel equivalent of the
+// month-range contract.
+func TestHegelGetMonthDateRangeAtInvariants(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		cur := hegel.Draw(ht, hegelTimeInLocationGen())
+		start, end := getMonthDateRangeAt(cur)
+
+		require.Equal(ht, 1, start.Day())
+		require.Equal(ht, 0, start.Hour())
+		require.Equal(ht, 0, start.Minute())
+		require.Equal(ht, 0, start.Second())
+		require.Equal(ht, 0, start.Nanosecond())
+		require.Equal(ht, cur.Year(), start.Year())
+		require.Equal(ht, cur.Month(), start.Month())
+		require.Equal(ht, start.AddDate(0, 1, 0), end)
+		require.False(ht, cur.Before(start))
+		require.True(ht, cur.Before(end))
+		require.Equal(ht, cur.Location(), start.Location())
 	})
 }

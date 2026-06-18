@@ -7,7 +7,6 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/yelinaung/expense-bot/internal/models"
 	"hegel.dev/go/hegel"
 	"pgregory.net/rapid"
 )
@@ -211,7 +210,8 @@ func TestParseExpenseInputWithCurrencyPrefix(t *testing.T) {
 
 // TestHegelParseExpenseInputInvariants checks the broad parser contract over
 // generated Unicode text: if parsing succeeds, the parsed expense must remain
-// internally valid.
+// internally valid. It reuses assertParsedExpenseInputInvariants (shared with
+// the fuzz tests) so fuzz and Hegel agree on the contract.
 func TestHegelParseExpenseInputInvariants(t *testing.T) {
 	t.Parallel()
 	tagPattern := regexp.MustCompile(`^[a-z]\w{0,29}$`)
@@ -219,47 +219,7 @@ func TestHegelParseExpenseInputInvariants(t *testing.T) {
 	hegel.Test(t, func(ht *hegel.T) {
 		input := hegel.Draw(ht, hegel.Text().MaxSize(200))
 		parsed := ParseExpenseInput(input)
-		if parsed == nil {
-			return
-		}
-
-		require.True(
-			ht,
-			parsed.Amount.GreaterThan(decimal.Zero),
-			"ParseExpenseInput(%q) returned non-positive amount: %s",
-			input,
-			parsed.Amount,
-		)
-
-		if parsed.Currency != "" {
-			require.Contains(
-				ht,
-				models.SupportedCurrencies,
-				parsed.Currency,
-				"ParseExpenseInput(%q) returned invalid currency: %s",
-				input,
-				parsed.Currency,
-			)
-		}
-
-		seen := map[string]bool{}
-		for _, tag := range parsed.Tags {
-			require.True(
-				ht,
-				tagPattern.MatchString(tag),
-				"ParseExpenseInput(%q) returned invalid tag: %q",
-				input,
-				tag,
-			)
-			require.False(
-				ht,
-				seen[tag],
-				"ParseExpenseInput(%q) returned duplicate tag: %q",
-				input,
-				tag,
-			)
-			seen[tag] = true
-		}
+		assertParsedExpenseInputInvariants(ht, input, parsed, tagPattern)
 	})
 }
 

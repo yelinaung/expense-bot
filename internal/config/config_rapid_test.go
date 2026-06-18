@@ -1,11 +1,13 @@
 package config
 
 import (
+	"math"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"hegel.dev/go/hegel"
 	"pgregory.net/rapid"
 )
 
@@ -127,4 +129,117 @@ func TestParseWhitelistedUsernamesBareAtDropped(t *testing.T) {
 	t.Parallel()
 	require.Empty(t, parseWhitelistedUsernames("@"))
 	require.Empty(t, parseWhitelistedUsernames(" @ , @ "))
+}
+
+// TestHegelNormalizeUsernameIdempotent is the Hegel equivalent of the username
+// normalizer idempotence contract. The input shape is restricted to an optional
+// single leading "@" plus username chars because normalizeUsername only strips
+// ONE leading "@" by design (so "@@A" -> "@a" -> "a" breaks idempotence); that
+// double-"@" case is explicitly out of the function's contract.
+func TestHegelNormalizeUsernameIdempotent(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		s := hegel.Draw(ht, hegel.FromRegex(`@?[A-Za-z0-9_]{0,20}`, true))
+		once := normalizeUsername(s)
+		twice := normalizeUsername(once)
+		require.Equal(ht, once, twice, "not idempotent (in=%q)", s)
+	})
+}
+
+// TestHegelNormalizeUsernameLowercaseNoLeadingAt is the Hegel equivalent: output
+// is lowercase and has no leading "@" (one is stripped; more than one was not
+// stripped by the original implementation, so this pins single-"@" semantics).
+func TestHegelNormalizeUsernameLowercaseNoLeadingAt(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		prefix := hegel.Draw(ht, hegel.SampledFrom([]string{"", "@"}))
+		name := hegel.Draw(ht, hegel.FromRegex(`[A-Za-z0-9_]{0,20}`, true))
+		in := prefix + name
+		got := normalizeUsername(in)
+
+		require.Equal(ht, strings.ToLower(got), got, "not lowercased: %q", got)
+		require.False(ht, strings.HasPrefix(got, "@"), "leading @: %q", got)
+	})
+}
+
+// TestHegelParseInt64ListSkipsInvalidAndEmpty is the Hegel equivalent: every
+// element in the output is a successfully parsed int64; non-numeric tokens are
+// dropped.
+func TestHegelParseInt64ListSkipsInvalidAndEmpty(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		n := hegel.Draw(ht, hegel.Integers(0, 8))
+		parts := make([]string, n)
+		for i := range n {
+			kind := hegel.Draw(ht, hegel.Integers(0, 2))
+			switch kind {
+			case 0:
+				v := hegel.Draw(ht, hegel.Integers[int64](math.MinInt64, math.MaxInt64))
+				parts[i] = strconv.FormatInt(v, 10)
+			case 1:
+				parts[i] = hegel.Draw(ht, hegel.FromRegex(`[A-Za-z]{0,10}`, true))
+			default:
+				parts[i] = hegel.Draw(ht, hegel.FromRegex(` {0,5}`, true))
+			}
+		}
+		raw := strings.Join(parts, ",")
+		got := parseInt64List(raw)
+
+		for _, id := range got {
+			s := strconv.FormatInt(id, 10)
+			parsed, err := strconv.ParseInt(s, 10, 64)
+			require.NoError(ht, err)
+			require.Equal(ht, id, parsed)
+		}
+		require.LessOrEqual(ht, len(got), n)
+	})
+}
+
+// TestHegelParseInt64ListOnlyValidInts is the Hegel equivalent: input composed
+// solely of valid ints comma-joined yields a slice of equal length and values.
+// Draws from the full int64 range (including MinInt64/MaxInt64) since the
+// contract has no documented exclusions.
+func TestHegelParseInt64ListOnlyValidInts(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		n := hegel.Draw(ht, hegel.Integers(1, 8))
+		want := make([]int64, n)
+		parts := make([]string, n)
+		for i := range n {
+			v := hegel.Draw(ht, hegel.Integers[int64](math.MinInt64, math.MaxInt64))
+			want[i] = v
+			parts[i] = strconv.FormatInt(v, 10)
+		}
+		got := parseInt64List(strings.Join(parts, ","))
+		require.Equal(ht, want, got)
+	})
+}
+
+// TestHegelParseWhitelistedUsernamesStripsAtAndTrims is the Hegel equivalent:
+// no entry is empty, starts with "@", or has leading/trailing whitespace.
+func TestHegelParseWhitelistedUsernamesStripsAtAndTrims(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		n := hegel.Draw(ht, hegel.Integers(0, 8))
+		parts := make([]string, n)
+		for i := range n {
+			leadAt := hegel.Draw(ht, hegel.Booleans())
+			pad := hegel.Draw(ht, hegel.FromRegex(` {0,3}`, true))
+			name := hegel.Draw(ht, hegel.FromRegex(`[A-Za-z0-9_]{0,10}`, true))
+			if leadAt {
+				parts[i] = pad + "@" + name + pad
+			} else {
+				parts[i] = pad + name + pad
+			}
+		}
+		raw := strings.Join(parts, ",")
+		got := parseWhitelistedUsernames(raw)
+
+		for _, u := range got {
+			require.NotEmpty(ht, u, "empty entry slipped through")
+			require.False(ht, strings.HasPrefix(u, "@"), "leading @: %q", u)
+			require.Equal(ht, strings.TrimSpace(u), u, "not trimmed: %q", u)
+		}
+		require.LessOrEqual(ht, len(got), n)
+	})
 }

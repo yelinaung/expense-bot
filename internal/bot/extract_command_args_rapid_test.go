@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"hegel.dev/go/hegel"
 	"pgregory.net/rapid"
 )
 
@@ -91,5 +92,81 @@ func TestExtractCommandArgsNeverLeadingAtOrWhitespace(t *testing.T) {
 		got := extractCommandArgs(input, cmd)
 		require.False(t, strings.HasPrefix(got, "@"), "leading @: got=%q input=%q", got, input)
 		require.Equal(t, strings.TrimSpace(got), got, "not trimmed: %q", got)
+	})
+}
+
+// hegelCommandGen is the Hegel analog of genCommand: a slash command name like
+// "/add", "/list".
+func hegelCommandGen() hegel.Generator[string] {
+	return hegel.FromRegex(`/[a-z]{1,15}`, true)
+}
+
+// TestHegelExtractCommandArgsPlain is the Hegel equivalent: "/cmd ARGS" returns
+// the trimmed args.
+func TestHegelExtractCommandArgsPlain(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		cmd := hegel.Draw(ht, hegelCommandGen())
+		args := hegel.Draw(ht, hegel.FromRegex(`[A-Za-z0-9 .,]{0,30}`, true))
+		input := cmd + " " + args
+
+		got := extractCommandArgs(input, cmd)
+		require.Equal(ht, strings.TrimSpace(args), got, "input=%q", input)
+	})
+}
+
+// TestHegelExtractCommandArgsWithBotMention is the Hegel equivalent: "/cmd@bot
+// ARGS" returns the trimmed args.
+func TestHegelExtractCommandArgsWithBotMention(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		cmd := hegel.Draw(ht, hegelCommandGen())
+		bot := hegel.Draw(ht, hegel.FromRegex(`@[A-Za-z0-9_]{1,20}`, true))
+		args := hegel.Draw(ht, hegel.FromRegex(`[A-Za-z0-9 .,]{0,30}`, true))
+		input := cmd + bot + " " + args
+
+		got := extractCommandArgs(input, cmd)
+		require.Equal(ht, strings.TrimSpace(args), got, "input=%q", input)
+	})
+}
+
+// TestHegelExtractCommandArgsBotOnly is the Hegel equivalent: "/cmd@bot" (no
+// args) returns "".
+func TestHegelExtractCommandArgsBotOnly(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		cmd := hegel.Draw(ht, hegelCommandGen())
+		bot := hegel.Draw(ht, hegel.FromRegex(`@[A-Za-z0-9_]{1,20}`, true))
+		input := cmd + bot
+
+		got := extractCommandArgs(input, cmd)
+		require.Empty(ht, got, "input=%q", input)
+	})
+}
+
+// TestHegelExtractCommandArgsNoArgs is the Hegel equivalent: "/cmd" alone
+// returns "".
+func TestHegelExtractCommandArgsNoArgs(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		cmd := hegel.Draw(ht, hegelCommandGen())
+		got := extractCommandArgs(cmd, cmd)
+		require.Empty(ht, got)
+	})
+}
+
+// TestHegelExtractCommandArgsNeverLeadingAtOrWhitespace is the Hegel equivalent:
+// after a single optional "@botname" suffix, result never starts with '@' and
+// is trimmed.
+func TestHegelExtractCommandArgsNeverLeadingAtOrWhitespace(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		cmd := hegel.Draw(ht, hegelCommandGen())
+		tail := hegel.Draw(ht, hegel.FromRegex(`[A-Za-z0-9 _.,]{0,30}`, true))
+		input := cmd + tail
+
+		got := extractCommandArgs(input, cmd)
+		require.False(ht, strings.HasPrefix(got, "@"), "leading @: got=%q input=%q", got, input)
+		require.Equal(ht, strings.TrimSpace(got), got, "not trimmed: %q", got)
 	})
 }

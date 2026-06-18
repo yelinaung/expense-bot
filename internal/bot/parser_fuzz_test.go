@@ -112,14 +112,16 @@ func FuzzParseExpenseInput(f *testing.F) {
 	})
 }
 
+// assertParsedExpenseInputInvariants checks the parser's output contract.
+// It accepts require.TestingT so it is shared by the fuzz tests (*testing.T),
+// the rapid tests (*rapid.T), and the Hegel tests (*hegel.T) — one source of
+// truth for the ParseExpenseInput invariants.
 func assertParsedExpenseInputInvariants(
-	t *testing.T,
+	t require.TestingT,
 	input string,
 	result *ParsedExpense,
 	tagPattern *regexp.Regexp,
 ) {
-	t.Helper()
-
 	if result == nil {
 		return
 	}
@@ -130,9 +132,7 @@ func assertParsedExpenseInputInvariants(
 	assertUniqueParsedTags(t, input, result.Tags)
 }
 
-func assertPositiveParsedAmount(t *testing.T, input string, result *ParsedExpense) {
-	t.Helper()
-
+func assertPositiveParsedAmount(t require.TestingT, input string, result *ParsedExpense) {
 	require.True(
 		t,
 		result.Amount.GreaterThan(decimal.Zero),
@@ -142,9 +142,7 @@ func assertPositiveParsedAmount(t *testing.T, input string, result *ParsedExpens
 	)
 }
 
-func assertSupportedParsedCurrency(t *testing.T, input string, result *ParsedExpense) {
-	t.Helper()
-
+func assertSupportedParsedCurrency(t require.TestingT, input string, result *ParsedExpense) {
 	if result.Currency == "" {
 		return
 	}
@@ -159,9 +157,7 @@ func assertSupportedParsedCurrency(t *testing.T, input string, result *ParsedExp
 	)
 }
 
-func assertValidParsedTags(t *testing.T, input string, tags []string, tagPattern *regexp.Regexp) {
-	t.Helper()
-
+func assertValidParsedTags(t require.TestingT, input string, tags []string, tagPattern *regexp.Regexp) {
 	for _, tag := range tags {
 		require.True(
 			t,
@@ -173,9 +169,7 @@ func assertValidParsedTags(t *testing.T, input string, tags []string, tagPattern
 	}
 }
 
-func assertUniqueParsedTags(t *testing.T, input string, tags []string) {
-	t.Helper()
-
+func assertUniqueParsedTags(t require.TestingT, input string, tags []string) {
 	seen := make(map[string]bool)
 	for _, tag := range tags {
 		require.False(
