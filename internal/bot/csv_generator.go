@@ -64,7 +64,7 @@ func GenerateExpensesCSV(expenses []models.Expense) ([]byte, error) {
 	// Write expense rows
 	for i := range expenses {
 		categoryName := categoryUncategorized
-		if expenses[i].Category != nil {
+		if expenses[i].Category != nil && expenses[i].Category.Name != "" {
 			categoryName = expenses[i].Category.Name
 		}
 

@@ -72,7 +72,7 @@ func aggregateByCategory(expenses []models.Expense) map[string]decimal.Decimal {
 
 	for i := range expenses {
 		categoryName := categoryUncategorized
-		if expenses[i].Category != nil {
+		if expenses[i].Category != nil && expenses[i].Category.Name != "" {
 			categoryName = expenses[i].Category.Name
 		}
 

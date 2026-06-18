@@ -94,6 +94,29 @@ func TestGenerateExpensesCSV(t *testing.T) {
 		require.Equal(t, "Uncategorized", records[1][6])
 	})
 
+	t.Run("treats empty category name as Uncategorized", func(t *testing.T) {
+		t.Parallel()
+		expenses := []models.Expense{
+			{
+				ID:          1,
+				Amount:      decimal.NewFromFloat(5.00),
+				Currency:    "SGD",
+				Description: "Misc",
+				CreatedAt:   time.Date(2026, 1, 15, 10, 30, 0, 0, time.UTC),
+				Category:    &models.Category{Name: ""}, // Non-nil but empty name
+			},
+		}
+
+		csvData, err := GenerateExpensesCSV(expenses)
+		require.NoError(t, err)
+
+		reader := csv.NewReader(strings.NewReader(string(csvData)))
+		records, err := reader.ReadAll()
+		require.NoError(t, err)
+		require.Equal(t, "Uncategorized", records[1][6],
+			"empty-name Category should fall back to Uncategorized, not an empty cell")
+	})
+
 	t.Run("handles empty expense list", func(t *testing.T) {
 		t.Parallel()
 		expenses := []models.Expense{}

@@ -200,6 +200,18 @@ func TestAggregateByCategory(t *testing.T) {
 			expenses: []models.Expense{},
 			expected: map[string]string{},
 		},
+		{
+			name: "treats empty category name as Uncategorized",
+			expenses: []models.Expense{
+				{
+					Amount:   decimal.NewFromFloat(15.00),
+					Category: &models.Category{Name: ""}, // Non-nil but empty name
+				},
+			},
+			expected: map[string]string{
+				"Uncategorized": "15",
+			},
+		},
 	}
 
 	for _, tt := range tests {

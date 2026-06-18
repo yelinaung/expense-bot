@@ -3,6 +3,7 @@ package logger
 import (
 	"os"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/require"
 )
@@ -101,6 +102,17 @@ func TestSanitizeText(t *testing.T) {
 		result := SanitizeText("this is a long text")
 		require.Contains(t, result, "thi...")
 		require.Contains(t, result, "19 chars")
+	})
+
+	t.Run("long multi-byte text produces valid UTF-8 prefix", func(t *testing.T) {
+		// "ab" + 3 Japanese chars = 2 + 9 = 11 bytes, 5 runes. The long-text
+		// branch must slice by rune so the prefix never splits a multi-byte
+		// character, and the "<N chars>" label must report the rune count.
+		result := SanitizeText("ab日本語") //nolint:gosmopolitan // Intentional Unicode coverage.
+		require.True(t, utf8.ValidString(result), "output must be valid UTF-8: %q", result)
+		require.Contains(t, result, "ab日...") //nolint:gosmopolitan // Intentional Unicode coverage.
+		require.Contains(t, result, "5 chars",
+			"<N chars> label must report rune count, not byte count")
 	})
 }
 

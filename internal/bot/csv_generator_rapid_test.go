@@ -261,3 +261,75 @@ func TestHegelGenerateExpensesCSVNeutralizesFormulas(t *testing.T) {
 		require.Equal(ht, "'"+injected, rows[1][5], "merchant cell")
 	})
 }
+
+// csvCategoryColumn renders a single-expense CSV and returns the Category
+// cell (the 7th column of the data row). Used by the empty-name property
+// tests below. The expense is passed by pointer because models.Expense is
+// large enough to trip gocritic's hugeParam check.
+func csvCategoryColumn(t require.TestingT, expense *models.Expense) string {
+	data, err := GenerateExpensesCSV([]models.Expense{*expense})
+	require.NoError(t, err)
+	reader := csv.NewReader(bytes.NewReader(data))
+	rows, err := reader.ReadAll()
+	require.NoError(t, err)
+	require.Len(t, rows, 2)
+	require.Len(t, rows[1], 7)
+	return rows[1][6]
+}
+
+// TestHegelGenerateExpensesCSVEmptyNameIsUncategorized is the focused
+// counterexample: a non-nil Category with an empty Name must render the
+// Category column as "Uncategorized", exactly like a nil Category does.
+// GenerateExpensesCSV only checks Category != nil, so an empty Name leaks
+// through as an empty cell instead of "Uncategorized".
+func TestHegelGenerateExpensesCSVEmptyNameIsUncategorized(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		amount := hegel.Draw(ht, hegelAmountGen())
+		cur := hegel.Draw(ht, hegel.SampledFrom(sortedSupportedCurrencyCodes()))
+		base := models.Expense{
+			UserExpenseNumber: 1,
+			Amount:            amount,
+			Currency:          cur,
+			CreatedAt:         hegel.Draw(ht, hegel.Datetimes()),
+		}
+
+		nilCell := csvCategoryColumn(ht, func() *models.Expense {
+			e := base
+			e.Category = nil
+			return &e
+		}())
+		emptyCell := csvCategoryColumn(ht, func() *models.Expense {
+			e := base
+			e.Category = &models.Category{Name: ""}
+			return &e
+		}())
+
+		require.Equal(ht, nilCell, emptyCell,
+			"nil Category and empty-name Category should render the same Category cell")
+		require.Equal(ht, categoryUncategorized, emptyCell,
+			"empty-name Category should render as %q, got %q", categoryUncategorized, emptyCell)
+	})
+}
+
+// TestHegelGenerateExpensesCSVCategoryColumnConsistentWithHabitCategoryName
+// asserts that the CSV Category column agrees with habitCategoryName's
+// notion of an expense's category. Both code paths classify categories, so a
+// nil Category and a Category with an empty Name must both yield
+// "Uncategorized" rather than diverging.
+func TestHegelGenerateExpensesCSVCategoryColumnConsistentWithHabitCategoryName(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		cat := hegel.Draw(ht, hegelCategoryOrNilGen())
+		expense := models.Expense{
+			UserExpenseNumber: 1,
+			Amount:            hegel.Draw(ht, hegelAmountGen()),
+			Currency:          hegel.Draw(ht, hegel.SampledFrom(sortedSupportedCurrencyCodes())),
+			Category:          cat,
+			CreatedAt:         hegel.Draw(ht, hegel.Datetimes()),
+		}
+		got := csvCategoryColumn(ht, &expense)
+		require.Equal(ht, habitCategoryName(&expense), got,
+			"CSV Category column disagrees with habitCategoryName (Category=%+v)", cat)
+	})
+}
