@@ -88,6 +88,7 @@ func TestSanitizeDescription(t *testing.T) {
 }
 
 func TestSanitizeText(t *testing.T) {
+	t.Parallel()
 	t.Run("redacts empty text", func(t *testing.T) {
 		result := SanitizeText("")
 		require.Equal(t, "<empty>", result)
@@ -105,6 +106,7 @@ func TestSanitizeText(t *testing.T) {
 	})
 
 	t.Run("long multi-byte text produces valid UTF-8 prefix", func(t *testing.T) {
+		t.Parallel()
 		// "ab" + 3 Japanese chars = 2 + 9 = 11 bytes, 5 runes. The long-text
 		// branch must slice by rune so the prefix never splits a multi-byte
 		// character, and the "<N chars>" label must report the rune count.
