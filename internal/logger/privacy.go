@@ -77,7 +77,9 @@ func SanitizeText(text string) string {
 
 	// For longer text, show prefix and length. Slice by rune so the prefix
 	// never splits a multi-byte character, and report the rune count so the
-	// "<N chars>" label matches its content.
+	// "<N chars>" label matches its content. Guard the slice length for
+	// inputs that are long in bytes but have fewer than 3 runes.
 	runes := []rune(text)
-	return fmt.Sprintf("%s...<%d chars>", string(runes[:3]), len(runes))
+	prefix := runes[:min(3, len(runes))]
+	return fmt.Sprintf("%s...<%d chars>", string(prefix), len(runes))
 }

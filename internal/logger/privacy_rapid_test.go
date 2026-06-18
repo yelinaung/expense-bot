@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"strings"
 	"testing"
 	"unicode/utf8"
 
@@ -45,26 +46,14 @@ func TestHegelSanitizeTextPrefixIsRuneAligned(t *testing.T) {
 	hegel.Test(t, func(ht *hegel.T) {
 		in := hegel.Draw(ht, hegel.Text().MinSize(11))
 		out := SanitizeText(in)
-		// The long branch formats as "<3-byte prefix>...<N chars>". Locate the
-		// prefix between the start of the output and the "..." separator.
-		dotIdx := indexOf(out, "...")
-		if dotIdx < 0 {
+		// The long branch formats as "<3-rune prefix>...<N chars>". Split on
+		// the "..." separator to recover the prefix.
+		prefix, _, found := strings.Cut(out, "...")
+		if !found {
 			return // short-input branch took over; nothing to check here.
 		}
-		prefix := out[:dotIdx]
 		if !utf8.ValidString(prefix) {
 			ht.Fatalf("SanitizeText prefix splits a rune: input=%q prefix=%q", in, prefix)
 		}
 	})
-}
-
-// indexOf returns the byte index of the first occurrence of substr in s, or
-// -1 if absent.
-func indexOf(s, substr string) int {
-	for i := 0; i+len(substr) <= len(s); i++ {
-		if s[i:i+len(substr)] == substr {
-			return i
-		}
-	}
-	return -1
 }
