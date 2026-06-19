@@ -209,7 +209,7 @@ hit.
 
 ### Hegel counterexample
 
-```
+```text
 TestHegelGenerateExpensesCSVEmptyNameIsUncategorized
   nil Category     -> Category cell = "Uncategorized"
   &Category{Name:""} -> Category cell = ""          ← diverges

@@ -50,7 +50,10 @@ func TestHegelSanitizeTextPrefixIsRuneAligned(t *testing.T) {
 		// the "..." separator to recover the prefix.
 		prefix, _, found := strings.Cut(out, "...")
 		if !found {
-			return // short-input branch took over; nothing to check here.
+			// Defensive: MinSize(11) guarantees the long-text branch, so the
+			// "..." separator should always be present. This guard keeps the
+			// test correct if the size bound is ever relaxed.
+			return
 		}
 		if !utf8.ValidString(prefix) {
 			ht.Fatalf("SanitizeText prefix splits a rune: input=%q prefix=%q", in, prefix)
