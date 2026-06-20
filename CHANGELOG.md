@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.12.0] - 2026-06-20 - Spending Reflection Habits & UTF-8/Category Fixes
+
+### Added
+- **Spending Reflection Habits**:
+  - Added a `/habit` command with per-period summaries (last week and last 90
+    days) for reviewed expenses.
+  - Added "worth it" / "not worth it" review flow with spending-driver
+    selection (Necessity, Convenience, Ritual, Comfort, Celebration, Social,
+    Gift, Self-care, Hobby, Impulse, Productivity, Other) via inline keyboards.
+  - Added best-value and most-regretted category analysis, plus the busiest
+    not-worth-it weekday, in the habit summary.
+  - Added `WorthIt`, `SpendDriver`, and `ReviewedAt` columns via an additive
+    database migration.
+- **Property-Based Testing**:
+  - Added `hegel.dev/go/hegel` as a dependency and introduced Hegel
+    property-based tests across the parser, CSV generator, currency
+    conversion, date-range, reminder, category matcher, and config modules.
+
+### Fixed
+- **SanitizeText UTF-8 Safety**:
+  - Fixed `SanitizeText` emitting invalid UTF-8 by slicing the long-text prefix
+    by rune instead of by byte, so multi-byte characters are never split.
+  - The `<N chars>` label now reports the rune count rather than the byte
+    count, matching its content.
+  - Guarded the prefix slice length so byte-long but rune-short inputs cannot
+    panic.
+- **Empty Category Name Handling**:
+  - Fixed `aggregateByCategory` and `GenerateExpensesCSV` keying a non-nil
+    `Category` with an empty `Name` as `""` instead of `"Uncategorized"`,
+    making them consistent with `habitCategoryName`.
+- **Inline Message Edits**:
+  - Routed inline category edits and handled inline description edits in
+    callback handlers.
+- **Misc**:
+  - Removed an invalid nil comparison on `MaybeInaccessibleMessage` structs.
+  - Resolved `goconst` and `nolintlint` lint findings and used constants for
+    repeated strings.
+
+### Dependencies
+- Updated `google.golang.org/genai` to v1.58.0.
+- Updated `go.opentelemetry.io/otel` monorepo to v1.44.0 (and
+  `contrib/instrumentation/net/http/otelhttp` to v0.69.0).
+- Updated `github.com/go-telegram/bot` to v1.21.0.
+- Updated `github.com/jackc/pgx/v5` to v5.10.0.
+- Updated `github.com/exaring/otelpgx` to v0.11.1.
+- Updated `golang.org/x/image` to v0.41.0 (security), `golang.org/x/crypto`
+  to v0.52.0, `golang.org/x/net` to v0.55.0, `golang.org/x/text` to v0.37.0,
+  and `golang.org/x/sys` to v0.45.0.
+- Added `hegel.dev/go/hegel` v0.6.4 (direct) and `ebitengine/purego`,
+  `fxamacker/cbor/v2`, `x448/float16` (indirect).
+- Bumped Go toolchain to 1.26.4.
+
 ## [v0.11.0] - 2026-05-07 - Weekly Reports & CI Supply Chain Hardening
 
 ### Added
