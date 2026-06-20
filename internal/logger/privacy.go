@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"unicode/utf8"
 )
 
 var hashSalt string
@@ -71,9 +72,14 @@ func SanitizeText(text string) string {
 
 	// For short text, show first few characters
 	if len(text) <= 10 {
-		return fmt.Sprintf("<%d chars>", len(text))
+		return fmt.Sprintf("<%d chars>", utf8.RuneCountInString(text))
 	}
 
-	// For longer text, show prefix and length
-	return fmt.Sprintf("%s...<%d chars>", text[:3], len(text))
+	// For longer text, show prefix and length. Slice by rune so the prefix
+	// never splits a multi-byte character, and report the rune count so the
+	// "<N chars>" label matches its content. Guard the slice length for
+	// inputs that are long in bytes but have fewer than 3 runes.
+	runes := []rune(text)
+	prefix := runes[:min(3, len(runes))]
+	return fmt.Sprintf("%s...<%d chars>", string(prefix), len(runes))
 }
