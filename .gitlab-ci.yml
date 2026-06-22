@@ -177,8 +177,10 @@ test:
     POSTGRES_PASSWORD: test
     POSTGRES_DB: expense_bot_test
   before_script:
-    # libgcc provides libgcc_s.so.1, required by Hegel's libhegel shared library.
-    - apk add --no-cache libgcc
+    # Hegel's native library requires glibc; the Alpine-based image uses musl.
+    # gcompat provides ld-linux-x86-64.so.2 and other glibc stubs; libgcc
+    # provides libgcc_s.so.1, which libhegel-linux-amd64.so links against.
+    - apk add --no-cache gcompat libgcc
     - export TEST_DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
   script:
     # NOTE: Using -p 1 to avoid race conditions in database tests
