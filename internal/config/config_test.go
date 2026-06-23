@@ -125,6 +125,27 @@ func TestLoad(t *testing.T) {
 		require.Equal(t, 12*time.Hour, cfg.ExchangeRateCacheTTL)
 	})
 
+	t.Run("draft expiration defaults to 24h and honors env", func(t *testing.T) {
+		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
+		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
+		t.Setenv(envWhitelistedUserIDs, "123")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.Equal(t, 24*time.Hour, cfg.DraftExpiration)
+
+		t.Setenv("DRAFT_EXPIRATION", "1h")
+		cfg, err = Load()
+		require.NoError(t, err)
+		require.Equal(t, time.Hour, cfg.DraftExpiration)
+
+		// Invalid values fall back to the default.
+		t.Setenv("DRAFT_EXPIRATION", "nope")
+		cfg, err = Load()
+		require.NoError(t, err)
+		require.Equal(t, 24*time.Hour, cfg.DraftExpiration)
+	})
+
 	t.Run("parses whitelisted usernames", func(t *testing.T) {
 		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
 		t.Setenv(envDatabaseURL, testDatabaseURLConfig)

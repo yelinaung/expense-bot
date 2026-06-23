@@ -302,7 +302,7 @@ func (b *Bot) handleReceiptCallbackCore(ctx context.Context, tg TelegramAPI, upd
 		_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 			ChatID:    chatID,
 			MessageID: messageID,
-			Text:      "❌ Expense not found.",
+			Text:      "❌ This receipt draft is no longer available — it may have expired. Please send the receipt photo again to rescan it.",
 		})
 		return
 	}

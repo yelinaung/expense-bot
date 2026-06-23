@@ -25,6 +25,7 @@ type Config struct {
 	ExchangeRateBaseURL  string
 	ExchangeRateTimeout  time.Duration
 	ExchangeRateCacheTTL time.Duration
+	DraftExpiration      time.Duration
 	LogLevel             string
 	WhitelistedUserIDs   []int64
 	WhitelistedUsernames []string
@@ -87,6 +88,7 @@ func newDefaultConfig() *Config {
 		ExchangeRateBaseURL:   "https://api.frankfurter.app",
 		ExchangeRateTimeout:   5 * time.Second,
 		ExchangeRateCacheTTL:  12 * time.Hour,
+		DraftExpiration:       24 * time.Hour,
 		LogLevel:              os.Getenv("LOG_LEVEL"),
 		resolvedSuperadmins:   make(map[string]int64),
 		resolvedSuperadminIDs: make(map[int64]struct{}),
@@ -111,6 +113,12 @@ func applyExchangeRateConfig(cfg *Config) error {
 	if cacheTTL := strings.TrimSpace(os.Getenv("EXCHANGE_RATE_CACHE_TTL")); cacheTTL != "" {
 		if d, err := time.ParseDuration(cacheTTL); err == nil && d > 0 {
 			cfg.ExchangeRateCacheTTL = d
+		}
+	}
+
+	if draftExpiration := strings.TrimSpace(os.Getenv("DRAFT_EXPIRATION")); draftExpiration != "" {
+		if d, err := time.ParseDuration(draftExpiration); err == nil && d > 0 {
+			cfg.DraftExpiration = d
 		}
 	}
 	return nil

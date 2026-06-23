@@ -212,8 +212,9 @@ func newExchangeService(cfg *config.Config, transport http.RoundTripper, cacheMe
 }
 
 const (
-	// DraftExpirationTimeout is the duration after which draft expenses are deleted.
-	DraftExpirationTimeout = 10 * time.Minute
+	// DraftExpirationTimeout is the default duration after which unconfirmed draft
+	// expenses are deleted. Overridable via the DRAFT_EXPIRATION env var.
+	DraftExpirationTimeout = 24 * time.Hour
 	// DraftCleanupInterval is how often the cleanup goroutine runs.
 	DraftCleanupInterval = 5 * time.Minute
 	// CategoryCacheTTL is how long category cache remains valid.
@@ -280,10 +281,19 @@ func (b *Bot) registerCommands(ctx context.Context) {
 	logger.Log.Info().Int("count", len(commands)).Msg("Bot commands registered")
 }
 
-// cleanupExpiredDrafts removes draft expenses older than DraftExpirationTimeout.
+// draftExpiration returns the configured draft retention, falling back to the
+// default when unset (e.g. tests that construct a Bot without full config).
+func (b *Bot) draftExpiration() time.Duration {
+	if b.cfg != nil && b.cfg.DraftExpiration > 0 {
+		return b.cfg.DraftExpiration
+	}
+	return DraftExpirationTimeout
+}
+
+// cleanupExpiredDrafts removes draft expenses older than the configured retention.
 func (b *Bot) cleanupExpiredDrafts(ctx context.Context) {
 	start := time.Now()
-	count, err := b.expenseRepo.DeleteExpiredDrafts(ctx, DraftExpirationTimeout)
+	count, err := b.expenseRepo.DeleteExpiredDrafts(ctx, b.draftExpiration())
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to cleanup expired drafts")
 		if b.metrics != nil {

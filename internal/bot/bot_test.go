@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/go-telegram/bot"
 	tgmodels "github.com/go-telegram/bot/models"
@@ -753,8 +754,8 @@ func TestPendingEditStruct(t *testing.T) {
 func TestDraftConstants(t *testing.T) {
 	t.Parallel()
 
-	require.Equal(t, 10*60*1000*1000*1000, int(DraftExpirationTimeout.Nanoseconds()))
-	require.Equal(t, 5*60*1000*1000*1000, int(DraftCleanupInterval.Nanoseconds()))
+	require.Equal(t, 24*time.Hour, DraftExpirationTimeout)
+	require.Equal(t, 5*time.Minute, DraftCleanupInterval)
 }
 
 func TestCleanupExpiredDrafts(t *testing.T) {
@@ -781,10 +782,9 @@ func TestCleanupExpiredDrafts(t *testing.T) {
 		err := b.expenseRepo.Create(ctx, draft)
 		require.NoError(t, err)
 
-		// Use a negative timeout to make all drafts "expired".
 		b.cleanupExpiredDrafts(ctx)
 
-		// With default DraftExpirationTimeout (10m), recently created draft should not be removed.
+		// With the default draft retention (24h), a recently created draft should not be removed.
 		_, err = b.expenseRepo.GetByID(ctx, draft.ID)
 		require.NoError(t, err)
 	})

@@ -102,7 +102,7 @@ func TestHandleReceiptCallbackCore(t *testing.T) {
 		}
 		b.handleReceiptCallbackCore(ctx, mockBot, update)
 		require.Len(t, mockBot.EditedMessages, 1)
-		require.Contains(t, mockBot.EditedMessages[0].Text, "Expense not found")
+		require.Contains(t, mockBot.EditedMessages[0].Text, "no longer available")
 	})
 
 	t.Run("invalid expense id returns early", func(t *testing.T) {
