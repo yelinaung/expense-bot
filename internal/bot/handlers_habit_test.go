@@ -94,7 +94,7 @@ func TestHandleReviewCallbackCore(t *testing.T) {
 		msg := mockBot.LastEditedMessage()
 		require.Contains(t, msg.Text, "What drove this spend?")
 		keyboard := requireInlineKeyboard(t, msg.ReplyMarkup)
-		require.Equal(t, fmt.Sprintf("%s%d_1_0", reviewDriverPrefix, expense.ID), keyboard.InlineKeyboard[0][0].CallbackData)
+		require.Equal(t, fmt.Sprintf("%s%d_1_0_1", reviewDriverPrefix, expense.ID), keyboard.InlineKeyboard[0][0].CallbackData)
 	})
 
 	t.Run("driver callback saves reflection and advances", func(t *testing.T) {
@@ -226,6 +226,67 @@ func TestHandleReviewCallbackCore(t *testing.T) {
 		msg := mockBot.LastEditedMessage()
 		require.Equal(t, originalText, msg.Text)
 		require.Equal(t, buildExpenseActionKeyboard(expense.ID), msg.ReplyMarkup)
+	})
+
+	t.Run("confirmation-flow reflection returns to confirmation without advancing", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+		userID := int64(73206)
+		upsertHabitTestUser(t, ctx, b, userID)
+		confirmed := createHabitTestExpense(
+			t,
+			ctx,
+			b,
+			userID,
+			"Just confirmed dinner",
+			"36.33",
+			time.Date(2026, 6, 20, 20, 19, 0, 0, time.UTC),
+		)
+		// An older unreviewed expense that the user must NOT be dragged into.
+		older := createHabitTestExpense(
+			t,
+			ctx,
+			b,
+			userID,
+			"Older backlog lunch",
+			"9.00",
+			time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC),
+		)
+
+		// Tapping "Worth it" on the confirmation message asks for a driver and
+		// encodes advance=false in the driver callbacks.
+		worthUpdate := mocks.CallbackQueryUpdate(
+			habitTestChatID,
+			userID,
+			habitTestMessage,
+			fmt.Sprintf("%s%d", reviewConfirmWorthPrefix, confirmed.ID),
+		)
+		b.handleReviewCallbackCore(ctx, mockBot, worthUpdate)
+		driverKeyboard := requireInlineKeyboard(t, mockBot.LastEditedMessage().ReplyMarkup)
+		require.Equal(
+			t,
+			fmt.Sprintf("%s%d_1_0_0", reviewDriverPrefix, confirmed.ID),
+			driverKeyboard.InlineKeyboard[0][0].CallbackData,
+		)
+
+		// Picking a driver records the reflection and returns to the confirmation.
+		driverUpdate := mocks.CallbackQueryUpdate(
+			habitTestChatID,
+			userID,
+			habitTestMessage,
+			driverKeyboard.InlineKeyboard[0][0].CallbackData,
+		)
+		b.handleReviewCallbackCore(ctx, mockBot, driverUpdate)
+
+		msg := mockBot.LastEditedMessage()
+		require.Contains(t, msg.Text, confirmed.Description)
+		require.NotContains(t, msg.Text, older.Description)
+		require.Equal(t, buildExpenseActionKeyboard(confirmed.ID), msg.ReplyMarkup)
+
+		// The confirmed expense is reviewed; the older one stays in the backlog.
+		unreviewed, err := b.expenseRepo.GetUnreviewedByUserID(ctx, userID, 10)
+		require.NoError(t, err)
+		require.Len(t, unreviewed, 1)
+		require.Equal(t, older.ID, unreviewed[0].ID)
 	})
 
 	t.Run("skip last expense shows done", func(t *testing.T) {

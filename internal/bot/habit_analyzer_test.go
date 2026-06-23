@@ -147,7 +147,7 @@ func requireCurrencyTotals(t *testing.T, want map[string]string, got map[string]
 func TestReviewCallbackDataAndKeyboards(t *testing.T) {
 	t.Parallel()
 
-	driverKeyboard := buildDriverKeyboard(123, true)
+	driverKeyboard := buildDriverKeyboard(123, true, true)
 	require.NotEmpty(t, driverKeyboard.InlineKeyboard)
 	first := driverKeyboard.InlineKeyboard[0][0]
 	require.Equal(t, "Necessity", first.Text)
@@ -158,10 +158,20 @@ func TestReviewCallbackDataAndKeyboards(t *testing.T) {
 	require.Equal(t, 123, callback.expenseID)
 	require.True(t, callback.worthIt)
 	require.Zero(t, callback.driverIndex)
+	require.True(t, callback.advance)
+
+	// Confirmation-flow driver keyboard encodes advance=false so completing the
+	// reflection returns to the confirmation instead of advancing the backlog.
+	confirmDriverKeyboard := buildDriverKeyboard(123, true, false)
+	confirmCallback := parseDriverCallback(confirmDriverKeyboard.InlineKeyboard[0][0].CallbackData)
+	require.True(t, confirmCallback.ok)
+	require.False(t, confirmCallback.advance)
 
 	reflectionKeyboard := buildExpenseReflectionKeyboard(456)
 	require.Len(t, reflectionKeyboard.InlineKeyboard, 2)
 	require.Len(t, reflectionKeyboard.InlineKeyboard[1], 3)
+	require.Equal(t, "review_cw_456", reflectionKeyboard.InlineKeyboard[1][0].CallbackData)
+	require.Equal(t, "review_cnw_456", reflectionKeyboard.InlineKeyboard[1][1].CallbackData)
 	require.Equal(t, "review_later_456", reflectionKeyboard.InlineKeyboard[1][2].CallbackData)
 }
 

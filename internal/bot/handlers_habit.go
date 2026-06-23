@@ -23,6 +23,12 @@ const (
 	reviewSkipPrefix     = "review_skip_"
 	reviewDriverPrefix   = "review_driver_"
 
+	// Confirmation-message reflection callbacks. These mirror the worth/not-worth
+	// buttons but, once answered, return to the expense confirmation instead of
+	// advancing into the unreviewed backlog (which is what /review does).
+	reviewConfirmWorthPrefix    = "review_cw_"
+	reviewConfirmNotWorthPrefix = "review_cnw_"
+
 	noExpensesToReviewMsg   = "No expenses to review."
 	noMoreExpensesReviewMsg = "No more expenses to review."
 	driverPromptHTML        = "<b>What drove this spend?</b>"
@@ -131,12 +137,22 @@ func (b *Bot) handleReviewCallbackCore(ctx context.Context, tg TelegramAPI, upda
 	case strings.HasPrefix(data, reviewWorthPrefix):
 		expenseID, ok := parseReviewID(data, reviewWorthPrefix)
 		if ok {
-			b.showDriverPrompt(ctx, tg, chatID, messageID, userID, expenseID, true)
+			b.showDriverPrompt(ctx, tg, chatID, messageID, userID, expenseID, true, true)
 		}
 	case strings.HasPrefix(data, reviewNotWorthPrefix):
 		expenseID, ok := parseReviewID(data, reviewNotWorthPrefix)
 		if ok {
-			b.showDriverPrompt(ctx, tg, chatID, messageID, userID, expenseID, false)
+			b.showDriverPrompt(ctx, tg, chatID, messageID, userID, expenseID, false, true)
+		}
+	case strings.HasPrefix(data, reviewConfirmWorthPrefix):
+		expenseID, ok := parseReviewID(data, reviewConfirmWorthPrefix)
+		if ok {
+			b.showDriverPrompt(ctx, tg, chatID, messageID, userID, expenseID, true, false)
+		}
+	case strings.HasPrefix(data, reviewConfirmNotWorthPrefix):
+		expenseID, ok := parseReviewID(data, reviewConfirmNotWorthPrefix)
+		if ok {
+			b.showDriverPrompt(ctx, tg, chatID, messageID, userID, expenseID, false, false)
 		}
 	case strings.HasPrefix(data, reviewLaterPrefix):
 		expenseID, ok := parseReviewID(data, reviewLaterPrefix)
@@ -161,6 +177,7 @@ func (b *Bot) showDriverPrompt(
 	userID int64,
 	expenseID int,
 	worthIt bool,
+	advance bool,
 ) {
 	expense, ok := b.getOwnedExpense(ctx, tg, updateTarget{chatID: chatID, messageID: messageID}, userID, expenseID)
 	if !ok {
@@ -174,7 +191,7 @@ func (b *Bot) showDriverPrompt(
 		MessageID:   messageID,
 		Text:        text,
 		ParseMode:   models.ParseModeHTML,
-		ReplyMarkup: buildDriverKeyboard(expenseID, worthIt),
+		ReplyMarkup: buildDriverKeyboard(expenseID, worthIt, advance),
 	})
 }
 
@@ -190,7 +207,8 @@ func (b *Bot) handleReviewDriverCallback(
 	if !callback.ok || callback.driverIndex < 0 || callback.driverIndex >= len(spendingDrivers) {
 		return
 	}
-	if _, ok := b.getOwnedExpense(ctx, tg, updateTarget{chatID: chatID, messageID: messageID}, userID, callback.expenseID); !ok {
+	expense, ok := b.getOwnedExpense(ctx, tg, updateTarget{chatID: chatID, messageID: messageID}, userID, callback.expenseID)
+	if !ok {
 		return
 	}
 
@@ -205,7 +223,32 @@ func (b *Bot) handleReviewDriverCallback(
 		return
 	}
 
+	if !callback.advance {
+		// Reflection initiated from the expense confirmation message: return to
+		// the confirmation instead of pulling the user into the unreviewed backlog.
+		b.editToConfirmation(ctx, tg, chatID, messageID, expense)
+		return
+	}
+
 	b.editToNextReviewOrDone(ctx, tg, chatID, messageID, userID, callback.expenseID)
+}
+
+// editToConfirmation restores the expense confirmation message with its action
+// buttons after a confirmation-flow reflection has been recorded.
+func (b *Bot) editToConfirmation(
+	ctx context.Context,
+	tg TelegramAPI,
+	chatID int64,
+	messageID int,
+	expense *appmodels.Expense,
+) {
+	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:      chatID,
+		MessageID:   messageID,
+		Text:        buildExpenseAddedMessage(expense, nil),
+		ParseMode:   models.ParseModeHTML,
+		ReplyMarkup: buildExpenseActionKeyboard(expense.ID),
+	})
 }
 
 type updateTarget struct {
@@ -331,8 +374,8 @@ func buildExpenseActionKeyboard(expenseID int) *models.InlineKeyboardMarkup {
 func buildExpenseReflectionKeyboard(expenseID int) *models.InlineKeyboardMarkup {
 	keyboard := buildExpenseActionKeyboard(expenseID)
 	keyboard.InlineKeyboard = append(keyboard.InlineKeyboard, []models.InlineKeyboardButton{
-		{Text: "Worth it", CallbackData: fmt.Sprintf("%s%d", reviewWorthPrefix, expenseID)},
-		{Text: "Not worth it", CallbackData: fmt.Sprintf("%s%d", reviewNotWorthPrefix, expenseID)},
+		{Text: "Worth it", CallbackData: fmt.Sprintf("%s%d", reviewConfirmWorthPrefix, expenseID)},
+		{Text: "Not worth it", CallbackData: fmt.Sprintf("%s%d", reviewConfirmNotWorthPrefix, expenseID)},
 		{Text: "Later", CallbackData: fmt.Sprintf("%s%d", reviewLaterPrefix, expenseID)},
 	})
 	return keyboard
@@ -352,28 +395,33 @@ func buildReviewKeyboard(expenseID int) *models.InlineKeyboardMarkup {
 	}
 }
 
-func buildDriverKeyboard(expenseID int, worthIt bool) *models.InlineKeyboardMarkup {
-	worthBit := 0
-	if worthIt {
-		worthBit = 1
-	}
+func buildDriverKeyboard(expenseID int, worthIt, advance bool) *models.InlineKeyboardMarkup {
+	worthBit := boolToBit(worthIt)
+	advanceBit := boolToBit(advance)
 
 	rows := make([][]models.InlineKeyboardButton, 0, len(spendingDrivers)/2+1)
 	for i := 0; i < len(spendingDrivers); i += 2 {
 		row := []models.InlineKeyboardButton{{
 			Text:         string(spendingDrivers[i]),
-			CallbackData: fmt.Sprintf("%s%d_%d_%d", reviewDriverPrefix, expenseID, worthBit, i),
+			CallbackData: fmt.Sprintf("%s%d_%d_%d_%d", reviewDriverPrefix, expenseID, worthBit, i, advanceBit),
 		}}
 		if i+1 < len(spendingDrivers) {
 			row = append(row, models.InlineKeyboardButton{
 				Text:         string(spendingDrivers[i+1]),
-				CallbackData: fmt.Sprintf("%s%d_%d_%d", reviewDriverPrefix, expenseID, worthBit, i+1),
+				CallbackData: fmt.Sprintf("%s%d_%d_%d_%d", reviewDriverPrefix, expenseID, worthBit, i+1, advanceBit),
 			})
 		}
 		rows = append(rows, row)
 	}
 
 	return &models.InlineKeyboardMarkup{InlineKeyboard: rows}
+}
+
+func boolToBit(v bool) int {
+	if v {
+		return 1
+	}
+	return 0
 }
 
 func parseReviewID(data, prefix string) (int, bool) {
@@ -385,13 +433,17 @@ type reviewDriverCallback struct {
 	expenseID   int
 	worthIt     bool
 	driverIndex int
+	advance     bool
 	ok          bool
 }
 
 func parseDriverCallback(data string) reviewDriverCallback {
 	payload := strings.TrimPrefix(data, reviewDriverPrefix)
 	parts := strings.Split(payload, "_")
-	if len(parts) != 3 {
+	// Legacy callbacks have 3 parts (id_worth_driver); newer ones append an
+	// advance bit (id_worth_driver_advance). Missing advance bit defaults to the
+	// /review backlog behavior of advancing to the next unreviewed expense.
+	if len(parts) != 3 && len(parts) != 4 {
 		return reviewDriverCallback{}
 	}
 	expenseID, err := strconv.Atoi(parts[0])
@@ -406,10 +458,19 @@ func parseDriverCallback(data string) reviewDriverCallback {
 	if err != nil {
 		return reviewDriverCallback{}
 	}
+	advance := true
+	if len(parts) == 4 {
+		advanceBit, err := strconv.Atoi(parts[3])
+		if err != nil || (advanceBit != 0 && advanceBit != 1) {
+			return reviewDriverCallback{}
+		}
+		advance = advanceBit == 1
+	}
 	return reviewDriverCallback{
 		expenseID:   expenseID,
 		worthIt:     worthBit == 1,
 		driverIndex: driverIndex,
+		advance:     advance,
 		ok:          true,
 	}
 }
