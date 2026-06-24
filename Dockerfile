@@ -1,6 +1,6 @@
 # Build stage
 # golang:1.26.3-alpine
-FROM golang@sha256:d184d9be4c13614e28498d632eeaaac704d662f18ad357e1df74a44424236cea AS builder
+FROM golang@sha256:32c0e6e5c4f6707717051091b4d0b077464a679eaab563e11474efc5328e2aa5 AS builder
 
 WORKDIR /app
 
