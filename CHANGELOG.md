@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.12.1] - 2026-06-24 - Spending Reflection & Receipt Draft Fixes
+
+### Added
+- **Configurable draft retention**:
+  - Added the `DRAFT_EXPIRATION` environment variable to control how long an
+    unconfirmed scanned/voice draft expense is kept before cleanup (default
+    `24h`).
+
+### Fixed
+- **Spending reflection on new expenses**:
+  - Answering "worth it" / "not worth it" on an expense confirmation message no
+    longer pulls the user into reviewing previously unreviewed expenses.
+    Completing the reflection now returns to the confirmation, while the
+    `/review` command continues walking the backlog.
+- **Receipt drafts expiring too soon**:
+  - Raised the default unconfirmed-draft retention from 10 minutes to 24 hours
+    so receipts can be confirmed later, and replaced the bare "Expense not
+    found" confirmation error with a message explaining the draft expired and
+    prompting a rescan.
+
+### Changed
+- **Dependencies**:
+  - Updated `google.golang.org/genai` to v1.59.0, `jdx/mise` to v2026.6.1, and
+    `codecov/codecov-action` to v7.
+
 ## [v0.12.0] - 2026-06-20 - Spending Reflection Habits & UTF-8/Category Fixes
 
 ### Added
