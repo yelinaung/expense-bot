@@ -23,7 +23,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.44.0
 	go.opentelemetry.io/otel/sdk/metric v1.44.0
 	go.opentelemetry.io/otel/trace v1.44.0
-	google.golang.org/genai v1.59.0
+	google.golang.org/genai v1.60.0
 	hegel.dev/go/hegel v0.6.4
 	pgregory.net/rapid v1.3.0
 )
