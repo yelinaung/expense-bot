@@ -20,7 +20,9 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
 	"gitlab.com/yelinaung/expense-bot/internal/telemetry"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	otelmetric "go.opentelemetry.io/otel/metric"
 )
 
@@ -292,9 +294,13 @@ func (b *Bot) draftExpiration() time.Duration {
 
 // cleanupExpiredDrafts removes draft expenses older than the configured retention.
 func (b *Bot) cleanupExpiredDrafts(ctx context.Context) {
+	ctx, span := otel.Tracer("expense-bot/background").Start(ctx, "background.draft_cleanup")
+	defer span.End()
 	start := time.Now()
 	count, err := b.expenseRepo.DeleteExpiredDrafts(ctx, b.draftExpiration())
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		logger.Log.Error().Err(err).Msg("Failed to cleanup expired drafts")
 		if b.metrics != nil {
 			b.metrics.BackgroundJobRuns.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("job", "draft_cleanup"), attribute.String("status", "error")))
@@ -302,6 +308,7 @@ func (b *Bot) cleanupExpiredDrafts(ctx context.Context) {
 		}
 		return
 	}
+	span.SetAttributes(attribute.Int("drafts_cleaned", count))
 	if count > 0 {
 		logger.Log.Info().Int("count", count).Msg("Cleaned up expired draft expenses")
 		if b.metrics != nil {
