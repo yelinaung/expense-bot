@@ -50,7 +50,7 @@ func (t telegramTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 		return t.base.RoundTrip(req)
 	}
 
-	_, span := tracer.Start(req.Context(), "telegram.api "+method,
+	ctx, span := tracer.Start(req.Context(), "telegram.api "+method,
 		trace.WithSpanKind(trace.SpanKindClient),
 		trace.WithAttributes(
 			attribute.String("rpc.system", "telegram"),
@@ -58,6 +58,10 @@ func (t telegramTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 		),
 	)
 	defer span.End()
+
+	// Attach the span context so the base transport (and any further
+	// instrumentation) observes the in-flight span.
+	req = req.WithContext(ctx)
 
 	resp, err := t.base.RoundTrip(req)
 	if err != nil {
@@ -72,17 +76,29 @@ func (t telegramTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	return resp, nil
 }
 
-// telegramMethod extracts the Telegram API method (the trailing path segment)
-// from a request URL path of the form /bot<token>/<method>. The token is in a
-// separate segment and is never returned.
+const (
+	unknownTelegramMethod = "unknown"
+	telegramBotPrefix     = "/bot"
+)
+
+// telegramMethod extracts the Telegram API method from a request URL path of
+// the form /bot<token>/<method>. It returns the method only when a non-empty
+// segment follows the bot token; for a root or malformed path such as
+// "/bot<token>" it returns unknownTelegramMethod so the token (which is part of
+// the path) is never exposed in span names or attributes.
 func telegramMethod(path string) string {
-	if idx := strings.LastIndex(path, "/"); idx >= 0 {
-		path = path[idx+1:]
-	}
-	if path == "" {
+	if !strings.HasPrefix(path, telegramBotPrefix) {
 		return unknownTelegramMethod
 	}
-	return path
+	// rest is "<token>[/...]/<method>"; a '/' must separate the token from a
+	// method segment, otherwise the trailing segment is the token itself.
+	rest := path[len(telegramBotPrefix):]
+	if !strings.Contains(rest, "/") {
+		return unknownTelegramMethod
+	}
+	method := rest[strings.LastIndexByte(rest, '/')+1:]
+	if method == "" {
+		return unknownTelegramMethod
+	}
+	return method
 }
-
-const unknownTelegramMethod = "unknown"

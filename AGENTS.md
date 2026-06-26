@@ -84,7 +84,7 @@ ENSURE that the test coverage stays at or above 50% (CI enforced).
 ## Committing
 
 - NEVER include Co-Authored-By field
-- ALWAYS run both unit and integraton tests before pushing
+- ALWAYS run both unit and integration tests before pushing
     - Especially, the fail tests with `mise test-integration 2&>1 | grep -w 'FAIL:'`
 - ALWAYS use semantic commits (`fix:`, `feat:`, `chore:`, `refactor:`, `docs:`, `sec:`, etc).
 - ALWAYS run pre-commits before pushing

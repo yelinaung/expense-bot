@@ -8,6 +8,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func TestTelegramMethod(t *testing.T) {
@@ -21,7 +25,10 @@ func TestTelegramMethod(t *testing.T) {
 		{"send message", "/bot12345:secret/sendMessage", "sendMessage"},
 		{"get updates", "/bot12345:secret/getUpdates", "getUpdates"},
 		{"get file", "/bot12345:secret/getFile", "getFile"},
+		{"test environment", "/bot12345:secret/test/sendMessage", "sendMessage"},
 		{"empty trailing", "/bot12345:secret/", "unknown"},
+		{"root bot path leaks no token", "/bot12345:secret", "unknown"},
+		{"no bot prefix", "/foo/sendMessage", "unknown"},
 		{"no slash", "", "unknown"},
 	}
 	for _, tt := range tests {
@@ -40,33 +47,66 @@ func okResponse() *http.Response {
 	}
 }
 
-// roundTripForMethod sends a request for the given Telegram method through the
-// transport and returns the method the base transport actually saw.
-func roundTripForMethod(t *testing.T, method string) string {
+// telegramTestURL is a fake Telegram endpoint whose token segment is used to
+// assert the secret never leaks into span attributes.
+const (
+	telegramTestToken = "12345:secret"
+	telegramTestURL   = "https://api.telegram.org/bot" + telegramTestToken + "/"
+)
+
+// roundTrip runs a request for the given Telegram method through tr and closes
+// the response body.
+func roundTrip(t *testing.T, tr telegramTransport, method string) {
 	t.Helper()
-	var gotMethod string
-	base := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
-		gotMethod = telegramMethod(r.URL.Path)
-		return okResponse(), nil
-	})
-	tr := telegramTransport{base: base}
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost,
-		"https://api.telegram.org/bot12345:secret/"+method, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, telegramTestURL+method, nil)
 	require.NoError(t, err)
 	resp, err := tr.RoundTrip(req)
 	require.NoError(t, err)
 	require.NoError(t, resp.Body.Close())
-	return gotMethod
 }
 
-func TestTelegramTransport_SkipsGetUpdates(t *testing.T) {
-	t.Parallel()
-	require.Equal(t, "getUpdates", roundTripForMethod(t, "getUpdates"))
-}
+// TestTelegramTransport_SpanBehavior installs an in-memory tracer provider and
+// asserts the transport's span behavior. It is intentionally not parallel: it
+// mutates the global tracer provider that the package-level tracer delegates to.
+func TestTelegramTransport_SpanBehavior(t *testing.T) {
+	sr := tracetest.NewSpanRecorder()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(sr))
+	prev := otel.GetTracerProvider()
+	otel.SetTracerProvider(tp)
+	t.Cleanup(func() { otel.SetTracerProvider(prev) })
 
-func TestTelegramTransport_TracesSendMessage(t *testing.T) {
-	t.Parallel()
-	require.Equal(t, "sendMessage", roundTripForMethod(t, "sendMessage"))
+	base := roundTripperFunc(func(_ *http.Request) (*http.Response, error) {
+		return okResponse(), nil
+	})
+	tr := telegramTransport{base: base}
+
+	t.Run("sendMessage creates a client span without leaking the token", func(t *testing.T) {
+		sr.Reset()
+		roundTrip(t, tr, "sendMessage")
+
+		spans := sr.Ended()
+		require.Len(t, spans, 1)
+		span := spans[0]
+		require.Equal(t, "telegram.api sendMessage", span.Name())
+		require.Equal(t, trace.SpanKindClient, span.SpanKind())
+
+		attrs := make(map[string]string)
+		for _, kv := range span.Attributes() {
+			attrs[string(kv.Key)] = kv.Value.String()
+			// The bot token must never appear in any span attribute value.
+			require.NotContains(t, kv.Value.String(), "secret")
+			require.NotContains(t, kv.Value.String(), "12345")
+		}
+		require.Equal(t, "telegram", attrs["rpc.system"])
+		require.Equal(t, "sendMessage", attrs["telegram.method"])
+		require.Equal(t, "200", attrs["http.response.status_code"])
+	})
+
+	t.Run("getUpdates creates no span", func(t *testing.T) {
+		sr.Reset()
+		roundTrip(t, tr, "getUpdates")
+		require.Empty(t, sr.Ended())
+	})
 }
 
 func TestTelegramHTTPClient(t *testing.T) {
