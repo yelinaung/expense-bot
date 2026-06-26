@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -122,6 +123,19 @@ func TestHandleChartCore(t *testing.T) {
 		require.Contains(t, doc.Caption, "Total:")
 		require.Contains(t, doc.Caption, "Count:")
 		require.Contains(t, doc.Caption, fmt.Sprintf("%d expenses", totalMonthlyExpenseCount))
+	})
+
+	t.Run("sends failure message when document send fails", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+		mockBot.SendDocumentError = errors.New("telegram send failed")
+		update := mocks.CommandUpdate(chatID, userID, testChartWeekCommand)
+
+		b.handleChartCore(ctx, mockBot, update)
+
+		// SendDocument failed, so the handler falls back to an error message.
+		msg := mockBot.LastSentMessage()
+		require.NotNil(t, msg)
+		require.Contains(t, msg.Text, "❌ Failed to send chart")
 	})
 
 	t.Run("returns error for invalid period", func(t *testing.T) {

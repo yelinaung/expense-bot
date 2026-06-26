@@ -10,6 +10,9 @@ import (
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 	"gitlab.com/yelinaung/expense-bot/internal/logger"
+	"gitlab.com/yelinaung/expense-bot/internal/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 const (
@@ -96,8 +99,15 @@ func (b *Bot) handleChartCore(ctx context.Context, tg TelegramAPI, update *model
 	}
 
 	// Generate chart
+	_, genSpan := telemetry.StartSpan(ctx, "chart.generate",
+		attribute.String("chart.period", period),
+		attribute.Int("chart.expense_count", len(expenses)),
+	)
 	chartData, err := GenerateExpenseChart(expenses, period)
 	if err != nil {
+		genSpan.RecordError(err)
+		genSpan.SetStatus(codes.Error, "chart generation failed")
+		genSpan.End()
 		logger.Log.Error().Err(err).Msg("Failed to generate chart")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
@@ -105,6 +115,8 @@ func (b *Bot) handleChartCore(ctx context.Context, tg TelegramAPI, update *model
 		})
 		return
 	}
+	genSpan.SetAttributes(attribute.Int("chart.size_bytes", len(chartData)))
+	genSpan.End()
 
 	total, err := b.expenseRepo.GetTotalByUserIDAndDateRange(ctx, userID, startDate, endDate)
 	if err != nil {
@@ -130,13 +142,20 @@ func (b *Bot) handleChartCore(ctx context.Context, tg TelegramAPI, update *model
 	caption := fmt.Sprintf("📊 <b>%s</b>\n\nTotal: $%s SGD\nCount: %d expenses\nPeriod: %s",
 		title, total.StringFixed(2), len(expenses), periodRange)
 
-	_, err = tg.SendDocument(ctx, &bot.SendDocumentParams{
+	sendCtx, sendSpan := telemetry.StartSpan(ctx, "telegram.send_document",
+		attribute.Int("document.size_bytes", len(chartData)),
+		attribute.String("document.filename", filename),
+	)
+	_, err = tg.SendDocument(sendCtx, &bot.SendDocumentParams{
 		ChatID:    chatID,
 		Document:  &models.InputFileUpload{Filename: filename, Data: bytes.NewReader(chartData)},
 		Caption:   caption,
 		ParseMode: models.ParseModeHTML,
 	})
 	if err != nil {
+		sendSpan.RecordError(err)
+		sendSpan.SetStatus(codes.Error, "send document failed")
+		sendSpan.End()
 		logger.Log.Error().Err(err).Msg("Failed to send chart document")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
@@ -144,6 +163,7 @@ func (b *Bot) handleChartCore(ctx context.Context, tg TelegramAPI, update *model
 		})
 		return
 	}
+	sendSpan.End()
 
 	logger.Log.Info().
 		Int64("user_id", userID).

@@ -20,7 +20,9 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/models"
 	"gitlab.com/yelinaung/expense-bot/internal/repository"
 	"gitlab.com/yelinaung/expense-bot/internal/telemetry"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	otelmetric "go.opentelemetry.io/otel/metric"
 )
 
@@ -90,6 +92,12 @@ func New(ctx context.Context, cfg *config.Config, db database.PGXDB) (*Bot, erro
 	opts := []bot.Option{
 		bot.WithMiddlewares(middlewares...),
 		bot.WithDefaultHandler(b.defaultHandler),
+	}
+	if cfg.OTelEnabled {
+		// Instrument the bot library's HTTP client so every Telegram API call
+		// (sends, edits, getFile) emits a client span. telegramPollTimeout
+		// matches the library default so long-poll behavior is unchanged.
+		opts = append(opts, bot.WithHTTPClient(telegramPollTimeout, telemetry.TelegramHTTPClient(telegramPollTimeout)))
 	}
 
 	telegramBot, err := bot.New(cfg.TelegramBotToken, opts...)
@@ -219,6 +227,9 @@ const (
 	DraftCleanupInterval = 5 * time.Minute
 	// CategoryCacheTTL is how long category cache remains valid.
 	CategoryCacheTTL = 5 * time.Minute
+	// telegramPollTimeout matches the go-telegram bot library default poll
+	// timeout; passed to WithHTTPClient so long-poll behavior is unchanged.
+	telegramPollTimeout = time.Minute
 )
 
 // Start begins polling for updates.
@@ -292,9 +303,13 @@ func (b *Bot) draftExpiration() time.Duration {
 
 // cleanupExpiredDrafts removes draft expenses older than the configured retention.
 func (b *Bot) cleanupExpiredDrafts(ctx context.Context) {
+	ctx, span := otel.Tracer("expense-bot/background").Start(ctx, "background.draft_cleanup")
+	defer span.End()
 	start := time.Now()
 	count, err := b.expenseRepo.DeleteExpiredDrafts(ctx, b.draftExpiration())
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		logger.Log.Error().Err(err).Msg("Failed to cleanup expired drafts")
 		if b.metrics != nil {
 			b.metrics.BackgroundJobRuns.Add(ctx, 1, otelmetric.WithAttributes(attribute.String("job", "draft_cleanup"), attribute.String("status", "error")))
@@ -302,6 +317,7 @@ func (b *Bot) cleanupExpiredDrafts(ctx context.Context) {
 		}
 		return
 	}
+	span.SetAttributes(attribute.Int("drafts_cleaned", count))
 	if count > 0 {
 		logger.Log.Info().Int("count", count).Msg("Cleaned up expired draft expenses")
 		if b.metrics != nil {
