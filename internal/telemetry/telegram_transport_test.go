@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"testing"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
@@ -106,6 +108,41 @@ func TestTelegramTransport_SpanBehavior(t *testing.T) {
 		sr.Reset()
 		roundTrip(t, tr, "getUpdates")
 		require.Empty(t, sr.Ended())
+	})
+
+	t.Run("non-2xx status marks the span as error", func(t *testing.T) {
+		sr.Reset()
+		errTr := telegramTransport{base: roundTripperFunc(func(_ *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusBadRequest,
+				Status:     "400 Bad Request",
+				Body:       io.NopCloser(http.NoBody),
+				Header:     make(http.Header),
+			}, nil
+		})}
+		roundTrip(t, errTr, "sendMessage")
+
+		spans := sr.Ended()
+		require.Len(t, spans, 1)
+		require.Equal(t, codes.Error, spans[0].Status().Code)
+	})
+
+	t.Run("transport error is recorded on the span", func(t *testing.T) {
+		sr.Reset()
+		wantErr := errors.New("dial failed")
+		errTr := telegramTransport{base: roundTripperFunc(func(_ *http.Request) (*http.Response, error) {
+			return nil, wantErr
+		})}
+
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, telegramTestURL+"sendMessage", nil)
+		require.NoError(t, err)
+		resp, err := errTr.RoundTrip(req)
+		require.ErrorIs(t, err, wantErr)
+		require.Nil(t, resp)
+
+		spans := sr.Ended()
+		require.Len(t, spans, 1)
+		require.Equal(t, codes.Error, spans[0].Status().Code)
 	})
 }
 
