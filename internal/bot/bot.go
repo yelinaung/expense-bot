@@ -93,6 +93,12 @@ func New(ctx context.Context, cfg *config.Config, db database.PGXDB) (*Bot, erro
 		bot.WithMiddlewares(middlewares...),
 		bot.WithDefaultHandler(b.defaultHandler),
 	}
+	if cfg.OTelEnabled {
+		// Instrument the bot library's HTTP client so every Telegram API call
+		// (sends, edits, getFile) emits a client span. telegramPollTimeout
+		// matches the library default so long-poll behavior is unchanged.
+		opts = append(opts, bot.WithHTTPClient(telegramPollTimeout, telemetry.TelegramHTTPClient(telegramPollTimeout)))
+	}
 
 	telegramBot, err := bot.New(cfg.TelegramBotToken, opts...)
 	if err != nil {
@@ -221,6 +227,9 @@ const (
 	DraftCleanupInterval = 5 * time.Minute
 	// CategoryCacheTTL is how long category cache remains valid.
 	CategoryCacheTTL = 5 * time.Minute
+	// telegramPollTimeout matches the go-telegram bot library default poll
+	// timeout; passed to WithHTTPClient so long-poll behavior is unchanged.
+	telegramPollTimeout = time.Minute
 )
 
 // Start begins polling for updates.
