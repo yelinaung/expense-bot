@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.13.0] - 2026-06-26 - Telemetry & Tracing
+
+### Added
+- **Telegram API tracing**:
+  - Added an instrumented bot HTTP client that traces all outbound Telegram API
+    calls, so every Bot API request now appears as a span with method, status,
+    and latency.
+- **Background job tracing**:
+  - Added a root span for the draft-cleanup background job, giving the periodic
+    cleanup a single traceable operation instead of loose spans.
+- **Chart pipeline tracing**:
+  - Added tracing spans for chart generation and the subsequent chart upload,
+    covering the charting path end to end.
+
+### Fixed
+- **Telemetry robustness**:
+  - Hardened the parsing of Telegram API methods from request paths and
+    propagated the span context across the call boundary, so child spans are
+    correctly correlated and unknown methods no longer produce noisy span names.
+
+### Changed
+- **Dependencies**:
+  - Updated `google.golang.org/genai` to v1.60.0, `golang.org/x/image` to
+    v0.43.0 (security), `golang.org/x/tools` to v0.46.0, and the Docker base
+    images and CI actions to their latest digests.
+
 ## [v0.12.1] - 2026-06-24 - Spending Reflection & Receipt Draft Fixes
 
 ### Added
