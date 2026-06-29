@@ -4,6 +4,7 @@ stages:
   - test
   - deploy
   - release
+  - observability
 
 variables:
   SECRET_DETECTION_ENABLED: 'true'
@@ -23,6 +24,8 @@ variables:
   # Pinned tool versions for go install.
   GOSEC_VERSION: v2.22.11
   GOIMPORTS_VERSION: v0.43.0
+  # renovate: datasource=github-releases depName=equinix-labs/otel-cli
+  OTEL_CLI_VERSION: 0.4.5
 
 include:
   - template: Security/Secret-Detection.gitlab-ci.yml
@@ -258,3 +261,75 @@ release:
     - goreleaser release --config .goreleaser.gitlab.yaml --clean
   rules:
     - if: $CI_COMMIT_TAG =~ /^v.*/
+
+# === OBSERVABILITY STAGE ===
+# Export the whole pipeline as an OpenTelemetry trace to ClickStack.
+# Mirrors the GitHub Actions otel-cicd-action job: one root span for the
+# pipeline plus a child span per job, built from the GitLab API and shipped
+# with otel-cli. Runs last and never fails the pipeline.
+export_trace:
+  stage: observability
+  image: $ALPINE_JQ_IMAGE
+  tags:
+    - playground-bravo
+  when: always
+  allow_failure: true
+  variables:
+    # otel-cli reads these; OTEL_EXPORTER_OTLP_ENDPOINT (base URL) and
+    # OTEL_EXPORTER_HEADERS are configured as CI/CD variables in GitLab.
+    OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+    OTEL_EXPORTER_OTLP_HEADERS: $OTEL_EXPORTER_HEADERS
+  rules:
+    # Skip entirely if the endpoint isn't configured.
+    - if: $OTEL_EXPORTER_OTLP_ENDPOINT == null
+      when: never
+    - when: always
+  script:
+    - |
+      set -eu
+      apk add --no-cache curl >/dev/null
+
+      # --- install otel-cli (pinned + checksum-verified) ---
+      BASE="https://github.com/equinix-labs/otel-cli/releases/download/v${OTEL_CLI_VERSION}"
+      TARBALL="otel-cli_${OTEL_CLI_VERSION}_linux_amd64.tar.gz"
+      curl -sSfL -o "${TARBALL}" "${BASE}/${TARBALL}"
+      curl -sSfL -o checksums.txt "${BASE}/checksums.txt"
+      grep " ${TARBALL}\$" checksums.txt | sha256sum -c -
+      tar -xzf "${TARBALL}" -C /usr/local/bin otel-cli
+
+      # --- fetch this pipeline's jobs from the GitLab API ---
+      # CI_JOB_TOKEN may lack access to the jobs API; set GITLAB_API_TOKEN
+      # (read_api) as a CI/CD variable if so.
+      if [ -n "${GITLAB_API_TOKEN:-}" ]; then
+        AUTH_HEADER="PRIVATE-TOKEN: ${GITLAB_API_TOKEN}"
+      else
+        AUTH_HEADER="JOB-TOKEN: ${CI_JOB_TOKEN}"
+      fi
+      curl -sSf --header "${AUTH_HEADER}" \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/jobs?per_page=100" \
+        > jobs.json
+
+      # --- pipeline span boundaries from job timestamps ---
+      PIPELINE_START=$(jq -r '[.[].started_at  | select(. != null)] | min // empty' jobs.json)
+      PIPELINE_END=$(jq   -r '[.[].finished_at | select(. != null)] | max // empty' jobs.json)
+      : "${PIPELINE_START:?no started jobs found - nothing to export}"
+      : "${PIPELINE_END:=$PIPELINE_START}"
+
+      # --- root span for the pipeline; export its traceparent for children ---
+      eval "$(otel-cli span \
+        --service gitlab-ci \
+        --name "pipeline #${CI_PIPELINE_ID} (${CI_COMMIT_REF_NAME})" \
+        --start "${PIPELINE_START}" --end "${PIPELINE_END}" \
+        --attrs "ci.pipeline.id=${CI_PIPELINE_ID},ci.project.path=${CI_PROJECT_PATH},ci.commit.ref=${CI_COMMIT_REF_NAME},ci.commit.sha=${CI_COMMIT_SHA}" \
+        --tp-export)"
+
+      # --- one child span per completed job ---
+      jq -r '.[] | select(.started_at != null and .finished_at != null)
+              | [.name, .status, .stage, .started_at, .finished_at, (.id|tostring)] | @tsv' jobs.json |
+      while IFS="$(printf '\t')" read -r name status stage started finished id; do
+        otel-cli span \
+          --service gitlab-ci \
+          --name "${name}" \
+          --start "${started}" --end "${finished}" \
+          --attrs "ci.job.id=${id},ci.job.status=${status},ci.job.stage=${stage}" || true
+      done
