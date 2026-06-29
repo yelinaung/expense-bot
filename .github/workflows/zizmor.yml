@@ -23,3 +23,19 @@ jobs:
 
       - name: Run zizmor 🌈
         uses: zizmorcore/zizmor-action@5f14fd08f7cf1cb1609c1e344975f152c7ee938d # v0.5.6
+
+  otel-cicd-action:
+    if: always()
+    name: OpenTelemetry Export Trace
+    runs-on: [self-hosted, Linux, X64, playground-ubuntu]
+    permissions:
+      contents: read
+      actions: read
+    needs: [zizmor]
+    steps:
+      - name: Export workflow
+        uses: corentinmusard/otel-cicd-action@f2d88ecf54d9dd3e01ea95e25f93603212ee93d3 # v4
+        with:
+          otlpEndpoint: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
+          otlpHeaders: ${{ secrets.OTEL_EXPORTER_HEADERS }}
+          githubToken: ${{ secrets.GITHUB_TOKEN }}

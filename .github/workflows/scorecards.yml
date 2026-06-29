@@ -80,3 +80,19 @@ jobs:
         uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         with:
           sarif_file: results.sarif
+
+  otel-cicd-action:
+    if: always()
+    name: OpenTelemetry Export Trace
+    runs-on: [self-hosted, Linux, X64, playground-ubuntu]
+    permissions:
+      contents: read
+      actions: read
+    needs: [analysis]
+    steps:
+      - name: Export workflow
+        uses: corentinmusard/otel-cicd-action@f2d88ecf54d9dd3e01ea95e25f93603212ee93d3 # v4
+        with:
+          otlpEndpoint: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
+          otlpHeaders: ${{ secrets.OTEL_EXPORTER_HEADERS }}
+          githubToken: ${{ secrets.GITHUB_TOKEN }}

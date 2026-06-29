@@ -34,3 +34,19 @@ jobs:
 
     - name: Run semgrep
       run: semgrep ci
+
+  otel-cicd-action:
+    if: always()
+    name: OpenTelemetry Export Trace
+    runs-on: [self-hosted, Linux, X64, playground-ubuntu]
+    permissions:
+      contents: read
+      actions: read
+    needs: [semgrep]
+    steps:
+    - name: Export workflow
+      uses: corentinmusard/otel-cicd-action@f2d88ecf54d9dd3e01ea95e25f93603212ee93d3 # v4
+      with:
+        otlpEndpoint: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
+        otlpHeaders: ${{ secrets.OTEL_EXPORTER_HEADERS }}
+        githubToken: ${{ secrets.GITHUB_TOKEN }}
