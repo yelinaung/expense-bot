@@ -304,7 +304,7 @@ Reports:
 
 - `/report week` and `/report month` generate CSV files.
 - CSV columns are user-visible expense number, date, amount, currency,
-  description, merchant, and category.
+  description, merchant, category, and worth-it review state.
 - CSV cells that could be interpreted as spreadsheet formulas are prefixed to
   neutralize formula injection.
 

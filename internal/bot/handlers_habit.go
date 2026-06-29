@@ -17,11 +17,13 @@ import (
 )
 
 const (
-	reviewWorthPrefix    = "review_worth_"
-	reviewNotWorthPrefix = "review_not_worth_"
-	reviewLaterPrefix    = "review_later_"
-	reviewSkipPrefix     = "review_skip_"
-	reviewDriverPrefix   = "review_driver_"
+	reviewWorthPrefix     = "review_worth_"
+	reviewNotWorthPrefix  = "review_not_worth_"
+	reviewLaterPrefix     = "review_later_"
+	reviewSkipPrefix      = "review_skip_"
+	reviewDriverPrefix    = "review_driver_"
+	reviewWorthItLabel    = "Worth it"
+	reviewNotWorthItLabel = "Not worth it"
 
 	// Confirmation-message reflection callbacks. These mirror the worth/not-worth
 	// buttons but, once answered, return to the expense confirmation instead of
@@ -374,8 +376,8 @@ func buildExpenseActionKeyboard(expenseID int) *models.InlineKeyboardMarkup {
 func buildExpenseReflectionKeyboard(expenseID int) *models.InlineKeyboardMarkup {
 	keyboard := buildExpenseActionKeyboard(expenseID)
 	keyboard.InlineKeyboard = append(keyboard.InlineKeyboard, []models.InlineKeyboardButton{
-		{Text: "Worth it", CallbackData: fmt.Sprintf("%s%d", reviewConfirmWorthPrefix, expenseID)},
-		{Text: "Not worth it", CallbackData: fmt.Sprintf("%s%d", reviewConfirmNotWorthPrefix, expenseID)},
+		{Text: reviewWorthItLabel, CallbackData: fmt.Sprintf("%s%d", reviewConfirmWorthPrefix, expenseID)},
+		{Text: reviewNotWorthItLabel, CallbackData: fmt.Sprintf("%s%d", reviewConfirmNotWorthPrefix, expenseID)},
 		{Text: "Later", CallbackData: fmt.Sprintf("%s%d", reviewLaterPrefix, expenseID)},
 	})
 	return keyboard
@@ -385,8 +387,8 @@ func buildReviewKeyboard(expenseID int) *models.InlineKeyboardMarkup {
 	return &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{
 			{
-				{Text: "Worth it", CallbackData: fmt.Sprintf("%s%d", reviewWorthPrefix, expenseID)},
-				{Text: "Not worth it", CallbackData: fmt.Sprintf("%s%d", reviewNotWorthPrefix, expenseID)},
+				{Text: reviewWorthItLabel, CallbackData: fmt.Sprintf("%s%d", reviewWorthPrefix, expenseID)},
+				{Text: reviewNotWorthItLabel, CallbackData: fmt.Sprintf("%s%d", reviewNotWorthPrefix, expenseID)},
 			},
 			{
 				{Text: "Skip", CallbackData: fmt.Sprintf("%s%d", reviewSkipPrefix, expenseID)},

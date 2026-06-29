@@ -86,7 +86,7 @@ func TestSanitizeCSVCellSafeUnchanged(t *testing.T) {
 }
 
 // TestGenerateExpensesCSVStructure: output parses as CSV with N+1 rows (header+rows)
-// and 7 fields per row.
+// and 8 fields per row.
 func TestGenerateExpensesCSVStructure(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
@@ -111,11 +111,11 @@ func TestGenerateExpensesCSVStructure(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, rows, n+1, "row count")
 		for _, row := range rows {
-			require.Len(t, row, 7, "field count")
+			require.Len(t, row, 8, "field count")
 		}
 		// Header fixed.
 		require.Equal(t,
-			[]string{"ID", "Date", "Amount", "Currency", "Description", "Merchant", "Category"},
+			[]string{"ID", "Date", "Amount", "Currency", "Description", "Merchant", "Category", "Worth It"},
 			rows[0])
 	})
 }
@@ -197,7 +197,7 @@ func TestHegelSanitizeCSVCellSafeUnchanged(t *testing.T) {
 }
 
 // TestHegelGenerateExpensesCSVStructure is the Hegel equivalent: output parses
-// as CSV with N+1 rows (header+rows) and 7 fields per row.
+// as CSV with N+1 rows (header+rows) and 8 fields per row.
 func TestHegelGenerateExpensesCSVStructure(t *testing.T) {
 	t.Parallel()
 	hegel.Test(t, func(ht *hegel.T) {
@@ -222,10 +222,10 @@ func TestHegelGenerateExpensesCSVStructure(t *testing.T) {
 		require.NoError(ht, err)
 		require.Len(ht, rows, n+1, "row count")
 		for _, row := range rows {
-			require.Len(ht, row, 7, "field count")
+			require.Len(ht, row, 8, "field count")
 		}
 		require.Equal(ht,
-			[]string{"ID", "Date", "Amount", "Currency", "Description", "Merchant", "Category"},
+			[]string{"ID", "Date", "Amount", "Currency", "Description", "Merchant", "Category", "Worth It"},
 			rows[0])
 	})
 }
@@ -273,7 +273,7 @@ func csvCategoryColumn(t require.TestingT, expense *models.Expense) string {
 	rows, err := reader.ReadAll()
 	require.NoError(t, err)
 	require.Len(t, rows, 2)
-	require.Len(t, rows[1], 7)
+	require.Len(t, rows[1], 8)
 	return rows[1][6]
 }
 

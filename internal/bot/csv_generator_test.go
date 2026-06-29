@@ -16,6 +16,8 @@ func TestGenerateExpensesCSV(t *testing.T) {
 
 	t.Run("generates CSV with header and rows", func(t *testing.T) {
 		t.Parallel()
+		worthIt := true
+		notWorthIt := false
 		expenses := []models.Expense{
 			{
 				ID:                1,
@@ -25,6 +27,7 @@ func TestGenerateExpensesCSV(t *testing.T) {
 				Description:       "Coffee",
 				CreatedAt:         time.Date(2026, 1, 15, 10, 30, 0, 0, time.UTC),
 				Category:          &models.Category{Name: "Food"},
+				WorthIt:           &worthIt,
 			},
 			{
 				ID:                2,
@@ -34,6 +37,7 @@ func TestGenerateExpensesCSV(t *testing.T) {
 				Description:       "Taxi",
 				CreatedAt:         time.Date(2026, 1, 16, 14, 15, 0, 0, time.UTC),
 				Category:          &models.Category{Name: "Transportation"},
+				WorthIt:           &notWorthIt,
 			},
 		}
 
@@ -49,7 +53,7 @@ func TestGenerateExpensesCSV(t *testing.T) {
 
 		// Verify header
 		header := records[0]
-		require.Equal(t, []string{"ID", "Date", "Amount", "Currency", "Description", "Merchant", "Category"}, header)
+		require.Equal(t, []string{"ID", "Date", "Amount", "Currency", "Description", "Merchant", "Category", "Worth It"}, header)
 
 		// Verify first row
 		row1 := records[1]
@@ -60,6 +64,7 @@ func TestGenerateExpensesCSV(t *testing.T) {
 		require.Equal(t, "Coffee", row1[4])
 		require.Empty(t, row1[5]) // Merchant
 		require.Equal(t, "Food", row1[6])
+		require.Equal(t, "Worth it", row1[7])
 
 		// Verify second row
 		row2 := records[2]
@@ -70,6 +75,7 @@ func TestGenerateExpensesCSV(t *testing.T) {
 		require.Equal(t, "Taxi", row2[4])
 		require.Empty(t, row2[5]) // Merchant
 		require.Equal(t, "Transportation", row2[6])
+		require.Equal(t, "Not worth it", row2[7])
 	})
 
 	t.Run("handles uncategorized expenses", func(t *testing.T) {
@@ -92,6 +98,7 @@ func TestGenerateExpensesCSV(t *testing.T) {
 		records, err := reader.ReadAll()
 		require.NoError(t, err)
 		require.Equal(t, "Uncategorized", records[1][6])
+		require.Empty(t, records[1][7])
 	})
 
 	t.Run("treats empty category name as Uncategorized", func(t *testing.T) {

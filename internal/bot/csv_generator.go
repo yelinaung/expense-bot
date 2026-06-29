@@ -22,6 +22,7 @@ const (
 	csvHeaderDescription = "Description"
 	csvHeaderMerchant    = "Merchant"
 	csvHeaderCategory    = "Category"
+	csvHeaderWorthIt     = "Worth It"
 )
 
 var csvExpenseHeader = []string{
@@ -32,6 +33,7 @@ var csvExpenseHeader = []string{
 	csvHeaderDescription,
 	csvHeaderMerchant,
 	csvHeaderCategory,
+	csvHeaderWorthIt,
 }
 
 // sanitizeCSVCell prefixes cell values that could be interpreted as
@@ -49,6 +51,16 @@ func sanitizeCSVCell(s string) string {
 		return "'" + s
 	}
 	return s
+}
+
+func worthItCSVCell(worthIt *bool) string {
+	if worthIt == nil {
+		return ""
+	}
+	if *worthIt {
+		return reviewWorthItLabel
+	}
+	return reviewNotWorthItLabel
 }
 
 // GenerateExpensesCSV generates a CSV file from a list of expenses.
@@ -76,6 +88,7 @@ func GenerateExpensesCSV(expenses []models.Expense) ([]byte, error) {
 			sanitizeCSVCell(expenses[i].Description),
 			sanitizeCSVCell(expenses[i].Merchant),
 			sanitizeCSVCell(categoryName),
+			worthItCSVCell(expenses[i].WorthIt),
 		}
 
 		if err := writer.Write(row); err != nil {
