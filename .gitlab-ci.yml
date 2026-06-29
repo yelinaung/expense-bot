@@ -303,6 +303,20 @@ export_trace:
       OTEL_ARGS="--protocol http/protobuf --endpoint ${OTEL_EXPORTER_OTLP_ENDPOINT} --fail --verbose"
       echo "Endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT} (otel-cli appends /v1/traces)"
 
+      # The runner resolves via LAN DNS and can't resolve the Tailscale
+      # MagicDNS name. Map the hostname to a reachable IP (set the
+      # OTEL_ENDPOINT_HOST_IP CI/CD variable to the Tailscale/LAN IP of the
+      # collector host) so we still connect by name and the TLS cert matches.
+      OTEL_HOST=${OTEL_EXPORTER_OTLP_ENDPOINT#*://}
+      OTEL_HOST=${OTEL_HOST%%/*}
+      OTEL_HOST=${OTEL_HOST%%:*}
+      if [ -n "${OTEL_ENDPOINT_HOST_IP:-}" ]; then
+        echo "${OTEL_ENDPOINT_HOST_IP} ${OTEL_HOST}" >> /etc/hosts
+        echo "Mapped ${OTEL_HOST} -> ${OTEL_ENDPOINT_HOST_IP} via /etc/hosts"
+      else
+        echo "WARNING: OTEL_ENDPOINT_HOST_IP not set; relying on DNS for ${OTEL_HOST}"
+      fi
+
       # --- fetch this pipeline's jobs from the GitLab API ---
       # CI_JOB_TOKEN may lack access to the jobs API; set GITLAB_API_TOKEN
       # (read_api) as a CI/CD variable if so.
