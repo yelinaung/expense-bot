@@ -297,7 +297,6 @@ export_trace:
       curl -sSfL -o checksums.txt "${BASE}/checksums.txt"
       grep " ${TARBALL}\$" checksums.txt | sha256sum -c -
       tar -xzf "${TARBALL}" -C /usr/local/bin otel-cli
-      otel-cli --version
 
       # otel-cli defaults to gRPC; force HTTP and surface export failures.
       # --fail makes a failed export return non-zero; --verbose logs to stderr.
