@@ -290,12 +290,19 @@ export_trace:
       apk add --no-cache curl >/dev/null
 
       # --- install otel-cli (pinned + checksum-verified) ---
+      echo "Installing otel-cli v${OTEL_CLI_VERSION}..."
       BASE="https://github.com/equinix-labs/otel-cli/releases/download/v${OTEL_CLI_VERSION}"
       TARBALL="otel-cli_${OTEL_CLI_VERSION}_linux_amd64.tar.gz"
       curl -sSfL -o "${TARBALL}" "${BASE}/${TARBALL}"
       curl -sSfL -o checksums.txt "${BASE}/checksums.txt"
       grep " ${TARBALL}\$" checksums.txt | sha256sum -c -
       tar -xzf "${TARBALL}" -C /usr/local/bin otel-cli
+      otel-cli --version
+
+      # otel-cli defaults to gRPC; force HTTP and surface export failures.
+      # --fail makes a failed export return non-zero; --verbose logs to stderr.
+      OTEL_ARGS="--protocol http/protobuf --endpoint ${OTEL_EXPORTER_OTLP_ENDPOINT} --fail --verbose"
+      echo "Endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT} (otel-cli appends /v1/traces)"
 
       # --- fetch this pipeline's jobs from the GitLab API ---
       # CI_JOB_TOKEN may lack access to the jobs API; set GITLAB_API_TOKEN
@@ -308,28 +315,35 @@ export_trace:
       curl -sSf --header "${AUTH_HEADER}" \
         "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/jobs?per_page=100" \
         > jobs.json
+      echo "Jobs fetched: $(jq 'length' jobs.json), completed: $(jq '[.[]|select(.finished_at!=null)]|length' jobs.json)"
 
       # --- pipeline span boundaries from job timestamps ---
       PIPELINE_START=$(jq -r '[.[].started_at  | select(. != null)] | min // empty' jobs.json)
       PIPELINE_END=$(jq   -r '[.[].finished_at | select(. != null)] | max // empty' jobs.json)
       : "${PIPELINE_START:?no started jobs found - nothing to export}"
       : "${PIPELINE_END:=$PIPELINE_START}"
+      echo "Pipeline window: ${PIPELINE_START} -> ${PIPELINE_END}"
 
       # --- root span for the pipeline; export its traceparent for children ---
-      eval "$(otel-cli span \
+      # stdout (the export line) -> tp.env; stderr (verbose) stays in the log.
+      otel-cli span ${OTEL_ARGS} \
         --service gitlab-ci \
         --name "pipeline #${CI_PIPELINE_ID} (${CI_COMMIT_REF_NAME})" \
         --start "${PIPELINE_START}" --end "${PIPELINE_END}" \
         --attrs "ci.pipeline.id=${CI_PIPELINE_ID},ci.project.path=${CI_PROJECT_PATH},ci.commit.ref=${CI_COMMIT_REF_NAME},ci.commit.sha=${CI_COMMIT_SHA}" \
-        --tp-export)"
+        --tp-export > tp.env
+      . ./tp.env
+      echo "Root span sent. TRACEPARENT=${TRACEPARENT}"
 
       # --- one child span per completed job ---
       jq -r '.[] | select(.started_at != null and .finished_at != null)
               | [.name, .status, .stage, .started_at, .finished_at, (.id|tostring)] | @tsv' jobs.json |
       while IFS="$(printf '\t')" read -r name status stage started finished id; do
-        otel-cli span \
+        echo "  span: ${name} [${status}] ${started} -> ${finished}"
+        otel-cli span ${OTEL_ARGS} \
           --service gitlab-ci \
           --name "${name}" \
           --start "${started}" --end "${finished}" \
-          --attrs "ci.job.id=${id},ci.job.status=${status},ci.job.stage=${stage}" || true
+          --attrs "ci.job.id=${id},ci.job.status=${status},ci.job.stage=${stage}"
       done
+      echo "Trace export complete."
