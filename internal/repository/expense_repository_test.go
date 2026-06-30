@@ -64,10 +64,13 @@ func TestExpenseRepository_Create(t *testing.T) {
 }
 
 func TestExpenseRepository_GetByID(t *testing.T) {
-	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
+	expenseRepo, userRepo, categoryRepo, ctx := setupExpenseTest(t)
 
 	user := &models.User{ID: 222, Username: "user2", FirstName: testFirstName, LastName: testLastName}
 	err := userRepo.UpsertUser(ctx, user)
+	require.NoError(t, err)
+
+	cat, err := categoryRepo.Create(ctx, "GetByID Category")
 	require.NoError(t, err)
 
 	expense := &models.Expense{
@@ -75,6 +78,7 @@ func TestExpenseRepository_GetByID(t *testing.T) {
 		Amount:      decimal.NewFromFloat(15.00),
 		Currency:    testCurrencySGD,
 		Description: "Coffee",
+		CategoryID:  &cat.ID,
 	}
 	err = expenseRepo.Create(ctx, expense)
 	require.NoError(t, err)
@@ -85,6 +89,14 @@ func TestExpenseRepository_GetByID(t *testing.T) {
 		require.Equal(t, expense.ID, fetched.ID)
 		require.True(t, expense.Amount.Equal(fetched.Amount))
 		require.Equal(t, "Coffee", fetched.Description)
+	})
+
+	t.Run("populates the joined category", func(t *testing.T) {
+		fetched, err := expenseRepo.GetByID(ctx, expense.ID)
+		require.NoError(t, err)
+		require.NotNil(t, fetched.Category)
+		require.Equal(t, cat.ID, fetched.Category.ID)
+		require.Equal(t, "GetByID Category", fetched.Category.Name)
 	})
 
 	t.Run("returns error for non-existent expense", func(t *testing.T) {

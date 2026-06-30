@@ -52,16 +52,30 @@ func (r *ExpenseRepository) Create(ctx context.Context, expense *models.Expense)
 // GetByID retrieves an expense by ID.
 func (r *ExpenseRepository) GetByID(ctx context.Context, id int) (*models.Expense, error) {
 	var exp models.Expense
-	var categoryID *int
+	var categoryID, catID *int
+	var catName *string
+	var catCreatedAt *time.Time
 	err := r.db.QueryRow(ctx, `
-		SELECT id, user_expense_number, user_id, amount, currency, description, merchant, category_id, receipt_file_id, status, created_at, updated_at
-		FROM expenses WHERE id = $1
+		SELECT e.id, e.user_expense_number, e.user_id, e.amount, e.currency, e.description, e.merchant, e.category_id,
+		       e.receipt_file_id, e.status, e.created_at, e.updated_at,
+		       c.id, c.name, c.created_at
+		FROM expenses e
+		LEFT JOIN categories c ON e.category_id = c.id
+		WHERE e.id = $1
 	`, id).Scan(&exp.ID, &exp.UserExpenseNumber, &exp.UserID, &exp.Amount, &exp.Currency, &exp.Description,
-		&exp.Merchant, &categoryID, &exp.ReceiptFileID, &exp.Status, &exp.CreatedAt, &exp.UpdatedAt)
+		&exp.Merchant, &categoryID, &exp.ReceiptFileID, &exp.Status, &exp.CreatedAt, &exp.UpdatedAt,
+		&catID, &catName, &catCreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get expense: %w", err)
 	}
 	exp.CategoryID = categoryID
+	if catID != nil {
+		exp.Category = &models.Category{
+			ID:        *catID,
+			Name:      *catName,
+			CreatedAt: *catCreatedAt,
+		}
+	}
 	return &exp, nil
 }
 
