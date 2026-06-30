@@ -21,8 +21,8 @@ apk add --no-cache curl >/dev/null
 echo "Installing otel-cli v${OTEL_CLI_VERSION}..."
 BASE="https://github.com/equinix-labs/otel-cli/releases/download/v${OTEL_CLI_VERSION}"
 TARBALL="otel-cli_${OTEL_CLI_VERSION}_linux_amd64.tar.gz"
-curl -sSfL -o "${TARBALL}" "${BASE}/${TARBALL}"
-curl -sSfL -o checksums.txt "${BASE}/checksums.txt"
+curl --proto "=https" -sSfL -o "${TARBALL}" "${BASE}/${TARBALL}"
+curl --proto "=https" -sSfL -o checksums.txt "${BASE}/checksums.txt"
 grep " ${TARBALL}\$" checksums.txt | sha256sum -c -
 tar -xzf "${TARBALL}" -C /usr/local/bin otel-cli
 
