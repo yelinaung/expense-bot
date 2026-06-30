@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.14.0] - 2026-06-30 - Worth-It Reporting
+
+### Added
+- **Worth-it reporting**: The exported report CSV now includes each expense's
+  worth-it / not-worth-it reflection state, so spending reviews can be analysed
+  outside the bot.
+
+### Fixed
+- **Category in reflection flow**: Fixed expenses showing as "Uncategorized"
+  after a worth-it / not-worth-it review. `GetByID` now joins the categories
+  table so the original category is preserved in the driver prompt and the
+  restored confirmation message.
+
+### Security
+- **Telemetry transport**: Enforced HTTPS for outbound OTel curl requests.
+
 ## [v0.13.0] - 2026-06-26 - Telemetry & Tracing
 
 ### Added
