@@ -23,7 +23,16 @@ set -eu
 
 : "${OTEL_EXPORTER_OTLP_ENDPOINT:?OTEL_EXPORTER_OTLP_ENDPOINT not set}"
 : "${GITHUB_TOKEN:?GITHUB_TOKEN not set}"
+# OTEL_EXPORTER_OTLP_ENDPOINT is the collector BASE URL (no signal path). Both
+# signals are derived from it: traces -> ${BASE}/v1/traces (appended by
+# otel-cli), logs -> ${BASE}/v1/logs (our raw POST). Tolerate a value that
+# accidentally includes a trailing slash or signal path so the two never drift.
 BASE=${OTEL_EXPORTER_OTLP_ENDPOINT%/}
+BASE=${BASE%/v1/traces}
+BASE=${BASE%/v1/logs}
+BASE=${BASE%/}
+TRACES_ENDPOINT="${BASE}/v1/traces"
+LOGS_ENDPOINT="${BASE}/v1/logs"
 MAX_LINES=${OTEL_LOG_MAX_LINES:-2000}
 API=${GITHUB_API_URL:-https://api.github.com}
 ATTEMPT=${GITHUB_RUN_ATTEMPT:-1}
@@ -35,6 +44,9 @@ command -v jq   >/dev/null 2>&1 || { echo "jq not found"; exit 1; }
 # Local dir avoids needing root/sudo on the self-hosted runner.
 echo "Installing otel-cli v${OTEL_CLI_VERSION}..."
 BIN_DIR=$(mktemp -d)
+# Clean up the temp dir (binary, checksums, header config, scratch files) so we
+# don't accumulate artifacts on long-lived self-hosted runners.
+trap 'rm -rf "${BIN_DIR}"' EXIT
 GH="https://github.com/equinix-labs/otel-cli/releases/download/v${OTEL_CLI_VERSION}"
 TARBALL="otel-cli_${OTEL_CLI_VERSION}_linux_amd64.tar.gz"
 curl --proto "=https" -sSfL -o "${BIN_DIR}/${TARBALL}" "${GH}/${TARBALL}"
@@ -43,20 +55,23 @@ curl --proto "=https" -sSfL -o "${BIN_DIR}/checksums.txt" "${GH}/checksums.txt"
 tar -xzf "${BIN_DIR}/${TARBALL}" -C "${BIN_DIR}" otel-cli
 OTEL_CLI="${BIN_DIR}/otel-cli"
 
-# otel-cli defaults to gRPC; force HTTP and surface export failures.
-OTEL_ARGS="--protocol http/protobuf --endpoint ${OTEL_EXPORTER_OTLP_ENDPOINT} --fail --verbose"
-echo "Endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT} (traces -> /v1/traces, logs -> /v1/logs)"
+# otel-cli defaults to gRPC; force HTTP and surface export failures. It appends
+# the /v1/traces signal path to the base endpoint itself.
+OTEL_ARGS="--protocol http/protobuf --endpoint ${BASE} --fail --verbose"
+echo "Traces -> ${TRACES_ENDPOINT}, logs -> ${LOGS_ENDPOINT}"
 
 # The runner may resolve via LAN DNS and be unable to resolve the Tailscale
-# MagicDNS name. Optionally map the hostname to a reachable IP (best-effort;
-# needs write access to /etc/hosts, so try sudo and never fail the job).
+# MagicDNS name. Optionally map the hostname to a reachable IP. This only runs
+# when OTEL_ENDPOINT_HOST_IP is set (opt-in), and only escalates via sudo when
+# OTEL_HOSTS_SUDO is explicitly enabled — otherwise a non-writable /etc/hosts
+# just warns and falls back to DNS. It never fails the job.
 OTEL_HOST=${OTEL_EXPORTER_OTLP_ENDPOINT#*://}
 OTEL_HOST=${OTEL_HOST%%/*}
 OTEL_HOST=${OTEL_HOST%%:*}
 if [ -n "${OTEL_ENDPOINT_HOST_IP:-}" ]; then
   if echo "${OTEL_ENDPOINT_HOST_IP} ${OTEL_HOST}" >> /etc/hosts 2>/dev/null; then
     echo "Mapped ${OTEL_HOST} -> ${OTEL_ENDPOINT_HOST_IP} via /etc/hosts"
-  elif command -v sudo >/dev/null 2>&1 &&
+  elif [ "${OTEL_HOSTS_SUDO:-}" = "1" ] && command -v sudo >/dev/null 2>&1 &&
        echo "${OTEL_ENDPOINT_HOST_IP} ${OTEL_HOST}" | sudo -n tee -a /etc/hosts >/dev/null 2>&1; then
     echo "Mapped ${OTEL_HOST} -> ${OTEL_ENDPOINT_HOST_IP} via /etc/hosts (sudo)"
   else
@@ -82,6 +97,10 @@ while [ -n "${headers}" ]; do
   printf 'header = "%s: %s"\n' "${key}" "${val}" >> "${HDR_CONF}"
 done
 
+# Keep all scratch (jobs.json, per-job logs, payloads) inside BIN_DIR so the
+# EXIT trap removes it too. Nothing below this point needs the repo checkout.
+cd "${BIN_DIR}"
+
 # --- fetch this run's jobs from the GitHub API ---
 gh_api() {
   curl -sSfL \
@@ -90,9 +109,24 @@ gh_api() {
     -H "X-GitHub-Api-Version: 2022-11-28" \
     "$@"
 }
-gh_api "${API}/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${ATTEMPT}/jobs?per_page=100" \
-  > jobs.json
-echo "Jobs fetched: $(jq '.jobs | length' jobs.json), completed: $(jq '[.jobs[]|select(.completed_at!=null)]|length' jobs.json)"
+# Paginate: the jobs API caps at 100 per page, so follow pages until we've
+# collected total_count, merging each page's .jobs into a single {jobs:[...]}.
+JOBS_URL="${API}/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${ATTEMPT}/jobs"
+echo '[]' > jobs-acc.json
+page=1
+while :; do
+  gh_api "${JOBS_URL}?per_page=100&page=${page}" > jobs-page.json
+  jq -s '.[0] + .[1].jobs' jobs-acc.json jobs-page.json > jobs-acc.tmp
+  mv jobs-acc.tmp jobs-acc.json
+  total=$(jq -r '.total_count' jobs-page.json)
+  got=$(jq -r '.jobs | length' jobs-page.json)
+  have=$(jq -r 'length' jobs-acc.json)
+  [ "${got}" -eq 0 ] && break
+  [ "${have}" -ge "${total}" ] && break
+  page=$((page + 1))
+done
+jq '{jobs: .}' jobs-acc.json > jobs.json
+echo "Jobs fetched: $(jq '.jobs | length' jobs.json) across ${page} page(s), completed: $(jq '[.jobs[]|select(.completed_at!=null)]|length' jobs.json)"
 
 # --- run span boundaries from job timestamps ---
 RUN_START=$(jq -r '[.jobs[].started_at   | select(. != null)] | min // empty' jobs.json)
@@ -180,7 +214,7 @@ while IFS="$(printf '\t')" read -r name status started finished id; do
         "${LOGS_JQ}" > logs-payload.json
       if curl -sS --fail -K "${HDR_CONF}" \
            -H "Content-Type: application/json" \
-           -X POST "${BASE}/v1/logs" --data @logs-payload.json >/dev/null; then
+           -X POST "${LOGS_ENDPOINT}" --data @logs-payload.json >/dev/null; then
         echo "    logs sent ($(wc -l < job.log | tr -d ' ') lines, capped ${MAX_LINES})"
       else
         echo "    WARNING: log export failed for job ${id}"
