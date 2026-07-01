@@ -197,20 +197,23 @@ while IFS="$(printf '\t')" read -r name status started finished id; do
     cancelled|timed_out|action_required) sev_text=WARN; sev_num=13 ;;
     *)                              sev_text=INFO;  sev_num=9  ;;
   esac
-  set +e
-  if gh_api "${API}/repos/${GITHUB_REPOSITORY}/actions/jobs/${id}/logs" -o job.log; then
+  # Each fallible step is guarded individually with `if` so errexit stays on
+  # for the rest of the loop: a genuine bug still aborts, but a per-job log
+  # fetch/build/upload failure just warns and moves on.
+  if ! gh_api "${API}/repos/${GITHUB_REPOSITORY}/actions/jobs/${id}/logs" -o job.log; then
+    echo "    WARNING: could not fetch logs for job ${id}"
+  elif [ -s job.log ]; then
     nanos=$(jq -rn --arg ts "${finished}" \
       '($ts[0:19] + "Z" | fromdateiso8601 | tostring) + "000000000"')
-    if [ -s job.log ]; then
-      # Normalize CRLF -> LF so the body carries clean \n line breaks, then
-      # emit compact JSON (-c) so the payload's only real newlines are the
-      # in-string \n escapes.
-      tr -d '\r' < job.log | tail -n "${MAX_LINES}" | jq -R -s -c \
+    # Normalize CRLF -> LF so the body carries clean \n line breaks, then emit
+    # compact JSON (-c) so the payload's only real newlines are the in-string
+    # \n escapes. A failed build skips the upload rather than sending garbage.
+    if tr -d '\r' < job.log | tail -n "${MAX_LINES}" | jq -R -s -c \
         --arg trace "${TRACE_ID}" --arg span "${SPAN_ID}" \
         --arg jobname "${name}" --arg jobid "${id}" --arg jobstatus "${status}" \
         --arg service "${SERVICE_NAME}" --arg nanos "${nanos}" \
         --arg severity "${sev_text}" --arg sevnum "${sev_num}" \
-        "${LOGS_JQ}" > logs-payload.json
+        "${LOGS_JQ}" > logs-payload.json; then
       # --data-binary (not --data): --data strips newlines from file input,
       # which would concatenate the log lines; --data-binary sends bytes as-is.
       if curl -sS --fail -K "${HDR_CONF}" \
@@ -220,10 +223,9 @@ while IFS="$(printf '\t')" read -r name status started finished id; do
       else
         echo "    WARNING: log export failed for job ${id}"
       fi
+    else
+      echo "    WARNING: could not build log payload for job ${id}"
     fi
-  else
-    echo "    WARNING: could not fetch logs for job ${id}"
   fi
-  set -e
 done
 echo "Trace + log export complete."
