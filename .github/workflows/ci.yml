@@ -373,8 +373,10 @@ jobs:
     if: always()
     name: OpenTelemetry Export (traces + logs)
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
-    # Never fail the workflow on a telemetry-export hiccup.
+    # Never fail the workflow on a telemetry-export hiccup, and time-bound it so
+    # a hung download/API/POST can't keep the job running to the default limit.
     continue-on-error: true
+    timeout-minutes: 10
     permissions:
       contents: read
       actions: read
