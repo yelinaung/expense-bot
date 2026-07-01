@@ -369,10 +369,12 @@ jobs:
       - name: Run govulncheck
         run: govulncheck ./...
 
-  otel-cicd-action:
+  otel-export:
     if: always()
-    name: OpenTelemetry Export Trace
+    name: OpenTelemetry Export (traces + logs)
     runs-on: [self-hosted, Linux, X64, playground-ubuntu]
+    # Never fail the workflow on a telemetry-export hiccup.
+    continue-on-error: true
     permissions:
       contents: read
       actions: read
@@ -388,10 +390,32 @@ jobs:
         dependency-review,
         govulncheck,
       ]
+    env:
+      # renovate: datasource=github-releases depName=equinix-labs/otel-cli
+      OTEL_CLI_VERSION: "0.4.5"
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
+      OTEL_EXPORTER_OTLP_HEADERS: ${{ secrets.OTEL_EXPORTER_HEADERS }}
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_ENDPOINT_HOST_IP: ${{ vars.OTEL_ENDPOINT_HOST_IP }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Export workflow
-        uses: corentinmusard/otel-cicd-action@f2d88ecf54d9dd3e01ea95e25f93603212ee93d3 # v4
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
-          otlpEndpoint: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}/v1/traces
-          otlpHeaders: ${{ secrets.OTEL_EXPORTER_HEADERS }}
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          egress-policy: audit
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Check OTLP endpoint is configured
+        id: guard
+        run: |
+          if [ -z "${OTEL_EXPORTER_OTLP_ENDPOINT}" ]; then
+            echo "OTEL_EXPORTER_OTLP_ENDPOINT not set; skipping export."
+            echo "skip=true" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Export workflow trace + logs
+        if: steps.guard.outputs.skip != 'true'
+        run: sh scripts/ci/export-otel-github.sh
