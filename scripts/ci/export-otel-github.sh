@@ -1,9 +1,10 @@
 #!/bin/sh
 # Export the whole GitHub Actions run as an OpenTelemetry trace AND its job
 # logs to ClickStack. One root span for the run plus a child span per job
-# (built from the GitHub Actions API with otel-cli), and every job's log lines
-# shipped as OTLP log records stamped with the same trace id + that job's span
-# id, so logs and spans correlate in the backend.
+# (built from the GitHub Actions API with otel-cli), and one OTLP log record
+# per job (the whole job log as the body) stamped with the same trace id +
+# that job's span id, so logs and spans correlate in the backend without
+# exploding the trace into one span per log line.
 #
 # This is the self-built counterpart to corentinmusard/otel-cicd-action: the
 # action only emits traces and hides the span ids it mints, which makes
@@ -152,37 +153,26 @@ echo "Trace ID: ${TRACE_ID}  Service: ${SERVICE_NAME}"
   --force-trace-id "${TRACE_ID}" --force-span-id "${ROOT_SPAN_ID}"
 echo "Root span sent."
 
-# jq program: turn a plaintext GitHub job log into an OTLP/HTTP JSON logs
-# payload, one log record per line, each carrying trace_id + this job's span_id.
-# GitHub prefixes every line with an RFC3339 timestamp we reuse for the record.
+# jq program: wrap a whole job log (slurped as one string via -R -s) into a
+# single OTLP/HTTP JSON log record carrying trace_id + this job's span_id, so
+# each job contributes ONE correlated log entry rather than one span per line.
 # $trace/$span/etc. are jq variables, not shell — single quotes are correct.
 # shellcheck disable=SC2016
 LOGS_JQ='
-def nanos($ts):
-  ($ts[0:19] + "Z" | fromdateiso8601 | tostring)
-  + ((( ($ts | capture("\\.(?<f>[0-9]+)Z$") | .f) // "") + "000000000")[0:9]);
-def parse($line):
-  if ($line | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z "))
-  then ($line | capture("^(?<ts>\\S+) (?<msg>.*)$"))
-  else {ts: null, msg: $line} end;
-def sev($msg):
-  if   ($msg | test("##\\[error\\]"))   then {t:"ERROR", n:17}
-  elif ($msg | test("##\\[warning\\]")) then {t:"WARN",  n:13}
-  else {t:"INFO", n:9} end;
-split("\n")
-| map(select(length > 0))
-| map(parse(.) as $p | sev($p.msg) as $s
-    | { timeUnixNano: (if $p.ts then nanos($p.ts) else $defaultNanos end),
-        severityText: $s.t, severityNumber: $s.n,
-        body: { stringValue: $p.msg },
+{ resourceLogs: [ {
+    resource: { attributes: [
+      { key: "service.name", value: { stringValue: $service } } ] },
+    scopeLogs: [ { scope: { name: "github-actions-exporter" },
+      logRecords: [ {
+        timeUnixNano: $nanos,
+        severityText: $severity,
+        severityNumber: ($sevnum | tonumber),
+        body: { stringValue: . },
         traceId: $trace, spanId: $span,
         attributes: [
-          { key: "ci.job.name", value: { stringValue: $jobname } },
-          { key: "ci.job.id",   value: { stringValue: $jobid } } ] })
-| { resourceLogs: [ {
-      resource: { attributes: [
-        { key: "service.name", value: { stringValue: $service } } ] },
-      scopeLogs: [ { scope: { name: "github-actions-exporter" }, logRecords: . } ] } ] }
+          { key: "ci.job.name",   value: { stringValue: $jobname } },
+          { key: "ci.job.id",     value: { stringValue: $jobid } },
+          { key: "ci.job.status", value: { stringValue: $jobstatus } } ] } ] } ] } ] }
 '
 
 # --- one child span + correlated logs per completed job ---
@@ -200,22 +190,28 @@ while IFS="$(printf '\t')" read -r name status started finished id; do
     --force-trace-id "${TRACE_ID}" --force-span-id "${SPAN_ID}" \
     --force-parent-span-id "${ROOT_SPAN_ID}"
 
-  # Ship this job's logs, correlated to its span. Best-effort: a failure here
-  # must not abort the remaining jobs' export.
+  # Ship this job's log as a single correlated record. Best-effort: a failure
+  # here must not abort the remaining jobs' export.
+  case "${status}" in
+    failure)                        sev_text=ERROR; sev_num=17 ;;
+    cancelled|timed_out|action_required) sev_text=WARN; sev_num=13 ;;
+    *)                              sev_text=INFO;  sev_num=9  ;;
+  esac
   set +e
   if gh_api "${API}/repos/${GITHUB_REPOSITORY}/actions/jobs/${id}/logs" -o job.log; then
-    default_nanos=$(jq -rn --arg ts "${finished}" \
+    nanos=$(jq -rn --arg ts "${finished}" \
       '($ts[0:19] + "Z" | fromdateiso8601 | tostring) + "000000000"')
     if [ -s job.log ]; then
       tail -n "${MAX_LINES}" job.log | jq -R -s \
         --arg trace "${TRACE_ID}" --arg span "${SPAN_ID}" \
-        --arg jobname "${name}" --arg jobid "${id}" \
-        --arg service "${SERVICE_NAME}" --arg defaultNanos "${default_nanos}" \
+        --arg jobname "${name}" --arg jobid "${id}" --arg jobstatus "${status}" \
+        --arg service "${SERVICE_NAME}" --arg nanos "${nanos}" \
+        --arg severity "${sev_text}" --arg sevnum "${sev_num}" \
         "${LOGS_JQ}" > logs-payload.json
       if curl -sS --fail -K "${HDR_CONF}" \
            -H "Content-Type: application/json" \
            -X POST "${LOGS_ENDPOINT}" --data @logs-payload.json >/dev/null; then
-        echo "    logs sent ($(wc -l < job.log | tr -d ' ') lines, capped ${MAX_LINES})"
+        echo "    log sent (1 record, $(wc -l < job.log | tr -d ' ') lines, capped ${MAX_LINES})"
       else
         echo "    WARNING: log export failed for job ${id}"
       fi
