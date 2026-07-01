@@ -202,15 +202,20 @@ while IFS="$(printf '\t')" read -r name status started finished id; do
     nanos=$(jq -rn --arg ts "${finished}" \
       '($ts[0:19] + "Z" | fromdateiso8601 | tostring) + "000000000"')
     if [ -s job.log ]; then
-      tail -n "${MAX_LINES}" job.log | jq -R -s \
+      # Normalize CRLF -> LF so the body carries clean \n line breaks, then
+      # emit compact JSON (-c) so the payload's only real newlines are the
+      # in-string \n escapes.
+      tr -d '\r' < job.log | tail -n "${MAX_LINES}" | jq -R -s -c \
         --arg trace "${TRACE_ID}" --arg span "${SPAN_ID}" \
         --arg jobname "${name}" --arg jobid "${id}" --arg jobstatus "${status}" \
         --arg service "${SERVICE_NAME}" --arg nanos "${nanos}" \
         --arg severity "${sev_text}" --arg sevnum "${sev_num}" \
         "${LOGS_JQ}" > logs-payload.json
+      # --data-binary (not --data): --data strips newlines from file input,
+      # which would concatenate the log lines; --data-binary sends bytes as-is.
       if curl -sS --fail -K "${HDR_CONF}" \
            -H "Content-Type: application/json" \
-           -X POST "${LOGS_ENDPOINT}" --data @logs-payload.json >/dev/null; then
+           -X POST "${LOGS_ENDPOINT}" --data-binary @logs-payload.json >/dev/null; then
         echo "    log sent (1 record, $(wc -l < job.log | tr -d ' ') lines, capped ${MAX_LINES})"
       else
         echo "    WARNING: log export failed for job ${id}"
