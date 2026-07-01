@@ -130,8 +130,8 @@ jq '{jobs: .}' jobs-acc.json > jobs.json
 echo "Jobs fetched: $(jq '.jobs | length' jobs.json) across ${page} page(s), completed: $(jq '[.jobs[]|select(.completed_at!=null)]|length' jobs.json)"
 
 # --- run span boundaries from job timestamps ---
-RUN_START=$(jq -r '[.jobs[].started_at   | select(. != null)] | min // empty' jobs.json)
-RUN_END=$(jq   -r '[.jobs[].completed_at | select(. != null)] | max // empty' jobs.json)
+RUN_START=$(jq -r '[.jobs[].started_at   | select(. != null)] | min // empty' "${BIN_DIR}/jobs.json")
+RUN_END=$(jq   -r '[.jobs[].completed_at | select(. != null)] | max // empty' "${BIN_DIR}/jobs.json")
 : "${RUN_START:?no started jobs found - nothing to export}"
 : "${RUN_END:=$RUN_START}"
 echo "Run window: ${RUN_START} -> ${RUN_END}"
@@ -177,7 +177,7 @@ LOGS_JQ='
 
 # --- one child span + correlated logs per completed job ---
 jq -r '.jobs[] | select(.started_at != null and .completed_at != null)
-        | [.name, (.conclusion // .status), .started_at, .completed_at, (.id|tostring)] | @tsv' jobs.json |
+        | [.name, (.conclusion // .status), .started_at, .completed_at, (.id|tostring)] | @tsv' "${BIN_DIR}/jobs.json" |
 while IFS="$(printf '\t')" read -r name status started finished id; do
   echo "  span: ${name} [${status}] ${started} -> ${finished}"
   SPAN_ID=$(head -c 8 /dev/urandom | od -An -tx1 | tr -d ' \n')
