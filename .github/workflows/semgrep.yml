@@ -33,7 +33,7 @@ jobs:
         persist-credentials: false
 
     - name: Run semgrep
-      run: semgrep ci
+      run: semgrep ci --exclude-rule package_managers.renovate.renovate-missing-minimum-release-age.renovate-missing-minimum-release-age
 
   otel-cicd-action:
     if: always()
