@@ -35,6 +35,12 @@ BASE=${BASE%/}
 TRACES_ENDPOINT="${BASE}/v1/traces"
 LOGS_ENDPOINT="${BASE}/v1/logs"
 MAX_LINES=${OTEL_LOG_MAX_LINES:-2000}
+# Only accept a positive integer; otherwise fall back to the default so a bad
+# value can't make `tail -n` error (non-numeric) or emit nothing (0).
+case "${MAX_LINES}" in
+  ''|*[!0-9]*) echo "WARNING: OTEL_LOG_MAX_LINES='${MAX_LINES}' is not a number; using 2000"; MAX_LINES=2000 ;;
+esac
+[ "${MAX_LINES}" -ge 1 ] 2>/dev/null || { echo "WARNING: OTEL_LOG_MAX_LINES must be >= 1; using 2000"; MAX_LINES=2000; }
 API=${GITHUB_API_URL:-https://api.github.com}
 ATTEMPT=${GITHUB_RUN_ATTEMPT:-1}
 
@@ -45,13 +51,30 @@ command -v jq   >/dev/null 2>&1 || { echo "jq not found"; exit 1; }
 # Local dir avoids needing root/sudo on the self-hosted runner.
 echo "Installing otel-cli v${OTEL_CLI_VERSION}..."
 BIN_DIR=$(mktemp -d)
-# Clean up the temp dir (binary, checksums, header config, scratch files) so we
-# don't accumulate artifacts on long-lived self-hosted runners.
-trap 'rm -rf "${BIN_DIR}"' EXIT
+HOSTS_MARKER=""
+HOSTS_MODE=""
+# Clean up the temp dir (binary, checksums, header config, scratch files) and
+# any /etc/hosts line we added, so we don't accumulate artifacts on long-lived
+# self-hosted runners.
+cleanup() {
+  if [ -n "${HOSTS_MARKER}" ]; then
+    _h="${BIN_DIR}/hosts.clean"
+    if grep -F -v "${HOSTS_MARKER}" /etc/hosts > "${_h}" 2>/dev/null; then
+      case "${HOSTS_MODE}" in
+        direct) cat "${_h}" > /etc/hosts 2>/dev/null || true ;;
+        sudo)   sudo -n cp "${_h}" /etc/hosts >/dev/null 2>&1 || true ;;
+      esac
+    fi
+  fi
+  rm -rf "${BIN_DIR}"
+}
+trap cleanup EXIT
 GH="https://github.com/equinix-labs/otel-cli/releases/download/v${OTEL_CLI_VERSION}"
 TARBALL="otel-cli_${OTEL_CLI_VERSION}_linux_amd64.tar.gz"
-curl --proto "=https" -sSfL -o "${BIN_DIR}/${TARBALL}" "${GH}/${TARBALL}"
-curl --proto "=https" -sSfL -o "${BIN_DIR}/checksums.txt" "${GH}/checksums.txt"
+curl --proto "=https" --connect-timeout 10 --max-time 120 --retry 3 --retry-connrefused \
+  -sSfL -o "${BIN_DIR}/${TARBALL}" "${GH}/${TARBALL}"
+curl --proto "=https" --connect-timeout 10 --max-time 120 --retry 3 --retry-connrefused \
+  -sSfL -o "${BIN_DIR}/checksums.txt" "${GH}/checksums.txt"
 ( cd "${BIN_DIR}" && grep " ${TARBALL}\$" checksums.txt | sha256sum -c - )
 tar -xzf "${BIN_DIR}/${TARBALL}" -C "${BIN_DIR}" otel-cli
 OTEL_CLI="${BIN_DIR}/otel-cli"
@@ -70,12 +93,19 @@ OTEL_HOST=${OTEL_EXPORTER_OTLP_ENDPOINT#*://}
 OTEL_HOST=${OTEL_HOST%%/*}
 OTEL_HOST=${OTEL_HOST%%:*}
 if [ -n "${OTEL_ENDPOINT_HOST_IP:-}" ]; then
-  if echo "${OTEL_ENDPOINT_HOST_IP} ${OTEL_HOST}" >> /etc/hosts 2>/dev/null; then
+  # Trailing comment marker makes the line uniquely matchable so cleanup() can
+  # remove exactly what we added (and nothing else) on exit.
+  HOSTS_MARKER="# otel-export ${GITHUB_RUN_ID:-}-${ATTEMPT}-$$"
+  _line="${OTEL_ENDPOINT_HOST_IP} ${OTEL_HOST} ${HOSTS_MARKER}"
+  if printf '%s\n' "${_line}" >> /etc/hosts 2>/dev/null; then
+    HOSTS_MODE=direct
     echo "Mapped ${OTEL_HOST} -> ${OTEL_ENDPOINT_HOST_IP} via /etc/hosts"
   elif [ "${OTEL_HOSTS_SUDO:-}" = "1" ] && command -v sudo >/dev/null 2>&1 &&
-       echo "${OTEL_ENDPOINT_HOST_IP} ${OTEL_HOST}" | sudo -n tee -a /etc/hosts >/dev/null 2>&1; then
+       printf '%s\n' "${_line}" | sudo -n tee -a /etc/hosts >/dev/null 2>&1; then
+    HOSTS_MODE=sudo
     echo "Mapped ${OTEL_HOST} -> ${OTEL_ENDPOINT_HOST_IP} via /etc/hosts (sudo)"
   else
+    HOSTS_MARKER=""  # nothing written; leave /etc/hosts untouched at cleanup
     echo "WARNING: could not write /etc/hosts; relying on DNS for ${OTEL_HOST}"
   fi
 fi
@@ -86,6 +116,9 @@ fi
 # tampering with IFS globally.
 HDR_CONF="${BIN_DIR}/otlp-headers.conf"
 : > "${HDR_CONF}"
+# Escape backslashes and double quotes and strip CR/LF so a header value can't
+# break the quoted `header = "..."` lines in the curl -K config.
+esc_hdr() { printf '%s' "$1" | tr -d '\r\n' | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
 headers=${OTEL_EXPORTER_OTLP_HEADERS:-}
 while [ -n "${headers}" ]; do
   case "${headers}" in
@@ -93,8 +126,8 @@ while [ -n "${headers}" ]; do
     *)   pair=${headers};     headers= ;;
   esac
   [ -n "${pair}" ] || continue
-  key=${pair%%=*}
-  val=${pair#*=}
+  key=$(esc_hdr "${pair%%=*}")
+  val=$(esc_hdr "${pair#*=}")
   printf 'header = "%s: %s"\n' "${key}" "${val}" >> "${HDR_CONF}"
 done
 
@@ -104,7 +137,7 @@ cd "${BIN_DIR}"
 
 # --- fetch this run's jobs from the GitHub API ---
 gh_api() {
-  curl -sSfL \
+  curl -sSfL --connect-timeout 10 --max-time 120 --retry 3 --retry-connrefused \
     -H "Accept: application/vnd.github+json" \
     -H "Authorization: Bearer ${GITHUB_TOKEN}" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
@@ -216,7 +249,8 @@ while IFS="$(printf '\t')" read -r name status started finished id; do
         "${LOGS_JQ}" > logs-payload.json; then
       # --data-binary (not --data): --data strips newlines from file input,
       # which would concatenate the log lines; --data-binary sends bytes as-is.
-      if curl -sS --fail -K "${HDR_CONF}" \
+      # No --retry: a POST isn't idempotent, so bound it with timeouts only.
+      if curl -sS --fail --connect-timeout 10 --max-time 60 -K "${HDR_CONF}" \
            -H "Content-Type: application/json" \
            -X POST "${LOGS_ENDPOINT}" --data-binary @logs-payload.json >/dev/null; then
         echo "    log sent (1 record, $(wc -l < job.log | tr -d ' ') lines, capped ${MAX_LINES})"
