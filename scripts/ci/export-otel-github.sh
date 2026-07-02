@@ -173,6 +173,16 @@ RUN_END=$(jq   -r '[.jobs[].completed_at | select(. != null)] | max // empty' "$
 : "${RUN_END:=$RUN_START}"
 echo "Run window: ${RUN_START} -> ${RUN_END}"
 
+# Overall run conclusion, derived from job conclusions (worst wins), so the root
+# span can drive a pipeline pass/fail-rate tile.
+RUN_CONCLUSION=$(jq -r '
+  [.jobs[].conclusion] as $c
+  | if   ($c | any(. == "failure"))   then "failure"
+    elif ($c | any(. == "timed_out")) then "timed_out"
+    elif ($c | any(. == "cancelled")) then "cancelled"
+    else "success" end' jobs.json)
+echo "Run conclusion: ${RUN_CONCLUSION}"
+
 # --- generate our own trace/span ids so children + logs link deterministically
 # (W3C: 16-byte trace id, 8-byte span id, as hex). ---
 TRACE_ID=$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')
@@ -186,7 +196,7 @@ echo "Trace ID: ${TRACE_ID}  Service: ${SERVICE_NAME}"
   --service "${SERVICE_NAME}" \
   --name "run #${GITHUB_RUN_ID} (${GITHUB_REF_NAME:-})" \
   --start "${RUN_START}" --end "${RUN_END}" \
-  --attrs "ci.run.id=${GITHUB_RUN_ID},ci.run.attempt=${ATTEMPT},ci.repo=${GITHUB_REPOSITORY},ci.commit.ref=${GITHUB_REF_NAME:-},ci.commit.sha=${GITHUB_SHA:-}" \
+  --attrs "ci.run.id=${GITHUB_RUN_ID},ci.run.attempt=${ATTEMPT},ci.repo=${GITHUB_REPOSITORY},ci.commit.ref=${GITHUB_REF_NAME:-},ci.commit.sha=${GITHUB_SHA:-},ci.run.conclusion=${RUN_CONCLUSION},ci.run.event=${GITHUB_EVENT_NAME:-},ci.run.actor=${GITHUB_ACTOR:-}" \
   --force-trace-id "${TRACE_ID}" --force-span-id "${ROOT_SPAN_ID}"
 echo "Root span sent."
 
@@ -223,7 +233,7 @@ while IFS="$(printf '\t')" read -r name status started finished id; do
     --service "${SERVICE_NAME}" \
     --name "${name}" \
     --start "${started}" --end "${finished}" \
-    --attrs "ci.job.id=${id},ci.job.status=${status}" \
+    --attrs "ci.job.id=${id},ci.job.name=${name},ci.job.status=${status}" \
     --force-trace-id "${TRACE_ID}" --force-span-id "${SPAN_ID}" \
     --force-parent-span-id "${ROOT_SPAN_ID}"
 
