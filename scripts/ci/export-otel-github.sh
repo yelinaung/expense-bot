@@ -119,7 +119,10 @@ HDR_CONF="${BIN_DIR}/otlp-headers.conf"
 : > "${HDR_CONF}"
 # Escape backslashes and double quotes and strip CR/LF so a header value can't
 # break the quoted `header = "..."` lines in the curl -K config.
-esc_hdr() { printf '%s' "$1" | tr -d '\r\n' | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
+esc_hdr() {
+  _hv=$1
+  printf '%s' "${_hv}" | tr -d '\r\n' | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
+}
 headers=${OTEL_EXPORTER_OTLP_HEADERS:-}
 while [ -n "${headers}" ]; do
   case "${headers}" in
