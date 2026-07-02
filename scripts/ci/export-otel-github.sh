@@ -63,6 +63,7 @@ cleanup() {
       case "${HOSTS_MODE}" in
         direct) cat "${_h}" > /etc/hosts 2>/dev/null || true ;;
         sudo)   sudo -n cp "${_h}" /etc/hosts >/dev/null 2>&1 || true ;;
+        *)      : ;;  # no write happened; nothing to restore
       esac
     fi
   fi
