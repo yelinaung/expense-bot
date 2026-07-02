@@ -164,11 +164,20 @@ while :; do
   page=$((page + 1))
 done
 jq '{jobs: .}' jobs-acc.json > jobs.json
-echo "Jobs fetched: $(jq '.jobs | length' jobs.json) across ${page} page(s), completed: $(jq '[.jobs[]|select(.completed_at!=null)]|length' jobs.json)"
 
-# --- run span boundaries from job timestamps ---
-RUN_START=$(jq -r '[.jobs[].started_at   | select(. != null)] | min // empty' "${BIN_DIR}/jobs.json")
-RUN_END=$(jq   -r '[.jobs[].completed_at | select(. != null)] | max // empty' "${BIN_DIR}/jobs.json")
+# Keep only jobs that actually ran. Skipped jobs (e.g. Dependency Review on a
+# push) and any with missing or backwards timestamps would otherwise become a
+# bogus, hugely-long span that wrecks the trace timeline and skews the run
+# window. jobs.json keeps the full set (used for the run conclusion).
+jq '{jobs: [.jobs[]
+     | select(.conclusion != "skipped"
+              and .started_at != null and .completed_at != null
+              and .completed_at >= .started_at)]}' jobs.json > jobs-ran.json
+echo "Jobs fetched: $(jq '.jobs | length' jobs.json) across ${page} page(s), ran: $(jq '.jobs | length' jobs-ran.json)"
+
+# --- run span boundaries from the jobs that actually ran ---
+RUN_START=$(jq -r '[.jobs[].started_at]   | min // empty' "${BIN_DIR}/jobs-ran.json")
+RUN_END=$(jq   -r '[.jobs[].completed_at] | max // empty' "${BIN_DIR}/jobs-ran.json")
 : "${RUN_START:?no started jobs found - nothing to export}"
 : "${RUN_END:=$RUN_START}"
 echo "Run window: ${RUN_START} -> ${RUN_END}"
@@ -222,9 +231,9 @@ LOGS_JQ='
           { key: "ci.job.status", value: { stringValue: $jobstatus } } ] } ] } ] } ] }
 '
 
-# --- one child span + correlated logs per completed job ---
-jq -r '.jobs[] | select(.started_at != null and .completed_at != null)
-        | [.name, (.conclusion // .status), .started_at, .completed_at, (.id|tostring)] | @tsv' "${BIN_DIR}/jobs.json" |
+# --- one child span + correlated logs per job that ran ---
+jq -r '.jobs[]
+        | [.name, (.conclusion // .status), .started_at, .completed_at, (.id|tostring)] | @tsv' "${BIN_DIR}/jobs-ran.json" |
 while IFS="$(printf '\t')" read -r name status started finished id; do
   echo "  span: ${name} [${status}] ${started} -> ${finished}"
   SPAN_ID=$(head -c 8 /dev/urandom | od -An -tx1 | tr -d ' \n')
