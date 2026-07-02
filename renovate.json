@@ -27,7 +27,7 @@
         "digest"
       ],
       "schedule": ["on sunday"],
-      "minimumReleaseAge": false,
+      "minimumReleaseAge": "0 days",
       "automerge": true,
       "platformAutomerge": true
     },
