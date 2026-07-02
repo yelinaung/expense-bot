@@ -1,10 +1,10 @@
 #!/bin/sh
 # Export the whole GitHub Actions run as an OpenTelemetry trace AND its job
-# logs to ClickStack. One root span for the run plus a child span per job
-# (built from the GitHub Actions API with otel-cli), and one OTLP log record
-# per job (the whole job log as the body) stamped with the same trace id +
-# that job's span id, so logs and spans correlate in the backend without
-# exploding the trace into one span per log line.
+# logs to ClickStack. One root span for the run, a child span per job, and a
+# grandchild span per step (built from the GitHub Actions API with otel-cli),
+# plus one OTLP log record per job (the whole job log as the body) stamped with
+# the same trace id + that job's span id, so logs and spans correlate in the
+# backend without exploding the trace into one span per log line.
 #
 # This is the self-built counterpart to corentinmusard/otel-cicd-action: the
 # action only emits traces and hides the span ids it mints, which makes
@@ -245,6 +245,27 @@ while IFS="$(printf '\t')" read -r name status started finished id; do
     --attrs "ci.job.id=${id},ci.job.name=${name},ci.job.status=${status}" \
     --force-trace-id "${TRACE_ID}" --force-span-id "${SPAN_ID}" \
     --force-parent-span-id "${ROOT_SPAN_ID}"
+
+  # --- one child span per step, parented to this job span, so the waterfall
+  # breaks a job down into its steps. Same ran-only filter as jobs. ---
+  jq -r --arg id "${id}" '
+    .jobs[] | select((.id|tostring) == $id) | .steps[]?
+    | select(.conclusion != "skipped"
+             and .started_at != null and .completed_at != null
+             and .completed_at >= .started_at)
+    | [.name, (.conclusion // .status), .started_at, .completed_at, (.number|tostring)] | @tsv
+  ' "${BIN_DIR}/jobs-ran.json" |
+  while IFS="$(printf '\t')" read -r step_name step_status step_started step_finished step_number; do
+    STEP_SPAN_ID=$(head -c 8 /dev/urandom | od -An -tx1 | tr -d ' \n')
+    # shellcheck disable=SC2086
+    "${OTEL_CLI}" span ${OTEL_ARGS} \
+      --service "${SERVICE_NAME}" \
+      --name "${step_name}" \
+      --start "${step_started}" --end "${step_finished}" \
+      --attrs "ci.job.id=${id},ci.job.name=${name},ci.step.name=${step_name},ci.step.number=${step_number},ci.step.status=${step_status}" \
+      --force-trace-id "${TRACE_ID}" --force-span-id "${STEP_SPAN_ID}" \
+      --force-parent-span-id "${SPAN_ID}"
+  done
 
   # Ship this job's log as a single correlated record. Best-effort: a failure
   # here must not abort the remaining jobs' export.
