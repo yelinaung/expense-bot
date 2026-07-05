@@ -99,7 +99,8 @@ func (b *Bot) handleChartCore(ctx context.Context, tg TelegramAPI, update *model
 	}
 
 	// Generate chart
-	_, genSpan := telemetry.StartSpan(ctx, "chart.generate",
+	_, genSpan := telemetry.StartSpan(
+		ctx, "chart.generate",
 		attribute.String("chart.period", period),
 		attribute.Int("chart.expense_count", len(expenses)),
 	)
@@ -142,7 +143,8 @@ func (b *Bot) handleChartCore(ctx context.Context, tg TelegramAPI, update *model
 	caption := fmt.Sprintf("📊 <b>%s</b>\n\nTotal: $%s SGD\nCount: %d expenses\nPeriod: %s",
 		title, total.StringFixed(2), len(expenses), periodRange)
 
-	sendCtx, sendSpan := telemetry.StartSpan(ctx, "telegram.send_document",
+	sendCtx, sendSpan := telemetry.StartSpan(
+		ctx, "telegram.send_document",
 		attribute.Int("document.size_bytes", len(chartData)),
 		attribute.String("document.filename", filename),
 	)
