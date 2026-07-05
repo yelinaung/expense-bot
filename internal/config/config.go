@@ -38,6 +38,10 @@ type Config struct {
 	WeeklyReportEnabled bool
 	WeeklyReportDay     time.Weekday
 	WeeklyReportHour    int
+	// WeeklyHabitRecapEnabled sends the previous week's spending
+	// reflection recap together with the weekly report. It only takes
+	// effect when WeeklyReportEnabled is true.
+	WeeklyHabitRecapEnabled bool
 
 	// OpenTelemetry configuration.
 	OTelEnabled         bool
@@ -157,6 +161,10 @@ func applyWeeklyReportConfig(cfg *Config) {
 		} else {
 			log.Printf("invalid WEEKLY_REPORT_HOUR %q, using default hour %d", hourStr, cfg.WeeklyReportHour)
 		}
+	}
+	cfg.WeeklyHabitRecapEnabled = os.Getenv("WEEKLY_HABIT_RECAP_ENABLED") == envTrue
+	if cfg.WeeklyHabitRecapEnabled && !cfg.WeeklyReportEnabled {
+		log.Printf("WEEKLY_HABIT_RECAP_ENABLED is set but WEEKLY_REPORT_ENABLED is not; weekly habit recap will not run")
 	}
 }
 

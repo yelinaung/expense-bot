@@ -146,6 +146,12 @@ DAILY_REMINDER_ENABLED=false
 REMINDER_HOUR=20
 REMINDER_TIMEZONE=Asia/Singapore
 
+# Weekly report settings (optional)
+WEEKLY_REPORT_ENABLED=false
+WEEKLY_REPORT_DAY=1
+WEEKLY_REPORT_HOUR=9
+WEEKLY_HABIT_RECAP_ENABLED=false
+
 # OpenTelemetry settings (optional)
 OTEL_ENABLED=false
 OTEL_SERVICE_NAME=expense-bot
@@ -478,6 +484,10 @@ The project uses:
 | `DAILY_REMINDER_ENABLED` | No | Enable daily reminders for users without expenses (`true`/`false`) | false |
 | `REMINDER_HOUR` | No | Hour of day to send reminders (0-23) | 20 |
 | `REMINDER_TIMEZONE` | No | IANA timezone for reminder scheduling and display | Asia/Singapore |
+| `WEEKLY_REPORT_ENABLED` | No | Enable the weekly expense summary push (`true`/`false`) | false |
+| `WEEKLY_REPORT_DAY` | No | Day of week to send the weekly report (0=Sunday .. 6=Saturday) | 1 (Monday) |
+| `WEEKLY_REPORT_HOUR` | No | Hour of day to send the weekly report (0-23), per-user timezone | 9 |
+| `WEEKLY_HABIT_RECAP_ENABLED` | No | Send the previous week's spending reflection recap with the weekly report (`true`/`false`) | false |
 | `OTEL_ENABLED` | No | Enable OpenTelemetry tracing/metrics (`true`/`false`) | false |
 | `OTEL_SERVICE_NAME` | No | OTel `service.name` resource attribute | `expense-bot` |
 | `OTEL_ENVIRONMENT` | No | OTel deployment environment attribute | `production` |

@@ -149,6 +149,50 @@ func (b *Bot) processWeeklyReportUser(
 		Str("user_hash", logger.HashUserID(user.ID)).
 		Str("timezone", loc.String()).
 		Msg("Sent weekly report")
+
+	if b.cfg.WeeklyHabitRecapEnabled {
+		b.sendWeeklyHabitRecapForUser(ctx, user, userNow)
+	}
+}
+
+// sendWeeklyHabitRecapForUser sends the habit recap best-effort after
+// the weekly summary. Failures are logged and do not affect the sent
+// map, so the weekly summary is never re-sent because of a recap error.
+func (b *Bot) sendWeeklyHabitRecapForUser(
+	ctx context.Context,
+	user *appmodels.User,
+	userNow time.Time,
+) {
+	recapSent, err := b.sendWeeklyHabitRecap(ctx, user, userNow)
+	if err != nil {
+		logger.Log.Warn().Err(err).
+			Str("user_hash", logger.HashUserID(user.ID)).
+			Msg("Failed to send weekly habit recap")
+		b.recordHabitRecapMetric(ctx, "error")
+		return
+	}
+	if !recapSent {
+		logger.Log.Debug().
+			Str("user_hash", logger.HashUserID(user.ID)).
+			Msg("No reviewed expenses; skipping weekly habit recap")
+		return
+	}
+	b.recordHabitRecapMetric(ctx, "ok")
+	logger.Log.Debug().
+		Str("user_hash", logger.HashUserID(user.ID)).
+		Msg("Sent weekly habit recap")
+}
+
+// recordHabitRecapMetric records a background job run for the weekly
+// habit recap send attempt.
+func (b *Bot) recordHabitRecapMetric(ctx context.Context, status string) {
+	if b.metrics == nil {
+		return
+	}
+	b.metrics.BackgroundJobRuns.Add(ctx, 1, otelmetric.WithAttributes(
+		attribute.String("job", "weekly_habit_recap"),
+		attribute.String("status", status),
+	))
 }
 
 // recordWeeklyReportMetrics records background job metrics for the
@@ -223,6 +267,47 @@ func (b *Bot) sendWeeklySummary(
 	})
 	if err != nil {
 		return false, fmt.Errorf("failed to send weekly summary: %w", err)
+	}
+	return true, nil
+}
+
+// sendWeeklyHabitRecap sends the previous week's spending reflection
+// recap to the user. The returned bool indicates whether a message was
+// actually sent. When the user has no reviewed expenses in the previous
+// week, (false, nil) is returned.
+func (b *Bot) sendWeeklyHabitRecap(
+	ctx context.Context,
+	user *appmodels.User,
+	userNow time.Time,
+) (bool, error) {
+	startOfWeek, endOfWeek := getPreviousWeekRangeAt(userNow)
+
+	expenses, err := b.expenseRepo.GetByUserIDAndDateRange(ctx, user.ID, startOfWeek, endOfWeek)
+	if err != nil {
+		return false, fmt.Errorf("failed to fetch expenses for habit recap: %w", err)
+	}
+
+	reviewed, err := b.expenseRepo.GetReviewedByUserIDAndDateRange(ctx, user.ID, startOfWeek, endOfWeek)
+	if err != nil {
+		return false, fmt.Errorf("failed to fetch reviewed expenses for habit recap: %w", err)
+	}
+	if len(reviewed) == 0 {
+		return false, nil
+	}
+
+	loc := b.userLocation(user.Timezone)
+	label := fmt.Sprintf("%s to %s",
+		startOfWeek.Format("Jan 2"),
+		endOfWeek.AddDate(0, 0, -1).Format("Jan 2, 2006"))
+	summary := analyzeExpenseHabit(len(expenses), reviewed, loc, label)
+
+	_, err = b.messageSender.SendMessage(ctx, &tgbot.SendMessageParams{
+		ChatID:    user.ID,
+		Text:      formatHabitSummary(&summary),
+		ParseMode: tgmodels.ParseModeHTML,
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to send weekly habit recap: %w", err)
 	}
 	return true, nil
 }

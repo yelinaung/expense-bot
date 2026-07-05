@@ -8,9 +8,15 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric/noop"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 
 	"gitlab.com/yelinaung/expense-bot/internal/bot/mocks"
 	"gitlab.com/yelinaung/expense-bot/internal/models"
+	"gitlab.com/yelinaung/expense-bot/internal/telemetry"
 )
 
 func TestCheckAndSendWeeklyReports(t *testing.T) {
@@ -424,6 +430,150 @@ func TestCheckAndSendWeeklyReports(t *testing.T) {
 		require.Contains(t, msg.Text, "Weekly Expenses")
 		require.Contains(t, msg.Text, "Tea")
 	})
+
+	t.Run("sends habit recap after weekly summary when recap enabled", func(t *testing.T) {
+		ctx := context.Background()
+		pool := testDB(ctx, t)
+		b := setupTestBot(t, pool)
+		b.displayLocation = loc
+		mockBot := mocks.NewMockBot()
+		b.messageSender = mockBot
+		b.cfg.WeeklyReportEnabled = true
+		b.cfg.WeeklyHabitRecapEnabled = true
+		b.cfg.WeeklyReportDay = time.Monday
+		b.cfg.WeeklyReportHour = 9
+		b.cfg.WhitelistedUserIDs = []int64{4104}
+
+		err := b.userRepo.UpsertUser(ctx, &models.User{
+			ID:        4104,
+			Username:  "recapuser",
+			FirstName: "Rita",
+		})
+		require.NoError(t, err)
+		err = b.userRepo.UpdateTimezone(ctx, 4104, "Etc/GMT-8")
+		require.NoError(t, err)
+
+		// Create a reviewed expense in the previous week (Apr 27 - May 3).
+		prevMonday := time.Date(2026, 4, 27, 10, 0, 0, 0, loc)
+		expense := &models.Expense{
+			UserID:      4104,
+			Amount:      decimal.NewFromFloat(12.00),
+			Currency:    "SGD",
+			Description: "Taxi",
+			Status:      models.ExpenseStatusConfirmed,
+		}
+		err = b.expenseRepo.Create(ctx, expense)
+		require.NoError(t, err)
+		_, err = b.db.Exec(ctx, testUpdateExpenseTimeSQL, prevMonday, expense.ID)
+		require.NoError(t, err)
+		worthIt := true
+		err = b.expenseRepo.UpdateReflection(ctx, expense.ID, 4104, &worthIt, "Convenience")
+		require.NoError(t, err)
+
+		sent := make(map[int64]string)
+		b.checkAndSendWeeklyReports(ctx, sent, monday9amUTC)
+
+		require.Equal(t, 2, mockBot.SentMessageCount(), "should send weekly summary and habit recap")
+		require.Contains(t, mockBot.SentMessages[0].Text, "Weekly Expenses")
+		recap := mockBot.SentMessages[1]
+		require.Equal(t, int64(4104), recap.ChatID)
+		require.Contains(t, recap.Text, "Spending Reflection")
+		require.Contains(t, recap.Text, "Apr 27 to May 3, 2026")
+		require.Contains(t, recap.Text, "Reviewed: 1/1")
+		require.Contains(t, recap.Text, "Worth it: 1")
+		require.Contains(t, recap.Text, "Convenience")
+		require.Equal(t, "2026-04-27", sent[4104])
+	})
+
+	t.Run("skips habit recap when no reviewed expenses", func(t *testing.T) {
+		ctx := context.Background()
+		pool := testDB(ctx, t)
+		b := setupTestBot(t, pool)
+		b.displayLocation = loc
+		mockBot := mocks.NewMockBot()
+		b.messageSender = mockBot
+		b.cfg.WeeklyReportEnabled = true
+		b.cfg.WeeklyHabitRecapEnabled = true
+		b.cfg.WeeklyReportDay = time.Monday
+		b.cfg.WeeklyReportHour = 9
+		b.cfg.WhitelistedUserIDs = []int64{4105}
+
+		err := b.userRepo.UpsertUser(ctx, &models.User{
+			ID:        4105,
+			Username:  "unreviewed",
+			FirstName: "Uma",
+		})
+		require.NoError(t, err)
+		err = b.userRepo.UpdateTimezone(ctx, 4105, "Etc/GMT-8")
+		require.NoError(t, err)
+
+		// Expense in the previous week, but never reviewed.
+		prevMonday := time.Date(2026, 4, 27, 10, 0, 0, 0, loc)
+		expense := &models.Expense{
+			UserID:      4105,
+			Amount:      decimal.NewFromFloat(8.00),
+			Currency:    "SGD",
+			Description: "Snack",
+			Status:      models.ExpenseStatusConfirmed,
+		}
+		err = b.expenseRepo.Create(ctx, expense)
+		require.NoError(t, err)
+		_, err = b.db.Exec(ctx, testUpdateExpenseTimeSQL, prevMonday, expense.ID)
+		require.NoError(t, err)
+
+		sent := make(map[int64]string)
+		b.checkAndSendWeeklyReports(ctx, sent, monday9amUTC)
+
+		require.Equal(t, 1, mockBot.SentMessageCount(), "should send only the weekly summary")
+		require.Contains(t, mockBot.LastSentMessage().Text, "Weekly Expenses")
+		require.Equal(t, "2026-04-27", sent[4105])
+	})
+
+	t.Run("does not send habit recap when recap disabled", func(t *testing.T) {
+		ctx := context.Background()
+		pool := testDB(ctx, t)
+		b := setupTestBot(t, pool)
+		b.displayLocation = loc
+		mockBot := mocks.NewMockBot()
+		b.messageSender = mockBot
+		b.cfg.WeeklyReportEnabled = true
+		b.cfg.WeeklyHabitRecapEnabled = false
+		b.cfg.WeeklyReportDay = time.Monday
+		b.cfg.WeeklyReportHour = 9
+		b.cfg.WhitelistedUserIDs = []int64{4106}
+
+		err := b.userRepo.UpsertUser(ctx, &models.User{
+			ID:        4106,
+			Username:  "recapoff",
+			FirstName: "Omar",
+		})
+		require.NoError(t, err)
+		err = b.userRepo.UpdateTimezone(ctx, 4106, "Etc/GMT-8")
+		require.NoError(t, err)
+
+		// A reviewed expense exists, but the recap flag is off.
+		prevMonday := time.Date(2026, 4, 27, 10, 0, 0, 0, loc)
+		expense := &models.Expense{
+			UserID:      4106,
+			Amount:      decimal.NewFromFloat(15.00),
+			Currency:    "SGD",
+			Description: "Book",
+			Status:      models.ExpenseStatusConfirmed,
+		}
+		err = b.expenseRepo.Create(ctx, expense)
+		require.NoError(t, err)
+		_, err = b.db.Exec(ctx, testUpdateExpenseTimeSQL, prevMonday, expense.ID)
+		require.NoError(t, err)
+		worthIt := false
+		err = b.expenseRepo.UpdateReflection(ctx, expense.ID, 4106, &worthIt, "Impulse")
+		require.NoError(t, err)
+
+		sent := make(map[int64]string)
+		b.checkAndSendWeeklyReports(ctx, sent, monday9amUTC)
+
+		require.Equal(t, 1, mockBot.SentMessageCount(), "should send only the weekly summary")
+		require.Contains(t, mockBot.LastSentMessage().Text, "Weekly Expenses")
+	})
 }
 
 func TestGetPreviousWeekRangeAt(t *testing.T) {
@@ -533,6 +683,199 @@ func TestSendWeeklySummary_FetchError(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed to fetch weekly expenses")
 	require.False(t, sent)
+}
+
+func TestSendWeeklyHabitRecap_FetchError(t *testing.T) {
+	ctx := context.Background()
+	pool := testDB(ctx, t)
+	b := setupTestBot(t, pool)
+
+	canceledCtx, cancel := context.WithCancel(ctx)
+	cancel()
+
+	sent, err := b.sendWeeklyHabitRecap(
+		canceledCtx,
+		&models.User{ID: 5004, FirstName: "Err"},
+		time.Now(),
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to fetch expenses for habit recap")
+	require.False(t, sent)
+}
+
+// createReviewedExpense inserts a confirmed worth-it expense for the user,
+// backdates it to createdAt, and marks it reviewed.
+func createReviewedExpense(
+	ctx context.Context,
+	t *testing.T,
+	b *Bot,
+	userID int64,
+	createdAt time.Time,
+) {
+	t.Helper()
+	expense := &models.Expense{
+		UserID:      userID,
+		Amount:      decimal.NewFromFloat(9.50),
+		Currency:    "SGD",
+		Description: "Coffee",
+		Status:      models.ExpenseStatusConfirmed,
+	}
+	err := b.expenseRepo.Create(ctx, expense)
+	require.NoError(t, err)
+	_, err = b.db.Exec(ctx, testUpdateExpenseTimeSQL, createdAt, expense.ID)
+	require.NoError(t, err)
+	worthIt := true
+	err = b.expenseRepo.UpdateReflection(ctx, expense.ID, userID, &worthIt, "Ritual")
+	require.NoError(t, err)
+}
+
+// habitRecapRunCount returns the recorded background.job.runs counter
+// value for the weekly_habit_recap job with the given status attribute.
+func habitRecapRunCount(rm metricdata.ResourceMetrics, status string) int64 {
+	for i := range rm.ScopeMetrics {
+		for j := range rm.ScopeMetrics[i].Metrics {
+			metric := rm.ScopeMetrics[i].Metrics[j]
+			if metric.Name != "background.job.runs" {
+				continue
+			}
+			sum, ok := metric.Data.(metricdata.Sum[int64])
+			if !ok {
+				return 0
+			}
+			for _, dp := range sum.DataPoints {
+				jobVal, _ := dp.Attributes.Value(attribute.Key("job"))
+				statusVal, _ := dp.Attributes.Value(attribute.Key("status"))
+				if jobVal.AsString() == "weekly_habit_recap" && statusVal.AsString() == status {
+					return dp.Value
+				}
+			}
+		}
+	}
+	return 0
+}
+
+func TestSendWeeklyHabitRecap_SendError(t *testing.T) {
+	ctx := context.Background()
+	pool := testDB(ctx, t)
+	b := setupTestBot(t, pool)
+
+	loc := time.FixedZone("GMT+8", 8*60*60)
+	b.displayLocation = loc
+	mockBot := mocks.NewMockBot()
+	mockBot.SendMessageError = errors.New("user blocked bot")
+	b.messageSender = mockBot
+
+	err := b.userRepo.UpsertUser(ctx, &models.User{
+		ID:        5005,
+		Username:  "recapsenderr",
+		FirstName: "Sena",
+	})
+	require.NoError(t, err)
+
+	userNow := time.Date(2026, 5, 4, 9, 0, 0, 0, loc)
+	createReviewedExpense(ctx, t, b, 5005, time.Date(2026, 4, 28, 10, 0, 0, 0, loc))
+
+	sent, err := b.sendWeeklyHabitRecap(ctx, &models.User{ID: 5005}, userNow)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to send weekly habit recap")
+	require.False(t, sent)
+}
+
+func TestSendWeeklyHabitRecapForUser_Metrics(t *testing.T) {
+	loc := time.FixedZone("GMT+8", 8*60*60)
+	userNow := time.Date(2026, 5, 4, 9, 0, 0, 0, loc)
+	prevWeekDay := time.Date(2026, 4, 28, 10, 0, 0, 0, loc)
+
+	setupMetrics := func(t *testing.T, b *Bot) *sdkmetric.ManualReader {
+		t.Helper()
+		reader := sdkmetric.NewManualReader()
+		meterProvider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+		otel.SetMeterProvider(meterProvider)
+		t.Cleanup(func() {
+			otel.SetMeterProvider(noop.NewMeterProvider())
+			_ = meterProvider.Shutdown(context.Background())
+		})
+		metrics, err := telemetry.NewBotMetrics()
+		require.NoError(t, err)
+		b.metrics = metrics
+		return reader
+	}
+
+	t.Run("records ok metric on successful recap", func(t *testing.T) {
+		ctx := context.Background()
+		pool := testDB(ctx, t)
+		b := setupTestBot(t, pool)
+		b.displayLocation = loc
+		mockBot := mocks.NewMockBot()
+		b.messageSender = mockBot
+		reader := setupMetrics(t, b)
+
+		err := b.userRepo.UpsertUser(ctx, &models.User{
+			ID:        5006,
+			Username:  "recapmetricok",
+			FirstName: "Mel",
+		})
+		require.NoError(t, err)
+		createReviewedExpense(ctx, t, b, 5006, prevWeekDay)
+
+		b.sendWeeklyHabitRecapForUser(ctx, &models.User{ID: 5006}, userNow)
+
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		var rm metricdata.ResourceMetrics
+		require.NoError(t, reader.Collect(ctx, &rm))
+		require.Equal(t, int64(1), habitRecapRunCount(rm, "ok"))
+	})
+
+	t.Run("records error metric on send failure", func(t *testing.T) {
+		ctx := context.Background()
+		pool := testDB(ctx, t)
+		b := setupTestBot(t, pool)
+		b.displayLocation = loc
+		mockBot := mocks.NewMockBot()
+		mockBot.SendMessageError = errors.New("user blocked bot")
+		b.messageSender = mockBot
+		reader := setupMetrics(t, b)
+
+		err := b.userRepo.UpsertUser(ctx, &models.User{
+			ID:        5007,
+			Username:  "recapmetricerr",
+			FirstName: "Mia",
+		})
+		require.NoError(t, err)
+		createReviewedExpense(ctx, t, b, 5007, prevWeekDay)
+
+		b.sendWeeklyHabitRecapForUser(ctx, &models.User{ID: 5007}, userNow)
+
+		require.Equal(t, 0, mockBot.SentMessageCount())
+		var rm metricdata.ResourceMetrics
+		require.NoError(t, reader.Collect(ctx, &rm))
+		require.Equal(t, int64(1), habitRecapRunCount(rm, "error"))
+	})
+
+	t.Run("records no metric when nothing to send", func(t *testing.T) {
+		ctx := context.Background()
+		pool := testDB(ctx, t)
+		b := setupTestBot(t, pool)
+		b.displayLocation = loc
+		mockBot := mocks.NewMockBot()
+		b.messageSender = mockBot
+		reader := setupMetrics(t, b)
+
+		err := b.userRepo.UpsertUser(ctx, &models.User{
+			ID:        5008,
+			Username:  "recapmetricskip",
+			FirstName: "Mo",
+		})
+		require.NoError(t, err)
+
+		b.sendWeeklyHabitRecapForUser(ctx, &models.User{ID: 5008}, userNow)
+
+		require.Equal(t, 0, mockBot.SentMessageCount())
+		var rm metricdata.ResourceMetrics
+		require.NoError(t, reader.Collect(ctx, &rm))
+		require.Equal(t, int64(0), habitRecapRunCount(rm, "ok"))
+		require.Equal(t, int64(0), habitRecapRunCount(rm, "error"))
+	})
 }
 
 func TestCheckAndSendWeeklyReports_FetchUsersError(t *testing.T) {

@@ -197,6 +197,33 @@ func TestHegelGetWeekDateRangeAtInvariants(t *testing.T) {
 	})
 }
 
+// TestHegelGetPreviousWeekRangeAtInvariants asserts the previous-week
+// contract used by the weekly report and habit recap: a [start, end) window
+// exactly one week wide, starting on a Monday at midnight, that ends
+// precisely where getWeekDateRangeAt says the current week begins.
+func TestHegelGetPreviousWeekRangeAtInvariants(t *testing.T) {
+	t.Parallel()
+	hegel.Test(t, func(ht *hegel.T) {
+		cur := hegel.Draw(ht, hegelTimeInLocationGen())
+		start, end := getPreviousWeekRangeAt(cur)
+
+		require.Equal(ht, time.Monday, start.Weekday(), "start=%s", start)
+		require.Equal(ht, 0, start.Hour())
+		require.Equal(ht, 0, start.Minute())
+		require.Equal(ht, 0, start.Second())
+		require.Equal(ht, 0, start.Nanosecond())
+		require.Equal(ht, start.AddDate(0, 0, 7), end)
+
+		currentWeekStart, _ := getWeekDateRangeAt(cur)
+		require.Equal(ht, currentWeekStart, end,
+			"previous week must end where the current week begins")
+		require.True(ht, start.Before(cur), "cur=%s start=%s", cur, start)
+		require.False(ht, cur.Before(end), "cur=%s end=%s", cur, end)
+		require.Equal(ht, cur.Location(), start.Location())
+		require.Equal(ht, cur.Location(), end.Location())
+	})
+}
+
 // TestHegelGetMonthDateRangeAtInvariants is the Hegel equivalent of the
 // month-range contract.
 func TestHegelGetMonthDateRangeAtInvariants(t *testing.T) {
