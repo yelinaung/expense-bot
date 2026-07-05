@@ -7,8 +7,9 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
-	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 	"hegel.dev/go/hegel"
+
+	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
 // hegelReviewedExpenseGen draws an expense in the shape

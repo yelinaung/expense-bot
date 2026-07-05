@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric/noop"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 
@@ -675,14 +674,14 @@ func TestSendWeeklySummary_FetchError(t *testing.T) {
 	canceledCtx, cancel := context.WithCancel(ctx)
 	cancel()
 
-	sent, err := b.sendWeeklySummary(
+	count, err := b.sendWeeklySummary(
 		canceledCtx,
 		&models.User{ID: 5002, FirstName: "Err"},
 		time.Now(),
 	)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed to fetch weekly expenses")
-	require.False(t, sent)
+	require.Zero(t, count)
 }
 
 func TestSendWeeklyHabitRecap_FetchError(t *testing.T) {
@@ -697,9 +696,10 @@ func TestSendWeeklyHabitRecap_FetchError(t *testing.T) {
 		canceledCtx,
 		&models.User{ID: 5004, FirstName: "Err"},
 		time.Now(),
+		1,
 	)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "failed to fetch expenses for habit recap")
+	require.Contains(t, err.Error(), "failed to fetch reviewed expenses for habit recap")
 	require.False(t, sent)
 }
 
@@ -775,7 +775,7 @@ func TestSendWeeklyHabitRecap_SendError(t *testing.T) {
 	userNow := time.Date(2026, 5, 4, 9, 0, 0, 0, loc)
 	createReviewedExpense(ctx, t, b, 5005, time.Date(2026, 4, 28, 10, 0, 0, 0, loc))
 
-	sent, err := b.sendWeeklyHabitRecap(ctx, &models.User{ID: 5005}, userNow)
+	sent, err := b.sendWeeklyHabitRecap(ctx, &models.User{ID: 5005}, userNow, 1)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed to send weekly habit recap")
 	require.False(t, sent)
@@ -790,9 +790,10 @@ func TestSendWeeklyHabitRecapForUser_Metrics(t *testing.T) {
 		t.Helper()
 		reader := sdkmetric.NewManualReader()
 		meterProvider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+		prev := otel.GetMeterProvider()
 		otel.SetMeterProvider(meterProvider)
 		t.Cleanup(func() {
-			otel.SetMeterProvider(noop.NewMeterProvider())
+			otel.SetMeterProvider(prev)
 			_ = meterProvider.Shutdown(context.Background())
 		})
 		metrics, err := telemetry.NewBotMetrics()
@@ -818,7 +819,7 @@ func TestSendWeeklyHabitRecapForUser_Metrics(t *testing.T) {
 		require.NoError(t, err)
 		createReviewedExpense(ctx, t, b, 5006, prevWeekDay)
 
-		b.sendWeeklyHabitRecapForUser(ctx, &models.User{ID: 5006}, userNow)
+		b.sendWeeklyHabitRecapForUser(ctx, &models.User{ID: 5006}, userNow, 1)
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		var rm metricdata.ResourceMetrics
@@ -844,7 +845,7 @@ func TestSendWeeklyHabitRecapForUser_Metrics(t *testing.T) {
 		require.NoError(t, err)
 		createReviewedExpense(ctx, t, b, 5007, prevWeekDay)
 
-		b.sendWeeklyHabitRecapForUser(ctx, &models.User{ID: 5007}, userNow)
+		b.sendWeeklyHabitRecapForUser(ctx, &models.User{ID: 5007}, userNow, 1)
 
 		require.Equal(t, 0, mockBot.SentMessageCount())
 		var rm metricdata.ResourceMetrics
@@ -868,7 +869,7 @@ func TestSendWeeklyHabitRecapForUser_Metrics(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		b.sendWeeklyHabitRecapForUser(ctx, &models.User{ID: 5008}, userNow)
+		b.sendWeeklyHabitRecapForUser(ctx, &models.User{ID: 5008}, userNow, 0)
 
 		require.Equal(t, 0, mockBot.SentMessageCount())
 		var rm metricdata.ResourceMetrics

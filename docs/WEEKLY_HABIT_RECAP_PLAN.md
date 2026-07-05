@@ -40,24 +40,28 @@ Add alongside `sendWeeklySummary` in `internal/bot/weekly_report.go`:
 
 ```go
 // sendWeeklyHabitRecap sends the previous week's spending reflection
-// recap. Returns (false, nil) when there is nothing to send.
+// recap. totalCount is the expense count sendWeeklySummary already
+// fetched for the same week. Returns (false, nil) when there is
+// nothing to send.
 func (b *Bot) sendWeeklyHabitRecap(
     ctx context.Context,
     user *appmodels.User,
     userNow time.Time,
+    totalCount int,
 ) (bool, error)
 ```
 
 Behavior (all pieces already exist — this is composition only):
 
 1. Range: `getPreviousWeekRangeAt(userNow)` (`internal/bot/date_range.go:84`).
-2. Fetch: `b.expenseRepo.GetByUserIDAndDateRange` (total count) and
-   `b.expenseRepo.GetReviewedByUserIDAndDateRange` (reflected expenses), same
-   as `handleHabitCore` (`internal/bot/handlers_habit.go:100-112`).
+2. Fetch only `b.expenseRepo.GetReviewedByUserIDAndDateRange` (reflected
+   expenses). The total expense count is threaded through from
+   `sendWeeklySummary` (which returns it), avoiding a duplicate
+   full-range query per user.
 3. **Skip silently when there are no reviewed expenses** in the range
    (return `(false, nil)`). A weekly "please run /review" nudge would be
    noise; the recap only appears when the user has reflection data.
-4. Analyze: `analyzeExpenseHabit(len(expenses), reviewed, loc, label)`
+4. Analyze: `analyzeExpenseHabit(totalCount, reviewed, loc, label)`
    (`internal/bot/habit_analyzer.go:62`) with a previous-week label in the
    same style as the weekly summary header, e.g.
    `prevStart.Format("Jan 2") + " to " + prevEnd.AddDate(0,0,-1).Format("Jan 2, 2006")`.

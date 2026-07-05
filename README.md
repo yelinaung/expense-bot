@@ -150,6 +150,7 @@ REMINDER_TIMEZONE=Asia/Singapore
 WEEKLY_REPORT_ENABLED=false
 WEEKLY_REPORT_DAY=1
 WEEKLY_REPORT_HOUR=9
+# Requires WEEKLY_REPORT_ENABLED=true; the recap is sent with the weekly report
 WEEKLY_HABIT_RECAP_ENABLED=false
 
 # OpenTelemetry settings (optional)
@@ -487,7 +488,7 @@ The project uses:
 | `WEEKLY_REPORT_ENABLED` | No | Enable the weekly expense summary push (`true`/`false`) | false |
 | `WEEKLY_REPORT_DAY` | No | Day of week to send the weekly report (0=Sunday .. 6=Saturday) | 1 (Monday) |
 | `WEEKLY_REPORT_HOUR` | No | Hour of day to send the weekly report (0-23), per-user timezone | 9 |
-| `WEEKLY_HABIT_RECAP_ENABLED` | No | Send the previous week's spending reflection recap with the weekly report (`true`/`false`) | false |
+| `WEEKLY_HABIT_RECAP_ENABLED` | No | Send the previous week's spending reflection recap with the weekly report (`true`/`false`); only takes effect when `WEEKLY_REPORT_ENABLED=true` | false |
 | `OTEL_ENABLED` | No | Enable OpenTelemetry tracing/metrics (`true`/`false`) | false |
 | `OTEL_SERVICE_NAME` | No | OTel `service.name` resource attribute | `expense-bot` |
 | `OTEL_ENVIRONMENT` | No | OTel deployment environment attribute | `production` |
