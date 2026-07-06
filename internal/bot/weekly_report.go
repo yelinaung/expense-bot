@@ -24,6 +24,12 @@ const (
 	WeeklyReportCheckInterval = 30 * time.Minute
 	// WeeklyReportTimeout is the maximum time a single check can take.
 	WeeklyReportTimeout = 2 * time.Minute
+
+	// backgroundJobStatusOK and backgroundJobStatusError are the allowed
+	// values for the background job metrics' status attribute. Keep them
+	// centralized so dashboards never see a split timeseries from a typo.
+	backgroundJobStatusOK    = "ok"
+	backgroundJobStatusError = "error"
 )
 
 // startWeeklyReportLoop runs a periodic loop that sends weekly expense
@@ -85,7 +91,7 @@ func (b *Bot) checkAndSendWeeklyReports(ctx context.Context, sent map[int64]stri
 	)
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Failed to fetch users for weekly report")
-		b.recordWeeklyReportMetrics(ctx, start, "error")
+		b.recordWeeklyReportMetrics(ctx, start, backgroundJobStatusError)
 		return
 	}
 
@@ -93,7 +99,7 @@ func (b *Bot) checkAndSendWeeklyReports(ctx context.Context, sent map[int64]stri
 		b.processWeeklyReportUser(checkCtx, &users[i], sent, now)
 	}
 
-	b.recordWeeklyReportMetrics(ctx, start, "ok")
+	b.recordWeeklyReportMetrics(ctx, start, backgroundJobStatusOK)
 }
 
 // pruneWeeklyReportSent removes entries older than 2 weeks from the sent map.
@@ -130,14 +136,14 @@ func (b *Bot) processWeeklyReportUser(
 		return
 	}
 
-	sentOK, err := b.sendWeeklySummary(ctx, user, userNow)
+	expenseCount, err := b.sendWeeklySummary(ctx, user, userNow)
 	if err != nil {
 		logger.Log.Warn().Err(err).
 			Str("user_hash", logger.HashUserID(user.ID)).
 			Msg("Failed to send weekly report")
 		return
 	}
-	if !sentOK {
+	if expenseCount == 0 {
 		logger.Log.Debug().
 			Str("user_hash", logger.HashUserID(user.ID)).
 			Msg("No weekly expenses; skipping report")
@@ -149,6 +155,54 @@ func (b *Bot) processWeeklyReportUser(
 		Str("user_hash", logger.HashUserID(user.ID)).
 		Str("timezone", loc.String()).
 		Msg("Sent weekly report")
+
+	if b.cfg.WeeklyHabitRecapEnabled {
+		b.sendWeeklyHabitRecapForUser(ctx, user, userNow, expenseCount)
+	}
+}
+
+// sendWeeklyHabitRecapForUser sends the habit recap best-effort after
+// the weekly summary. Failures are logged and do not affect the sent
+// map, so the weekly summary is never re-sent because of a recap error.
+func (b *Bot) sendWeeklyHabitRecapForUser(
+	ctx context.Context,
+	user *appmodels.User,
+	userNow time.Time,
+	totalCount int,
+) {
+	start := time.Now()
+	recapSent, err := b.sendWeeklyHabitRecap(ctx, user, userNow, totalCount)
+	if err != nil {
+		logger.Log.Warn().Err(err).
+			Str("user_hash", logger.HashUserID(user.ID)).
+			Msg("Failed to send weekly habit recap")
+		b.recordHabitRecapMetrics(ctx, start, backgroundJobStatusError)
+		return
+	}
+	if !recapSent {
+		logger.Log.Debug().
+			Str("user_hash", logger.HashUserID(user.ID)).
+			Msg("No reviewed expenses; skipping weekly habit recap")
+		return
+	}
+	b.recordHabitRecapMetrics(ctx, start, backgroundJobStatusOK)
+	logger.Log.Debug().
+		Str("user_hash", logger.HashUserID(user.ID)).
+		Msg("Sent weekly habit recap")
+}
+
+// recordHabitRecapMetrics records background job metrics for a weekly
+// habit recap send attempt.
+func (b *Bot) recordHabitRecapMetrics(ctx context.Context, start time.Time, status string) {
+	if b.metrics == nil {
+		return
+	}
+	b.metrics.BackgroundJobRuns.Add(ctx, 1, otelmetric.WithAttributes(
+		attribute.String("job", "weekly_habit_recap"),
+		attribute.String("status", status),
+	))
+	b.metrics.BackgroundJobDuration.Record(ctx, time.Since(start).Seconds(),
+		otelmetric.WithAttributes(attribute.String("job", "weekly_habit_recap")))
 }
 
 // recordWeeklyReportMetrics records background job metrics for the
@@ -165,23 +219,23 @@ func (b *Bot) recordWeeklyReportMetrics(ctx context.Context, start time.Time, st
 		otelmetric.WithAttributes(attribute.String("job", "weekly_report")))
 }
 
-// sendWeeklySummary sends a weekly expense summary to the user.
-// The returned bool indicates whether a message was actually sent.
-// When there are no expenses, (false, nil) is returned.
+// sendWeeklySummary sends a weekly expense summary to the user. It
+// returns the number of expenses in the previous week; a message is
+// only sent when the count is non-zero, so 0 means nothing was sent.
 func (b *Bot) sendWeeklySummary(
 	ctx context.Context,
 	user *appmodels.User,
 	userNow time.Time,
-) (bool, error) {
+) (int, error) {
 	startOfWeek, endOfWeek := getPreviousWeekRangeAt(userNow)
 
 	expenses, err := b.expenseRepo.GetByUserIDAndDateRange(ctx, user.ID, startOfWeek, endOfWeek)
 	if err != nil {
-		return false, fmt.Errorf("failed to fetch weekly expenses: %w", err)
+		return 0, fmt.Errorf("failed to fetch weekly expenses: %w", err)
 	}
 
 	if len(expenses) == 0 {
-		return false, nil
+		return 0, nil
 	}
 
 	totalsByCurrency := sumExpenseAmountsByCurrency(expenses)
@@ -222,7 +276,46 @@ func (b *Bot) sendWeeklySummary(
 		ParseMode: tgmodels.ParseModeHTML,
 	})
 	if err != nil {
-		return false, fmt.Errorf("failed to send weekly summary: %w", err)
+		return 0, fmt.Errorf("failed to send weekly summary: %w", err)
+	}
+	return len(expenses), nil
+}
+
+// sendWeeklyHabitRecap sends the previous week's spending reflection
+// recap to the user. totalCount is the previous week's expense count
+// already fetched by sendWeeklySummary, so the recap only queries the
+// reviewed subset. The returned bool indicates whether a message was
+// actually sent. When the user has no reviewed expenses in the previous
+// week, (false, nil) is returned.
+func (b *Bot) sendWeeklyHabitRecap(
+	ctx context.Context,
+	user *appmodels.User,
+	userNow time.Time,
+	totalCount int,
+) (bool, error) {
+	startOfWeek, endOfWeek := getPreviousWeekRangeAt(userNow)
+
+	reviewed, err := b.expenseRepo.GetReviewedByUserIDAndDateRange(ctx, user.ID, startOfWeek, endOfWeek)
+	if err != nil {
+		return false, fmt.Errorf("failed to fetch reviewed expenses for habit recap: %w", err)
+	}
+	if len(reviewed) == 0 {
+		return false, nil
+	}
+
+	loc := b.userLocation(user.Timezone)
+	label := fmt.Sprintf("%s to %s",
+		startOfWeek.Format("Jan 2"),
+		endOfWeek.AddDate(0, 0, -1).Format("Jan 2, 2006"))
+	summary := analyzeExpenseHabit(totalCount, reviewed, loc, label)
+
+	_, err = b.messageSender.SendMessage(ctx, &tgbot.SendMessageParams{
+		ChatID:    user.ID,
+		Text:      formatHabitSummary(&summary),
+		ParseMode: tgmodels.ParseModeHTML,
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to send weekly habit recap: %w", err)
 	}
 	return true, nil
 }

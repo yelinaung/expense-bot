@@ -412,6 +412,41 @@ func TestLoad_WeeklyReport(t *testing.T) {
 		require.Equal(t, time.Sunday, cfg.WeeklyReportDay)
 		require.Equal(t, 8, cfg.WeeklyReportHour)
 	})
+
+	t.Run("parses WEEKLY_HABIT_RECAP_ENABLED=true", func(t *testing.T) {
+		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
+		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
+		t.Setenv(envWhitelistedUserIDs, "123")
+		t.Setenv("WEEKLY_REPORT_ENABLED", "true")
+		t.Setenv("WEEKLY_HABIT_RECAP_ENABLED", "true")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.True(t, cfg.WeeklyHabitRecapEnabled)
+	})
+
+	t.Run("defaults WEEKLY_HABIT_RECAP_ENABLED to false", func(t *testing.T) {
+		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
+		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
+		t.Setenv(envWhitelistedUserIDs, "123")
+		t.Setenv("WEEKLY_REPORT_ENABLED", "true")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.False(t, cfg.WeeklyHabitRecapEnabled)
+	})
+
+	t.Run("parses WEEKLY_HABIT_RECAP_ENABLED even when weekly report disabled", func(t *testing.T) {
+		t.Setenv(envTelegramKeyVarConfig, testTokenConfig)
+		t.Setenv(envDatabaseURL, testDatabaseURLConfig)
+		t.Setenv(envWhitelistedUserIDs, "123")
+		t.Setenv("WEEKLY_HABIT_RECAP_ENABLED", "true")
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.True(t, cfg.WeeklyHabitRecapEnabled)
+		require.False(t, cfg.WeeklyReportEnabled)
+	})
 }
 
 func TestLoad_Validation(t *testing.T) {

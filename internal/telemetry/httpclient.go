@@ -50,7 +50,8 @@ func (t telegramTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 		return t.base.RoundTrip(req)
 	}
 
-	ctx, span := tracer.Start(req.Context(), "telegram.api "+method,
+	ctx, span := tracer.Start(
+		req.Context(), "telegram.api "+method,
 		trace.WithSpanKind(trace.SpanKindClient),
 		trace.WithAttributes(
 			attribute.String("rpc.system", "telegram"),
