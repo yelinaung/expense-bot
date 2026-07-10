@@ -1,6 +1,6 @@
 module gitlab.com/yelinaung/expense-bot/tools/goimports
 
-go 1.26.3
+go 1.26.5
 
 tool golang.org/x/tools/cmd/goimports
 
