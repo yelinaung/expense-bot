@@ -32,6 +32,17 @@
       "platformAutomerge": true
     },
     {
+      "description": "Refresh the test PostgreSQL image weekly.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["postgres"],
+      "matchUpdateTypes": ["digest"],
+      "matchFileNames": ["docker-compose.test.yml"],
+      "minimumReleaseAge": null,
+      "schedule": ["on sunday"],
+      "automerge": true,
+      "platformAutomerge": true
+    },
+    {
       "matchManagers": [
         "gomod"
       ],
