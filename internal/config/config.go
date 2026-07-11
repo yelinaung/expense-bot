@@ -109,23 +109,25 @@ func applyExchangeRateConfig(cfg *Config) error {
 	}
 
 	if timeout := strings.TrimSpace(os.Getenv("EXCHANGE_RATE_TIMEOUT")); timeout != "" {
-		if d, err := time.ParseDuration(timeout); err == nil && d > 0 {
-			cfg.ExchangeRateTimeout = d
-		}
+		cfg.ExchangeRateTimeout = positiveDurationOrDefault(timeout, cfg.ExchangeRateTimeout)
 	}
 
 	if cacheTTL := strings.TrimSpace(os.Getenv("EXCHANGE_RATE_CACHE_TTL")); cacheTTL != "" {
-		if d, err := time.ParseDuration(cacheTTL); err == nil && d > 0 {
-			cfg.ExchangeRateCacheTTL = d
-		}
+		cfg.ExchangeRateCacheTTL = positiveDurationOrDefault(cacheTTL, cfg.ExchangeRateCacheTTL)
 	}
 
 	if draftExpiration := strings.TrimSpace(os.Getenv("DRAFT_EXPIRATION")); draftExpiration != "" {
-		if d, err := time.ParseDuration(draftExpiration); err == nil && d > 0 {
-			cfg.DraftExpiration = d
-		}
+		cfg.DraftExpiration = positiveDurationOrDefault(draftExpiration, cfg.DraftExpiration)
 	}
 	return nil
+}
+
+func positiveDurationOrDefault(value string, fallback time.Duration) time.Duration {
+	duration, err := time.ParseDuration(value)
+	if err != nil || duration <= 0 {
+		return fallback
+	}
+	return duration
 }
 
 func applyReminderConfig(cfg *Config) {

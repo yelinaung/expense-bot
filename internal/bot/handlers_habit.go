@@ -139,22 +139,22 @@ func (b *Bot) handleReviewCallbackCore(ctx context.Context, tg TelegramAPI, upda
 	case strings.HasPrefix(data, reviewWorthPrefix):
 		expenseID, ok := parseReviewID(data, reviewWorthPrefix)
 		if ok {
-			b.showDriverPrompt(ctx, tg, chatID, messageID, userID, expenseID, true, true)
+			b.showDriverPrompt(ctx, tg, updateTarget{chatID: chatID, messageID: messageID}, userID, expenseID, true, true)
 		}
 	case strings.HasPrefix(data, reviewNotWorthPrefix):
 		expenseID, ok := parseReviewID(data, reviewNotWorthPrefix)
 		if ok {
-			b.showDriverPrompt(ctx, tg, chatID, messageID, userID, expenseID, false, true)
+			b.showDriverPrompt(ctx, tg, updateTarget{chatID: chatID, messageID: messageID}, userID, expenseID, false, true)
 		}
 	case strings.HasPrefix(data, reviewConfirmWorthPrefix):
 		expenseID, ok := parseReviewID(data, reviewConfirmWorthPrefix)
 		if ok {
-			b.showDriverPrompt(ctx, tg, chatID, messageID, userID, expenseID, true, false)
+			b.showDriverPrompt(ctx, tg, updateTarget{chatID: chatID, messageID: messageID}, userID, expenseID, true, false)
 		}
 	case strings.HasPrefix(data, reviewConfirmNotWorthPrefix):
 		expenseID, ok := parseReviewID(data, reviewConfirmNotWorthPrefix)
 		if ok {
-			b.showDriverPrompt(ctx, tg, chatID, messageID, userID, expenseID, false, false)
+			b.showDriverPrompt(ctx, tg, updateTarget{chatID: chatID, messageID: messageID}, userID, expenseID, false, false)
 		}
 	case strings.HasPrefix(data, reviewLaterPrefix):
 		expenseID, ok := parseReviewID(data, reviewLaterPrefix)
@@ -174,14 +174,13 @@ func (b *Bot) handleReviewCallbackCore(ctx context.Context, tg TelegramAPI, upda
 func (b *Bot) showDriverPrompt(
 	ctx context.Context,
 	tg TelegramAPI,
-	chatID int64,
-	messageID int,
+	target updateTarget,
 	userID int64,
 	expenseID int,
 	worthIt bool,
 	advance bool,
 ) {
-	expense, ok := b.getOwnedExpense(ctx, tg, updateTarget{chatID: chatID, messageID: messageID}, userID, expenseID)
+	expense, ok := b.getOwnedExpense(ctx, tg, target, userID, expenseID)
 	if !ok {
 		return
 	}
@@ -189,8 +188,8 @@ func (b *Bot) showDriverPrompt(
 	loc := b.locationForUser(ctx, userID)
 	text := formatReviewPrompt(expense, loc) + "\n\n" + driverPromptHTML
 	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
-		ChatID:      chatID,
-		MessageID:   messageID,
+		ChatID:      target.chatID,
+		MessageID:   target.messageID,
 		Text:        text,
 		ParseMode:   models.ParseModeHTML,
 		ReplyMarkup: buildDriverKeyboard(expenseID, worthIt, advance),

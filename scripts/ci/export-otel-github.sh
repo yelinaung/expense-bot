@@ -39,6 +39,7 @@ MAX_LINES=${OTEL_LOG_MAX_LINES:-2000}
 # value can't make `tail -n` error (non-numeric) or emit nothing (0).
 case "${MAX_LINES}" in
   ''|*[!0-9]*) echo "WARNING: OTEL_LOG_MAX_LINES='${MAX_LINES}' is not a number; using 2000"; MAX_LINES=2000 ;;
+  *) : ;;
 esac
 [ "${MAX_LINES}" -ge 1 ] 2>/dev/null || { echo "WARNING: OTEL_LOG_MAX_LINES must be >= 1; using 2000"; MAX_LINES=2000; }
 API=${GITHUB_API_URL:-https://api.github.com}
