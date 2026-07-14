@@ -5,7 +5,7 @@ go 1.26.5
 require (
 	github.com/exaring/otelpgx v0.11.1
 	github.com/go-analyze/charts v0.6.0
-	github.com/go-telegram/bot v1.21.0
+	github.com/go-telegram/bot v1.22.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/joho/godotenv v1.5.1
 	github.com/rs/zerolog v1.35.1
