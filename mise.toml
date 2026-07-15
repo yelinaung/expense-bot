@@ -3,7 +3,7 @@ go = "1.26.5"
 gofumpt = "0.10.0"
 golangci-lint = "2.12.2"
 goreleaser = "2.16.0"
-prek = "0.4.5"
+prek = "0.4.6"
 
 [tasks.build]
 description = "Build the expense bot binary"
