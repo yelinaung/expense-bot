@@ -7,7 +7,7 @@
 > [!IMPORTANT]
 > **Disclaimer**: This application was developed primarily by AI coding agents (Claude/Amp) as an experimental project. While functional, **quality is not guaranteed**. If you choose to use or deploy this bot, please do so with caution, review the code yourself, and understand that it may contain bugs or security issues. Use at your own risk.
 
-A Telegram bot for tracking personal expenses with multi-currency support, AI-powered receipt OCR, automatic categorization using Google Gemini AI, and optional OpenTelemetry observability.
+A Telegram bot for tracking personal expenses. Send it `5.50 Coffee` and it saves the expense. It reads 17 currencies, extracts amounts from receipt photos and voice messages, sorts spending into categories with Google Gemini, and exports reports as CSV or pie charts.
 
 ## Features
 
@@ -174,12 +174,12 @@ Create a PostgreSQL database:
 CREATE DATABASE expense_bot;
 ```
 
-The bot will automatically run migrations on startup, creating:
-- `users` table - Telegram user information
-- `categories` table - Expense categories
-- `expenses` table - Expense records
+The bot runs migrations on startup and creates three tables:
+- `users` — Telegram user information
+- `categories` — expense categories
+- `expenses` — expense records
 
-Default categories will be seeded automatically.
+It seeds the default categories on the same run.
 
 ### 5. Build and Run
 
@@ -263,9 +263,9 @@ SGD 25 Groceries     # SGD with prefix code
 10.50 Tea            # Uses your default currency
 ```
 
-The bot automatically detects currency from symbols (€, $, £, etc.) or 3-letter codes (USD, EUR, SGD). If no currency is specified, it uses your default currency (SGD by default).
+The bot reads the currency from a symbol (€, $, £) or a 3-letter code (USD, EUR, SGD). Leave it out and it uses your default, which starts at SGD.
 
-If you enter a different currency than your default, the bot converts it to your default currency before saving and appends the original amount/currency to the description, for example:
+Enter a currency other than your default and the bot converts it before saving, then notes the original amount on the description:
 
 ```text
 Valentine roses [orig: 18.00 USD -> 24.30 SGD @ 1.3500 (2026-02-14)]
@@ -287,24 +287,19 @@ Lunch usd 12 #team             # Description-first, lowercase currency, tags
 10 Lunch #team #client         # Multiple tags
 ```
 
-**Smart Category Matching:**
-1. **Manual Category**: If you specify a category (e.g., "Lunch Food - Dining Out"), the bot matches it intelligently
-2. **AI Auto-Categorization**: If no category is specified and Gemini API is configured, the bot automatically suggests the best category
-   - Example: "5.9 vegetables" → automatically categorized as "Food - Grocery"
-   - Example: "15 taxi" → automatically categorized as "Transportation"
-   - Only applies suggestions with >50% confidence
-3. **Fallback Category**:
-   - If no strong match is found and an `Others` category exists, expense defaults to `Others`
-   - Otherwise, expense is saved as "Uncategorized"
+**How the bot picks a category:**
+1. If you name a category (e.g. `Lunch Food - Dining Out`), the bot matches it against your existing categories.
+2. If you don't and a Gemini API key is set, the bot suggests one — `5.9 vegetables` becomes "Food - Grocery", `15 taxi` becomes "Transportation". It only applies a suggestion above 50% confidence.
+3. When nothing matches, the expense lands in `Others` if that category exists, otherwise "Uncategorized".
 
 ### Receipt OCR
 
-Send a photo of a receipt to automatically extract:
+Send a photo of a receipt and the bot pulls out:
 - Amount
-- Description/merchant name
-- Suggested category (AI-powered)
+- Description or merchant name
+- A suggested category
 
-After extraction, you can:
+Then you can:
 - ✅ Confirm - Save the expense
 - ✏️ Edit - Modify amount, description, or category
 - ❌ Cancel - Discard the draft
@@ -319,7 +314,7 @@ Send a voice message describing your expense to add it hands-free:
 "twenty bucks taxi to airport"
 ```
 
-The bot uses Gemini AI to extract the amount, description, currency, and suggested category from your voice. Requires `GEMINI_API_KEY` to be configured.
+Gemini transcribes the message and pulls out the amount, description, currency, and a category. Needs `GEMINI_API_KEY`.
 
 ### CSV Report Generation
 
@@ -357,32 +352,22 @@ Charts include:
 
 ### AI Auto-Categorization
 
-When you add an expense without specifying a category, the bot uses Gemini AI to automatically suggest the most appropriate category:
+Add an expense without a category and Gemini fills one in. It reads the description, compares it against your categories, and returns a match with a confidence score. Suggestions below 50% confidence are ignored.
 
-**How it works:**
-1. Analyzes expense description (e.g., "vegetables", "taxi", "coffee")
-2. Compares against available categories
-3. Returns category with confidence score and reasoning
-4. Only applies if confidence >50%
+Examples:
+- `5.9 vegetables` → "Food - Grocery" (100%)
+- `5 bee hoon` → "Food - Dining Out" (95%)
+- `9 mixed rice` → "Food - Dining Out" (95%)
+- `15 taxi` → "Transportation" (98%)
 
-**Examples:**
-- `5.9 vegetables` → "Food - Grocery" (confidence: 100%)
-- `5 bee hoon` → "Food - Dining Out" (confidence: 95%)
-- `9 mixed rice` → "Food - Dining Out" (confidence: 95%)
-- `15 taxi` → "Transportation" (confidence: 98%)
-
-**Features:**
-- Smart distinction between "Food - Dining Out" (prepared meals) and "Food - Grocery" (ingredients)
-- Can suggest and auto-create a new category for unmatched expenses when confidence is high
-- Comprehensive logging for debugging
-- Falls back to `Others` (if available) or "Uncategorized" when AI fails or confidence is low
+Gemini tells prepared meals ("Food - Dining Out") apart from ingredients ("Food - Grocery"). When confidence is high and nothing fits, it can propose and create a new category. If the API fails or confidence stays low, the expense falls back to `Others` or "Uncategorized".
 
 ### Category Matching
 
-The bot uses intelligent category matching:
-- Case-insensitive matching
-- Partial word matching (e.g., "food" matches "Food - Dining Out")
-- Significant word extraction (ignores common words like "the", "a", "and")
+When you name a category, the bot matches it loosely:
+- Case-insensitive
+- Partial words — "food" matches "Food - Dining Out"
+- Skips filler words like "the", "a", and "and"
 
 ## Development
 
@@ -431,11 +416,7 @@ mise run test
 mise run test-integration
 ```
 
-This will:
-1. Start a PostgreSQL container via Docker Compose
-2. Run all tests with coverage
-3. Generate coverage report
-4. Shut down the test database
+This starts a PostgreSQL container via Docker Compose, runs the full suite with coverage, writes the coverage report, and tears the database down.
 
 **Manual integration testing:**
 ```bash
@@ -619,7 +600,7 @@ openssl rand -hex 32
 
 ## Security
 
-This application has undergone security hardening. See the [Security Documentation](#security-documentation) for detailed assessments.
+The bot has been hardened against the risks that matter for a personal Telegram bot. The [Security Documentation](#security-documentation) below holds the detailed assessments.
 
 ### Security Measures Implemented
 
@@ -684,7 +665,7 @@ The bot uses zerolog for structured logging. All operations log:
 
 ### OpenTelemetry (Optional)
 
-Set `OTEL_ENABLED=true` to enable distributed tracing and metrics via OpenTelemetry. Supports exporting to any OTLP-compatible backend (Jaeger, Grafana Tempo, Datadog, etc.).
+Set `OTEL_ENABLED=true` to turn on distributed tracing and metrics. The bot exports to any OTLP-compatible backend — Jaeger, Grafana Tempo, Datadog, and the rest.
 
 **Traces:**
 - Root span per Telegram update (commands, callbacks, voice, photos)
