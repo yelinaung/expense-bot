@@ -7,7 +7,9 @@ The bot collects:
 ### User Data
 - Telegram User ID (numeric identifier)
 - Username, First Name, Last Name (from Telegram profile)
-- Expense records (amounts, descriptions, categories, dates)
+- Preferences (default currency, timezone)
+- Expense records (amounts, descriptions, categories, tags, dates)
+- Spending reflection answers (`/review`: worth-it flag, reason, review date)
 
 ### Receipt Photos
 When you send a receipt photo, the bot downloads it into server memory, sends it to Google Gemini for text extraction (OCR), and discards it. **The photo itself is never stored on our servers.** Only the extracted data — amount, merchant, category — goes into the database, along with a Telegram file ID so you can still view the original receipt through Telegram.

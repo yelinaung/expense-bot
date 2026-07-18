@@ -15,12 +15,12 @@ The bot parses untrusted input in two places: text from Telegram users and JSON 
 
 | Function | File | Risk | Rationale |
 |----------|------|------|-----------|
-| `parseAmount` | `internal/bot/parser.go:98` | **HIGH** | Handles decimal parsing with comma/dot conversion; financial data |
-| `ParseExpenseInput` | `internal/bot/parser.go:116` | **HIGH** | Complex regex + currency detection + tag extraction + user input |
-| `extractJSON` | `internal/gemini/category_suggester.go:215` | **HIGH** | Extracts JSON from untrusted LLM output |
-| `sanitizeDescription` | `internal/gemini/category_suggester.go:238` | **HIGH** | Security-critical prompt injection defense |
-| `extractTags` | `internal/bot/parser.go:60` | **HIGH** | Parses `#tag` tokens from user input; deduplication, lowercasing, word boundary splitting |
-| `escapeHTML` | `internal/bot/handlers_tags.go:28` | **HIGH** | Security-critical — output rendered in Telegram HTML messages |
+| `parseAmount` | `internal/bot/parser.go` | **HIGH** | Handles decimal parsing with comma/dot conversion; financial data |
+| `ParseExpenseInput` | `internal/bot/parser.go` | **HIGH** | Complex regex + currency detection + tag extraction + user input |
+| `extractJSON` | `internal/gemini/category_suggester.go` | **HIGH** | Extracts JSON from untrusted LLM output |
+| `sanitizeDescription` | `internal/gemini/category_suggester.go` | **HIGH** | Security-critical prompt injection defense |
+| `extractTags` | `internal/bot/parser.go` | **HIGH** | Parses `#tag` tokens from user input; deduplication, lowercasing, word boundary splitting |
+| `escapeHTML` | `internal/bot/handlers_tags.go` | **HIGH** | Security-critical — output rendered in Telegram HTML messages |
 
 ---
 
@@ -28,11 +28,11 @@ The bot parses untrusted input in two places: text from Telegram users and JSON 
 
 | Function | File | Risk | Rationale |
 |----------|------|------|-----------|
-| `parseReceiptResponse` | `internal/gemini/receipt_parser.go:160` | **MEDIUM** | JSON parsing + markdown stripping from LLM |
-| `sanitizeReasoning` | `internal/gemini/category_suggester.go:261` | **MEDIUM** | Output sanitization |
-| `ParseAddCommandWithCategories` | `internal/bot/parser.go:232` | **MEDIUM** | String suffix matching with categories |
-| `extractCommandArgs` | `internal/bot/handlers_commands.go:22` | **MEDIUM** | `@botname` stripping with index-based slicing; used by all command handlers |
-| `isValidTagName` | `internal/bot/handlers_tags.go:23` | **MEDIUM** | Validation gate for all tag input; must reject control chars and overlong names |
+| `parseReceiptResponse` | `internal/gemini/receipt_parser.go` | **MEDIUM** | JSON parsing + markdown stripping from LLM |
+| `sanitizeReasoning` | `internal/gemini/category_suggester.go` | **MEDIUM** | Output sanitization |
+| `ParseAddCommandWithCategories` | `internal/bot/parser.go` | **MEDIUM** | String suffix matching with categories |
+| `extractCommandArgs` | `internal/bot/handlers_commands.go` | **MEDIUM** | `@botname` stripping with index-based slicing; used by all command handlers |
+| `isValidTagName` | `internal/bot/handlers_tags.go` | **MEDIUM** | Validation gate for all tag input; must reject control chars and overlong names |
 
 ---
 
@@ -40,9 +40,9 @@ The bot parses untrusted input in two places: text from Telegram users and JSON 
 
 | Function | File | Risk | Rationale |
 |----------|------|------|-----------|
-| `SanitizeDescription` | `internal/logger/privacy.go:40` | **LOW** | Privacy redaction for logging |
-| `SanitizeText` | `internal/logger/privacy.go:54` | **LOW** | Privacy redaction for logging |
-| `HashUserID` | `internal/logger/privacy.go:24` | **LOW** | Hash generation |
+| `SanitizeDescription` | `internal/logger/privacy.go` | **LOW** | Privacy redaction for logging |
+| `SanitizeText` | `internal/logger/privacy.go` | **LOW** | Privacy redaction for logging |
+| `HashUserID` | `internal/logger/privacy.go` | **LOW** | Hash generation |
 
 ---
 

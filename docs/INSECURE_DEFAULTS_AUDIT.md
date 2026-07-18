@@ -4,6 +4,7 @@
 **Auditor**: Security Review (Trail of Bits insecure-defaults methodology)
 **Application**: Telegram Expense Bot
 **Scope**: Environment variable fallbacks, authentication configuration, fail-open vulnerabilities
+**Remediation Status**: All findings fixed (verified 2026-07-18 — see Summary of Findings)
 
 ---
 
@@ -449,12 +450,12 @@ if cfg.GeminiAPIKey != "" {
 
 ## Summary of Findings
 
-| # | Finding | Severity | Behavior | Status |
-|---|---------|----------|----------|--------|
-| 1 | Missing TELEGRAM_BOT_TOKEN validation | HIGH | Fail-secure (crash) | ❌ Fix recommended |
-| 2 | Missing DATABASE_URL validation | HIGH | Fail-secure (crash) | ❌ Fix recommended |
-| 3 | Empty authentication whitelist | MEDIUM-HIGH | Fail-closed (unusable) | ❌ Fix recommended |
-| 4 | Weak default LOG_HASH_SALT | HIGH | **Fail-open (insecure)** | ❌ **Fix required** |
+| # | Finding | Severity | Behavior at audit time | Status |
+|---|---------|----------|------------------------|--------|
+| 1 | Missing TELEGRAM_BOT_TOKEN validation | HIGH | Fail-secure (crash) | ✅ Fixed — validated in `config.Load()` |
+| 2 | Missing DATABASE_URL validation | HIGH | Fail-secure (crash) | ✅ Fixed — validated in `config.Load()` |
+| 3 | Empty authentication whitelist | MEDIUM-HIGH | Fail-closed (unusable) | ✅ Fixed — at least one whitelisted user required at startup |
+| 4 | Weak default LOG_HASH_SALT | HIGH | **Fail-open (insecure)** | ✅ Fixed — `logger.InitHashSalt()` panics without a 32+ char salt |
 | 5 | Optional GEMINI_API_KEY | N/A | Graceful degradation | ✅ Acceptable |
 
 ---
@@ -642,7 +643,7 @@ func TestLoad_RequiredFieldsMissing(t *testing.T) {
 
 ## Conclusion
 
-The expense-bot has one critical fail-open vulnerability — the weak `LOG_HASH_SALT` default — and three fail-secure issues that hurt operational reliability more than security. The application mostly fails securely today, just with confusing error messages. With the fixes applied, all critical configuration is validated at startup with clear errors and no insecure defaults remain.
+The audit found one critical fail-open vulnerability — the weak `LOG_HASH_SALT` default — and three fail-secure issues that hurt operational reliability more than security. All four are fixed. `config.Load()` now refuses to start without `TELEGRAM_BOT_TOKEN`, `DATABASE_URL`, and at least one whitelisted user (`internal/config/config.go`), and `logger.InitHashSalt()` panics unless the salt is at least 32 characters (`internal/logger/privacy.go`). No insecure defaults remain; the recommendations above stand as the record of what was implemented.
 
 ### Timeline
 

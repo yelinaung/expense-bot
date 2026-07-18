@@ -1,10 +1,12 @@
-# OpenTelemetry Integration Plan
+# OpenTelemetry Integration
+
+**Status**: Implemented. The phases below started as the plan and now document the design as built in `internal/telemetry/`.
 
 ## Context
 
-The expense-bot is a polling-based Telegram bot with **no existing metrics or tracing**. It uses PostgreSQL (pgx), calls external APIs (Gemini, Frankfurter, Telegram), and runs background jobs. Standard HTTP middleware patterns don't apply here since there's no HTTP server — instrumentation must target the Telegram bot middleware layer, database hooks, and HTTP clients directly.
+The expense-bot is a polling-based Telegram bot. It uses PostgreSQL (pgx), calls external APIs (Gemini, Frankfurter, Telegram), and runs background jobs. Standard HTTP middleware patterns don't apply here since there's no HTTP server — instrumentation targets the Telegram bot middleware layer, database hooks, and HTTP clients directly.
 
-**Goal**: Add full observability (traces, metrics, log correlation) via OpenTelemetry, disabled by default (`OTEL_ENABLED=true` to activate), exporting via OTLP to any compatible backend.
+Observability (traces, metrics, log correlation) ships via OpenTelemetry, disabled by default (`OTEL_ENABLED=true` to activate), exporting via OTLP to any compatible backend.
 
 ---
 

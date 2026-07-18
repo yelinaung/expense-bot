@@ -131,6 +131,9 @@ Handlers are registered in `internal/bot/bot.go`. The primary commands are:
 - Expense entry: `/add`, plus free text such as `5.50 Coffee`.
 - Expense management: `/edit`, `/delete`, inline edit/delete buttons.
 - Views: `/list`, `/today`, `/week`, `/category`.
+- Spending reflection: `/review` walks confirmed expenses one at a time and
+  records whether each was worth it and why; `/habit` summarizes the recorded
+  answers over a week, month, or 90 days.
 - Reports: `/report week`, `/report month`, `/chart week`, `/chart month`.
 - Categories: `/categories`, `/addcategory`, `/renamecategory`,
   `/deletecategory`.
@@ -358,6 +361,9 @@ erDiagram
         integer category_id FK
         text receipt_file_id
         text status
+        boolean worth_it
+        text spend_driver
+        timestamptz reviewed_at
         timestamptz created_at
         timestamptz updated_at
     }
@@ -412,6 +418,8 @@ Important data model details:
   category is deleted.
 - Tags are normalized to lowercase and connected to expenses through
   `expense_tags`.
+- `worth_it`, `spend_driver`, and `reviewed_at` store the `/review`
+  spending-reflection answers; `/habit` aggregates them.
 
 ## Background Jobs
 
@@ -429,7 +437,10 @@ Important data model details:
   immediately at startup, then every 30 minutes, and sends the previous week's
   summary at most once per user/week when the user's local weekday and hour
   match `WEEKLY_REPORT_DAY` and `WEEKLY_REPORT_HOUR`. If the user had no
-  expenses in the previous week, it sends nothing.
+  expenses in the previous week, it sends nothing. When
+  `WEEKLY_HABIT_RECAP_ENABLED=true`, the job also sends the previous week's
+  spending-reflection recap, best-effort: a recap failure never blocks or
+  re-sends the weekly summary.
 
 Both reminder jobs fetch authorized users from the union of superadmins and
 approved users. Per-user timezones come from `users.timezone`, falling back to

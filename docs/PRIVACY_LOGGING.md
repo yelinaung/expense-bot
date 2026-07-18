@@ -7,6 +7,12 @@ Logs should let you debug without exposing who did what. Four rules get you ther
 3. Keep enough information to debug issues.
 4. Log detailed information only at debug level.
 
+> **Adoption status (2026-07-18)**: partial. The Gemini category path,
+> weekly reports, and reminders log hashed IDs; several bot handlers
+> (`handlers_voice.go`, `handlers_receipt.go`, `handlers_commands.go`,
+> `handlers_callbacks.go`, and others) still log raw `user_id`. New code
+> should follow the rules above; existing handlers need migration.
+
 ## Setup
 
 Set a unique hash salt in production:

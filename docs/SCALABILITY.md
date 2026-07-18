@@ -305,7 +305,7 @@ Under load: 25 connections not enough
 
 ### Google Gemini API
 - **Free tier**: 60 requests/minute
-- **Paid tier**: 1,000 requests/minute (Gemini 1.5 Flash)
+- **Paid tier**: 1,000 requests/minute (gemini-2.5-flash, the model in use)
 - **Timeout**: 30 seconds per request (you set to 30s)
 - **Image size**: 20MB max
 
@@ -321,40 +321,18 @@ type GeminiQueue struct {
 queue.Process(imageBytes) // Blocks if at limit
 ```
 
-## Monitoring & Metrics (Not Implemented)
+## Monitoring & Metrics
 
-**What you should add:**
+OpenTelemetry tracing and metrics are implemented — set `OTEL_ENABLED=true` to export to any OTLP backend (see [OTEL_INTEGRATION.md](./OTEL_INTEGRATION.md)). Covered today:
 
-```go
-// Prometheus metrics
-var (
-    requestsTotal = prometheus.NewCounterVec(
-        prometheus.CounterOpts{Name: "bot_requests_total"},
-        []string{"command"},
-    )
-
-    requestDuration = prometheus.NewHistogramVec(
-        prometheus.HistogramOpts{Name: "bot_request_duration_seconds"},
-        []string{"command"},
-    )
-
-    activeUsers = prometheus.NewGauge(
-        prometheus.GaugeOpts{Name: "bot_active_users"},
-    )
-
-    geminiQueueDepth = prometheus.NewGauge(
-        prometheus.GaugeOpts{Name: "gemini_queue_depth"},
-    )
-)
-```
-
-**Observability:**
-- Request latency per command
-- Error rates
-- Database connection pool usage
+- Handler counts, durations, and in-flight requests per command
+- Expense CRUD operations and amounts
+- External API durations and errors (Gemini, Frankfurter, Telegram)
+- Background job runs and durations
 - Cache hit/miss ratios
-- Gemini API response times
-- Active user count
+- Database query spans via otelpgx
+
+Still missing: alerting rules and dashboards. Build those in your backend (Grafana, Datadog) on top of the exported metrics.
 
 ## Recommendations
 
@@ -364,7 +342,7 @@ The single-instance setup is fine. Spend the time on features.
 ### 1,000–10,000 users: minor optimizations
 1. Add Redis for category cache
 2. Increase database connection pool
-3. Add monitoring (Prometheus + Grafana)
+3. Enable OTel export and build dashboards/alerts on it
 4. Set up database backups
 
 ### Over 10,000 users: major refactoring
@@ -388,7 +366,8 @@ The single-instance setup is fine. Spend the time on features.
 
 - [ ] Database indexes on user_id, created_at, category_id ✅ (Already done)
 - [ ] Connection pooling configured ✅ (Already done)
-- [ ] Monitoring and alerting ❌ (Not implemented)
+- [x] Metrics and tracing ✅ (OpenTelemetry, opt-in via `OTEL_ENABLED`)
+- [ ] Alerting and dashboards ❌ (Backend-side, not set up)
 - [ ] Database backups ❌ (Not verified)
 - [ ] Rate limiting per user ❌ (Only whitelist exists)
 - [ ] Redis for shared state ❌ (Not implemented)
@@ -402,7 +381,7 @@ The single-instance setup is fine. Spend the time on features.
 The bot runs single-instance and serves small deployments well. Multiple instances fail today on three counts: the polling conflict with Telegram, in-memory `pendingEdits` state, and per-instance caches. Scaling becomes a real concern around 5,000–10,000 active users or 50+ receipts/minute.
 
 The path, in order:
-1. Add monitoring, so you know when you need to scale
+1. Enable OTel export and alerting, so you know when you need to scale
 2. Switch to webhooks, which unlocks multiple instances
 3. Add Redis to share state across instances
 4. Deploy behind a load balancer
