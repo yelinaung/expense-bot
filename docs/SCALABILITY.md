@@ -1,30 +1,25 @@
 # Scalability Analysis - Expense Tracker Bot
 
-## Current Implementation: Single-Instance Only ❌
-
-**You are correct**: You **cannot run multiple instances** of this bot with the current implementation.
+The bot is single-instance by design. Start a second instance against the same token and things break in four ways, listed here from critical to cosmetic.
 
 ## Why Multiple Instances Won't Work
 
-### 1. **Telegram API Limitation** 🚫 (CRITICAL)
+### 1. Telegram API Limitation (CRITICAL)
 
-**Problem**: Telegram Bot API only allows **ONE active connection per bot token**.
+The Telegram Bot API allows one active `getUpdates` connection per bot token.
 
 ```
 Instance 1 → polls Telegram → gets updates ✅
 Instance 2 → polls Telegram → conflicts with Instance 1 ❌
 ```
 
-**What happens if you try:**
-- **Long Polling (current)**: Only one instance receives updates (non-deterministic which one)
-- Updates may be lost or duplicated
-- Telegram may return errors: `409 Conflict: terminated by other getUpdates request`
+With two instances polling, only one receives each update — and which one is non-deterministic. Updates get lost or duplicated, and Telegram returns `409 Conflict: terminated by other getUpdates request`.
 
-**Solution**: Switch from long polling to webhooks (see "How to Scale" section below)
+**Solution**: Switch from long polling to webhooks (see "How to Scale" below)
 
-### 2. **In-Memory State** 🧠 (HIGH IMPACT)
+### 2. In-Memory State (HIGH IMPACT)
 
-**Problem**: User edit state is stored in RAM, not shared between instances.
+User edit state lives in RAM, invisible to other instances.
 
 ```go
 // Line 38-39 in bot.go
@@ -45,9 +40,9 @@ User sends: 50.00
 
 **Solution**: Move `pendingEdits` to Redis or database
 
-### 3. **Category Cache** 💾 (MEDIUM IMPACT)
+### 3. Category Cache (MEDIUM IMPACT)
 
-**Problem**: Categories cached in each instance's memory.
+Each instance caches categories in its own memory.
 
 ```go
 // Line 42-44 in bot.go
@@ -63,9 +58,9 @@ categoryCacheMu     sync.RWMutex
 
 **Solution**: Use Redis for shared cache
 
-### 4. **Draft Cleanup Race Conditions** ⏰ (LOW IMPACT)
+### 4. Draft Cleanup Race Conditions (LOW IMPACT)
 
-**Problem**: Each instance runs its own cleanup loop.
+Each instance runs its own cleanup loop.
 
 ```go
 // Line 96 in bot.go
@@ -83,9 +78,9 @@ go b.startDraftCleanupLoop(ctx)  // ❌ Each instance runs this
 
 ## Current Scalability Limits
 
-### Vertical Scaling (Single Instance) ✅
+### Vertical Scaling (Single Instance)
 
-**Current capacity** (estimated):
+Estimated capacity of one instance:
 
 | Metric | Limit | Bottleneck |
 |--------|-------|------------|
@@ -95,22 +90,17 @@ go b.startDraftCleanupLoop(ctx)  // ❌ Each instance runs this
 | Memory usage | ~50-200 MB | Small footprint |
 | Receipt OCR throughput | ~1-2/second | Gemini API rate limits |
 
-**Good for**: Small to medium deployments (hundreds to low thousands of users)
+That covers small to medium deployments — hundreds to low thousands of users. Plan to scale past it when you cross 5,000 active users, 100 receipts/minute, or pick up a global user base with latency concerns.
 
-**When you'll need to scale:**
-- \>5,000 active users
-- \>100 receipts/minute
-- Global user base (latency concerns)
+### Horizontal Scaling (Multiple Instances)
 
-### Horizontal Scaling (Multiple Instances) ❌
-
-**Current status**: NOT POSSIBLE without major refactoring
+Not possible without the refactoring described below.
 
 ## How to Scale (Options)
 
-### Option 1: Optimize Single Instance (Easiest) ✅
+### Option 1: Optimize Single Instance (Easiest)
 
-**Recommended for <10,000 users**
+Recommended for under 10,000 users.
 
 **1. Increase Database Connection Pool**
 ```go
@@ -144,9 +134,9 @@ CREATE INDEX idx_expenses_created_at ON expenses(created_at);
 
 **Estimated capacity**: Up to 10,000-20,000 users
 
-### Option 2: Webhook + Load Balancer (Moderate Difficulty) ⚙️
+### Option 2: Webhook + Load Balancer (Moderate Difficulty)
 
-**Required for >10,000 users**
+Required past 10,000 users.
 
 **Architecture:**
 ```
@@ -226,9 +216,9 @@ No local state (everything in DB/Redis)
 - 1 Redis cluster (HA setup)
 - 1 load balancer (NGINX, HAProxy, or cloud LB)
 
-### Option 3: Message Queue Architecture (Hard) 🏗️
+### Option 3: Message Queue Architecture (Hard)
 
-**For enterprise scale (>100,000 users)**
+For enterprise scale, past 100,000 users.
 
 **Architecture:**
 ```
@@ -252,13 +242,13 @@ Telegram → Webhook Handler → RabbitMQ/Kafka
 
 ## Database Scalability
 
-### Current Schema (Scalable ✅)
+### Current Schema
 
-**Good design choices:**
-- ✅ Proper indexes on foreign keys and date columns
-- ✅ Normalized schema (no duplicate data)
-- ✅ BIGINT for user IDs (Telegram can have large IDs)
-- ✅ DECIMAL for amounts (financial accuracy)
+The schema already scales well:
+- Indexes on foreign keys and date columns
+- Normalized, no duplicate data
+- BIGINT for user IDs (Telegram IDs can be large)
+- DECIMAL for amounts (financial accuracy)
 
 **Potential bottlenecks:**
 
@@ -319,9 +309,7 @@ Under load: 25 connections not enough
 - **Timeout**: 30 seconds per request (you set to 30s)
 - **Image size**: 20MB max
 
-**Bottleneck**: Gemini will become a bottleneck before anything else
-
-**Solution**:
+Gemini hits its limit before anything else does. When it does:
 ```go
 // Implement request queue for Gemini
 type GeminiQueue struct {
@@ -370,17 +358,16 @@ var (
 
 ## Recommendations
 
-### If you have <1,000 users: ✅ No changes needed
-- Current single-instance setup is fine
-- Focus on features, not scalability
+### Under 1,000 users: no changes
+The single-instance setup is fine. Spend the time on features.
 
-### If you have 1,000-10,000 users: ⚙️ Minor optimizations
+### 1,000–10,000 users: minor optimizations
 1. Add Redis for category cache
 2. Increase database connection pool
 3. Add monitoring (Prometheus + Grafana)
 4. Set up database backups
 
-### If you have >10,000 users: 🔧 Major refactoring needed
+### Over 10,000 users: major refactoring
 1. Switch to webhooks
 2. Move state to Redis
 3. Deploy multiple bot instances
@@ -389,7 +376,7 @@ var (
 6. Implement Gemini request queue
 7. Add comprehensive monitoring
 
-### If you plan for >100,000 users: 🏗️ Rearchitect
+### Over 100,000 users: rearchitect
 1. Message queue architecture (RabbitMQ/Kafka)
 2. Worker pool for processing
 3. Database sharding
@@ -412,20 +399,13 @@ var (
 
 ## Conclusion
 
-**Current state**: Single-instance, good for small deployments
+The bot runs single-instance and serves small deployments well. Multiple instances fail today on three counts: the polling conflict with Telegram, in-memory `pendingEdits` state, and per-instance caches. Scaling becomes a real concern around 5,000–10,000 active users or 50+ receipts/minute.
 
-**Can you run multiple instances?**: **NO** ❌
-- Telegram API limitation (polling conflict)
-- In-memory state (pendingEdits)
-- No shared cache
+The path, in order:
+1. Add monitoring, so you know when you need to scale
+2. Switch to webhooks, which unlocks multiple instances
+3. Add Redis to share state across instances
+4. Deploy behind a load balancer
+5. Add read replicas for the database
 
-**When to scale**: When you hit 5,000-10,000 active users or 50+ receipts/minute
-
-**Easiest scaling path**:
-1. Add monitoring (know when you need to scale)
-2. Switch to webhooks (enables multiple instances)
-3. Add Redis (share state across instances)
-4. Deploy behind load balancer
-5. Add read replicas (database scaling)
-
-**Good news**: Your database schema and code structure are well-designed for scaling. Most changes would be infrastructure (Redis, webhooks, load balancer) rather than code rewrites.
+The schema and code structure are already built for this — the work is infrastructure (Redis, webhooks, load balancer), not code rewrites.

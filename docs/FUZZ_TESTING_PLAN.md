@@ -7,7 +7,7 @@
 
 ## Overview
 
-This document outlines the fuzz testing strategy for the expense-bot codebase. Fuzz testing helps discover edge cases, crashes, and security vulnerabilities by feeding random/malformed inputs to parsing functions.
+The bot parses untrusted input in two places: text from Telegram users and JSON from Gemini responses. The fuzz tests below feed random and malformed input to those parsing functions, checking that each one holds its invariants and never panics. Three bugs found this way are documented at the end.
 
 ---
 

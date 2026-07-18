@@ -9,9 +9,7 @@
 
 ## Executive Summary
 
-This document reviews prompt-injection and output-safety controls for Gemini-backed features in Expense Bot.
-
-Current codebase status:
+Expense Bot sends user text, receipt photos, and voice audio to Gemini; each path is a prompt-injection surface. Where the code stands:
 - Direct prompt-injection risk in category suggestion is **mitigated**.
 - Category-list injection risk in receipt and voice parsing is **mitigated**.
 - Output parsing/validation controls are **partially hardened** and functioning.
@@ -111,7 +109,7 @@ Relevant automated coverage includes:
 - `TestBuildReceiptPrompt_SanitizesCategories`
 - `TestBuildVoiceExpensePrompt_SanitizesCategories`
 
-These tests validate primary injection vectors (quote/newline/delimiter/control-char patterns), boundary conditions, and sanitizer invariants.
+These tests cover the primary injection vectors (quote/newline/delimiter/control-char patterns), boundary conditions, and sanitizer invariants.
 
 ---
 

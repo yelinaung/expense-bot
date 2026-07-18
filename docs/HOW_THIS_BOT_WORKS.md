@@ -1,7 +1,6 @@
 # How This Bot Works
 
-This document explains the runtime architecture and main data flows of the
-Expense Bot. It is based on the current Go implementation in `main.go`,
+The runtime architecture and main data flows, as implemented in `main.go`,
 `internal/bot`, `internal/database`, `internal/gemini`, `internal/exchange`,
 `internal/repository`, and `internal/telemetry`.
 
@@ -421,12 +420,12 @@ Important data model details:
 - Draft cleanup runs immediately at startup and then every 5 minutes. It deletes
   `draft` expenses older than 10 minutes and records `background.drafts_cleaned`
   when metrics are enabled.
-- Daily reminders run when `DAILY_REMINDER_ENABLED=true`. The loop checks every
+- Daily reminders run when `DAILY_REMINDER_ENABLED=true`. The loop checks
   immediately at startup, then every 30 minutes, and sends each authorized user
   at most one message per local day when their local hour matches
   `REMINDER_HOUR`. If the user has expenses today, it sends a daily summary;
   otherwise it sends a reminder to log expenses.
-- Weekly reports run when `WEEKLY_REPORT_ENABLED=true`. The loop checks every
+- Weekly reports run when `WEEKLY_REPORT_ENABLED=true`. The loop checks
   immediately at startup, then every 30 minutes, and sends the previous week's
   summary at most once per user/week when the user's local weekday and hour
   match `WEEKLY_REPORT_DAY` and `WEEKLY_REPORT_HOUR`. If the user had no

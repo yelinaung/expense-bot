@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-This document assesses the **expense-bot** application against the [Minimum Viable Secure Product (MVSP)](https://mvsp.dev) checklist v2.0. MVSP defines essential security controls for enterprise-ready products handling sensitive information.
+An assessment of expense-bot against the [Minimum Viable Secure Product (MVSP)](https://mvsp.dev) checklist v2.0, which defines essential security controls for enterprise-ready products handling sensitive information.
 
 ### Application Context
 
@@ -44,8 +44,7 @@ This document assesses the **expense-bot** application against the [Minimum Viab
 - No HTTPS implementation (Telegram-based, not web-facing)
 - Limited operational controls documentation
 
-**⚠️ Important Context:**
-This application is designed for **personal use**, not enterprise B2B SaaS. Many MVSP controls are **not applicable** (N/A) or **lower priority** for this use case. The assessment identifies gaps but recognizes the context.
+The bot is built for personal use, not enterprise B2B SaaS, so many MVSP controls are N/A or low priority here. Findings below note gaps against the full checklist while weighing them for that context.
 
 ---
 
@@ -911,7 +910,7 @@ pg_dump -h localhost -U user expense_bot | gzip > backup_$(date +%Y%m%d).sql.gz
 
 ## Conclusion
 
-The expense-bot application demonstrates **strong application-level security** with excellent implementation practices (prompt injection mitigation, input sanitization, fuzz testing, secure coding practices). However, it lacks **operational and business process documentation** required by MVSP.
+The application-level security is strong — prompt injection mitigation, input sanitization, fuzz testing, secure coding practices. What's missing is the operational and business process documentation MVSP requires.
 
 ### Key Strengths
 1. ✅ Exceptional LLM security implementation (prompt injection mitigation)

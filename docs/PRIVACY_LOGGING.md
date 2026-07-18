@@ -1,13 +1,11 @@
 # Privacy-Preserving Logging
 
-This document explains how to log user actions while preserving privacy.
+Logs should let you debug without exposing who did what. Four rules get you there:
 
-## Principles
-
-1. **Hash User Identifiers**: Never log raw user IDs or chat IDs
-2. **Sanitize User Content**: Redact or truncate user-provided text (descriptions, messages)
-3. **Preserve Debugging Info**: Keep enough information to debug issues
-4. **Use Debug Level**: Log detailed information only at debug level
+1. Never log raw user IDs or chat IDs — hash them.
+2. Redact or truncate user-provided text (descriptions, messages).
+3. Keep enough information to debug issues.
+4. Log detailed information only at debug level.
 
 ## Setup
 
@@ -150,13 +148,7 @@ func (b *Bot) handleExpense(ctx context.Context, userID int64, chatID int64, des
 }
 ```
 
-## Benefits
-
-1. **Privacy**: User identities and content are protected
-2. **Debugging**: You can still track patterns by user hash
-3. **Compliance**: Helps with GDPR, CCPA, and privacy regulations
-4. **Security**: Reduces risk of data exposure in logs
-5. **Consistency**: Same user always has same hash within deployment
+Hashed logs still support debugging: the same user always gets the same hash within a deployment, so you can follow one user's activity through the logs without knowing who they are. Redaction also limits what leaks if logs are ever exposed, and it keeps PII out of scope for GDPR/CCPA retention questions.
 
 ## Notes
 

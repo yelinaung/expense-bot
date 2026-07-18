@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-This audit identifies **fail-open** security vulnerabilities where the application runs with insecure defaults when configuration is missing. The focus is on production-reachable code that allows the application to start in an insecure state.
+The audit hunted for **fail-open** behavior: production-reachable code paths where missing configuration lets the application start in an insecure state.
 
 ### Overall Risk Assessment: **MEDIUM** ⚠️
 
@@ -642,13 +642,7 @@ func TestLoad_RequiredFieldsMissing(t *testing.T) {
 
 ## Conclusion
 
-The expense-bot has **one critical fail-open vulnerability** (weak LOG_HASH_SALT default) and **three fail-secure issues** that should be fixed for better operational reliability.
-
-### Risk Summary
-
-**Current State**: Application mostly fails securely but with confusing error messages. One high-risk privacy vulnerability (LOG_HASH_SALT).
-
-**After Fixes**: All critical configuration validated at startup with clear error messages. No insecure defaults.
+The expense-bot has one critical fail-open vulnerability — the weak `LOG_HASH_SALT` default — and three fail-secure issues that hurt operational reliability more than security. The application mostly fails securely today, just with confusing error messages. With the fixes applied, all critical configuration is validated at startup with clear errors and no insecure defaults remain.
 
 ### Timeline
 

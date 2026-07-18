@@ -2,7 +2,7 @@
 
 ## Data Collection
 
-This bot collects and processes the following information:
+The bot collects:
 
 ### User Data
 - Telegram User ID (numeric identifier)
@@ -10,19 +10,10 @@ This bot collects and processes the following information:
 - Expense records (amounts, descriptions, categories, dates)
 
 ### Receipt Photos
-When you send a receipt photo:
-1. **Photo is NOT stored permanently on our servers**
-2. Photo is temporarily downloaded to server memory (RAM) for processing
-3. Photo is sent to Google Gemini AI for optical character recognition (OCR)
-4. Only extracted data (amount, merchant, category) is saved to our database
-5. A Telegram file reference ID is stored to allow viewing the original receipt via Telegram
+When you send a receipt photo, the bot downloads it into server memory, sends it to Google Gemini for text extraction (OCR), and discards it. **The photo itself is never stored on our servers.** Only the extracted data — amount, merchant, category — goes into the database, along with a Telegram file ID so you can still view the original receipt through Telegram.
 
 ### Auto-Categorization
-When you add an expense without a category:
-1. Expense description (e.g., "vegetables", "taxi") is sent to Google Gemini AI
-2. AI analyzes the description and suggests the most appropriate category
-3. Only the suggestion with confidence score is returned
-4. **No sensitive data** is included in these requests (only the text description)
+When you add an expense without a category, the bot sends the description text (e.g., "vegetables", "taxi") — and nothing else — to Google Gemini, which returns a suggested category with a confidence score.
 
 ## Third-Party Services
 
@@ -79,10 +70,7 @@ We do NOT store:
 - Contact bot administrator for full data export
 
 ### Data Deletion
-To delete your data:
-1. Delete individual expenses using `/delete <id>` command
-2. Contact bot administrator for complete account deletion
-3. Note: Deleting from our database does NOT delete photos from Telegram
+Delete individual expenses with `/delete <id>`, or contact the bot administrator for complete account deletion. Deleting from our database does NOT delete photos from Telegram.
 
 ### Data Portability
 Contact bot administrator to request:
@@ -123,10 +111,7 @@ Contact bot administrator to request:
 
 ## Changes to This Policy
 
-This privacy policy may be updated from time to time. Changes will be:
-- Documented in git commit history
-- Communicated to active users via bot announcement (for major changes)
-- Effective immediately upon commit to master branch
+Changes to this policy land in git history and take effect on commit to master. Major changes are announced to active users through the bot.
 
 ## Contact
 
