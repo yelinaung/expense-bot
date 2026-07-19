@@ -206,6 +206,49 @@ test:
     expire_in: 1 week
   coverage: '/total:\s+\(statements\)\s+(\d+\.\d+)%/'
 
+# Coverage-guided fuzzing: every Fuzz* target runs for FUZZTIME. The corpus
+# of coverage-expanding inputs persists across pipelines via a dedicated
+# cache, so each run resumes where the last one stopped. A crashing input
+# fails the job and is uploaded as an artifact (testdata/fuzz/<Target>/).
+fuzz:
+  stage: test
+  image: $GOLANG_IMAGE
+  tags:
+    - playground-bravo
+  needs:
+    - job: lint
+  cache:
+    - key:
+        files:
+          - go.sum
+      paths:
+        - .go/pkg/mod/
+        - .go-cache/
+      policy: pull
+    - key: fuzz-corpus
+      paths:
+        - .go-fuzz-corpus/
+      policy: pull-push
+  variables:
+    FUZZTIME: 20s
+  before_script:
+    # Same glibc shims as the test job: the bot test package links hegel.
+    - apk add --no-cache gcompat libgcc
+  script:
+    - sh scripts/ci/fuzz.sh
+  artifacts:
+    when: on_failure
+    paths:
+      - "**/testdata/fuzz/"
+    expire_in: 1 month
+  rules:
+    # Scheduled pipelines get a longer budget for deeper exploration.
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      variables:
+        FUZZTIME: 5m
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
 
 # === DEPLOY STAGE ===
 

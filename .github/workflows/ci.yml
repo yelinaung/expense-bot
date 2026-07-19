@@ -331,6 +331,46 @@ jobs:
       - name: Run race detector
         run: mise run test-race
 
+  fuzz:
+    name: Fuzz
+    runs-on: [self-hosted, Linux, X64, playground-ubuntu]
+    permissions:
+      contents: read
+    needs: [lint]
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+
+      # The corpus of coverage-expanding inputs persists across runs; the
+      # run-id key is always unique, so the post step saves the updated
+      # corpus every run while restore-keys pulls the most recent one.
+      - name: Restore fuzz corpus
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .go-fuzz-corpus
+          key: fuzz-corpus-${{ github.run_id }}
+          restore-keys: |
+            fuzz-corpus-
+
+      - name: Run fuzz targets
+        env:
+          FUZZTIME: "20s"
+        run: sh scripts/ci/fuzz.sh
+
+      - name: Upload crashing inputs
+        if: failure()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: fuzz-crashers
+          path: "**/testdata/fuzz/"
+          if-no-files-found: ignore
+
   # === DEPENDENCY SECURITY ===
   dependency-review:
     name: Dependency Review
@@ -393,6 +433,7 @@ jobs:
         prek,
         test,
         test-race,
+        fuzz,
         dependency-review,
         govulncheck,
       ]
