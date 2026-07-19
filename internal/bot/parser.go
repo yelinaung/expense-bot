@@ -201,6 +201,11 @@ func parseAmount(input string) (decimal.Decimal, error) {
 		return decimal.Zero, fmt.Errorf("invalid amount format: %w", err)
 	}
 
+	// Must come before any comparison: rescaling an extreme exponent hangs.
+	if !models.AmountExponentInRange(amount) {
+		return decimal.Zero, errInvalidAmount
+	}
+
 	if amount.LessThanOrEqual(decimal.Zero) {
 		return decimal.Zero, errInvalidAmount
 	}

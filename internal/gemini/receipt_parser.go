@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"gitlab.com/yelinaung/expense-bot/internal/models"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -228,6 +229,9 @@ func parseReceiptResponse(response string) (*ReceiptData, error) {
 		amount, err := decimal.NewFromString(rr.Amount)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse amount %q: %w", rr.Amount, err)
+		}
+		if !models.AmountExponentInRange(amount) {
+			return nil, fmt.Errorf("amount %q out of range in receipt response", rr.Amount)
 		}
 		if amount.IsNegative() {
 			return nil, fmt.Errorf("negative amount %q in receipt response", rr.Amount)

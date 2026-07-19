@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"gitlab.com/yelinaung/expense-bot/internal/models"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -172,6 +173,9 @@ func parseVoiceExpenseResponse(response string) (*VoiceExpenseData, error) {
 		amount, err := decimal.NewFromString(vr.Amount)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse amount %q: %w", vr.Amount, err)
+		}
+		if !models.AmountExponentInRange(amount) {
+			return nil, fmt.Errorf("amount %q out of range in voice response", vr.Amount)
 		}
 		data.Amount = amount
 	}

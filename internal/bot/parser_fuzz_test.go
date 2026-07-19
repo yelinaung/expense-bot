@@ -31,6 +31,8 @@ func FuzzParseAmount(f *testing.F) {
 	f.Add("Inf")
 	f.Add("-Inf")
 	f.Add("1e10")
+	f.Add("1e444444410") // Extreme exponent: hung the process before the range guard.
+	f.Add("1e-444444410")
 	f.Add("1.234567890123456789")
 	f.Add("   5.50   ")
 	f.Add("5..50")

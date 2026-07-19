@@ -25,6 +25,7 @@ func FuzzParseVoiceExpenseResponse(f *testing.F) {
 	f.Add(`   `)
 	f.Add(`{"amount": "-5.00"}`)
 	f.Add(`{"amount": "999999999999.99", "description": "Big"}`)
+	f.Add(`{"amount": "1e444444410"}`) // Extreme exponent: hangs decimal rescaling without the range guard.
 	f.Add(`{"confidence": 1e308}`)
 
 	// Prompt injection in fields.

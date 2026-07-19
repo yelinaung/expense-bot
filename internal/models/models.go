@@ -16,6 +16,17 @@ const DefaultTimezone = "Asia/Singapore"
 // MaxCategoryNameLength is the maximum allowed length for category names.
 const MaxCategoryNameLength = 50
 
+// MaxAmountExponent bounds the base-10 exponent of untrusted decimal amounts.
+// Comparing, rescaling, or formatting a decimal like 1e444444410 materializes
+// 10^exp as a big.Int, which effectively hangs the process (found by fuzzing).
+const MaxAmountExponent = 27
+
+// AmountExponentInRange reports whether d's exponent is small enough that
+// rescaling it (for comparison, formatting, or storage) stays cheap.
+func AmountExponentInRange(d decimal.Decimal) bool {
+	return d.Exponent() >= -MaxAmountExponent && d.Exponent() <= MaxAmountExponent
+}
+
 // SupportedCurrencies lists all supported currency codes.
 // The "SGD" key is the explicit ISO code, intentionally kept as a literal
 // so the code-to-symbol mapping stays independent of DefaultCurrency.

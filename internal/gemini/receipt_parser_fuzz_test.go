@@ -25,6 +25,7 @@ func FuzzParseReceiptResponse(f *testing.F) {
 	f.Add(`{"amount": "-5.00"}`)
 	f.Add(`{"amount": "0", "merchant": "Test", "date": "invalid-date"}`)
 	f.Add(`{"amount": "999999999999.99", "merchant": "Big"}`)
+	f.Add(`{"amount": "1e444444410"}`) // Extreme exponent: hangs decimal rescaling without the range guard.
 
 	// Prompt injection in fields.
 	f.Add(`{"amount": "5.50", "merchant": "Shop\"; DROP TABLE expenses;--"}`)
