@@ -43,6 +43,12 @@
       "platformAutomerge": true
     },
     {
+      "description": "mise releases every few days; batch it into one PR a month and skip the huge upstream changelog.",
+      "matchDepNames": ["jdx/mise"],
+      "schedule": ["before 4am on the first day of the month"],
+      "fetchChangeLogs": "off"
+    },
+    {
       "matchManagers": [
         "gomod"
       ],
