@@ -70,7 +70,7 @@ jobs:
     needs: [auto-update]
     steps:
       - name: Export workflow
-        uses: corentinmusard/otel-cicd-action@f2d88ecf54d9dd3e01ea95e25f93603212ee93d3 # v4
+        uses: corentinmusard/otel-cicd-action@6022e68732c1cab4d2c8218b810f69006ee5cc34 # v4
         with:
           otlpEndpoint: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}/v1/traces
           otlpHeaders: ${{ secrets.OTEL_EXPORTER_HEADERS }}
