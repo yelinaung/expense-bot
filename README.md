@@ -5,32 +5,31 @@
 [![codecov](https://codecov.io/github/yelinaung/expense-bot/branch/master/graph/badge.svg?token=DX2lbjFjkD)](https://codecov.io/github/yelinaung/expense-bot)
 
 > [!IMPORTANT]
-> **Disclaimer**: This application was developed primarily by AI coding agents (Claude/Amp) as an experimental project. While functional, **quality is not guaranteed**. If you choose to use or deploy this bot, please do so with caution, review the code yourself, and understand that it may contain bugs or security issues. Use at your own risk.
+> **Disclaimer**: AI coding agents (Claude/Amp) wrote most of this application as an experiment. It works, but **nobody guarantees its quality**. Read the code before you deploy it, expect bugs and possible security holes, and run it at your own risk.
 
 A Telegram bot for tracking personal expenses. Send it `5.50 Coffee` and it saves the expense. It reads 17 currencies, extracts amounts from receipt photos and voice messages, sorts spending into categories with Google Gemini, and exports reports as CSV or pie charts.
 
 ## Features
 
-- **Multi-Currency Support**: Track expenses in 17 currencies (USD, EUR, GBP, SGD, JPY, and more)
-- **Quick Expense Tracking**: Add expenses with simple text messages like `5.50 Coffee`, `Coffee 5.50`, or `$10 Lunch`
-- **AI Auto-Categorization**: Automatically categorizes expenses using Gemini AI (e.g., "vegetables" → "Food - Grocery")
-- **Structured Input**: Use commands like `/add 10.50 Lunch Food - Dining Out` for detailed entries
-- **Receipt OCR**: Upload receipt photos for automatic expense extraction using Gemini AI
-- **Voice Expense Input**: Send voice messages like "spent five fifty on coffee" for hands-free expense entry via Gemini AI
-- **Visual Charts**: Generate pie charts showing expense breakdown by category
-- **CSV Report Generation**: Export weekly or monthly expense reports in CSV format
-- **Timezone-Accurate Periods**: `/today`, `/week`, `/report`, and `/chart` use the configured display timezone for date ranges and filenames
-- **Category Management**: Organize expenses with predefined or custom categories
-- **Expense Queries**: View expenses by time period (today, this week, recent)
-- **Expense Editing**: Modify or delete existing expenses with inline buttons
-- **Spending Reflection**: Review expenses with `/review` and summarize habits with `/habit`
-- **User Whitelisting**: Control who can access your bot (by user ID or username)
-- **Expense Tags**: Label expenses with hashtags like `#work`, `#travel` for flexible cross-category organization
-- **Category Rename/Delete**: Rename categories with `/renamecategory Old -> New` and delete with `/deletecategory`
-- **GitLab Releases**: Automated cross-platform releases via GoReleaser on both GitHub and GitLab
-- **Draft Management**: Automatic cleanup of unconfirmed draft expenses
-- **Category Caching**: Performance-optimized category lookups
-- **OpenTelemetry Support**: Optional tracing and metrics for handlers, background jobs, DB calls, and external APIs
+- **Multi-currency**: Record expenses in 17 currencies (USD, EUR, GBP, SGD, JPY, and more)
+- **Quick entry**: Text the bot `5.50 Coffee`, `Coffee 5.50`, or `$10 Lunch`
+- **AI categorization**: Gemini picks the category — "vegetables" lands in "Food - Grocery"
+- **Structured entry**: `/add 10.50 Lunch Food - Dining Out` when you want to be explicit
+- **Receipt OCR**: Photograph a receipt and Gemini extracts the expense
+- **Voice input**: Say "spent five fifty on coffee" and Gemini turns it into an expense
+- **Charts**: Pie charts of spending by category
+- **CSV reports**: Weekly or monthly exports
+- **Timezone-accurate periods**: `/today`, `/week`, `/report`, and `/chart` compute date ranges and filenames in your configured display timezone
+- **Categories**: Predefined or your own, renameable and deletable
+- **Queries**: Expenses for today, this week, or the last ten
+- **Editing**: Change or delete an expense through inline buttons
+- **Reflection**: Walk through expenses with `/review`, summarize habits with `/habit`
+- **Whitelisting**: Only the user IDs or usernames you list can talk to the bot
+- **Tags**: Hashtags like `#work` and `#travel` cut across categories
+- **Automated releases**: GoReleaser publishes cross-platform builds to GitHub and GitLab
+- **Draft cleanup**: Unconfirmed drafts expire on their own
+- **Category cache**: Category lookups hit memory, not the database
+- **OpenTelemetry**: Optional traces and metrics for handlers, background jobs, DB calls, and external APIs
 
 ## Architecture
 
@@ -230,7 +229,7 @@ go run main.go
 
 ### Admin Commands
 
-> These commands are available to superadmins only.
+> Superadmins only.
 
 | Command | Description | Example |
 |---------|-------------|---------|
@@ -240,7 +239,7 @@ go run main.go
 
 ### Multi-Currency Support
 
-Track expenses in 17 different currencies with flexible input formats:
+Seventeen currencies, several input formats.
 
 **Supported Currencies:**
 - USD ($), EUR (€), GBP (£), SGD (S$), JPY (¥), CNY (¥)
@@ -273,7 +272,7 @@ Valentine roses [orig: 18.00 USD -> 24.30 SGD @ 1.3500 (2026-02-14)]
 
 ### Quick Expense Entry
 
-Simply send a message in the format `<amount> <description> [category]`:
+Send a message shaped like `<amount> <description> [category]`:
 
 ```
 5.50 Coffee                    # Uses your default currency
@@ -306,7 +305,7 @@ Then you can:
 
 ### Voice Expense Input
 
-Send a voice message describing your expense to add it hands-free:
+Record a voice message and skip typing:
 
 ```
 "spent five fifty on coffee"
@@ -318,21 +317,21 @@ Gemini transcribes the message and pulls out the amount, description, currency, 
 
 ### CSV Report Generation
 
-Export your expenses as CSV files for analysis in Excel, Google Sheets, or other tools:
+Export expenses as CSV for Excel, Google Sheets, or anything else:
 
 ```
 /report week   # Generate report for current week (Monday-Sunday)
 /report month  # Generate report for current month
 ```
 
-Reports include:
+Each report carries:
 - Expense ID, Date, Amount, Currency, Description, Category
 - Total expenses and count in caption
 - Filename with date range in your configured display timezone (e.g., `expenses_month_2026-01.csv`)
 
 ### Visual Expense Charts
 
-Generate pie charts showing expense breakdown by category:
+Pie charts break spending down by category:
 
 ```
 /chart week   # Generate pie chart for current week (Monday-Sunday)
@@ -343,12 +342,12 @@ Generate pie charts showing expense breakdown by category:
 
 ![Expense Breakdown Chart Example](graph.png)
 
-Charts include:
-- Visual breakdown of expenses by category
-- Percentage distribution for each category
+Each chart carries:
+- Spending split by category
+- Percentage per category
 - Total expenses and count in caption
-- PNG image format for easy sharing
-- Filename period aligned with the same timezone/date range used for chart data
+- PNG format for easy sharing
+- Filename period matching the timezone and date range behind the data
 
 ### AI Auto-Categorization
 
@@ -360,7 +359,7 @@ Examples:
 - `9 mixed rice` → "Food - Dining Out" (95%)
 - `15 taxi` → "Transportation" (98%)
 
-Gemini tells prepared meals ("Food - Dining Out") apart from ingredients ("Food - Grocery"). When confidence is high and nothing fits, it can propose and create a new category. If the API fails or confidence stays low, the expense falls back to `Others` or "Uncategorized".
+Gemini tells prepared meals ("Food - Dining Out") apart from ingredients ("Food - Grocery"). When confidence is high and nothing fits, it can propose and create a new category. If the API fails or confidence stays low, the expense falls back to `Others` or "Uncategorized". Every suggestion is logged, so you can see why a category was chosen.
 
 ### Category Matching
 
@@ -373,7 +372,7 @@ When you name a category, the bot matches it loosely:
 
 ### Available Mise Tasks
 
-Use `mise run <task>` as the canonical interface.
+`mise run <task>` is the canonical interface.
 
 ```bash
 # Build the application
@@ -440,11 +439,11 @@ The project uses:
 
 ### Project Standards
 
-- **Error Handling**: All errors wrapped with context using `fmt.Errorf` and `%w`
-- **Logging**: Structured logging with zerolog
-- **Testing**: Table-driven tests with parallel execution where possible
-- **SQL Safety**: All queries use parameterized statements
-- **Concurrency**: Proper mutex usage for shared state (`pendingEdits`, `categoryCache`)
+- **Error handling**: Wrap every error with context using `fmt.Errorf` and `%w`
+- **Logging**: Structured logging through zerolog
+- **Testing**: Table-driven tests, parallel where possible
+- **SQL safety**: Parameterized statements only
+- **Concurrency**: Guard shared state with mutexes (`pendingEdits`, `categoryCache`)
 
 ## Configuration
 
@@ -478,7 +477,7 @@ The project uses:
 | `OTEL_EXPORTER_OTLP_INSECURE` | No | Use insecure OTLP transport (`true`/`false`) | false |
 | `OTEL_TRACE_SAMPLE_RATE` | No | Trace sampling ratio (0.0 to 1.0) | `1.0` |
 
-*At least one of `WHITELISTED_USER_IDS` or `WHITELISTED_USERNAMES` is required.
+*Set at least one of `WHITELISTED_USER_IDS` or `WHITELISTED_USERNAMES`.
 
 Generate `LOG_HASH_SALT`:
 ```bash
@@ -487,10 +486,10 @@ openssl rand -hex 32
 
 ### Bot Configuration
 
-- **Draft Expiration**: 10 minutes (auto-cleanup)
-- **Draft Cleanup Interval**: 5 minutes
-- **Category Cache TTL**: 5 minutes
-- **Period Boundaries**: Day/week/month calculations are timezone-aware and DST-safe
+- **Draft expiration**: 10 minutes, then auto-cleanup
+- **Draft cleanup interval**: 5 minutes
+- **Category cache TTL**: 5 minutes
+- **Period boundaries**: Day, week, and month math respects timezones and survives DST
 
 ## Database Schema
 
@@ -534,33 +533,33 @@ openssl rand -hex 32
 
 ### Bot not responding
 
-1. Check bot is running: `ps aux | grep expense-bot`
-2. Verify token: Test with `curl https://api.telegram.org/bot<TOKEN>/getMe`
-3. Check logs for errors
-4. Ensure your user ID is in `WHITELISTED_USER_IDS`
+1. Confirm the process is alive: `ps aux | grep expense-bot`
+2. Test the token: `curl https://api.telegram.org/bot<TOKEN>/getMe`
+3. Read the logs
+4. Confirm your user ID sits in `WHITELISTED_USER_IDS`
 
 ### Database connection errors
 
-1. Verify PostgreSQL is running: `psql -U user -d expense_bot`
-2. Check `DATABASE_URL` format
-3. Ensure database exists and user has permissions
+1. Confirm PostgreSQL is up: `psql -U user -d expense_bot`
+2. Check the `DATABASE_URL` format
+3. Confirm the database exists and the user has permissions
 
 ### Receipt OCR not working
 
-1. Verify `GEMINI_API_KEY` is set correctly
-2. Check logs for Gemini API errors
-3. Ensure image is clear and receipt is visible
-4. Check Google AI Studio quota limits
+1. Check `GEMINI_API_KEY`
+2. Look for Gemini API errors in the logs
+3. Retake the photo if the receipt is blurry or cropped
+4. Check your Google AI Studio quota
 
 ### Auto-categorization not working
 
-1. Verify `GEMINI_API_KEY` is configured
-2. Check logs for "SuggestCategory" debug messages
-3. Common issues:
-   - Response truncated: Check MaxOutputTokens (should be 500)
-   - Preamble responses: extractJSON() should handle this
-   - Low confidence: Only applies if confidence >50%
-4. Expenses fall back to `Others` (if available) or "Uncategorized" if AI fails
+1. Check `GEMINI_API_KEY`
+2. Search the logs for "SuggestCategory" debug messages
+3. Usual culprits:
+   - Truncated response: MaxOutputTokens should be 500
+   - Preamble before the JSON: extractJSON() handles this
+   - Low confidence: only >50% applies
+4. Failed or low-confidence categorization drops the expense into `Others` (if available) or "Uncategorized"
 
 ## Contributing
 
@@ -582,21 +581,21 @@ openssl rand -hex 32
 - Fix bugs: Use `/commit` with clear description
 - Add features: Create feature branch, test thoroughly
 - Follow existing code patterns
-- Maintain test coverage above 50%
+- Keep test coverage above 50%
 
 ### Testing Requirements
 
 - Unit tests for all new functions
 - Integration tests for database operations
 - Table-driven tests for multiple scenarios
-- Use `t.Parallel()` where appropriate
+- `t.Parallel()` where appropriate
 
 ## Performance
 
-- **Category Caching**: Categories cached for 5 minutes, reducing database queries
-- **Connection Pooling**: pgxpool for efficient PostgreSQL connections
-- **Parallel Tests**: Tests run in parallel for faster CI/CD
-- **Indexed Queries**: All common queries use database indexes
+- **Category caching**: A five-minute cache keeps category lookups off the database
+- **Connection pooling**: pgxpool manages PostgreSQL connections
+- **Parallel tests**: Tests run in parallel, so CI finishes sooner
+- **Indexed queries**: Every common query hits an index
 
 ## Security
 
@@ -605,15 +604,15 @@ The bot has been hardened against the risks that matter for a personal Telegram 
 ### Security Measures Implemented
 
 **Input Validation & Sanitization:**
-- SQL injection prevention via parameterized queries (pgx)
+- Parameterized queries (pgx) close off SQL injection
 - Prompt injection mitigations for AI/LLM inputs (see [PROMPT_INJECTION_SECURITY_ASSESSMENT.md](./docs/PROMPT_INJECTION_SECURITY_ASSESSMENT.md))
-- Input sanitization for expense descriptions (quote escaping, newline removal, length limits)
-- Fuzz testing for parsing and sanitization functions (see [FUZZ_TESTING_PLAN.md](./docs/FUZZ_TESTING_PLAN.md))
+- Expense descriptions sanitized: quotes escaped, newlines stripped, length capped
+- Fuzz tests cover parsing and sanitization functions (see [FUZZ_TESTING_PLAN.md](./docs/FUZZ_TESTING_PLAN.md))
 
 **Authentication & Access Control:**
-- User whitelisting by Telegram user ID or username
-- Startup validation requires at least one whitelisted user
-- All requests rejected by default (fail-closed)
+- Whitelisting by Telegram user ID or username
+- Startup fails without at least one whitelisted user
+- Everything else is rejected by default (fail-closed)
 
 **Configuration Security:**
 - Required environment variables validated at startup (fail-fast)
@@ -623,18 +622,18 @@ The bot has been hardened against the risks that matter for a personal Telegram 
 **Privacy-Preserving Logging:**
 - User IDs hashed in logs (SHA256-based, salted)
 - Expense descriptions redacted in logs
-- No PII stored in application logs (see [PRIVACY_LOGGING.md](./docs/PRIVACY_LOGGING.md))
+- No PII in application logs (see [PRIVACY_LOGGING.md](./docs/PRIVACY_LOGGING.md))
 
 **CI/CD Security:**
-- SAST scanning enabled in GitLab CI
-- Secrets detection in pipeline
+- SAST scanning in GitLab CI
+- Secrets detection in the pipeline
 - Dependency vulnerability scanning
-- Code coverage enforcement (50% minimum)
+- Coverage enforcement (50% minimum)
 
 **LLM/AI Security:**
 - Gemini API response schema validation (enum constraints)
-- Confidence score validation (0.0-1.0 range)
-- Output sanitization for AI-generated content
+- Confidence scores checked against the 0.0-1.0 range
+- AI-generated content sanitized before use
 
 ### Security Documentation
 
@@ -649,15 +648,15 @@ The bot has been hardened against the risks that matter for a personal Telegram 
 
 ### Known Limitations
 
-- No external penetration testing performed
-- Designed for personal/small group use, not enterprise
+- Nobody has run an external penetration test
+- Built for one person or a small group, not an enterprise
 - No formal vulnerability disclosure policy (contributions welcome)
 
 ## Monitoring
 
 ### Structured Logging
 
-The bot uses zerolog for structured logging. All operations log:
+zerolog handles logging. Every operation logs:
 - User actions with user_id and username
 - Command execution with parameters
 - Errors with full context
@@ -688,9 +687,9 @@ Set `OTEL_ENABLED=true` to turn on distributed tracing and metrics. The bot expo
 | `background.job.duration` | Histogram | Background job duration (seconds) |
 | `cache.hits` / `cache.misses` | Counter | Cache hit/miss rates (categories, exchange rates) |
 
-**Log Correlation:** When OTel is enabled, error-level logs include `trace_id` and `span_id` fields for correlating logs with traces.
+**Log correlation:** With OTel on, error-level logs carry `trace_id` and `span_id`, so you can line logs up against traces.
 
-**Privacy:** All Telegram user and chat IDs are hashed (SHA256, salted) before embedding in span attributes.
+**Privacy:** Telegram user and chat IDs are hashed (SHA256, salted) before they reach span attributes.
 
 See [OTEL_INTEGRATION.md](./docs/OTEL_INTEGRATION.md) for full details and configuration.
 
@@ -700,7 +699,7 @@ See LICENSE file for details.
 
 ## Documentation
 
-Additional documentation is available in the [`docs/`](./docs) directory:
+More documentation lives in [`docs/`](./docs):
 
 - **[How This Bot Works](./docs/HOW_THIS_BOT_WORKS.md)** - Architecture, data flows, Mermaid diagrams, and operational behavior
 - **[Privacy Policy](./docs/PRIVACY.md)** - How receipt photos and user data are processed
@@ -711,4 +710,4 @@ Additional documentation is available in the [`docs/`](./docs) directory:
 
 ## Support
 
-For issues, questions, or contributions, please open an issue in the repository.
+Open an issue for problems, questions, or contributions.
