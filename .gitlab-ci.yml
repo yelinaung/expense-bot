@@ -15,7 +15,7 @@ variables:
   GOCACHE: ${CI_PROJECT_DIR}/.go-cache
   GOLANGCI_LINT_CACHE: ${CI_PROJECT_DIR}/.golangci-cache
   # Pinned image digests (amd64/linux) — update together with version comments.
-  GOLANG_IMAGE: golang:1.26-alpine@sha256:d337ecb3075f0ec76d81652b3fa52af47c3eba6c8ba9f93b835752df7ce62946
+  GOLANG_IMAGE: golang:1.26@sha256:23fdfd3a6abc97c81e32a724cdd1cf541c06c416eb04d717815f4ed7c75623d0
   GOLANGCI_LINT_IMAGE: golangci/golangci-lint:v2.11-alpine@sha256:764c339d1afa8ea000f0f265ef561961cfa0ff79fa054875d462592acb2ae993
   POSTGRES_IMAGE: postgres:18-alpine@sha256:ef9e5f962db375d64c9e01bf12c41426d63c64b8cdf962daf35b60e74aa95ce5
   ALPINE_JQ_IMAGE: apteno/alpine-jq:latest@sha256:2618c251ddb92dd09e9bee03769792df70a31083a8d4105472ef5c823b2fb8e3
@@ -180,17 +180,15 @@ test:
     POSTGRES_PASSWORD: test
     POSTGRES_DB: expense_bot_test
   before_script:
-    # Hegel's native library requires glibc; the Alpine-based image uses musl.
-    # gcompat provides ld-linux-x86-64.so.2 and other glibc stubs; libgcc
-    # provides libgcc_s.so.1, which libhegel-linux-amd64.so links against.
-    - apk add --no-cache gcompat libgcc
+    # The glibc-based image links hegel's glibc libhegel natively and ships gcc,
+    # so cgo is enabled out of the box (no musl shims or compiler install).
     - export TEST_DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
   script:
     # NOTE: Using -p 1 to avoid race conditions in database tests
     # Multiple packages connecting to same test DB causes migration conflicts
     - go test -v -coverprofile=coverage.out -covermode=atomic -coverpkg=./internal/... -p 1 ./...
     - go tool cover -func=coverage.out
-    # Check coverage threshold using awk (bc not available in alpine)
+    # Check coverage threshold using awk (portable across images)
     - |
       COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
       THRESHOLD=50
@@ -231,9 +229,6 @@ fuzz:
       policy: pull-push
   variables:
     FUZZTIME: 20s
-  before_script:
-    # Same glibc shims as the test job: the bot test package links hegel.
-    - apk add --no-cache gcompat libgcc
   script:
     - sh scripts/ci/fuzz.sh
   artifacts:
