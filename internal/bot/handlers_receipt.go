@@ -265,7 +265,7 @@ func (b *Bot) handleReceiptCallback(ctx context.Context, tgBot *bot.Bot, update 
 
 // handleReceiptCallbackCore is the testable implementation of handleReceiptCallback.
 func (b *Bot) handleReceiptCallbackCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
-	if update.CallbackQuery == nil {
+	if update.CallbackQuery == nil || update.CallbackQuery.Message.Message == nil {
 		return
 	}
 

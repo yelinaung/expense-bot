@@ -1046,3 +1046,44 @@ func TestPromptCreateCategoryCore(t *testing.T) {
 		require.Equal(t, categoryTypeCBT, pending.EditType)
 	})
 }
+
+func TestCallbackHandlers_InaccessibleMessageNoPanic(t *testing.T) {
+	t.Parallel()
+
+	handlers := []struct {
+		name string
+		run  func(context.Context, TelegramAPI, *models.Update)
+	}{
+		{"edit", (&Bot{}).handleEditCallbackCore},
+		{"cancel_edit", (&Bot{}).handleCancelEditCallbackCore},
+		{"set_category", (&Bot{}).handleSetCategoryCallbackCore},
+		{"create_category", (&Bot{}).handleCreateCategoryCallbackCore},
+		{"expense_action", (&Bot{}).handleExpenseActionCallbackCore},
+		{"confirm_delete", (&Bot{}).handleConfirmDeleteCallbackCore},
+		{"back_to_expense", (&Bot{}).handleBackToExpenseCallbackCore},
+		{"receipt", (&Bot{}).handleReceiptCallbackCore},
+	}
+
+	for _, h := range handlers {
+		t.Run(h.name, func(t *testing.T) {
+			t.Parallel()
+
+			update := &models.Update{
+				CallbackQuery: &models.CallbackQuery{
+					ID:   "cb",
+					From: models.User{ID: 1},
+					Data: "ignored",
+					Message: models.MaybeInaccessibleMessage{
+						Type:    models.MaybeInaccessibleMessageTypeInaccessibleMessage,
+						Message: nil,
+					},
+				},
+			}
+
+			mockBot := mocks.NewMockBot()
+			require.NotPanics(t, func() {
+				h.run(context.Background(), mockBot, update)
+			})
+		})
+	}
+}

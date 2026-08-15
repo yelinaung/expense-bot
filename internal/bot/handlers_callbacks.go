@@ -47,7 +47,7 @@ func (b *Bot) handleEditCallback(ctx context.Context, tgBot *bot.Bot, update *mo
 
 // handleEditCallbackCore is the testable implementation of handleEditCallback.
 func (b *Bot) handleEditCallbackCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
-	if update.CallbackQuery == nil {
+	if update.CallbackQuery == nil || update.CallbackQuery.Message.Message == nil {
 		return
 	}
 
@@ -544,7 +544,7 @@ func (b *Bot) handleCancelEditCallback(ctx context.Context, tgBot *bot.Bot, upda
 
 // handleCancelEditCallbackCore is the testable implementation of handleCancelEditCallback.
 func (b *Bot) handleCancelEditCallbackCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
-	if update.CallbackQuery == nil {
+	if update.CallbackQuery == nil || update.CallbackQuery.Message.Message == nil {
 		return
 	}
 
@@ -654,7 +654,7 @@ func (b *Bot) handleSetCategoryCallback(ctx context.Context, tgBot *bot.Bot, upd
 
 // handleSetCategoryCallbackCore is the testable implementation of handleSetCategoryCallback.
 func (b *Bot) handleSetCategoryCallbackCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
-	if update.CallbackQuery == nil {
+	if update.CallbackQuery == nil || update.CallbackQuery.Message.Message == nil {
 		return
 	}
 
@@ -833,7 +833,7 @@ func (b *Bot) handleCreateCategoryCallback(ctx context.Context, tgBot *bot.Bot, 
 
 // handleCreateCategoryCallbackCore is the testable implementation of handleCreateCategoryCallback.
 func (b *Bot) handleCreateCategoryCallbackCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
-	if update.CallbackQuery == nil {
+	if update.CallbackQuery == nil || update.CallbackQuery.Message.Message == nil {
 		return
 	}
 
@@ -908,7 +908,7 @@ func (b *Bot) handleExpenseActionCallback(ctx context.Context, tgBot *bot.Bot, u
 
 // handleExpenseActionCallbackCore is the testable implementation.
 func (b *Bot) handleExpenseActionCallbackCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
-	if update.CallbackQuery == nil {
+	if update.CallbackQuery == nil || update.CallbackQuery.Message.Message == nil {
 		return
 	}
 
@@ -1068,7 +1068,7 @@ func (b *Bot) handleConfirmDeleteCallback(ctx context.Context, tgBot *bot.Bot, u
 
 // handleConfirmDeleteCallbackCore is the testable implementation.
 func (b *Bot) handleConfirmDeleteCallbackCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
-	if update.CallbackQuery == nil {
+	if update.CallbackQuery == nil || update.CallbackQuery.Message.Message == nil {
 		return
 	}
 
@@ -1130,7 +1130,7 @@ func (b *Bot) handleBackToExpenseCallback(ctx context.Context, tgBot *bot.Bot, u
 
 // handleBackToExpenseCallbackCore is the testable implementation.
 func (b *Bot) handleBackToExpenseCallbackCore(ctx context.Context, tg TelegramAPI, update *models.Update) {
-	if update.CallbackQuery == nil {
+	if update.CallbackQuery == nil || update.CallbackQuery.Message.Message == nil {
 		return
 	}
 
