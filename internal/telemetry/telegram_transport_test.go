@@ -144,6 +144,74 @@ func TestTelegramTransport_SpanBehavior(t *testing.T) {
 		require.Len(t, spans, 1)
 		require.Equal(t, codes.Error, spans[0].Status().Code)
 	})
+
+	fileTr := telegramFileTransport{base: roundTripperFunc(func(_ *http.Request) (*http.Response, error) {
+		return okResponse(), nil
+	})}
+	downloadURL := "https://api.telegram.org/file/bot12345:secret/documents/file_123.jpg"
+
+	doDownload := func(t *testing.T, tr http.RoundTripper) {
+		t.Helper()
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, downloadURL, nil)
+		require.NoError(t, err)
+		resp, err := tr.RoundTrip(req)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+	}
+
+	t.Run("file download records a span without leaking the token", func(t *testing.T) {
+		sr.Reset()
+		doDownload(t, fileTr)
+
+		spans := sr.Ended()
+		require.Len(t, spans, 1)
+		span := spans[0]
+		require.Equal(t, "telegram.file download", span.Name())
+		require.Equal(t, trace.SpanKindClient, span.SpanKind())
+
+		attrs := make(map[string]string)
+		for _, kv := range span.Attributes() {
+			attrs[string(kv.Key)] = kv.Value.String()
+			require.NotContains(t, kv.Value.String(), "secret")
+			require.NotContains(t, kv.Value.String(), "12345")
+		}
+		require.Equal(t, "200", attrs["http.response.status_code"])
+	})
+
+	t.Run("file download non-2xx marks the span as error", func(t *testing.T) {
+		sr.Reset()
+		errTr := telegramFileTransport{base: roundTripperFunc(func(_ *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusBadRequest,
+				Status:     "400 Bad Request",
+				Body:       io.NopCloser(http.NoBody),
+				Header:     make(http.Header),
+			}, nil
+		})}
+		doDownload(t, errTr)
+
+		spans := sr.Ended()
+		require.Len(t, spans, 1)
+		require.Equal(t, codes.Error, spans[0].Status().Code)
+	})
+
+	t.Run("file download transport error is recorded on the span", func(t *testing.T) {
+		sr.Reset()
+		wantErr := errors.New("dial failed")
+		errTr := telegramFileTransport{base: roundTripperFunc(func(_ *http.Request) (*http.Response, error) {
+			return nil, wantErr
+		})}
+
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, downloadURL, nil)
+		require.NoError(t, err)
+		resp, err := errTr.RoundTrip(req)
+		require.ErrorIs(t, err, wantErr)
+		require.Nil(t, resp)
+
+		spans := sr.Ended()
+		require.Len(t, spans, 1)
+		require.Equal(t, codes.Error, spans[0].Status().Code)
+	})
 }
 
 func TestTelegramHTTPClient(t *testing.T) {
@@ -153,4 +221,13 @@ func TestTelegramHTTPClient(t *testing.T) {
 	require.NotNil(t, c)
 	require.Equal(t, time.Minute, c.Timeout)
 	require.IsType(t, telegramTransport{}, c.Transport)
+}
+
+func TestTelegramFileHTTPClient(t *testing.T) {
+	t.Parallel()
+
+	c := TelegramFileHTTPClient(time.Minute)
+	require.NotNil(t, c)
+	require.Equal(t, time.Minute, c.Timeout)
+	require.IsType(t, telegramFileTransport{}, c.Transport)
 }

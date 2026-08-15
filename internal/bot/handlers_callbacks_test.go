@@ -785,6 +785,44 @@ func TestProcessCategoryCreateCore(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, updated.CategoryID)
 	})
+
+	t.Run("escapes HTML in created category name", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+
+		expense := &appmodels.Expense{
+			UserID:      userID,
+			Amount:      mustParseDecimal("66.00"),
+			Currency:    testCurrencySGD,
+			Description: "Create Cat Escape",
+			Status:      appmodels.ExpenseStatusDraft,
+		}
+		err := b.expenseRepo.Create(ctx, expense)
+		require.NoError(t, err)
+
+		pending := &pendingEdit{ExpenseID: expense.ID, EditType: categoryTypeCBT, MessageID: 100}
+		result := b.processCategoryCreateCore(ctx, mockBot, 12345, userID, pending, "<b>Evil</b>")
+		require.True(t, result)
+
+		require.Len(t, mockBot.EditedMessages, 1)
+		require.NotContains(t, mockBot.EditedMessages[0].Text, "<b>Evil</b>")
+		require.Contains(t, mockBot.EditedMessages[0].Text, "&lt;b&gt;Evil&lt;/b&gt;")
+	})
+}
+
+func TestProcessCategoryCreateCore_RequiresSuperadmin(t *testing.T) {
+	ctx := context.Background()
+	pool := testDB(ctx, t)
+	b := setupTestBot(t, pool) // WhitelistedUserIDs = [123456]
+
+	userID := int64(500777)
+	pending := &pendingEdit{ExpenseID: 1, EditType: categoryTypeCBT, MessageID: 100}
+
+	mockBot := mocks.NewMockBot()
+	result := b.processCategoryCreateCore(ctx, mockBot, 12345, userID, pending, "Sneaky")
+
+	require.True(t, result)
+	require.Equal(t, 1, mockBot.SentMessageCount())
+	require.Contains(t, mockBot.LastSentMessage().Text, onlySuperadminsMsg)
 }
 
 func TestHandleCreateCategoryCallbackCore(t *testing.T) {
@@ -881,6 +919,26 @@ func TestPromptEditMerchantCore(t *testing.T) {
 		require.True(t, exists)
 		require.Equal(t, expense.ID, pending.ExpenseID)
 		require.Equal(t, merchantTypeCBT, pending.EditType)
+	})
+
+	t.Run("escapes HTML in merchant", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+
+		expense := &appmodels.Expense{
+			UserID:      userID,
+			Amount:      mustParseDecimal(amount15CBT),
+			Currency:    testCurrencySGD,
+			Description: oldMerchantTextCBT,
+			Merchant:    "<b>Evil</b>",
+			Status:      appmodels.ExpenseStatusDraft,
+		}
+		require.NoError(t, b.expenseRepo.Create(ctx, expense))
+
+		b.promptEditMerchantCore(ctx, mockBot, 22222, 100, expense)
+
+		require.Len(t, mockBot.EditedMessages, 1)
+		require.NotContains(t, mockBot.EditedMessages[0].Text, "<b>Evil</b>")
+		require.Contains(t, mockBot.EditedMessages[0].Text, "&lt;b&gt;Evil&lt;/b&gt;")
 	})
 }
 

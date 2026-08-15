@@ -37,6 +37,26 @@ func TestNewOTelInstrumentation(t *testing.T) {
 	})
 }
 
+func TestNewFileDownloadClient(t *testing.T) {
+	t.Parallel()
+
+	t.Run("uses plain client when OTel disabled", func(t *testing.T) {
+		t.Parallel()
+		c := newFileDownloadClient(&config.Config{OTelEnabled: false})
+		require.NotNil(t, c)
+		require.Equal(t, 30*time.Second, c.Timeout)
+		require.Nil(t, c.Transport, "plain client should use the default transport")
+	})
+
+	t.Run("uses token-safe transport when OTel enabled", func(t *testing.T) {
+		t.Parallel()
+		c := newFileDownloadClient(&config.Config{OTelEnabled: true})
+		require.NotNil(t, c)
+		require.Equal(t, 30*time.Second, c.Timeout)
+		require.NotNil(t, c.Transport, "OTel-enabled client should use a token-safe transport")
+	})
+}
+
 func TestCacheMetricsFrom(t *testing.T) {
 	t.Parallel()
 

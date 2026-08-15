@@ -65,6 +65,21 @@ func TestHandleSetCurrencyCore(t *testing.T) {
 		require.Contains(t, msg.Text, "XYZ")
 	})
 
+	t.Run("escapes HTML in unknown currency", func(t *testing.T) {
+		mockBot.Reset()
+
+		update := mocks.CommandUpdate(12345, user.ID, "/setcurrency </code><b>x</b>")
+
+		b.handleSetCurrencyCore(ctx, mockBot, update)
+
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		msg := mockBot.LastSentMessage()
+		require.NotNil(t, msg)
+		require.Contains(t, msg.Text, "Unknown currency")
+		require.NotContains(t, msg.Text, "<B>X</B>")
+		require.Contains(t, msg.Text, "&lt;")
+	})
+
 	t.Run("shows currency list when no arguments", func(t *testing.T) {
 		mockBot.Reset()
 

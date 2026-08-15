@@ -148,6 +148,8 @@ func TestHandleTagCore(t *testing.T) {
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.Contains(t, msg.Text, "Invalid tag name")
+		require.NotContains(t, msg.Text, "<b>bold</b>")
+		require.Contains(t, msg.Text, "&lt;b&gt;bold&lt;/b&gt;")
 	})
 
 	t.Run("rejects tag starting with digit", func(t *testing.T) {

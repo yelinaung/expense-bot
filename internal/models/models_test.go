@@ -47,6 +47,15 @@ func TestCategory(t *testing.T) {
 	})
 }
 
+func TestAmountInRange(t *testing.T) {
+	t.Parallel()
+
+	require.True(t, AmountInRange(decimal.NewFromFloat(5.50)))
+	require.True(t, AmountInRange(decimal.RequireFromString("9999999999.99")))
+	require.False(t, AmountInRange(decimal.RequireFromString("99999999999.99")))
+	require.False(t, AmountInRange(decimal.NewFromFloat(1e28)))
+}
+
 func TestExpense(t *testing.T) {
 	t.Parallel()
 
