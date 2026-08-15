@@ -85,7 +85,7 @@ func (c *Client) ParseVoiceExpense(
 				{Text: prompt},
 			},
 		},
-	}, nil)
+	}, buildVoiceGenerateConfig(categories))
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
@@ -124,10 +124,7 @@ func (c *Client) ParseVoiceExpense(
 }
 
 func buildVoiceExpensePrompt(categories []string) string {
-	sanitized := make([]string, len(categories))
-	for i, cat := range categories {
-		sanitized[i] = SanitizeCategoryName(cat)
-	}
+	sanitized := sanitizeCategoryList(categories)
 	categoryList := strings.Join(sanitized, ", ")
 	return fmt.Sprintf(`Listen to this voice message and extract expense information.
 The user is telling you about a spending or purchase.
@@ -148,6 +145,63 @@ If a field cannot be determined, use an empty string for text fields, "0" for am
 
 Example response:
 {"amount": "5.50", "description": "Coffee", "currency": "", "suggested_category": "Food - Dining Out", "confidence": 0.9}`, categoryList)
+}
+
+// sanitizeCategoryList sanitizes a list of category names for use in prompts
+// and response schemas.
+func sanitizeCategoryList(categories []string) []string {
+	sanitized := make([]string, len(categories))
+	for i, cat := range categories {
+		sanitized[i] = SanitizeCategoryName(cat)
+	}
+	return sanitized
+}
+
+// buildVoiceGenerateConfig builds the Gemini generation config for voice
+// parsing. It constrains the response to JSON and, when categories are
+// available, restricts suggested_category to that allow-list via a schema enum
+// so a model cannot be steered into emitting an arbitrary category.
+func buildVoiceGenerateConfig(categories []string) *genai.GenerateContentConfig {
+	sanitized := sanitizeCategoryList(categories)
+	temp := float32(0.2)
+
+	cfg := &genai.GenerateContentConfig{
+		Temperature:      &temp,
+		MaxOutputTokens:  int32(256),
+		ResponseMIMEType: "application/json",
+		ResponseSchema: &genai.Schema{
+			Type: genai.TypeObject,
+			Properties: map[string]*genai.Schema{
+				jsonFieldAmount: {
+					Type:        genai.TypeString,
+					Description: "Numeric amount as a string, e.g. \"5.50\"",
+				},
+				jsonFieldDescription: {
+					Type:        genai.TypeString,
+					Description: "What was purchased or what the expense was for",
+				},
+				jsonFieldCurrency: {
+					Type:        genai.TypeString,
+					Description: "3-letter currency code, or empty string when not clear",
+				},
+				jsonFieldSuggestedCategory: {
+					Type:        genai.TypeString,
+					Description: "One of the provided categories",
+				},
+				jsonFieldConfidence: {
+					Type:        genai.TypeNumber,
+					Description: "Confidence between 0.0 and 1.0",
+				},
+			},
+			Required: []string{jsonFieldAmount, jsonFieldDescription, jsonFieldCurrency, jsonFieldSuggestedCategory, jsonFieldConfidence},
+		},
+	}
+
+	if len(sanitized) > 0 {
+		cfg.ResponseSchema.Properties[jsonFieldSuggestedCategory].Enum = append([]string{}, sanitized...)
+	}
+
+	return cfg
 }
 
 func parseVoiceExpenseResponse(response string) (*VoiceExpenseData, error) {
@@ -176,6 +230,12 @@ func parseVoiceExpenseResponse(response string) (*VoiceExpenseData, error) {
 		}
 		if !models.AmountExponentInRange(amount) {
 			return nil, fmt.Errorf("amount %q out of range in voice response", vr.Amount)
+		}
+		if amount.IsNegative() || amount.IsZero() {
+			return nil, fmt.Errorf("amount %q must be positive in voice response", vr.Amount)
+		}
+		if !models.AmountInRange(amount) {
+			return nil, fmt.Errorf("amount %q exceeds maximum allowed in voice response", vr.Amount)
 		}
 		data.Amount = amount
 	}

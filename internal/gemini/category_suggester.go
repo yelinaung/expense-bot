@@ -34,6 +34,19 @@ type CategorySuggestion struct {
 	NewCategoryName string  `json:"new_category_name"`
 }
 
+// JSON field names shared by the Gemini response schemas.
+const (
+	jsonFieldAmount            = "amount"
+	jsonFieldDescription       = "description"
+	jsonFieldCurrency          = "currency"
+	jsonFieldSuggestedCategory = "suggested_category"
+	jsonFieldConfidence        = "confidence"
+	jsonFieldCategory          = "category"
+	jsonFieldReasoning         = "reasoning"
+	jsonFieldMatched           = "matched"
+	jsonFieldNewCategoryName   = "new_category_name"
+)
+
 // SuggestCategory uses Gemini to suggest an appropriate category for an expense description.
 func (c *Client) SuggestCategory(ctx context.Context, description string, availableCategories []string) (*CategorySuggestion, error) {
 	cleanedCategories := sanitizeAvailableCategories(availableCategories)
@@ -78,29 +91,29 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 		ResponseSchema: &genai.Schema{
 			Type: genai.TypeObject,
 			Properties: map[string]*genai.Schema{
-				"category": {
+				jsonFieldCategory: {
 					Type:        genai.TypeString,
 					Enum:        append([]string{}, cleanedCategories...),
 					Description: "Category from provided list when matched=true",
 				},
-				"confidence": {
+				jsonFieldConfidence: {
 					Type:        genai.TypeNumber,
 					Description: "Confidence score between 0 and 1",
 				},
-				"reasoning": {
+				jsonFieldReasoning: {
 					Type:        genai.TypeString,
 					Description: "Brief explanation for the categorization",
 				},
-				"matched": {
+				jsonFieldMatched: {
 					Type:        genai.TypeBoolean,
 					Description: "True if an existing category is a good match, false otherwise",
 				},
-				"new_category_name": {
+				jsonFieldNewCategoryName: {
 					Type:        genai.TypeString,
 					Description: "Suggested new category name when matched=false; otherwise empty string",
 				},
 			},
-			Required: []string{"confidence", "reasoning", "matched", "new_category_name"},
+			Required: []string{jsonFieldConfidence, jsonFieldReasoning, jsonFieldMatched, jsonFieldNewCategoryName},
 		},
 	}
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/yelinaung/expense-bot/internal/models"
 	"google.golang.org/genai"
 )
 
@@ -138,6 +139,16 @@ func TestParseVoiceExpenseResponse(t *testing.T) {
 		{
 			name:     "invalid amount format",
 			response: `{"amount": "not-a-number", "description": "Test", "currency": "", "suggested_category": "", "confidence": 0.5}`,
+			wantErr:  true,
+		},
+		{
+			name:     "negative amount rejected",
+			response: `{"amount": "-50.00", "description": "Refund", "currency": "", "suggested_category": "", "confidence": 0.5}`,
+			wantErr:  true,
+		},
+		{
+			name:     "amount exceeding maximum rejected",
+			response: `{"amount": "99999999999.99", "description": "Absurd", "currency": "", "suggested_category": "", "confidence": 0.5}`,
 			wantErr:  true,
 		},
 		{
@@ -546,4 +557,46 @@ func TestParseVoiceExpenseResponse_SanitizesFields(t *testing.T) {
 			require.Equal(t, tt.wantCategory, data.SuggestedCategory)
 		})
 	}
+}
+
+func TestBuildVoiceGenerateConfig_ConstrainsCategoryEnum(t *testing.T) {
+	t.Parallel()
+
+	categories := []string{testGeminiCategoryFoodDiningOut, testGeminiCategoryTransport}
+
+	cfg := buildVoiceGenerateConfig(categories)
+
+	require.NotNil(t, cfg)
+	require.Equal(t, "application/json", cfg.ResponseMIMEType)
+
+	schema := cfg.ResponseSchema
+	require.NotNil(t, schema)
+	require.Equal(t, genai.TypeObject, schema.Type)
+
+	categorySchema, ok := schema.Properties["suggested_category"]
+	require.True(t, ok)
+	require.ElementsMatch(t, categories, categorySchema.Enum)
+
+	for _, req := range []string{"amount", "description", "currency", "suggested_category", "confidence"} {
+		require.Contains(t, schema.Required, req)
+	}
+}
+
+func TestBuildVoiceGenerateConfig_EmptyCategoriesNoEnum(t *testing.T) {
+	t.Parallel()
+
+	cfg := buildVoiceGenerateConfig(nil)
+	require.NotNil(t, cfg)
+
+	categorySchema, ok := cfg.ResponseSchema.Properties["suggested_category"]
+	require.True(t, ok)
+	require.Empty(t, categorySchema.Enum)
+}
+
+func TestAmountInRange(t *testing.T) {
+	t.Parallel()
+
+	require.True(t, models.AmountInRange(decimal.NewFromFloat(5.50)))
+	require.True(t, models.AmountInRange(decimal.RequireFromString("9999999999.99")))
+	require.False(t, models.AmountInRange(decimal.RequireFromString("99999999999.99")))
 }

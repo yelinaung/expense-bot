@@ -21,10 +21,24 @@ const MaxCategoryNameLength = 50
 // 10^exp as a big.Int, which effectively hangs the process (found by fuzzing).
 const MaxAmountExponent = 27
 
+// MaxExpenseAmount is the largest absolute expense amount accepted. It matches
+// the capacity of the amount DECIMAL(12,2) column so that every accepted amount
+// can be stored without overflowing the column.
+var MaxExpenseAmount = decimal.RequireFromString("9999999999.99")
+
 // AmountExponentInRange reports whether d's exponent is small enough that
 // rescaling it (for comparison, formatting, or storage) stays cheap.
 func AmountExponentInRange(d decimal.Decimal) bool {
 	return d.Exponent() >= -MaxAmountExponent && d.Exponent() <= MaxAmountExponent
+}
+
+// AmountInRange reports whether d has a bounded exponent and an absolute value
+// within the storable range.
+func AmountInRange(d decimal.Decimal) bool {
+	if !AmountExponentInRange(d) {
+		return false
+	}
+	return d.Abs().LessThanOrEqual(MaxExpenseAmount)
 }
 
 // SupportedCurrencies lists all supported currency codes.
