@@ -275,48 +275,6 @@ func TestSendEmptyExpenseList(t *testing.T) {
 	require.Contains(t, mockBot.LastSentMessage().Text, "No expenses found")
 }
 
-func TestIsValidAutoCreatedCategoryName(t *testing.T) {
-	t.Parallel()
-
-	require.False(t, isValidAutoCreatedCategoryName(""))
-	require.False(t, isValidAutoCreatedCategoryName(" \t "))
-	require.False(t, isValidAutoCreatedCategoryName("bad\nname"))
-	require.True(t, isValidAutoCreatedCategoryName("Travel"))
-}
-
-func TestApplyNewCategorySuggestion(t *testing.T) {
-	ctx := context.Background()
-	pool := testDB(ctx, t)
-	b := setupTestBot(t, pool)
-
-	expense := &appmodels.Expense{}
-	ok := b.applyNewCategorySuggestion(ctx, expense, "desc", &gemini.CategorySuggestion{
-		NewCategoryName: "bad\nname",
-		Confidence:      0.95,
-	}, nil)
-	require.False(t, ok)
-	require.Nil(t, expense.CategoryID)
-
-	categories := []appmodels.Category{{ID: 42, Name: testCategoryFood}}
-	expense = &appmodels.Expense{}
-	ok = b.applyNewCategorySuggestion(ctx, expense, "desc", &gemini.CategorySuggestion{
-		NewCategoryName: "food",
-		Confidence:      0.95,
-	}, categories)
-	require.True(t, ok)
-	require.NotNil(t, expense.CategoryID)
-	require.Equal(t, 42, *expense.CategoryID)
-
-	expense = &appmodels.Expense{}
-	ok = b.applyNewCategorySuggestion(ctx, expense, "desc", &gemini.CategorySuggestion{
-		NewCategoryName: "NewCategory",
-		Confidence:      0.95,
-	}, nil)
-	require.True(t, ok)
-	require.NotNil(t, expense.Category)
-	require.Equal(t, "NewCategory", expense.Category.Name)
-}
-
 func TestSaveInlineTags(t *testing.T) {
 	ctx := context.Background()
 	pool := testDB(ctx, t)
@@ -376,25 +334,6 @@ func TestSaveInlineTags_NoTags(t *testing.T) {
 	t.Parallel()
 	b := &Bot{}
 	b.saveInlineTags(context.Background(), 1, nil)
-}
-
-func TestApplyNewCategorySuggestion_CreateError(t *testing.T) {
-	ctx := context.Background()
-	pool := testDB(ctx, t)
-	b := setupTestBot(t, pool)
-
-	// Seed an existing category to force duplicate create path.
-	_, err := b.categoryRepo.Create(ctx, "DupCat")
-	require.NoError(t, err)
-
-	expense := &appmodels.Expense{}
-	ok := b.applyNewCategorySuggestion(ctx, expense, "desc", &gemini.CategorySuggestion{
-		NewCategoryName: "DupCat",
-		Confidence:      0.95,
-	}, nil)
-	require.False(t, ok)
-	require.Nil(t, expense.Category)
-	require.Nil(t, expense.CategoryID)
 }
 
 func TestSendVoiceParseError_Default(t *testing.T) {

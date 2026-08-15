@@ -17,6 +17,7 @@ func TestHandleDeleteCategoryCore(t *testing.T) {
 
 	userID := int64(910001)
 	chatID := int64(910001)
+	b.cfg.WhitelistedUserIDs = []int64{userID}
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
 		ID:        userID,

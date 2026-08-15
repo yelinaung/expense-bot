@@ -740,6 +740,10 @@ func (b *Bot) processCategoryCreateCore(
 	delete(b.pendingEdits, chatID)
 	b.pendingEditsMu.Unlock()
 
+	if !b.requireSuperadmin(ctx, tg, chatID, userID, "") {
+		return true
+	}
+
 	categoryName := strings.TrimSpace(input)
 	if categoryName == "" {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{

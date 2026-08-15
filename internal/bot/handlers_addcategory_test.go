@@ -19,6 +19,7 @@ func TestHandleAddCategoryCore(t *testing.T) {
 
 	userID := int64(800001)
 	chatID := int64(800001)
+	b.cfg.WhitelistedUserIDs = []int64{userID}
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
 		ID:        userID,
@@ -80,6 +81,7 @@ func TestHandleAddCategoryCoreDuplicate(t *testing.T) {
 
 	userID := int64(800002)
 	chatID := int64(800002)
+	b.cfg.WhitelistedUserIDs = []int64{userID}
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
 		ID:        userID,
@@ -110,6 +112,7 @@ func TestHandleAddCategoryCoreValidation(t *testing.T) {
 
 	userID := int64(800003)
 	chatID := int64(800003)
+	b.cfg.WhitelistedUserIDs = []int64{userID}
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
 		ID:        userID,
@@ -188,4 +191,47 @@ func TestHandleAddCategoryWrapper(t *testing.T) {
 		update := &models.Update{}
 		b.handleAddCategory(ctx, tgBot, update)
 	})
+}
+
+func TestCategoryCommandsRequireSuperadmin(t *testing.T) {
+	ctx := context.Background()
+	pool := testDB(ctx, t)
+	b := setupTestBot(t, pool)
+
+	userID := int64(900999)
+	chatID := int64(900999)
+
+	tests := []struct {
+		name    string
+		command string
+		run     func(context.Context, TelegramAPI, *models.Update)
+	}{
+		{
+			name:    "addcategory",
+			command: withCommandArg(testAddCategoryCommand, "Sneaky"),
+			run:     b.handleAddCategoryCore,
+		},
+		{
+			name:    "renamecategory",
+			command: "/renamecategory A -> B",
+			run:     b.handleRenameCategoryCore,
+		},
+		{
+			name:    "deletecategory",
+			command: "/deletecategory A",
+			run:     b.handleDeleteCategoryCore,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockBot := mocks.NewMockBot()
+			update := mocks.CommandUpdate(chatID, userID, tt.command)
+
+			tt.run(ctx, mockBot, update)
+
+			require.Equal(t, 1, mockBot.SentMessageCount())
+			require.Contains(t, mockBot.LastSentMessage().Text, onlySuperadminsMsg)
+		})
+	}
 }

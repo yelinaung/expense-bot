@@ -228,6 +228,10 @@ func (b *Bot) handleAddCategoryCore(ctx context.Context, tg TelegramAPI, update 
 
 	chatID := update.Message.Chat.ID
 
+	if !b.requireSuperadmin(ctx, tg, chatID, update.Message.From.ID, update.Message.From.Username) {
+		return
+	}
+
 	args := extractCommandArgs(update.Message.Text, "/addcategory")
 
 	if args == "" {
@@ -295,6 +299,10 @@ func (b *Bot) handleRenameCategoryCore(ctx context.Context, tg TelegramAPI, upda
 	}
 
 	chatID := update.Message.Chat.ID
+
+	if !b.requireSuperadmin(ctx, tg, chatID, update.Message.From.ID, update.Message.From.Username) {
+		return
+	}
 
 	args := extractCommandArgs(update.Message.Text, "/renamecategory")
 
@@ -440,6 +448,10 @@ func (b *Bot) handleDeleteCategoryCore(ctx context.Context, tg TelegramAPI, upda
 	}
 
 	chatID := update.Message.Chat.ID
+
+	if !b.requireSuperadmin(ctx, tg, chatID, update.Message.From.ID, update.Message.From.Username) {
+		return
+	}
 
 	args := extractCommandArgs(update.Message.Text, "/deletecategory")
 
@@ -714,9 +726,12 @@ func (b *Bot) assignAICategorySuggestion(
 	if suggestion.Matched {
 		return b.applyMatchedSuggestion(expense, description, suggestion, categories)
 	}
-	if suggestion.NewCategoryName != "" && suggestion.Confidence >= 0.8 {
-		return b.applyNewCategorySuggestion(ctx, expense, description, suggestion, categories)
-	}
+
+	// Do not auto-create new categories from model output. Model output is
+	// untrusted input, and creating a global category from it is a
+	// prompt-injection vector; categories must be created explicitly by a
+	// superadmin. When the model suggests a new category we simply leave the
+	// expense uncategorized.
 	return false
 }
 
@@ -741,67 +756,6 @@ func (b *Bot) applyMatchedSuggestion(
 		return true
 	}
 	return false
-}
-
-func (b *Bot) applyNewCategorySuggestion(
-	ctx context.Context,
-	expense *appmodels.Expense,
-	description string,
-	suggestion *gemini.CategorySuggestion,
-	categories []appmodels.Category,
-) bool {
-	newCategory := suggestion.NewCategoryName
-	if !isValidAutoCreatedCategoryName(newCategory) {
-		logger.Log.Warn().
-			Str("description", logger.SanitizeDescription(description)).
-			Str("new_category", newCategory).
-			Msg("AI suggested invalid new category name; skipping auto-create")
-		return false
-	}
-
-	for i := range categories {
-		if strings.EqualFold(categories[i].Name, newCategory) {
-			expense.CategoryID = &categories[i].ID
-			expense.Category = &categories[i]
-			return true
-		}
-	}
-
-	cat, err := b.categoryRepo.Create(ctx, newCategory)
-	if err != nil {
-		existing, getErr := b.categoryRepo.GetByName(ctx, newCategory)
-		if getErr == nil {
-			expense.CategoryID = &existing.ID
-			expense.Category = existing
-			return true
-		}
-		logger.Log.Warn().Err(err).
-			Str("new_category", newCategory).
-			Msg("Failed to auto-create category from AI suggestion")
-		return false
-	}
-
-	expense.CategoryID = &cat.ID
-	expense.Category = cat
-	b.invalidateCategoryCache()
-	logger.Log.Info().
-		Str("description", logger.SanitizeDescription(description)).
-		Str("new_category", newCategory).
-		Float64("confidence", suggestion.Confidence).
-		Msg("Auto-created category from AI suggestion")
-	return true
-}
-
-func isValidAutoCreatedCategoryName(name string) bool {
-	if strings.TrimSpace(name) == "" || len(name) > appmodels.MaxCategoryNameLength {
-		return false
-	}
-	for _, r := range name {
-		if unicode.IsControl(r) {
-			return false
-		}
-	}
-	return true
 }
 
 func (b *Bot) saveInlineTags(ctx context.Context, expenseID int, tags []string) {

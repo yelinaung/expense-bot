@@ -18,6 +18,7 @@ func TestHandleRenameCategoryCore(t *testing.T) {
 
 	userID := int64(900001)
 	chatID := int64(900001)
+	b.cfg.WhitelistedUserIDs = []int64{userID}
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
 		ID:        userID,

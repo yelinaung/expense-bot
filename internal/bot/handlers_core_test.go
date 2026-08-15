@@ -681,7 +681,7 @@ func TestSaveExpenseCore(t *testing.T) {
 		require.Contains(t, msg.Text, othersTextCoreTest)
 	})
 
-	t.Run("ai can suggest and create a new category when unmatched", func(t *testing.T) {
+	t.Run("ai new category suggestion is not auto-created", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		userID := int64(200005)
 
@@ -712,11 +712,12 @@ func TestSaveExpenseCore(t *testing.T) {
 
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
-		require.Contains(t, msg.Text, aiSubscriptionsCoreTest)
+		require.Contains(t, msg.Text, othersTextCoreTest)
 
-		createdCat, err := b.categoryRepo.GetByName(ctx, aiSubscriptionsCoreTest)
-		require.NoError(t, err)
-		require.NotNil(t, createdCat)
+		// The suggested new category must not be silently created from model
+		// output.
+		_, err = b.categoryRepo.GetByName(ctx, aiSubscriptionsCoreTest)
+		require.Error(t, err)
 	})
 
 	t.Run("invalid ai new category suggestion falls back to Others", func(t *testing.T) {

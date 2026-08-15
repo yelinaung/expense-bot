@@ -720,6 +720,7 @@ func TestProcessCategoryCreateCore(t *testing.T) {
 	pool := testDB(ctx, t)
 	b := setupTestBot(t, pool)
 	userID := int64(500008)
+	b.cfg.WhitelistedUserIDs = []int64{userID}
 
 	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
 		ID:        userID,

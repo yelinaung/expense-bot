@@ -36,6 +36,21 @@ func extractAdminArgs(text string) string {
 	return strings.TrimSpace(parts[1])
 }
 
+// requireSuperadmin checks whether the given user is a superadmin. When they
+// are not, it replies with an access-denied message and returns false so the
+// caller can stop processing.
+func (b *Bot) requireSuperadmin(ctx context.Context, tg TelegramAPI, chatID, userID int64, username string) bool {
+	if b.cfg.IsSuperAdmin(userID, username) {
+		return true
+	}
+
+	_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: chatID,
+		Text:   onlySuperadminsMsg,
+	})
+	return false
+}
+
 // handleApprove handles the /approve command to approve a user.
 func (b *Bot) handleApprove(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
 	b.handleApproveCore(ctx, tgBot, update)
@@ -51,11 +66,7 @@ func (b *Bot) handleApproveCore(ctx context.Context, tg TelegramAPI, update *mod
 	userID := update.Message.From.ID
 	username := update.Message.From.Username
 
-	if !b.cfg.IsSuperAdmin(userID, username) {
-		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
-			Text:   onlySuperadminsMsg,
-		})
+	if !b.requireSuperadmin(ctx, tg, chatID, userID, username) {
 		return
 	}
 
@@ -119,11 +130,7 @@ func (b *Bot) handleRevokeCore(ctx context.Context, tg TelegramAPI, update *mode
 	userID := update.Message.From.ID
 	username := update.Message.From.Username
 
-	if !b.cfg.IsSuperAdmin(userID, username) {
-		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
-			Text:   onlySuperadminsMsg,
-		})
+	if !b.requireSuperadmin(ctx, tg, chatID, userID, username) {
 		return
 	}
 
@@ -201,11 +208,7 @@ func (b *Bot) handleUsersCore(ctx context.Context, tg TelegramAPI, update *model
 	userID := update.Message.From.ID
 	username := update.Message.From.Username
 
-	if !b.cfg.IsSuperAdmin(userID, username) {
-		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
-			Text:   onlySuperadminsMsg,
-		})
+	if !b.requireSuperadmin(ctx, tg, chatID, userID, username) {
 		return
 	}
 
