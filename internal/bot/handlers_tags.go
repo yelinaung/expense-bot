@@ -151,7 +151,7 @@ func (b *Bot) resolveTagIDs(ctx context.Context, tagNames []string) ([]int, []st
 		if !isValidTagName(name) {
 			return nil, nil, fmt.Errorf(
 				"❌ Invalid tag name '%s'. Tags must start with a letter, contain only letters/numbers/underscores, and be at most %d characters",
-				name,
+				escapeHTML(name),
 				appmodels.MaxTagNameLength,
 			)
 		}

@@ -201,7 +201,7 @@ func (b *Bot) promptEditMerchantCore(
 Current merchant: %s
 
 Please type the new merchant name:`,
-		expense.Merchant)
+		escapeHTML(expense.Merchant))
 
 	keyboard := &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{
@@ -816,8 +816,8 @@ func (b *Bot) processCategoryCreateCore(
 
 New category created. Confirm to save.`,
 		expense.Amount.StringFixed(2),
-		expense.Merchant,
-		category.Name)
+		escapeHTML(expense.Merchant),
+		escapeHTML(category.Name))
 
 	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      chatID,

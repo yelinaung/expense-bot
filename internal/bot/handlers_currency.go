@@ -46,7 +46,7 @@ func (b *Bot) handleSetCurrencyCore(ctx context.Context, tg TelegramAPI, update 
 	if _, ok := appmodels.SupportedCurrencies[currency]; !ok {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      fmt.Sprintf("❌ Unknown currency: <code>%s</code>\n\nUse /setcurrency to see supported currencies.", currency),
+			Text:      fmt.Sprintf("❌ Unknown currency: <code>%s</code>\n\nUse /setcurrency to see supported currencies.", escapeHTML(currency)),
 			ParseMode: models.ParseModeHTML,
 		})
 		return
