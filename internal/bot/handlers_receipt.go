@@ -437,6 +437,18 @@ func (b *Bot) handleCancelReceiptCore(
 	messageID int,
 	expense *appmodels.Expense,
 ) {
+	// Only delete drafts. After editing a confirmed expense the receipt flow
+	// re-shows a Cancel button, but canceling must not delete an already-saved
+	// expense.
+	if expense.Status != appmodels.ExpenseStatusDraft {
+		_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
+			ChatID:    chatID,
+			MessageID: messageID,
+			Text:      "✅ This expense is already saved and cannot be canceled.",
+		})
+		return
+	}
+
 	if err := b.expenseRepo.Delete(ctx, expense.ID); err != nil {
 		logger.Log.Error().Err(err).Int("expense_id", expense.ID).Msg("Failed to delete expense")
 		_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{

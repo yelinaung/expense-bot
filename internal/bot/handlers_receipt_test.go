@@ -264,6 +264,28 @@ func TestHandleCancelReceiptCore(t *testing.T) {
 		_, err = b.expenseRepo.GetByID(ctx, expense.ID)
 		require.Error(t, err)
 	})
+
+	t.Run("does not delete a confirmed expense", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+
+		expense := &appmodels.Expense{
+			UserID:      userID,
+			Amount:      mustParseDecimal("20.00"),
+			Currency:    "SGD",
+			Description: "Already Saved",
+			Status:      appmodels.ExpenseStatusConfirmed,
+		}
+		err := b.expenseRepo.Create(ctx, expense)
+		require.NoError(t, err)
+
+		b.handleCancelReceiptCore(ctx, mockBot, 12345, 100, expense)
+
+		require.Len(t, mockBot.EditedMessages, 1)
+		require.Contains(t, mockBot.EditedMessages[0].Text, "already saved")
+
+		_, err = b.expenseRepo.GetByID(ctx, expense.ID)
+		require.NoError(t, err, "confirmed expense must not be deleted on cancel")
+	})
 }
 
 func TestHandleEditReceiptCore(t *testing.T) {
