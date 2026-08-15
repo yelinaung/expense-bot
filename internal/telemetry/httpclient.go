@@ -77,6 +77,45 @@ func (t telegramTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	return resp, nil
 }
 
+// TelegramFileHTTPClient returns an *http.Client for downloading Telegram files
+// (receipt photos, voice notes). Like TelegramHTTPClient, it deliberately does
+// NOT use otelhttp: the file download URL embeds the bot token in the path
+// (/file/bot<token>/<file_path>), which otelhttp would record into the url.full
+// span attribute and leak to the OTLP backend. It records only the response
+// status.
+func TelegramFileHTTPClient(timeout time.Duration) *http.Client {
+	return &http.Client{
+		Timeout:   timeout,
+		Transport: telegramFileTransport{base: http.DefaultTransport},
+	}
+}
+
+type telegramFileTransport struct {
+	base http.RoundTripper
+}
+
+func (t telegramFileTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	ctx, span := tracer.Start(
+		req.Context(), "telegram.file download",
+		trace.WithSpanKind(trace.SpanKindClient),
+	)
+	defer span.End()
+
+	req = req.WithContext(ctx)
+
+	resp, err := t.base.RoundTrip(req)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return resp, err
+	}
+	span.SetAttributes(attribute.Int("http.response.status_code", resp.StatusCode))
+	if resp.StatusCode >= http.StatusBadRequest {
+		span.SetStatus(codes.Error, resp.Status)
+	}
+	return resp, nil
+}
+
 const (
 	unknownTelegramMethod = "unknown"
 	telegramBotPrefix     = "/bot"

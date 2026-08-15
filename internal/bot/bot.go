@@ -82,7 +82,7 @@ func New(ctx context.Context, cfg *config.Config, db database.PGXDB) (*Bot, erro
 		bindingRepo:      bindingRepo,
 		pendingEdits:     make(map[int64]*pendingEdit),
 		exchangeService:  newExchangeService(cfg, transport, cacheMetricsFrom(metrics)),
-		httpClient:       &http.Client{Timeout: 30 * time.Second, Transport: transport},
+		httpClient:       newFileDownloadClient(cfg),
 		metrics:          metrics,
 		geminiClient:     initGeminiClient(ctx, cfg.GeminiAPIKey),
 	}
@@ -140,6 +140,19 @@ func loadSuperadminBindings(ctx context.Context, cfg *config.Config, db database
 	logger.Log.Info().Int("count", len(bindings)).Msg("Loaded superadmin bindings from DB")
 
 	return bindingRepo
+}
+
+// newFileDownloadClient returns the HTTP client used to download Telegram files
+// (receipt photos, voice notes). Telegram file URLs embed the bot token, so the
+// client must not use otelhttp, which records the full request URL (and thus the
+// token) in span attributes. When OTel is enabled it uses a token-safe transport
+// that records only the response status; otherwise a plain client is used.
+func newFileDownloadClient(cfg *config.Config) *http.Client {
+	const timeout = 30 * time.Second
+	if cfg.OTelEnabled {
+		return telemetry.TelegramFileHTTPClient(timeout)
+	}
+	return &http.Client{Timeout: timeout}
 }
 
 // newOTelInstrumentation returns the HTTP transport and bot metrics when OTel
