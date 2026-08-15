@@ -41,7 +41,7 @@ func TestIsAuthorized(t *testing.T) {
 		require.False(t, b.isAuthorized(canceledCtx, 9002, approvedUsername))
 	})
 
-	t.Run("username-only approval is accepted and backfilled", func(t *testing.T) {
+	t.Run("username-only approval is accepted without backfill", func(t *testing.T) {
 		username := "username-only"
 		userID := int64(9010)
 		require.NoError(t, b.userRepo.UpsertUser(ctx, &appmodels.User{
@@ -52,5 +52,11 @@ func TestIsAuthorized(t *testing.T) {
 		require.NoError(t, b.approvedUserRepo.ApproveByUsername(ctx, username, 1))
 
 		require.True(t, b.isAuthorized(ctx, userID, username))
+
+		// The username-only row must not be silently bound to the first
+		// claimant; it must remain username-scoped.
+		_, needsBackfill, err := b.approvedUserRepo.IsApproved(ctx, 0, username)
+		require.NoError(t, err)
+		require.True(t, needsBackfill, "username-only approval must not be backfilled")
 	})
 }

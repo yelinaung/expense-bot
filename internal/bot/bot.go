@@ -428,22 +428,14 @@ func (b *Bot) isAuthorized(ctx context.Context, userID int64, username string) b
 		return true
 	}
 
-	approved, needsBackfill, err := b.approvedUserRepo.IsApproved(ctx, userID, username)
+	approved, _, err := b.approvedUserRepo.IsApproved(ctx, userID, username)
 	if err != nil {
 		logger.Log.Error().Err(err).
 			Int64("user_id", userID).
 			Msg("Failed to check approved status, denying access")
 		return false
 	}
-	if needsBackfill {
-		// Backfill user_id for username-only approved users (fire-and-forget).
-		backfillCtx := context.WithoutCancel(ctx)
-		go func() {
-			if err := b.approvedUserRepo.UpdateUserID(backfillCtx, username, userID); err != nil {
-				logger.Log.Debug().Err(err).Str("username", username).Msg("Failed to backfill user ID")
-			}
-		}()
-	}
+
 	return approved
 }
 
