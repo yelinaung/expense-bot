@@ -44,7 +44,7 @@ func TestRegisterCommands_CommandsAreValid(t *testing.T) {
 		mu               sync.Mutex
 		capturedCommands string
 	)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "setMyCommands") {
 			if r.ParseMultipartForm(1<<20) == nil {
 				if vals, ok := r.MultipartForm.Value["commands"]; ok && len(vals) > 0 {
@@ -57,7 +57,7 @@ func TestRegisterCommands_CommandsAreValid(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"ok":true,"result":true}`))
 	}))
-	defer server.Close()
+	server.Start()
 
 	b := &Bot{}
 	tgBot, err := tgbot.New(
