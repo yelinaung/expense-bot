@@ -1,6 +1,6 @@
 module gitlab.com/yelinaung/expense-bot/runner/tools/gofumpt
 
-go 1.26.6
+go 1.27.0
 
 tool mvdan.cc/gofumpt
 
