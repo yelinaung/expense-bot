@@ -107,7 +107,7 @@ func extractCommand(text string) string {
 	if !strings.HasPrefix(text, "/") {
 		return ""
 	}
-	cmd := strings.SplitN(text, " ", 2)[0]
+	cmd, _, _ := strings.Cut(text, " ")
 	// Strip @botname suffix
 	if idx := strings.Index(cmd, "@"); idx > 0 {
 		cmd = cmd[:idx]

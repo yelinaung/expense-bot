@@ -53,8 +53,7 @@ func main() {
 		return
 	}
 
-	var re *runError
-	if errors.As(err, &re) {
+	if re, ok := errors.AsType[*runError](err); ok {
 		logger.Log.Fatal().Err(err).Msg(re.logMessage)
 	}
 	logger.Log.Fatal().Err(err).Msg("Application failed")

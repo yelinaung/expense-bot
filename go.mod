@@ -1,6 +1,6 @@
 module gitlab.com/yelinaung/expense-bot
 
-go 1.26.6
+go 1.27.0
 
 require (
 	github.com/exaring/otelpgx v0.11.1
