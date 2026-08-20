@@ -42,7 +42,7 @@ printf "%s\n" "${cover_report}"
 awk 'NR == 1 || $0 !~ /\/mocks\/|\/internal\/testutil\//' coverage.out > coverage-sonar.out
 
 total_coverage="$(printf "%s\n" "${cover_report}" | awk '/^total:/ {gsub("%","",$3); print $3}')"
-threshold=50
+threshold=80
 
 echo "Coverage: ${total_coverage}% (threshold: ${threshold}%)"
 

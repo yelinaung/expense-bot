@@ -284,7 +284,7 @@ jobs:
       - name: Check coverage threshold
         run: |
           COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
-          THRESHOLD=50
+          THRESHOLD=80
           echo "Coverage: ${COVERAGE}% (threshold: ${THRESHOLD}%)"
           if [ "$(awk "BEGIN {print ($COVERAGE < $THRESHOLD)}")" = "1" ]; then
             echo "Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%!"
