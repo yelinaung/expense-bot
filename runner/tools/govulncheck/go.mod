@@ -1,6 +1,6 @@
 module gitlab.com/yelinaung/expense-bot/runner/tools/govulncheck
 
-go 1.26.6
+go 1.27.0
 
 tool golang.org/x/vuln/cmd/govulncheck
 

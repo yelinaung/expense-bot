@@ -66,7 +66,7 @@ expense-bot/
 
 ### Technology Stack
 
-- **Language**: Go 1.25+
+- **Language**: Go 1.27+
 - **Database**: PostgreSQL with pgx driver
 - **Bot Framework**: go-telegram/bot
 - **AI/OCR**: Google Gemini API (gemini-2.5-flash model)
@@ -75,7 +75,7 @@ expense-bot/
 
 ## Prerequisites
 
-- Go 1.25 or higher
+- Go 1.27 or higher
 - PostgreSQL 18+
 - Telegram Bot Token (from [@BotFather](https://t.me/BotFather))
 - Google Gemini API Key (optional, for receipt OCR and auto-categorization)

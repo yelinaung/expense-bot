@@ -15,8 +15,8 @@ variables:
   GOCACHE: ${CI_PROJECT_DIR}/.go-cache
   GOLANGCI_LINT_CACHE: ${CI_PROJECT_DIR}/.golangci-cache
   # Pinned image digests (amd64/linux) — update together with version comments.
-  GOLANG_IMAGE: golang:1.26@sha256:23fdfd3a6abc97c81e32a724cdd1cf541c06c416eb04d717815f4ed7c75623d0
-  GOLANGCI_LINT_IMAGE: golangci/golangci-lint:v2.11-alpine@sha256:764c339d1afa8ea000f0f265ef561961cfa0ff79fa054875d462592acb2ae993
+  GOLANG_IMAGE: golang:1.27@sha256:65b6f280bf050ec5af12716857e8ea8439d694dbba8f31ceeb7630670071f2bb
+  GOLANGCI_LINT_IMAGE: golangci/golangci-lint:v2.13-alpine@sha256:f600226b7f0dbac30a670b31eb8fb2703c0e1fbc60060fc4d92755188c4edec5
   POSTGRES_IMAGE: postgres:18-alpine@sha256:ef9e5f962db375d64c9e01bf12c41426d63c64b8cdf962daf35b60e74aa95ce5
   ALPINE_JQ_IMAGE: apteno/alpine-jq:latest@sha256:2618c251ddb92dd09e9bee03769792df70a31083a8d4105472ef5c823b2fb8e3
   ALPINE_GIT_IMAGE: alpine/git:latest@sha256:970dba879f3c60fd3d1286788fdc8107dceb541d8569e3f2b1745e8e5199664d
