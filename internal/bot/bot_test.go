@@ -659,10 +659,10 @@ func TestDownloadPhoto(t *testing.T) {
 	t.Run("downloads photo successfully", func(t *testing.T) {
 		t.Parallel()
 		expectedData := []byte("fake image data")
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write(expectedData)
 		}))
-		defer server.Close()
+		server.Start()
 
 		data, err := downloadPhotoFromURL(context.Background(), server.URL)
 		require.NoError(t, err)
@@ -671,10 +671,10 @@ func TestDownloadPhoto(t *testing.T) {
 
 	t.Run("returns error for non-200 status", func(t *testing.T) {
 		t.Parallel()
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 		}))
-		defer server.Close()
+		server.Start()
 
 		_, err := downloadPhotoFromURL(context.Background(), server.URL)
 		require.Error(t, err)
@@ -689,10 +689,10 @@ func TestDownloadPhoto(t *testing.T) {
 
 	t.Run("returns error for context canceled", func(t *testing.T) {
 		t.Parallel()
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte("data"))
 		}))
-		defer server.Close()
+		server.Start()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()

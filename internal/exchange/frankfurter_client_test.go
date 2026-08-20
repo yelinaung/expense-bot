@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -19,15 +20,14 @@ func TestFrankfurterClient_Convert(t *testing.T) {
 	t.Run("converts successfully", func(t *testing.T) {
 		t.Parallel()
 
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/latest", r.URL.Path)
 			assert.Equal(t, "USD", r.URL.Query().Get("from"))
 			assert.Equal(t, "SGD", r.URL.Query().Get("to"))
 			_, _ = w.Write([]byte(`{"amount":1,"base":"USD","date":"2026-02-14","rates":{"SGD":1.35}}`))
 		}))
-		defer server.Close()
 
-		client := NewFrankfurterClient(server.URL, time.Second, nil)
+		client := NewFrankfurterClient(server.URL, time.Second, server.Client().Transport)
 		got, err := client.Convert(context.Background(), decimal.RequireFromString("10"), "usd", "sgd")
 		require.NoError(t, err)
 		require.Equal(t, decimal.RequireFromString("13.50"), got.Amount)
@@ -38,12 +38,11 @@ func TestFrankfurterClient_Convert(t *testing.T) {
 	t.Run("returns error on non 200 response", func(t *testing.T) {
 		t.Parallel()
 
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadGateway)
 		}))
-		defer server.Close()
 
-		client := NewFrankfurterClient(server.URL, time.Second, nil)
+		client := NewFrankfurterClient(server.URL, time.Second, server.Client().Transport)
 		_, err := client.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "status 502")
@@ -52,12 +51,11 @@ func TestFrankfurterClient_Convert(t *testing.T) {
 	t.Run("returns error when target rate is missing", func(t *testing.T) {
 		t.Parallel()
 
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write([]byte(`{"amount":1,"base":"USD","date":"2026-02-14","rates":{"EUR":0.93}}`))
 		}))
-		defer server.Close()
 
-		client := NewFrankfurterClient(server.URL, time.Second, nil)
+		client := NewFrankfurterClient(server.URL, time.Second, server.Client().Transport)
 		_, err := client.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
 		require.ErrorIs(t, err, errRateMissing)
 	})
@@ -65,12 +63,11 @@ func TestFrankfurterClient_Convert(t *testing.T) {
 	t.Run("returns error when target rate is non-positive", func(t *testing.T) {
 		t.Parallel()
 
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write([]byte(`{"amount":1,"base":"USD","date":"2026-02-14","rates":{"SGD":0}}`))
 		}))
-		defer server.Close()
 
-		client := NewFrankfurterClient(server.URL, time.Second, nil)
+		client := NewFrankfurterClient(server.URL, time.Second, server.Client().Transport)
 		_, err := client.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
 		require.ErrorIs(t, err, errInvalidNonPositiveRate)
 	})
@@ -97,17 +94,18 @@ func TestFrankfurterClient_Convert(t *testing.T) {
 	t.Run("respects context cancellation", func(t *testing.T) {
 		t.Parallel()
 
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			time.Sleep(100 * time.Millisecond)
-			_, _ = fmt.Fprint(w, `{"amount":13.5,"base":"USD","date":"2026-02-14","rates":{"SGD":1.35}}`)
-		}))
-		defer server.Close()
+		synctest.Test(t, func(t *testing.T) {
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				time.Sleep(100 * time.Millisecond)
+				_, _ = fmt.Fprint(w, `{"amount":13.5,"base":"USD","date":"2026-02-14","rates":{"SGD":1.35}}`)
+			}))
 
-		client := NewFrankfurterClient(server.URL, time.Second, nil)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
-		defer cancel()
+			client := NewFrankfurterClient(server.URL, time.Second, server.Client().Transport)
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+			defer cancel()
 
-		_, err := client.Convert(ctx, decimal.RequireFromString("10"), "USD", "SGD")
-		require.Error(t, err)
+			_, err := client.Convert(ctx, decimal.RequireFromString("10"), "USD", "SGD")
+			require.Error(t, err)
+		})
 	})
 }

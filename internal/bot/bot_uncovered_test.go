@@ -36,10 +36,10 @@ func TestBotDownloadFile(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte("ok-bytes"))
 		}))
-		defer server.Close()
+		server.Start()
 
 		mockBot := mocks.NewMockBot()
 		mockBot.FileDownloadLinkToReturn = server.URL
@@ -66,10 +66,10 @@ func TestBotDownloadFile(t *testing.T) {
 	t.Run("non 200 status", func(t *testing.T) {
 		t.Parallel()
 
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusBadGateway)
 		}))
-		defer server.Close()
+		server.Start()
 
 		mockBot := mocks.NewMockBot()
 		mockBot.FileDownloadLinkToReturn = server.URL
@@ -85,10 +85,10 @@ func TestBotDownloadFile(t *testing.T) {
 		t.Parallel()
 
 		oversized := strings.Repeat("a", maxDownloadBytes+1)
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte(oversized))
 		}))
-		defer server.Close()
+		server.Start()
 
 		mockBot := mocks.NewMockBot()
 		mockBot.FileDownloadLinkToReturn = server.URL
