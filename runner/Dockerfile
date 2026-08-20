@@ -13,7 +13,7 @@ ARG MISE_VERSION=2026.8.2
 # renovate: datasource=github-commits depName=golangci/golangci-lint
 ARG GOLANGCI_LINT_INSTALL_COMMIT=2c56c9c84fbfa69db9c3fa70b0cc763d6d1a1746
 # renovate: datasource=github-commits depName=securego/gosec
-ARG GOSEC_INSTALL_COMMIT=5f4eec95fa28ce5dc6cf555de8c242cb57545f01
+ARG GOSEC_INSTALL_COMMIT=9e75c0576c9878035d4221392108d458abe10fc3
 
 # Use bash with pipefail for RUN steps that use curl|tar pipelines.
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]

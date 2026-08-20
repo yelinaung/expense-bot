@@ -153,7 +153,7 @@ func applyWeeklyReportConfig(cfg *Config) {
 		if d, err := strconv.Atoi(dayStr); err == nil && d >= 0 && d <= 6 {
 			cfg.WeeklyReportDay = time.Weekday(d)
 		} else {
-			log.Printf("invalid WEEKLY_REPORT_DAY %q, using default day %s", dayStr, cfg.WeeklyReportDay)
+			log.Printf("invalid WEEKLY_REPORT_DAY %q, using default day %s", dayStr, cfg.WeeklyReportDay) // #nosec G706 -- dayStr is %q-escaped and sourced from an operator-controlled env var, not remote input
 		}
 	}
 	cfg.WeeklyReportHour = 9
@@ -161,7 +161,7 @@ func applyWeeklyReportConfig(cfg *Config) {
 		if h, err := strconv.Atoi(hourStr); err == nil && h >= 0 && h <= 23 {
 			cfg.WeeklyReportHour = h
 		} else {
-			log.Printf("invalid WEEKLY_REPORT_HOUR %q, using default hour %d", hourStr, cfg.WeeklyReportHour)
+			log.Printf("invalid WEEKLY_REPORT_HOUR %q, using default hour %d", hourStr, cfg.WeeklyReportHour) // #nosec G706 -- hourStr is %q-escaped and sourced from an operator-controlled env var, not remote input
 		}
 	}
 	cfg.WeeklyHabitRecapEnabled = os.Getenv("WEEKLY_HABIT_RECAP_ENABLED") == envTrue

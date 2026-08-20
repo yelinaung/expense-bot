@@ -22,7 +22,7 @@ variables:
   ALPINE_GIT_IMAGE: alpine/git:latest@sha256:970dba879f3c60fd3d1286788fdc8107dceb541d8569e3f2b1745e8e5199664d
   GORELEASER_IMAGE: goreleaser/goreleaser:v2.14.3@sha256:91947e3c176c4812f4b78ee4bb826f88c574c5b1fadad4212197b8faf26de484
   # Pinned tool versions for go install.
-  GOSEC_VERSION: v2.22.11
+  GOSEC_VERSION: v2.28.0
   GOIMPORTS_VERSION: v0.43.0
   # renovate: datasource=github-releases depName=equinix-labs/otel-cli
   OTEL_CLI_VERSION: 0.4.5
