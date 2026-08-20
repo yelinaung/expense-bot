@@ -86,7 +86,7 @@ You are a deeply pragmatic, effective software engineer. You take engineering qu
 - **Structs**: Use struct embedding for composition, group related fields
 - **Constants**: Use typed constants with iota for enums, group in const blocks
 - **Testing**: Use testify's `require` package, parallel tests with `t.Parallel()`,
-  `t.SetEnv()` to set environment variables. Always use `t.Tempdir()` when in
+  `t.Setenv()` to set environment variables. Always use `t.TempDir()` when in
   need of a temporary directory. This directory does not need to be removed.
 - **JSON tags**: Use snake_case for JSON field names
 - **File permissions**: Use octal notation (0o755, 0o644) for file permissions
@@ -103,7 +103,7 @@ ENSURE that the test coverage stays at or above 80% (CI enforced).
 ## Test Patterns
 
 ### Unit Tests
-- Use `t.Parallel()` for tests that don't need database.
+- Use `t.Parallel()` for tests that don't need database and don't mutate process-global state (e.g. `t.Setenv()`).
 - Use table-driven tests for pure functions.
 - Use `testify/require` for assertions.
 - Use `t.Helper()` in test setup functions.
@@ -144,7 +144,7 @@ ENSURE that the test coverage stays at or above 80% (CI enforced).
 
 - NEVER include Co-Authored-By field
 - ALWAYS run both unit and integration tests before pushing
-    - Especially, the fail tests with `mise run test-integration 2&>1 | grep -w 'FAIL:'`
+    - Especially, the fail tests with `mise run test-integration 2>&1 | grep -w 'FAIL:'`
 - ALWAYS use semantic commits (`fix:`, `feat:`, `chore:`, `refactor:`, `docs:`, `sec:`, etc).
 - ALWAYS run pre-commits before pushing
 - Try to keep commits to one line, not including your attribution. Only use
