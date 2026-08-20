@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.15.0] - 2026-08-20 - Security Hardening & Go 1.27
+
+### Security
+- **HTML message injection**: Escaped user-controlled merchant, category,
+  currency, and tag-error text before interpolating it into Telegram HTML
+  messages, closing four spoofing / malformed-output sinks.
+- **Voice parsing hardening**: Constrained the voice parser's suggested
+  category to the real category list via a response-schema enum, and
+  rejected negative, zero, or oversized amounts.
+- **Category management**: Restricted `/addcategory`, `/renamecategory`,
+  `/deletecategory`, and inline category creation to superadmins, and
+  removed model-driven auto-creation of categories. Previously any approved
+  user could de-categorize other users' expenses or plant a malicious
+  category name that reached other users' Gemini prompts.
+- **Callback handler panics**: Guarded eight callback handlers against a nil
+  `CallbackQuery.Message.Message`, which Telegram can send for inaccessible
+  messages and previously crashed the single-process bot.
+- **Username-only approvals**: Stopped permanently binding a username-only
+  approval to whichever account first claimed that username. Telegram
+  usernames are transferable, so the prior behavior could lock out the
+  intended user.
+- **Telemetry token leak**: Redacted the Telegram bot token from
+  file-download telemetry spans; the raw transport recorded it via the file
+  URL into the `url.full` span attribute.
+
+### Fixed
+- **Receipt edit cancellation**: Canceling a receipt edit no longer deletes
+  an already-confirmed expense — only unconfirmed drafts are deleted.
+- **Amount-parsing DoS**: Rejected amount strings with extreme decimal
+  exponents (e.g. `1e444444410`) that could hang the process; applied the
+  same bound to the receipt and voice parsers.
+
+### Changed
+- **Go 1.27**: Upgraded the toolchain to Go 1.27.0 and golangci-lint to
+  2.13.0, adopting `errors.AsType`, `strings.Cut`, and
+  `httptest.NewTestServer` / `testing/synctest` where they simplified code.
+- **Coverage gate**: Raised the enforced minimum test coverage from 50% to
+  80%.
+
 ## [v0.14.0] - 2026-06-30 - Worth-It Reporting
 
 ### Added
