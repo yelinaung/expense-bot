@@ -184,7 +184,7 @@ It seeds the default categories on the same run.
 
 ```bash
 # Build the bot
-mise build
+mise run build
 
 # Run the bot
 ./bin/expense-bot
@@ -581,7 +581,7 @@ openssl rand -hex 32
 - Fix bugs: Use `/commit` with clear description
 - Add features: Create feature branch, test thoroughly
 - Follow existing code patterns
-- Keep test coverage above 50%
+- Keep test coverage above 80%
 
 ### Testing Requirements
 
@@ -628,7 +628,7 @@ The bot has been hardened against the risks that matter for a personal Telegram 
 - SAST scanning in GitLab CI
 - Secrets detection in the pipeline
 - Dependency vulnerability scanning
-- Coverage enforcement (50% minimum)
+- Coverage enforcement (80% minimum)
 
 **LLM/AI Security:**
 - Gemini API response schema validation (enum constraints)

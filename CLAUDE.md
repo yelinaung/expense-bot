@@ -62,7 +62,7 @@ You are a deeply pragmatic, effective software engineer. You take engineering qu
 ## Build/Test/Lint Commands
 
 - **Go version**: 1.27+
-- **Build**: `mise build`
+- **Build**: `mise run build`
 - **Test**:
     - `mise run test` for unit tests
     - `mise run test-coverage` for tests with coverage
@@ -133,7 +133,7 @@ ENSURE that the test coverage stays at or above 80% (CI enforced).
 
 ## Formatting
 
-- ALWAYS format any Go code you write with `mise fmt`
+- ALWAYS format any Go code you write with `mise run fmt`
 
 ## Comments
 
@@ -144,12 +144,12 @@ ENSURE that the test coverage stays at or above 80% (CI enforced).
 
 - NEVER include Co-Authored-By field
 - ALWAYS run both unit and integration tests before pushing
-    - Especially, the fail tests with `mise test-integration 2&>1 | grep -w 'FAIL:'`
+    - Especially, the fail tests with `mise run test-integration 2&>1 | grep -w 'FAIL:'`
 - ALWAYS use semantic commits (`fix:`, `feat:`, `chore:`, `refactor:`, `docs:`, `sec:`, etc).
 - ALWAYS run pre-commits before pushing
 - Try to keep commits to one line, not including your attribution. Only use
   multi-line commits when additional context is truly necessary.
-- Push to all remotes with `mise push-all`.
+- Push to all remotes with `mise run push-all`.
 
 <!-- rtk-instructions v2 -->
 # RTK (Rust Token Killer) - Token-Optimized Commands
