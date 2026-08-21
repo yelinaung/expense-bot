@@ -18,5 +18,5 @@ golang.org/x/tools/go/expect v0.1.1-deprecated h1:jpBZDwmgPhXsKZC6WhL20P4b/wmnps
 golang.org/x/tools/go/expect v0.1.1-deprecated/go.mod h1:eihoPOH+FgIqa3FpoTwguz/bVUSGBlGQU67vpBeOrBY=
 golang.org/x/tools/go/packages/packagestest v0.1.1-deprecated h1:1h2MnaIAIXISqTFKdENegdpAgUXz6NrPEsbIeWaBRvM=
 golang.org/x/tools/go/packages/packagestest v0.1.1-deprecated/go.mod h1:RVAQXBGNv1ib0J382/DPCRS/BPnsGebyM1Gj5VSDpG8=
-golang.org/x/vuln v1.6.0 h1:FeMO9Rm/HwyduOztbvKcOw+zvDEPr4I4aQNSfevFcKY=
-golang.org/x/vuln v1.6.0/go.mod h1:bWlG2493/sjR7ksvicBgMrznH3eYQEyK8ifUYBrqUbg=
+golang.org/x/vuln v1.7.0 h1:4MQBuhmXbz2uepNJrf3v+aaZLGDqw1JluwYboegA1qg=
+golang.org/x/vuln v1.7.0/go.mod h1:Xw7zvU3e1bsCYYBXu+w4wcn2Kgn27f34WBCTw8LL5Us=
