@@ -144,7 +144,7 @@ gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c/go.mod h1:JHkPIbrfpd72SG/EV
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
-hegel.dev/go/hegel v0.6.25 h1:UzuqOpJWr3dVdAN4oOtISA3ukkV015FLAz35QecWgPM=
-hegel.dev/go/hegel v0.6.25/go.mod h1:SQZksLxpfxeGnV24rgAsAWP1jhMLwbmF1y448HQ1H44=
+hegel.dev/go/hegel v0.6.26 h1:pkBcS4N9XNsIaTCZhvuhjM6N8pUxs1p4AzAvU8HOBys=
+hegel.dev/go/hegel v0.6.26/go.mod h1:SQZksLxpfxeGnV24rgAsAWP1jhMLwbmF1y448HQ1H44=
 pgregory.net/rapid v1.3.0 h1:vBvO0VSqti75J1jjYqpgPNBLKMd1+gxa9fYo7vk/Exc=
 pgregory.net/rapid v1.3.0/go.mod h1:dPlE4OBBxgXPqkP79flB6sJL1dx5azpI7HQ9MY9Z7uk=
