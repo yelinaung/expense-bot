@@ -17,10 +17,10 @@ github.com/exaring/otelpgx v0.11.1 h1:pE79fIg/qh/Lpu00kvswFC5dKfqyJJhMJ4Y4N3w5Lj
 github.com/exaring/otelpgx v0.11.1/go.mod h1:3OojrUKhhy3lTbYIMBijP3YjMey/jo14eHAW5cXcUdk=
 github.com/felixge/httpsnoop v1.1.0 h1:3YtUj32ZZkqZtt3sZZsClsymw/QDuVfpNhoA31zeORc=
 github.com/felixge/httpsnoop v1.1.0/go.mod h1:Zqxgdd+1Rkcz8euOqdr7lqgCRJztwr5hp9vDSi5UZCE=
-github.com/go-analyze/bulk v0.1.4 h1:PIlVl+KA73nW2KKr8eGiF3fhwfI1yAkTsur/3hzBM10=
-github.com/go-analyze/bulk v0.1.4/go.mod h1:afon/KtFJYnekIyN20H/+XUvcLFjE8sKR1CfpqfClgM=
-github.com/go-analyze/charts v0.6.0 h1:aBE2cbdr58faYGwPk3RUzGQMyg5fGsSAxepwYTYmvhg=
-github.com/go-analyze/charts v0.6.0/go.mod h1:m8hqGNSpYYdMMc0Im/RCowY9CIA7705jiltuOVQZWuI=
+github.com/go-analyze/bulk v0.1.5 h1:Zj8w3gEOhEnp8aRZ7DHMDqaG3/Bp7CvQ7pu6Mw9YhFc=
+github.com/go-analyze/bulk v0.1.5/go.mod h1:afon/KtFJYnekIyN20H/+XUvcLFjE8sKR1CfpqfClgM=
+github.com/go-analyze/charts v0.6.1 h1:D75UM6lf6TLt9pxQ/JBDeIZZAsqzs6Czq8BGi8ftOPM=
+github.com/go-analyze/charts v0.6.1/go.mod h1:g8qbKtqsDs5KavZdCHGECqKN5gENgoKMBTUk6z3W3kE=
 github.com/go-logr/logr v1.2.2/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
 github.com/go-logr/logr v1.4.4 h1:tG4xh9yMsRCAiodLVTxyrkzSZ9+o0L1Kg/+cPVcbP/8=
 github.com/go-logr/logr v1.4.4/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
