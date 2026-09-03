@@ -45,25 +45,6 @@ func TestApprovedUserRepository_ApproveAndRevoke(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, approved)
 	})
-
-	t.Run("revoke by username after backfill", func(t *testing.T) {
-		err := repo.ApproveByUsername(ctx, "bounduser", 99999)
-		require.NoError(t, err)
-
-		err = repo.UpdateUserID(ctx, "bounduser", 54321)
-		require.NoError(t, err)
-
-		approved, _, err := repo.IsApproved(ctx, 54321, "bounduser")
-		require.NoError(t, err)
-		require.True(t, approved)
-
-		err = repo.RevokeByUsername(ctx, "bounduser")
-		require.NoError(t, err)
-
-		approved, _, err = repo.IsApproved(ctx, 54321, "bounduser")
-		require.NoError(t, err)
-		require.False(t, approved)
-	})
 }
 
 func TestApprovedUserRepository_IsApproved(t *testing.T) {
@@ -111,49 +92,6 @@ func TestApprovedUserRepository_IsApproved(t *testing.T) {
 		require.False(t, approved)
 		require.False(t, needsBackfill)
 	})
-
-	t.Run("no backfill needed after UpdateUserID", func(t *testing.T) {
-		err := repo.ApproveByUsername(ctx, "backfilltest", 99999)
-		require.NoError(t, err)
-
-		// Before backfill — needs backfill.
-		_, needsBackfill, err := repo.IsApproved(ctx, 0, "backfilltest")
-		require.NoError(t, err)
-		require.True(t, needsBackfill)
-
-		err = repo.UpdateUserID(ctx, "backfilltest", 66666)
-		require.NoError(t, err)
-
-		// After backfill — no longer needs backfill (matched by user_id).
-		approved, needsBackfill, err := repo.IsApproved(ctx, 66666, "backfilltest")
-		require.NoError(t, err)
-		require.True(t, approved)
-		require.False(t, needsBackfill)
-	})
-}
-
-func TestApprovedUserRepository_UpdateUserID(t *testing.T) {
-	ctx := context.Background()
-	tx := dbtest.TestTx(ctx, t)
-
-	repo := NewApprovedUserRepository(tx)
-
-	err := repo.ApproveByUsername(ctx, "eve", 99999)
-	require.NoError(t, err)
-
-	// Before backfill, user_id is 0 — only findable by username.
-	approved, _, err := repo.IsApproved(ctx, 33333, "")
-	require.NoError(t, err)
-	require.False(t, approved)
-
-	// Backfill.
-	err = repo.UpdateUserID(ctx, "eve", 33333)
-	require.NoError(t, err)
-
-	// Now findable by user ID too.
-	approved, _, err = repo.IsApproved(ctx, 33333, "")
-	require.NoError(t, err)
-	require.True(t, approved)
 }
 
 func TestApprovedUserRepository_GetAll(t *testing.T) {
@@ -186,24 +124,20 @@ func TestApprovedUserRepository_RecycledUsernameDoesNotInheritAccess(t *testing.
 
 	repo := NewApprovedUserRepository(tx)
 
-	// 1. Admin approves @origuser by username.
-	err := repo.ApproveByUsername(ctx, "origuser", 99999)
+	// 1. Admin approves user 40001 (who currently owns @origuser) by user ID.
+	err := repo.Approve(ctx, 40001, "origuser", 99999)
 	require.NoError(t, err)
 
-	// 2. Original user messages the bot → backfill binds the row to user_id 40001.
-	err = repo.UpdateUserID(ctx, "origuser", 40001)
-	require.NoError(t, err)
-
-	// 3. Original user is still approved by their immutable user_id.
+	// 2. Original user is still approved by their immutable user_id.
 	approved, _, err := repo.IsApproved(ctx, 40001, "origuser")
 	require.NoError(t, err)
 	require.True(t, approved)
 
-	// 4. An attacker claims @origuser (different user_id 40002).
-	//    They must NOT inherit access from the now-bound row.
+	// 3. An attacker claims @origuser (different user_id 40002).
+	//    They must NOT inherit access from the row bound to user_id 40001.
 	approved, _, err = repo.IsApproved(ctx, 40002, "origuser")
 	require.NoError(t, err)
-	require.False(t, approved, "recycled username must not inherit access after backfill")
+	require.False(t, approved, "recycled username must not inherit access when row is bound to a different user ID")
 }
 
 func TestApprovedUserRepository_ApproveDuplicate(t *testing.T) {
