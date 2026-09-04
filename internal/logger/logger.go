@@ -74,14 +74,6 @@ func SetLevel(level Level) {
 	}
 }
 
-// SetJSON switches to JSON output (for production).
-func SetJSON() {
-	Log = zerolog.New(os.Stdout).
-		With().
-		Timestamp().
-		Logger()
-}
-
 // WithTraceContext returns a logger enriched with trace_id and span_id from
 // the active span in ctx. If there is no active span, the base Log is returned.
 func WithTraceContext(ctx context.Context) zerolog.Logger {

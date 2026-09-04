@@ -69,13 +69,6 @@ func TestParseLevel(t *testing.T) {
 	}
 }
 
-func TestSetJSON(t *testing.T) {
-	t.Run("switches to JSON output", func(t *testing.T) {
-		SetJSON()
-		require.NotNil(t, Log)
-	})
-}
-
 func TestLoggerInit(t *testing.T) {
 	t.Run("logger is initialized", func(t *testing.T) {
 		require.NotNil(t, Log)
