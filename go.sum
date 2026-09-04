@@ -136,7 +136,7 @@ google.golang.org/protobuf v1.36.11 h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBN
 google.golang.org/protobuf v1.36.11/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
-hegel.dev/go/hegel v0.6.30 h1:SFmxClsHKXIMsZ29WewsVI+TfOsIQENtNvGt13p3l68=
-hegel.dev/go/hegel v0.6.30/go.mod h1:SQZksLxpfxeGnV24rgAsAWP1jhMLwbmF1y448HQ1H44=
+hegel.dev/go/hegel v0.6.31 h1:Oii0n2x+KeGFSY3M7gaiaD+To5AbOndIusBDbtJq9+c=
+hegel.dev/go/hegel v0.6.31/go.mod h1:V/dVvRrW9MAzB7m1PLGgVnYtF/Psb4BvKCWkthw5eII=
 pgregory.net/rapid v1.3.0 h1:vBvO0VSqti75J1jjYqpgPNBLKMd1+gxa9fYo7vk/Exc=
 pgregory.net/rapid v1.3.0/go.mod h1:dPlE4OBBxgXPqkP79flB6sJL1dx5azpI7HQ9MY9Z7uk=
