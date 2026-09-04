@@ -50,7 +50,7 @@ func (r *ApprovedUserRepository) ApproveByUsername(ctx context.Context, username
 
 // IsApproved checks if a user is in the approved list by ID or username.
 // The returned needsBackfill flag is true when the user was matched by
-// username only (user_id is still 0), indicating UpdateUserID should be called.
+// username only (user_id is still 0).
 func (r *ApprovedUserRepository) IsApproved(ctx context.Context, userID int64, username string) (approved, needsBackfill bool, err error) {
 	var matchedUserID int64
 	scanErr := r.db.QueryRow(ctx, `
@@ -86,19 +86,6 @@ func (r *ApprovedUserRepository) RevokeByUsername(ctx context.Context, username 
 	`, username)
 	if err != nil {
 		return fmt.Errorf("failed to revoke user by username: %w", err)
-	}
-	return nil
-}
-
-// UpdateUserID backfills the user_id for a username-only approved user.
-func (r *ApprovedUserRepository) UpdateUserID(ctx context.Context, username string, userID int64) error {
-	_, err := r.db.Exec(ctx, `
-		UPDATE approved_users
-		SET user_id = $1
-		WHERE LOWER(username) = LOWER($2) AND user_id = 0
-	`, userID, username)
-	if err != nil {
-		return fmt.Errorf("failed to update user ID: %w", err)
 	}
 	return nil
 }
