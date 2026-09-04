@@ -359,14 +359,6 @@ func (c *Config) checkWhitelist(userID int64, username string) (*SuperadminBindi
 	return nil, true
 }
 
-// IsUserWhitelisted checks if a Telegram user ID or username is in the
-// whitelist. Usernames are treated as bootstrap-only: once a username is
-// seen with a real user_id, the binding is recorded and only that
-// user_id is accepted for the username going forward.
-func (c *Config) IsUserWhitelisted(userID int64, username string) bool {
-	return c.IsSuperAdmin(userID, username)
-}
-
 // CheckSuperAdmin is like IsSuperAdmin but also returns a non-nil
 // *SuperadminBinding when a new username → user_id binding was just
 // created and should be persisted by the caller.

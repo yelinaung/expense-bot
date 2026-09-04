@@ -29,7 +29,6 @@ const (
 	testGeminiKeyConfig                      = "test-gemini-key"
 	exchangeRateBaseURLConfig                = "https://rates.example.com"
 	envExchangeRateTimeout                   = "EXCHANGE_RATE_TIMEOUT"
-	notInListUsernameConfig                  = "notinlist"
 	returnsTrueWhitelistedUserIDConfigTest   = "returns true for whitelisted user ID"
 	returnsFalseNonWhitelistedUserConfigTest = "returns false for non-whitelisted user"
 )
@@ -578,86 +577,6 @@ func TestConfig_IsSuperAdmin(t *testing.T) {
 		require.True(t, cfg.IsSuperAdmin(42, adminUsernameConfigTest), "bootstrap binds")
 		require.True(t, cfg.IsSuperAdmin(0, adminUsernameConfigTest), "lookup-only call must still return true after binding")
 		require.False(t, cfg.IsSuperAdmin(99, adminUsernameConfigTest), "attacker still rejected")
-	})
-}
-
-func TestConfig_IsUserWhitelisted(t *testing.T) {
-	t.Parallel()
-
-	t.Run(returnsTrueWhitelistedUserIDConfigTest, func(t *testing.T) {
-		t.Parallel()
-		cfg := &Config{
-			WhitelistedUserIDs:   []int64{100, 200, 300},
-			WhitelistedUsernames: []string{aliceUsernameConfigTest},
-		}
-		require.True(t, cfg.IsUserWhitelisted(100, ""))
-		require.True(t, cfg.IsUserWhitelisted(200, ""))
-		require.True(t, cfg.IsUserWhitelisted(300, ""))
-	})
-
-	t.Run("returns true for whitelisted username bootstrap", func(t *testing.T) {
-		t.Parallel()
-		cfg := &Config{
-			WhitelistedUsernames: []string{aliceUsernameConfigTest, "bob", charlieUsernameConfigTest},
-		}
-		require.True(t, cfg.IsUserWhitelisted(999, aliceUsernameConfigTest))
-		require.True(t, cfg.IsUserWhitelisted(888, "bob"))
-		require.True(t, cfg.IsUserWhitelisted(777, charlieUsernameConfigTest))
-	})
-
-	t.Run("returns true for whitelisted username with @ prefix", func(t *testing.T) {
-		t.Parallel()
-		cfg := &Config{
-			WhitelistedUsernames: []string{aliceUsernameConfigTest, "bob"},
-		}
-		require.True(t, cfg.IsUserWhitelisted(999, "@alice"))
-		require.True(t, cfg.IsUserWhitelisted(888, "@bob"))
-	})
-
-	t.Run("username check is case insensitive", func(t *testing.T) {
-		t.Parallel()
-		cfg := &Config{
-			WhitelistedUsernames: []string{aliceUsernameConfigTest, "bob", charlieUsernameConfigTest},
-		}
-		require.True(t, cfg.IsUserWhitelisted(999, "ALICE"))
-		require.True(t, cfg.IsUserWhitelisted(888, "Bob"))
-		require.True(t, cfg.IsUserWhitelisted(777, "ChArLiE"))
-	})
-
-	t.Run(returnsFalseNonWhitelistedUserConfigTest, func(t *testing.T) {
-		t.Parallel()
-		cfg := &Config{
-			WhitelistedUserIDs:   []int64{100},
-			WhitelistedUsernames: []string{aliceUsernameConfigTest},
-		}
-		require.False(t, cfg.IsUserWhitelisted(999, "unknown"))
-		require.False(t, cfg.IsUserWhitelisted(0, ""))
-		require.False(t, cfg.IsUserWhitelisted(555, notInListUsernameConfig))
-	})
-
-	t.Run("returns false for empty whitelist", func(t *testing.T) {
-		t.Parallel()
-		emptyCfg := &Config{WhitelistedUserIDs: nil, WhitelistedUsernames: nil}
-		require.False(t, emptyCfg.IsUserWhitelisted(100, aliceUsernameConfigTest))
-	})
-
-	t.Run("user ID match works even with non-whitelisted username", func(t *testing.T) {
-		t.Parallel()
-		cfg := &Config{
-			WhitelistedUserIDs:   []int64{100},
-			WhitelistedUsernames: []string{aliceUsernameConfigTest},
-		}
-		require.True(t, cfg.IsUserWhitelisted(100, notInListUsernameConfig))
-	})
-
-	t.Run("username binds on first use then enforces user_id", func(t *testing.T) {
-		t.Parallel()
-		cfg := &Config{
-			WhitelistedUsernames: []string{aliceUsernameConfigTest},
-		}
-		require.True(t, cfg.IsUserWhitelisted(999, aliceUsernameConfigTest))
-		require.True(t, cfg.IsUserWhitelisted(999, aliceUsernameConfigTest))
-		require.False(t, cfg.IsUserWhitelisted(888, aliceUsernameConfigTest), "different user_id must be rejected after binding")
 	})
 }
 
