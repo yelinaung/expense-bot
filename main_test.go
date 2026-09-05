@@ -4,8 +4,11 @@ import (
 	"context"
 	"io"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -77,4 +80,74 @@ func TestMainExitsWhenDatabaseConnectFails(t *testing.T) {
 	err := run(context.Background(), []string{testMainAppName}, io.Discard)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "Failed to connect to database")
+}
+
+func TestWatchSignalsGracefulThenForcedExit(t *testing.T) {
+	t.Parallel()
+
+	sigChan := make(chan os.Signal, 2)
+	canceled := make(chan struct{})
+	cancel := func() { close(canceled) }
+	exitCode := make(chan int, 1)
+	exit := func(code int) { exitCode <- code }
+
+	go watchSignals(sigChan, cancel, exit)
+
+	sigChan <- syscall.SIGTERM
+
+	select {
+	case <-canceled:
+	case <-time.After(time.Second):
+		t.Fatal("first signal did not trigger graceful cancel")
+	}
+
+	select {
+	case code := <-exitCode:
+		t.Fatalf("exit called before second signal (code=%d)", code)
+	default:
+	}
+
+	sigChan <- syscall.SIGTERM
+
+	select {
+	case code := <-exitCode:
+		require.Equal(t, 1, code)
+	case <-time.After(time.Second):
+		t.Fatal("second signal did not trigger forced exit")
+	}
+}
+
+// TestWatchSignalsReceivesSecondRealSignal exercises the real os/signal
+// runtime to confirm the signal.Notify registration stays active after the
+// first signal, so a second SIGTERM is delivered and forces exit instead of
+// being swallowed. This is the regression test for the swallowed-second-signal
+// bug.
+func TestWatchSignalsReceivesSecondRealSignal(t *testing.T) {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	t.Cleanup(func() { signal.Stop(sigChan) })
+
+	canceled := make(chan struct{})
+	cancel := func() { close(canceled) }
+	exitCode := make(chan int, 1)
+	exit := func(code int) { exitCode <- code }
+
+	go watchSignals(sigChan, cancel, exit)
+
+	require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGTERM))
+
+	select {
+	case <-canceled:
+	case <-time.After(2 * time.Second):
+		t.Fatal("first SIGTERM was not delivered to watchSignals")
+	}
+
+	require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGTERM))
+
+	select {
+	case code := <-exitCode:
+		require.Equal(t, 1, code)
+	case <-time.After(2 * time.Second):
+		t.Fatal("second SIGTERM was swallowed; forced exit not triggered")
+	}
 }
