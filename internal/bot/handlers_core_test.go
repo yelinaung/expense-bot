@@ -380,7 +380,43 @@ func TestHandleTodayCore(t *testing.T) {
 		msg := mockBot.LastSentMessage()
 		require.Contains(t, msg.Text, "Today's Expenses")
 		require.Contains(t, msg.Text, totalLabelCoreTest)
-		require.Contains(t, msg.Text, "$20.00")
+		require.Contains(t, msg.Text, "Total: S$20.00 SGD")
+	})
+
+	t.Run("renders total using non-SGD default currency", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+
+		eurUserID := int64(300020)
+		err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+			ID:        eurUserID,
+			Username:  "todayeuruser",
+			FirstName: "TodayEUR",
+		})
+		require.NoError(t, err)
+		require.NoError(t, b.userRepo.UpdateDefaultCurrency(ctx, eurUserID, "EUR"))
+
+		expense := &appmodels.Expense{
+			UserID:      eurUserID,
+			Amount:      mustParseDecimal("15.00"),
+			Currency:    "EUR",
+			Description: "Coffee EUR",
+		}
+		require.NoError(t, b.expenseRepo.Create(ctx, expense))
+
+		update := &models.Update{
+			Message: &models.Message{
+				Chat: models.Chat{ID: 12345},
+				From: &models.User{ID: eurUserID},
+			},
+		}
+		b.handleTodayCore(ctx, mockBot, update)
+
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		msg := mockBot.LastSentMessage()
+		require.Contains(t, msg.Text, "Today's Expenses")
+		require.Contains(t, msg.Text, "Total: €15.00 EUR")
+		require.NotContains(t, msg.Text, "Total: $15.00")
+		require.NotContains(t, msg.Text, "SGD")
 	})
 
 	t.Run("uses display timezone boundaries for today", func(t *testing.T) {
@@ -514,7 +550,43 @@ func TestHandleWeekCore(t *testing.T) {
 		msg := mockBot.LastSentMessage()
 		require.Contains(t, msg.Text, "This Week's Expenses")
 		require.Contains(t, msg.Text, totalLabelCoreTest)
-		require.Contains(t, msg.Text, "$30.00")
+		require.Contains(t, msg.Text, "Total: S$30.00 SGD")
+	})
+
+	t.Run("renders total using non-SGD default currency", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+
+		eurUserID := int64(300030)
+		err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+			ID:        eurUserID,
+			Username:  "weekeuruser",
+			FirstName: "WeekEUR",
+		})
+		require.NoError(t, err)
+		require.NoError(t, b.userRepo.UpdateDefaultCurrency(ctx, eurUserID, "EUR"))
+
+		expense := &appmodels.Expense{
+			UserID:      eurUserID,
+			Amount:      mustParseDecimal("42.00"),
+			Currency:    "EUR",
+			Description: "Week EUR Item",
+		}
+		require.NoError(t, b.expenseRepo.Create(ctx, expense))
+
+		update := &models.Update{
+			Message: &models.Message{
+				Chat: models.Chat{ID: 12345},
+				From: &models.User{ID: eurUserID},
+			},
+		}
+		b.handleWeekCore(ctx, mockBot, update)
+
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		msg := mockBot.LastSentMessage()
+		require.Contains(t, msg.Text, "This Week's Expenses")
+		require.Contains(t, msg.Text, "Total: €42.00 EUR")
+		require.NotContains(t, msg.Text, "Total: $42.00")
+		require.NotContains(t, msg.Text, "SGD")
 	})
 
 	t.Run("uses display timezone boundaries for week", func(t *testing.T) {
