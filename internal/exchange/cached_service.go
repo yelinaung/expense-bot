@@ -77,6 +77,10 @@ func (s *CachedService) Convert(
 		return ConversionResult{}, errors.New("inner exchange service is required")
 	}
 
+	if amount.IsZero() || amount.IsNegative() {
+		return ConversionResult{}, errors.New("amount must be positive")
+	}
+
 	key := normalizePair(fromCurrency, toCurrency)
 	now := time.Now()
 
