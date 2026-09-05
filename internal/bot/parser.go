@@ -17,10 +17,9 @@ import (
 var currencySymbolsByLenDesc []string
 
 const (
-	currencyCodePatternUpper   = `[A-Z]{3}`
-	currencyCodePatternAnyCase = `[A-Za-z]{3}`
-	tagNamePattern             = `#[a-zA-Z]\w{0,29}`
-	bracketCategoryPattern     = `\[[^\]]+\]`
+	currencyCodePatternUpper = `[A-Z]{3}`
+	tagNamePattern           = `#[a-zA-Z]\w{0,29}`
+	bracketCategoryPattern   = `\[[^\]]+\]`
 
 	currencyCodeUSD = "USD"
 	currencyCodeEUR = "EUR"
@@ -65,10 +64,26 @@ func buildCurrencySymbolAlternation() string {
 	return strings.Join(parts, "|")
 }
 
+// buildCurrencyCodeAlternation returns a case-tolerant regex alternation of
+// every supported currency code, e.g. "JPY|jpy|SGD|sgd|USD|usd|...". Each
+// code is emitted in upper- and lowercase so the trailing-code slot accepts
+// the documented casings ("SGD" and "sgd") without matching arbitrary
+// three-letter words like "cat". Built from models.SupportedCurrencies so it
+// stays in sync with the supported set.
+func buildCurrencyCodeAlternation() string {
+	codes := make([]string, 0, 2*len(models.SupportedCurrencies))
+	for code := range models.SupportedCurrencies {
+		codes = append(codes, code, strings.ToLower(code))
+	}
+	sort.Strings(codes)
+	return strings.Join(codes, "|")
+}
+
 func buildTrailingAmountRegex(symbolAlt string) *regexp.Regexp {
+	codeAlt := buildCurrencyCodeAlternation()
 	amountPattern := `(?:` + symbolAlt + `)?\d+(?:[.,]\d{1,2})?(?:` + symbolAlt + `)?`
 	pattern := `\s(` + amountPattern + `)` +
-		`(?:\s+` + currencyCodePatternAnyCase + `)?` +
+		`(?:\s+(?:` + codeAlt + `))?` +
 		`(?:\s+` + tagNamePattern + `)*` +
 		`(?:\s*` + bracketCategoryPattern + `)?` +
 		`\s*$`
@@ -99,7 +114,10 @@ var amountRegex = regexp.MustCompile(`^(\d+(?:[.,]\d{1,2})?)`)
 // amount) at the end of a string, optionally followed by a currency code
 // or a bracket category.  This intentionally does NOT match amounts in the
 // middle of a sentence to avoid parsing chat text like "I have 2 meetings"
-// as an expense.  Built from currencySymbolToCode in init().
+// as an expense.  Built from currencySymbolToCode and models.SupportedCurrencies
+// in init(); the optional trailing currency code slot accepts only supported
+// codes (case-tolerant), so a non-currency three-letter word like "cat" is not
+// consumed as a currency code.
 //
 // Accepted tail patterns (after one or more description words):
 //
