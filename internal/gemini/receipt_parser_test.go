@@ -143,6 +143,12 @@ func TestParseReceiptResponse(t *testing.T) {
 			want:     nil,
 			wantErr:  true,
 		},
+		{
+			name:     "amount exceeding maximum rejected",
+			response: `{"amount": "99999999999.99", "merchant": "Big Store", "date": "2024-01-01", "suggested_category": "Others", "confidence": 0.5}`,
+			want:     nil,
+			wantErr:  true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -370,6 +376,12 @@ func TestParseReceiptResponse_EdgeCases(t *testing.T) {
 				Confidence:        0,
 			},
 			wantErr: false,
+		},
+		{
+			name:     "zero amount with decimals rejected",
+			response: `{"amount": "0.00", "merchant": "Shop", "date": "2024-01-01", "suggested_category": "Others", "confidence": 0.5}`,
+			want:     nil,
+			wantErr:  true,
 		},
 	}
 
