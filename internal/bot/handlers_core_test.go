@@ -779,6 +779,138 @@ func TestSaveExpenseCore(t *testing.T) {
 	})
 }
 
+// TestSaveExpenseCore_AICategoryMatchedIrregularName reproduces the bug from
+// the report end-to-end: a superadmin-created category whose name
+// SanitizeCategoryName rewrites (here, embedded double quotes) is matched
+// confidently by the AI, but the user used to be silently bucketed into
+// "Others". After the fix, the expense must land in the AI-matched category.
+//
+// Preconditions: a running PostgreSQL test database (TEST_DATABASE_URL set).
+func TestSaveExpenseCore_AICategoryMatchedIrregularName(t *testing.T) {
+	ctx := context.Background()
+	pool := testDB(ctx, t)
+	b := setupTestBot(t, pool)
+
+	// /addcategory validation stores this name verbatim (only control runes
+	// and length > MaxCategoryNameLength are rejected).
+	const irregularName = "Coffee \"Special\" Shop"
+	cat, err := b.categoryRepo.Create(ctx, irregularName)
+	require.NoError(t, err)
+
+	categories, err := b.categoryRepo.GetAll(ctx)
+	require.NoError(t, err)
+	require.Contains(t, categoryNames(categories), irregularName,
+		"sanity: the irregular category must be persisted verbatim")
+
+	// The model only ever sees the SANITIZED form (it is what the response
+	// schema enum advertises), so it echoes back the cleaned form. This is
+	// exactly what the production Gemini response contains.
+	cleanedCategory := gemini.SanitizeCategoryName(irregularName) // -> Coffee 'Special' Shop
+	require.NotEqual(t, irregularName, cleanedCategory,
+		"test setup: sanitized form must differ from the original DB name")
+
+	b.geminiClient = gemini.NewClientWithGenerator(&botTestGenerator{
+		response: makeBotCategorySuggestionResponse(fmt.Sprintf(
+			`{%q:%q,%q:0.9,%q:"coffee shop purchase",%q:true,%q:""}`,
+			botRespCategoryKeyCoreTest, cleanedCategory,
+			botRespConfidenceKeyCoreTest,
+			botRespReasoningKeyCoreTest,
+			botRespMatchedKeyCoreTest,
+			botRespNewCategoryNameKeyCoreTest,
+		)),
+	})
+
+	const userID = int64(200100)
+	require.NoError(t, b.userRepo.UpsertUser(ctx, &appmodels.User{
+		ID:        userID,
+		Username:  "saveirregular",
+		FirstName: "Irreg",
+	}))
+
+	mockBot := mocks.NewMockBot()
+	parsed := &ParsedExpense{
+		Amount:      mustParseDecimal("4.50"),
+		Description: "espresso at coffee shop",
+		// No CategoryName: forces the AI auto-categorization path
+		// (assignParsedCategory short-circuits only when a name is typed).
+	}
+
+	b.saveExpenseCore(ctx, mockBot, 12345, userID, parsed, categories)
+
+	require.Equal(t, 1, mockBot.SentMessageCount())
+	msg := mockBot.LastSentMessage()
+	require.Contains(t, msg.Text, expenseAddedTextCore)
+
+	// The fix: the AI-matched irregular category is applied, NOT the "Others"
+	// fallback. escapeHTML does not escape ", so the original name appears
+	// verbatim on the 📁 category line.
+	require.Contains(t, msg.Text, "📁 "+irregularName)
+	require.NotContains(t, msg.Text, "📁 Others")
+
+	// The persisted expense must be bucketed into the AI-matched category.
+	expenses, err := b.expenseRepo.GetByUserID(ctx, userID, 10)
+	require.NoError(t, err)
+	require.Len(t, expenses, 1)
+	require.NotNil(t, expenses[0].CategoryID)
+	require.Equal(t, cat.ID, *expenses[0].CategoryID)
+}
+
+// TestSaveExpenseCore_AICategoryMatchedIrregularName_Backticks covers the
+// backtick trigger (also rewritten by SanitizeCategoryName) end-to-end.
+func TestSaveExpenseCore_AICategoryMatchedIrregularName_Backticks(t *testing.T) {
+	ctx := context.Background()
+	pool := testDB(ctx, t)
+	b := setupTestBot(t, pool)
+
+	const irregularName = "Cafe `Special` Bar"
+	cat, err := b.categoryRepo.Create(ctx, irregularName)
+	require.NoError(t, err)
+
+	categories, err := b.categoryRepo.GetAll(ctx)
+	require.NoError(t, err)
+
+	cleanedCategory := gemini.SanitizeCategoryName(irregularName) // backticks -> single quotes
+	require.NotEqual(t, irregularName, cleanedCategory)
+
+	b.geminiClient = gemini.NewClientWithGenerator(&botTestGenerator{
+		response: makeBotCategorySuggestionResponse(fmt.Sprintf(
+			`{%q:%q,%q:0.85,%q:"cafe purchase",%q:true,%q:""}`,
+			botRespCategoryKeyCoreTest, cleanedCategory,
+			botRespConfidenceKeyCoreTest,
+			botRespReasoningKeyCoreTest,
+			botRespMatchedKeyCoreTest,
+			botRespNewCategoryNameKeyCoreTest,
+		)),
+	})
+
+	const userID = int64(200101)
+	require.NoError(t, b.userRepo.UpsertUser(ctx, &appmodels.User{
+		ID:        userID,
+		Username:  "savebacktick",
+		FirstName: "Bt",
+	}))
+
+	mockBot := mocks.NewMockBot()
+	parsed := &ParsedExpense{
+		Amount:      mustParseDecimal("3.20"),
+		Description: "latte at cafe",
+	}
+
+	b.saveExpenseCore(ctx, mockBot, 12345, userID, parsed, categories)
+
+	require.Equal(t, 1, mockBot.SentMessageCount())
+	msg := mockBot.LastSentMessage()
+	require.Contains(t, msg.Text, expenseAddedTextCore)
+	require.Contains(t, msg.Text, "📁 "+irregularName)
+	require.NotContains(t, msg.Text, "📁 Others")
+
+	expenses, err := b.expenseRepo.GetByUserID(ctx, userID, 10)
+	require.NoError(t, err)
+	require.Len(t, expenses, 1)
+	require.NotNil(t, expenses[0].CategoryID)
+	require.Equal(t, cat.ID, *expenses[0].CategoryID)
+}
+
 type botTestGenerator struct {
 	response *genai.GenerateContentResponse
 	err      error
