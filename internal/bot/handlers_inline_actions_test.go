@@ -67,8 +67,11 @@ func TestHandleExpenseActionCallbackCore(t *testing.T) {
 
 		b.handleExpenseActionCallbackCore(ctx, mockBot, update)
 
-		// Should have answered the callback and edited the message.
-		require.GreaterOrEqual(t, mockBot.AnsweredCallbackCount(), 1)
+		// Telegram honors only one answerCallbackQuery per callback_query_id; the
+		// owner branch must answer exactly once (empty, no alert) and edit the message.
+		require.Equal(t, 1, mockBot.AnsweredCallbackCount())
+		require.False(t, mockBot.AnsweredCallbacks[0].ShowAlert)
+		require.Empty(t, mockBot.AnsweredCallbacks[0].Text)
 		require.GreaterOrEqual(t, mockBot.EditedMessageCount(), 1)
 
 		keyboard, ok := mockBot.EditedMessages[0].ReplyMarkup.(*tgmodels.InlineKeyboardMarkup)
@@ -85,8 +88,11 @@ func TestHandleExpenseActionCallbackCore(t *testing.T) {
 
 		b.handleExpenseActionCallbackCore(ctx, mockBot, update)
 
-		// Should have answered the callback and edited the message with delete confirmation.
-		require.GreaterOrEqual(t, mockBot.AnsweredCallbackCount(), 1)
+		// Telegram honors only one answerCallbackQuery per callback_query_id; the
+		// delete branch must answer exactly once (empty, no alert) and edit the message.
+		require.Equal(t, 1, mockBot.AnsweredCallbackCount())
+		require.False(t, mockBot.AnsweredCallbacks[0].ShowAlert)
+		require.Empty(t, mockBot.AnsweredCallbacks[0].Text)
 		require.GreaterOrEqual(t, mockBot.EditedMessageCount(), 1)
 	})
 
@@ -99,8 +105,9 @@ func TestHandleExpenseActionCallbackCore(t *testing.T) {
 
 		b.handleExpenseActionCallbackCore(ctx, mockBot, update)
 
-		// Should answer callback but not edit message (returns early).
+		// Should answer callback exactly once (empty, no alert) but not edit message.
 		require.Equal(t, 1, mockBot.AnsweredCallbackCount())
+		require.False(t, mockBot.AnsweredCallbacks[0].ShowAlert)
 		require.Equal(t, 0, mockBot.EditedMessageCount())
 	})
 
@@ -113,8 +120,9 @@ func TestHandleExpenseActionCallbackCore(t *testing.T) {
 
 		b.handleExpenseActionCallbackCore(ctx, mockBot, update)
 
-		// Should have answered callback and edited message with error.
-		require.GreaterOrEqual(t, mockBot.AnsweredCallbackCount(), 1)
+		// Should have answered callback exactly once and edited message with error.
+		require.Equal(t, 1, mockBot.AnsweredCallbackCount())
+		require.False(t, mockBot.AnsweredCallbacks[0].ShowAlert)
 		require.GreaterOrEqual(t, mockBot.EditedMessageCount(), 1)
 	})
 
@@ -122,15 +130,23 @@ func TestHandleExpenseActionCallbackCore(t *testing.T) {
 		mockBot.Reset()
 
 		// Different user trying to edit the expense.
+		callbackID := "callback127"
 		update := mocks.NewUpdateBuilder().
-			WithCallbackQuery("callback127", 100, 99999, 200, "edit_expense_"+strconv.Itoa(expense.ID)).
+			WithCallbackQuery(callbackID, 100, 99999, 200, "edit_expense_"+strconv.Itoa(expense.ID)).
 			Build()
 
 		b.handleExpenseActionCallbackCore(ctx, mockBot, update)
 
-		// Should have answered callback twice (initial answer + ShowAlert).
-		require.GreaterOrEqual(t, mockBot.AnsweredCallbackCount(), 2)
+		// Telegram honors only the first answerCallbackQuery per callback_query_id, so
+		// the mismatch branch must answer exactly once with the alert popup. Answering
+		// twice (as before) caused the alert call to be rejected with QUERY_ID_INVALID
+		// and the popup was never displayed, while still blocking the mutation.
+		require.Equal(t, 1, mockBot.AnsweredCallbackCount())
 		require.Equal(t, 0, mockBot.EditedMessageCount())
+
+		require.Equal(t, callbackID, mockBot.AnsweredCallbacks[0].CallbackQueryID)
+		require.Equal(t, "❌ You can only modify your own expenses.", mockBot.AnsweredCallbacks[0].Text)
+		require.True(t, mockBot.AnsweredCallbacks[0].ShowAlert)
 	})
 }
 
