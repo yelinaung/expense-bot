@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
+	"github.com/shopspring/decimal"
 	"gitlab.com/yelinaung/expense-bot/internal/gemini"
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 
@@ -372,6 +373,20 @@ func (b *Bot) handleConfirmReceiptCore(
 	messageID int,
 	expense *appmodels.Expense,
 ) {
+	// Mirror parseAmount's positivity invariant: the partial-extraction flow
+	// may draft a zero amount when Gemini can't read the total, but a
+	// non-positive amount must never be promoted to confirmed. Keep the
+	// editable draft (and its inline keyboard) intact by sending a new
+	// message rather than replacing the confirmation, so the user can still
+	// tap ✏️ Edit → Edit Amount to set the total before confirming.
+	if !expense.Amount.GreaterThan(decimal.Zero) {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    chatID,
+			Text:      "❌ Amount must be greater than zero. Tap ✏️ Edit → Edit Amount to set the total, then confirm.",
+			ParseMode: models.ParseModeHTML,
+		})
+		return
+	}
 	expense.Status = appmodels.ExpenseStatusConfirmed
 	if err := b.expenseRepo.Update(ctx, expense); err != nil {
 		logger.Log.Error().Err(err).Int("expense_id", expense.ID).Msg("Failed to confirm expense")
