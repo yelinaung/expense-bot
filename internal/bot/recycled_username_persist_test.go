@@ -64,10 +64,11 @@ func TestRecycledUsernameBypassPersistedAcrossRestart(t *testing.T) {
 	// Construct a Bot with the real binding repository so that Bot.isAuthorized
 	// exercises the production persistence goroutine.
 	b := &Bot{
-		cfg:          cfg,
-		db:           pool,
-		bindingRepo:  bindingRepo,
-		pendingEdits: make(map[int64]*pendingEdit),
+		cfg:              cfg,
+		db:               pool,
+		bindingRepo:      bindingRepo,
+		approvedUserRepo: repository.NewApprovedUserRepository(pool),
+		pendingEdits:     make(map[int64]*pendingEdit),
 	}
 
 	// 1. Legit admin's first authorization through the production path.
@@ -155,10 +156,11 @@ func TestRecycledUsernameBypassPersistedAcrossRestart_NonEnvListed(t *testing.T)
 	bindingRepo := repository.NewSuperadminBindingRepository(pool)
 
 	b := &Bot{
-		cfg:          cfg,
-		db:           pool,
-		bindingRepo:  bindingRepo,
-		pendingEdits: make(map[int64]*pendingEdit),
+		cfg:              cfg,
+		db:               pool,
+		bindingRepo:      bindingRepo,
+		approvedUserRepo: repository.NewApprovedUserRepository(pool),
+		pendingEdits:     make(map[int64]*pendingEdit),
 	}
 
 	// Username-only listed user logs in: exercises the non-envListed branch
