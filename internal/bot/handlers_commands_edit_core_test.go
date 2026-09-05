@@ -65,6 +65,8 @@ func TestHandleEditCore(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "20.50", updated.Amount.StringFixed(2))
 		require.Equal(t, "after", updated.Description)
+		require.Equal(t, "before", updated.Merchant,
+			"editing the description via /edit must not clobber the merchant name")
 	})
 
 	t.Run("invalid edit values return format error", func(t *testing.T) {
