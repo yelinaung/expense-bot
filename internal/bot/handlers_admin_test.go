@@ -245,3 +245,103 @@ func TestHandleUsersCore(t *testing.T) {
 		require.Contains(t, msg, "@frank")
 	})
 }
+
+// TestHandleRevokeCore_RejectsNonPositiveUserID verifies that /revoke 0,
+// negative IDs, and decimal forms that ParseInt collapses to 0 do not
+// mass-delete username-only approvals. The handler must reject the input up front.
+func TestHandleRevokeCore_RejectsNonPositiveUserID(t *testing.T) {
+	ctx := context.Background()
+	tx := dbtest.TestTx(ctx, t)
+
+	cfg := &config.Config{
+		WhitelistedUserIDs:   []int64{100},
+		WhitelistedUsernames: []string{superadminUsername},
+	}
+	b := &Bot{
+		cfg:              cfg,
+		approvedUserRepo: repository.NewApprovedUserRepository(tx),
+		pendingEdits:     make(map[int64]*pendingEdit),
+	}
+
+	// Seed: two username-only approvals plus one by-ID approval.
+	require.NoError(t, b.approvedUserRepo.ApproveByUsername(ctx, "alice", 100))
+	require.NoError(t, b.approvedUserRepo.ApproveByUsername(ctx, "bob", 100))
+	require.NoError(t, b.approvedUserRepo.Approve(ctx, 22222, "", 100))
+
+	// Sanity: all approved.
+	for _, u := range []string{"alice", "bob"} {
+		ok, _, err := b.approvedUserRepo.IsApproved(ctx, 0, u)
+		require.NoError(t, err)
+		require.True(t, ok)
+	}
+	ok, _, err := b.approvedUserRepo.IsApproved(ctx, 22222, "")
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	cases := []string{"/revoke 0", "/revoke 00", "/revoke +0", "/revoke -0", "/revoke -1", "/revoke -99999"}
+	for _, cmd := range cases {
+		t.Run(cmd, func(t *testing.T) {
+			mockBot := mocks.NewMockBot()
+			update := mocks.NewUpdateBuilder().
+				WithMessage(1, 100, cmd).
+				WithFrom(100, superadminUsername, superadminFirstName, superadminLastName).
+				Build()
+			b.handleRevokeCore(ctx, mockBot, update)
+
+			require.Equal(t, 1, mockBot.SentMessageCount(), "expected exactly one reply for %q", cmd)
+			msg := mockBot.LastSentMessage().Text
+			require.Contains(t, msg, "Invalid user ID")
+			require.NotContains(t, msg, revokedTextAdminTest, "must not report success for %q", cmd)
+
+			// No approvals may have been removed by this command.
+			for _, u := range []string{"alice", "bob"} {
+				approved, _, err := b.approvedUserRepo.IsApproved(ctx, 0, u)
+				require.NoError(t, err)
+				require.True(t, approved, "username-only approval %q was wiped by %q", u, cmd)
+			}
+			approved, _, err := b.approvedUserRepo.IsApproved(ctx, 22222, "")
+			require.NoError(t, err)
+			require.True(t, approved, "by-ID approval was wiped by %q", cmd)
+		})
+	}
+}
+
+// TestHandleRevokeCore_RevokeByIDStillWorks ensures the new 0-guard did not
+// break the normal /revoke <positive_id> path.
+func TestHandleRevokeCore_RevokeByIDStillWorks(t *testing.T) {
+	ctx := context.Background()
+	tx := dbtest.TestTx(ctx, t)
+
+	cfg := &config.Config{
+		WhitelistedUserIDs:   []int64{100},
+		WhitelistedUsernames: []string{superadminUsername},
+	}
+	b := &Bot{
+		cfg:              cfg,
+		approvedUserRepo: repository.NewApprovedUserRepository(tx),
+		pendingEdits:     make(map[int64]*pendingEdit),
+	}
+
+	require.NoError(t, b.approvedUserRepo.Approve(ctx, 33333, "", 100))
+	require.NoError(t, b.approvedUserRepo.ApproveByUsername(ctx, "alice", 100))
+
+	mockBot := mocks.NewMockBot()
+	update := mocks.NewUpdateBuilder().
+		WithMessage(1, 100, "/revoke 33333").
+		WithFrom(100, superadminUsername, superadminFirstName, superadminLastName).
+		Build()
+	b.handleRevokeCore(ctx, mockBot, update)
+
+	require.Equal(t, 1, mockBot.SentMessageCount())
+	require.Contains(t, mockBot.LastSentMessage().Text, "33333")
+	require.Contains(t, mockBot.LastSentMessage().Text, revokedTextAdminTest)
+
+	approved, _, err := b.approvedUserRepo.IsApproved(ctx, 33333, "")
+	require.NoError(t, err)
+	require.False(t, approved)
+
+	// Username-only approval unaffected.
+	approved, _, err = b.approvedUserRepo.IsApproved(ctx, 0, "alice")
+	require.NoError(t, err)
+	require.True(t, approved)
+}

@@ -224,3 +224,90 @@ func TestApprovedUserRepository_ApproveDuplicate(t *testing.T) {
 	require.Len(t, users, 1)
 	require.Equal(t, "hank_updated", users[0].Username)
 }
+
+// TestApprovedUserRepository_RevokeNonPositiveDoesNotWipeUsernameOnlyApprovals
+// guards against non-positive IDs: revoking user_id 0 or a negative ID
+// must error and must not delete any username-only approval rows.
+func TestApprovedUserRepository_RevokeNonPositiveDoesNotWipeUsernameOnlyApprovals(t *testing.T) {
+	ctx := context.Background()
+	tx := dbtest.TestTx(ctx, t)
+
+	repo := NewApprovedUserRepository(tx)
+
+	require.NoError(t, repo.Approve(ctx, 11111, "", 99999))     // by ID
+	require.NoError(t, repo.ApproveByUsername(ctx, "alice", 1)) // username-only
+	require.NoError(t, repo.ApproveByUsername(ctx, "bob", 1))   // username-only
+	require.NoError(t, repo.ApproveByUsername(ctx, "carol", 1)) // username-only
+
+	// Sanity: all are approved.
+	approved, _, err := repo.IsApproved(ctx, 11111, "")
+	require.NoError(t, err)
+	require.True(t, approved)
+	for _, u := range []string{"alice", "bob", "carol"} {
+		approved, _, err = repo.IsApproved(ctx, 0, u)
+		require.NoError(t, err)
+		require.True(t, approved, u)
+	}
+
+	// Revoke with non-positive IDs must error.
+	for _, badID := range []int64{0, -1, -99999} {
+		err = repo.Revoke(ctx, badID)
+		require.Error(t, err, "expected error for Revoke(%d)", badID)
+	}
+
+	// The by-ID approval is untouched.
+	approved, _, err = repo.IsApproved(ctx, 11111, "")
+	require.NoError(t, err)
+	require.True(t, approved)
+
+	// Every username-only approval survives.
+	for _, u := range []string{"alice", "bob", "carol"} {
+		approved, _, err = repo.IsApproved(ctx, 0, u)
+		require.NoError(t, err)
+		require.True(t, approved, "username-only approval %q was wiped by a non-positive Revoke", u)
+	}
+
+	// And the whole table is intact.
+	users, err := repo.GetAll(ctx)
+	require.NoError(t, err)
+	require.Len(t, users, 4)
+}
+
+// TestApprovedUserRepository_RevokeNonZeroPreservesUsernameOnlyApprovals
+// confirms that a normal by-ID revoke still works and does not touch
+// unrelated username-only approvals.
+func TestApprovedUserRepository_RevokeNonZeroPreservesUsernameOnlyApprovals(t *testing.T) {
+	ctx := context.Background()
+	tx := dbtest.TestTx(ctx, t)
+
+	repo := NewApprovedUserRepository(tx)
+
+	require.NoError(t, repo.Approve(ctx, 22222, "", 99999))
+	require.NoError(t, repo.ApproveByUsername(ctx, "alice", 99999))
+
+	// Sanity.
+	approved, _, err := repo.IsApproved(ctx, 22222, "")
+	require.NoError(t, err)
+	require.True(t, approved)
+	approved, _, err = repo.IsApproved(ctx, 0, "alice")
+	require.NoError(t, err)
+	require.True(t, approved)
+
+	// Revoke the by-ID approval.
+	err = repo.Revoke(ctx, 22222)
+	require.NoError(t, err)
+
+	// by-ID approval is gone.
+	approved, _, err = repo.IsApproved(ctx, 22222, "")
+	require.NoError(t, err)
+	require.False(t, approved)
+
+	// username-only approval is untouched.
+	approved, _, err = repo.IsApproved(ctx, 0, "alice")
+	require.NoError(t, err)
+	require.True(t, approved)
+
+	users, err := repo.GetAll(ctx)
+	require.NoError(t, err)
+	require.Len(t, users, 1)
+}

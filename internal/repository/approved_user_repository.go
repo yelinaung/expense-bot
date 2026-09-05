@@ -69,9 +69,14 @@ func (r *ApprovedUserRepository) IsApproved(ctx context.Context, userID int64, u
 }
 
 // Revoke removes a user from the approved list by user ID.
+// It rejects userID <= 0: 0 is the sentinel used by ApproveByUsername for
+// username-only approvals, and negative values are not valid Telegram user IDs.
 func (r *ApprovedUserRepository) Revoke(ctx context.Context, userID int64) error {
+	if userID <= 0 {
+		return fmt.Errorf("invalid user ID: %d", userID)
+	}
 	_, err := r.db.Exec(ctx, `
-		DELETE FROM approved_users WHERE user_id = $1
+		DELETE FROM approved_users WHERE user_id = $1 AND user_id != 0
 	`, userID)
 	if err != nil {
 		return fmt.Errorf("failed to revoke user: %w", err)
