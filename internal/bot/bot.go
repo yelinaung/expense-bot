@@ -200,11 +200,23 @@ func initGeminiClient(ctx context.Context, apiKey string) *gemini.Client {
 	return client
 }
 
-// buildMiddlewares assembles the bot middleware chain. When metrics are
-// available the tracing middleware is prepended before the whitelist.
+// registeredCommands is the set of command tokens the bot registers handlers
+// for. It bounds telemetry span-name cardinality: any "/..." command not in
+// this set is reported as "telegram.command unknown" rather than by the raw,
+// user-supplied token. Keep in sync with registerHandlers.
+var registeredCommands = []string{
+	"/start", "/help", "/categories", "/add", "/list", "/review", "/habit",
+	"/today", "/week", "/category", "/report", "/chart", "/addcategory",
+	"/renamecategory", "/deletecategory", "/edit", "/delete", "/setcurrency",
+	"/currency", "/settimezone", "/timezone", "/untag", "/tags", "/tag",
+	"/approve", "/revoke", "/users",
+}
+
+// buildMiddlewares assembles the bot middleware chain as [whitelist, tracing]
+// so the whitelist (auth) runs first and blocked updates never open a span.
 func buildMiddlewares(whitelist bot.Middleware, metrics *telemetry.BotMetrics) []bot.Middleware {
 	if metrics != nil {
-		return []bot.Middleware{telemetry.TracingMiddleware(metrics), whitelist}
+		return []bot.Middleware{whitelist, telemetry.TracingMiddleware(metrics, registeredCommands...)}
 	}
 	return []bot.Middleware{whitelist}
 }
