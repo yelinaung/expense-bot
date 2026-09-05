@@ -35,10 +35,20 @@ import (
 //     authorized (previously the recycler remained a superadmin across
 //     restarts via the persisted attacker binding).
 //
-// Requires TEST_DATABASE_URL; skips otherwise (see dbtest.TestTx).
+// Requires TEST_DATABASE_URL; skips otherwise (see dbtest.TestPool).
 func TestRecycledUsernameBypassPersistedAcrossRestart(t *testing.T) {
 	ctx := context.Background()
-	tx := dbtest.TestTx(ctx, t) // per-test transaction, auto-rolled-back
+	// Use a pool (not a transaction) because Bot.isAuthorized launches an async
+	// goroutine that calls bindingRepo.Save concurrently with the test's
+	// LoadAll polling. A single pgx.Tx allows only one operation at a time,
+	// causing "conn busy" errors. The pool hands each concurrent caller its
+	// own connection, avoiding the contention.
+	pool := dbtest.TestPool(t)
+	// Truncate superadmin_bindings before and after to isolate from other tests.
+	_, _ = pool.Exec(ctx, `TRUNCATE TABLE superadmin_bindings`)
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.WithoutCancel(ctx), `TRUNCATE TABLE superadmin_bindings`)
+	})
 
 	const adminUser = "admin"
 	const legitID int64 = 100
@@ -49,13 +59,13 @@ func TestRecycledUsernameBypassPersistedAcrossRestart(t *testing.T) {
 		WhitelistedUserIDs:   []int64{legitID},
 		WhitelistedUsernames: []string{adminUser},
 	}
-	bindingRepo := repository.NewSuperadminBindingRepository(tx)
+	bindingRepo := repository.NewSuperadminBindingRepository(pool)
 
 	// Construct a Bot with the real binding repository so that Bot.isAuthorized
 	// exercises the production persistence goroutine.
 	b := &Bot{
 		cfg:          cfg,
-		db:           tx,
+		db:           pool,
 		bindingRepo:  bindingRepo,
 		pendingEdits: make(map[int64]*pendingEdit),
 	}
@@ -105,7 +115,7 @@ func TestRecycledUsernameBypassPersistedAcrossRestart(t *testing.T) {
 		WhitelistedUserIDs:   []int64{legitID},
 		WhitelistedUsernames: []string{adminUser},
 	}
-	loadSuperadminBindings(ctx, restarted, tx)
+	loadSuperadminBindings(ctx, restarted, pool)
 
 	require.True(t, restarted.IsSuperAdmin(legitID, adminUser),
 		"legit admin must remain authorized after restart+reload")
@@ -125,7 +135,15 @@ func TestRecycledUsernameBypassPersistedAcrossRestart(t *testing.T) {
 // of the env-ID locking message.
 func TestRecycledUsernameBypassPersistedAcrossRestart_NonEnvListed(t *testing.T) {
 	ctx := context.Background()
-	tx := dbtest.TestTx(ctx, t)
+	// Use a pool (not a transaction) for the same reason as the sibling test:
+	// the async persistence goroutine and the polling LoadAll call run
+	// concurrently and a single pgx.Tx cannot be used from two goroutines
+	// simultaneously.
+	pool := dbtest.TestPool(t)
+	_, _ = pool.Exec(ctx, `TRUNCATE TABLE superadmin_bindings`)
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.WithoutCancel(ctx), `TRUNCATE TABLE superadmin_bindings`)
+	})
 
 	const onlyUsernameUser = "onlylisted"
 	const onlyUsernameID int64 = 200
@@ -134,11 +152,11 @@ func TestRecycledUsernameBypassPersistedAcrossRestart_NonEnvListed(t *testing.T)
 		WhitelistedUserIDs:   []int64{},
 		WhitelistedUsernames: []string{onlyUsernameUser},
 	}
-	bindingRepo := repository.NewSuperadminBindingRepository(tx)
+	bindingRepo := repository.NewSuperadminBindingRepository(pool)
 
 	b := &Bot{
 		cfg:          cfg,
-		db:           tx,
+		db:           pool,
 		bindingRepo:  bindingRepo,
 		pendingEdits: make(map[int64]*pendingEdit),
 	}
