@@ -518,6 +518,96 @@ func TestExpenseRepository_GetByUserIDAndDateRange_OnlyConfirmed(t *testing.T) {
 	require.Equal(t, "Confirmed for date range", expenses[0].Description)
 }
 
+// TestExpenseRepository_GetByUserIDAndDateRange_PopulatesReflection
+// verifies GetByUserIDAndDateRange loads the worth_it/spend_driver/reviewed_at
+// columns. The /report CSV handler feeds this query's output straight into
+// GenerateExpensesCSV, whose "Worth It" column renders an empty cell when
+// WorthIt is nil even for reviewed expenses.
+func TestExpenseRepository_GetByUserIDAndDateRange_PopulatesReflection(t *testing.T) {
+	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
+
+	user := &models.User{ID: 905, Username: "user905", FirstName: testFirstName, LastName: testLastName}
+	err := userRepo.UpsertUser(ctx, user)
+	require.NoError(t, err)
+
+	worthIt := &models.Expense{
+		UserID:      905,
+		Amount:      decimal.NewFromFloat(12.00),
+		Currency:    testCurrencySGD,
+		Description: "Reviewed worth it",
+		Status:      models.ExpenseStatusConfirmed,
+	}
+	err = expenseRepo.Create(ctx, worthIt)
+	require.NoError(t, err)
+
+	notWorthIt := &models.Expense{
+		UserID:      905,
+		Amount:      decimal.NewFromFloat(8.00),
+		Currency:    testCurrencySGD,
+		Description: "Reviewed not worth it",
+		Status:      models.ExpenseStatusConfirmed,
+	}
+	err = expenseRepo.Create(ctx, notWorthIt)
+	require.NoError(t, err)
+
+	unreviewed := &models.Expense{
+		UserID:      905,
+		Amount:      decimal.NewFromFloat(5.00),
+		Currency:    testCurrencySGD,
+		Description: "Never reviewed",
+		Status:      models.ExpenseStatusConfirmed,
+	}
+	err = expenseRepo.Create(ctx, unreviewed)
+	require.NoError(t, err)
+
+	// Backdate all three into the same window so they get returned together.
+	baseTime := time.Date(2026, 6, 14, 12, 0, 0, 0, time.UTC)
+	for i, exp := range []*models.Expense{worthIt, notWorthIt, unreviewed} {
+		_, err = expenseRepo.Pool().Exec(ctx, `UPDATE expenses SET created_at = $1 WHERE id = $2`,
+			baseTime.Add(time.Duration(i)*time.Minute), exp.ID)
+		require.NoError(t, err)
+	}
+
+	worth := true
+	err = expenseRepo.UpdateReflection(ctx, worthIt.ID, user.ID, &worth, "Necessity")
+	require.NoError(t, err)
+
+	notWorth := false
+	err = expenseRepo.UpdateReflection(ctx, notWorthIt.ID, user.ID, &notWorth, "")
+	require.NoError(t, err)
+
+	fetched, err := expenseRepo.GetByUserIDAndDateRange(ctx, user.ID,
+		baseTime.Add(-time.Hour), baseTime.Add(time.Hour))
+	require.NoError(t, err)
+	require.Len(t, fetched, 3)
+
+	byID := make(map[int]models.Expense, len(fetched))
+	for _, e := range fetched {
+		byID[e.ID] = e
+	}
+
+	gotWorth, ok := byID[worthIt.ID]
+	require.True(t, ok)
+	require.NotNil(t, gotWorth.WorthIt, "reviewed-as-worth-it expense must load WorthIt")
+	require.True(t, *gotWorth.WorthIt)
+	require.NotNil(t, gotWorth.SpendDriver)
+	require.Equal(t, "Necessity", *gotWorth.SpendDriver)
+	require.NotNil(t, gotWorth.ReviewedAt)
+
+	gotNot, ok := byID[notWorthIt.ID]
+	require.True(t, ok)
+	require.NotNil(t, gotNot.WorthIt, "reviewed-as-not-worth-it expense must load WorthIt")
+	require.False(t, *gotNot.WorthIt)
+	require.Nil(t, gotNot.SpendDriver)
+	require.NotNil(t, gotNot.ReviewedAt)
+
+	gotUnrev, ok := byID[unreviewed.ID]
+	require.True(t, ok)
+	require.Nil(t, gotUnrev.WorthIt, "unreviewed expense must keep nil WorthIt")
+	require.Nil(t, gotUnrev.SpendDriver)
+	require.Nil(t, gotUnrev.ReviewedAt)
+}
+
 func TestExpenseRepository_Create_DefaultStatus(t *testing.T) {
 	expenseRepo, userRepo, _, ctx := setupExpenseTest(t)
 
