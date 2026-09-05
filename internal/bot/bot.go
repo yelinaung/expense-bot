@@ -64,6 +64,10 @@ type Bot struct {
 	// OTel instrumentation (nil when disabled).
 	metrics    *telemetry.BotMetrics
 	httpClient *http.Client
+
+	// generateChart is the chart-generation function; defaults to GenerateExpenseChart.
+	// Tests may override it to inject errors without rendering a real PNG.
+	generateChart func(expenses []models.Expense, period string) ([]byte, error)
 }
 
 // New creates a new Bot instance.
