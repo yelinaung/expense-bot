@@ -56,6 +56,14 @@ type Bot struct {
 	pendingEdits   map[int64]*pendingEdit // key is chatID
 	pendingEditsMu sync.RWMutex
 
+	// confirmationStash holds the original expense confirmation message text
+	// keyed by "<chatID>:<messageID>" so editToConfirmation can replay it after
+	// the worth/not-worth step overwrites the message with the driver prompt in
+	// the confirmation-flow reflection path. Mirrors the preserve-original-text
+	// pattern used by dismissReflectionButtons ("Later").
+	confirmationStash   map[string]string
+	confirmationStashMu sync.RWMutex
+
 	// Category cache to reduce database queries.
 	categoryCache       []models.Category
 	categoryCacheExpiry time.Time
@@ -72,19 +80,20 @@ func New(ctx context.Context, cfg *config.Config, db database.PGXDB) (*Bot, erro
 	transport, metrics := newOTelInstrumentation(cfg)
 
 	b := &Bot{
-		cfg:              cfg,
-		db:               db,
-		userRepo:         repository.NewUserRepository(db),
-		categoryRepo:     repository.NewCategoryRepository(db),
-		expenseRepo:      repository.NewExpenseRepository(db),
-		tagRepo:          repository.NewTagRepository(db),
-		approvedUserRepo: repository.NewApprovedUserRepository(db),
-		bindingRepo:      bindingRepo,
-		pendingEdits:     make(map[int64]*pendingEdit),
-		exchangeService:  newExchangeService(cfg, transport, cacheMetricsFrom(metrics)),
-		httpClient:       newFileDownloadClient(cfg),
-		metrics:          metrics,
-		geminiClient:     initGeminiClient(ctx, cfg.GeminiAPIKey),
+		cfg:               cfg,
+		db:                db,
+		userRepo:          repository.NewUserRepository(db),
+		categoryRepo:      repository.NewCategoryRepository(db),
+		expenseRepo:       repository.NewExpenseRepository(db),
+		tagRepo:           repository.NewTagRepository(db),
+		approvedUserRepo:  repository.NewApprovedUserRepository(db),
+		bindingRepo:       bindingRepo,
+		pendingEdits:      make(map[int64]*pendingEdit),
+		confirmationStash: make(map[string]string),
+		exchangeService:   newExchangeService(cfg, transport, cacheMetricsFrom(metrics)),
+		httpClient:        newFileDownloadClient(cfg),
+		metrics:           metrics,
+		geminiClient:      initGeminiClient(ctx, cfg.GeminiAPIKey),
 	}
 
 	middlewares := buildMiddlewares(b.whitelistMiddleware, b.metrics)

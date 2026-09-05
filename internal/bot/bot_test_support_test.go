@@ -82,19 +82,20 @@ func setupTestBot(t *testing.T, db database.PGXDB) *Bot {
 	}
 
 	b := &Bot{
-		cfg:              cfg,
-		db:               db,
-		userRepo:         repository.NewUserRepository(db),
-		categoryRepo:     repository.NewCategoryRepository(db),
-		expenseRepo:      repository.NewExpenseRepository(db),
-		tagRepo:          repository.NewTagRepository(db),
-		approvedUserRepo: repository.NewApprovedUserRepository(db),
-		geminiClient:     nil, // No Gemini client for cache tests
-		exchangeService:  &testExchangeService{},
-		messageSender:    nil, // Tests that need it will inject a mock
-		displayLocation:  time.UTC,
-		nowFunc:          time.Now,
-		pendingEdits:     make(map[int64]*pendingEdit),
+		cfg:               cfg,
+		db:                db,
+		userRepo:          repository.NewUserRepository(db),
+		categoryRepo:      repository.NewCategoryRepository(db),
+		expenseRepo:       repository.NewExpenseRepository(db),
+		tagRepo:           repository.NewTagRepository(db),
+		approvedUserRepo:  repository.NewApprovedUserRepository(db),
+		geminiClient:      nil, // No Gemini client for cache tests
+		exchangeService:   &testExchangeService{},
+		messageSender:     nil, // Tests that need it will inject a mock
+		displayLocation:   time.UTC,
+		nowFunc:           time.Now,
+		pendingEdits:      make(map[int64]*pendingEdit),
+		confirmationStash: make(map[string]string),
 	}
 
 	return b
