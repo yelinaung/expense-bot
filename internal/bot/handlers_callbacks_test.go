@@ -279,7 +279,7 @@ func TestPromptEditAmountCore(t *testing.T) {
 
 		require.Len(t, mockBot.EditedMessages, 1)
 		require.Contains(t, mockBot.EditedMessages[0].Text, editAmountTextCBT)
-		require.Contains(t, mockBot.EditedMessages[0].Text, "$25.50 SGD")
+		require.Contains(t, mockBot.EditedMessages[0].Text, "S$25.50 SGD")
 
 		b.pendingEditsMu.RLock()
 		pending, exists := b.pendingEdits[12345]
@@ -541,7 +541,7 @@ func TestProcessAmountEditCore(t *testing.T) {
 
 		require.Len(t, mockBot.EditedMessages, 1)
 		require.Contains(t, mockBot.EditedMessages[0].Text, "Amount Updated")
-		require.Contains(t, mockBot.EditedMessages[0].Text, "$45.50 SGD")
+		require.Contains(t, mockBot.EditedMessages[0].Text, "S$45.50 SGD")
 
 		updated, err := b.expenseRepo.GetByID(ctx, expense.ID)
 		require.NoError(t, err)
