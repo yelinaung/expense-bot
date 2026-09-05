@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/go-telegram/bot/models"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/bot/mocks"
 	"gitlab.com/yelinaung/expense-bot/internal/gemini"
@@ -475,4 +476,158 @@ func TestHandlePhotoCore_Success(t *testing.T) {
 	require.Equal(t, 2, mockBot.SentMessageCount())
 	require.Contains(t, mockBot.SentMessages[0].Text, testProcessingReceiptText)
 	require.Contains(t, mockBot.SentMessages[1].Text, "Receipt Scanned")
+}
+
+// TestHandleConfirmReceiptCore_RejectsNonPositiveAmount verifies the positivity
+// guard added to handleConfirmReceiptCore. A partial-extraction draft may carry
+// a zero amount, and a draft may also hold a negative value; both must be
+// rejected at confirm time (mirroring parseAmount's "amount > 0" invariant)
+// rather than promoted to confirmed.
+func TestHandleConfirmReceiptCore_RejectsNonPositiveAmount(t *testing.T) {
+	ctx := context.Background()
+	pool := testDB(ctx, t)
+	b := setupTestBot(t, pool)
+	userID := int64(400010)
+
+	err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+		ID:        userID,
+		Username:  "nonpositive-confirm-user",
+		FirstName: "NonPositive",
+	})
+	require.NoError(t, err)
+
+	cases := []struct {
+		name   string
+		amount string
+	}{
+		{name: "zero amount", amount: "0"},
+		{name: "negative amount", amount: "-5.00"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockBot := mocks.NewMockBot()
+
+			expense := &appmodels.Expense{
+				UserID:      userID,
+				Amount:      mustParseDecimal(tc.amount),
+				Currency:    "SGD",
+				Description: testReceiptText,
+				Merchant:    testReceiptText,
+				Status:      appmodels.ExpenseStatusDraft,
+			}
+			require.NoError(t, b.expenseRepo.Create(ctx, expense))
+
+			b.handleConfirmReceiptCore(ctx, mockBot, 12345, 100, expense)
+
+			// Rejection is a new message so the editable draft and its inline
+			// keyboard stay intact, not an edit replacing the confirmation.
+			require.Equal(t, 0, mockBot.EditedMessageCount(),
+				"no edit should replace the editable draft confirmation")
+			require.Equal(t, 1, mockBot.SentMessageCount())
+			require.Contains(t, mockBot.SentMessages[0].Text, "Amount must be greater than zero")
+
+			// The draft must remain unchanged in the database.
+			updated, err := b.expenseRepo.GetByID(ctx, expense.ID)
+			require.NoError(t, err)
+			require.Equal(t, appmodels.ExpenseStatusDraft, updated.Status,
+				"non-positive draft must not be promoted to confirmed")
+
+			// Confirmed-only readers must not surface the rejected draft.
+			confirmed, err := b.expenseRepo.GetByUserID(ctx, userID, 50)
+			require.NoError(t, err)
+			for i := range confirmed {
+				require.NotEqual(t, expense.ID, confirmed[i].ID,
+					"non-positive expense must not leak into confirmed read path")
+			}
+		})
+	}
+}
+
+// TestHandlePhotoCore_ZeroAmountReceiptBug is the end-to-end regression test
+// for the partial-extraction confirm path. Gemini returns merchant but not the
+// total (amount "0"), so handlePhotoCore drafts a zero-amount expense, and
+// confirming it must be rejected instead of persisting a confirmed 0.00 row.
+func TestHandlePhotoCore_ZeroAmountReceiptBug(t *testing.T) {
+	ctx := context.Background()
+	pool := testDB(ctx, t)
+	b := setupTestBot(t, pool)
+	const (
+		userID = 100
+		chatID = 12345
+	)
+
+	require.NoError(t, b.userRepo.UpsertUser(ctx, &appmodels.User{
+		ID:        userID,
+		Username:  "zero-receipt-bug-user",
+		FirstName: "Zero",
+	}))
+	b.geminiClient = gemini.NewClientWithGenerator(&botTestGenerator{
+		response: &genai.GenerateContentResponse{
+			Candidates: []*genai.Candidate{{
+				Content: &genai.Content{Parts: []*genai.Part{{
+					Text: `{"amount":"0","currency":"SGD","merchant":"Cafe","date":"2026-02-26","suggested_category":"Food - Dining Out","confidence":0.4}`,
+				}}},
+			}},
+		},
+	})
+	b.httpClient = &http.Client{
+		Transport: receiptRoundTripperFunc(func(*http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("fake-image-bytes")),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+	mockBot := mocks.NewMockBot()
+	update := mocks.PhotoUpdate(chatID, userID, testPhotoFileID)
+
+	b.handlePhotoCore(ctx, mockBot, update)
+
+	// 1. A partial extraction (merchant present, amount absent) drafts a
+	//    zero-amount expense. GetByUserID filters status='confirmed', so
+	//    query directly to reach the draft row.
+	require.Equal(t, 2, mockBot.SentMessageCount())
+	require.Contains(t, mockBot.SentMessages[0].Text, testProcessingReceiptText)
+	require.Contains(t, mockBot.SentMessages[1].Text, "Partial Extraction")
+
+	var (
+		draftID     int
+		draftAmount decimal.Decimal
+		draftStatus string
+	)
+	err := pool.QueryRow(ctx, `
+		SELECT id, amount, status FROM expenses
+		WHERE user_id = $1 ORDER BY id DESC LIMIT 1`,
+		userID).Scan(&draftID, &draftAmount, &draftStatus)
+	require.NoError(t, err, "zero-amount DRAFT should be created by handlePhotoCore")
+	require.True(t, draftAmount.IsZero(), "draft amount should be zero for partial extraction")
+	require.Equal(t, string(appmodels.ExpenseStatusDraft), draftStatus,
+		"partial-extraction receipt should remain a DRAFT until confirmed")
+
+	// 2. Confirming the zero-amount draft must be rejected, not promoted.
+	zeroDraft, err := b.expenseRepo.GetByID(ctx, draftID)
+	require.NoError(t, err)
+
+	confirmBot := mocks.NewMockBot()
+	b.handleConfirmReceiptCore(ctx, confirmBot, chatID, 100, zeroDraft)
+
+	require.Equal(t, 0, confirmBot.EditedMessageCount(),
+		"no edit should replace the editable draft confirmation")
+	require.Equal(t, 1, confirmBot.SentMessageCount())
+	require.Contains(t, confirmBot.SentMessages[0].Text, "Amount must be greater than zero")
+
+	stillDraft, err := b.expenseRepo.GetByID(ctx, draftID)
+	require.NoError(t, err)
+	require.Equal(t, appmodels.ExpenseStatusDraft, stillDraft.Status,
+		"zero-amount draft must not be promoted to CONFIRMED")
+
+	// 3. No confirmed zero-amount expense leaks into confirmed-only readers.
+	confirmed, err := b.expenseRepo.GetByUserID(ctx, userID, 50)
+	require.NoError(t, err)
+	for i := range confirmed {
+		require.NotEqual(t, draftID, confirmed[i].ID,
+			"zero-amount expense must not appear in confirmed read path (bug closed)")
+	}
 }
