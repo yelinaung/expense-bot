@@ -192,6 +192,23 @@ func TestHandleChartCore(t *testing.T) {
 
 		require.Equal(t, 0, mockBot.SentMessageCount())
 	})
+
+	t.Run("sends failure message when chart generation fails", func(t *testing.T) {
+		// Inject a failing chart generator.
+		b.generateChart = func(_ []appmodels.Expense, _ string) ([]byte, error) {
+			return nil, errors.New("render error")
+		}
+		defer func() { b.generateChart = nil }()
+
+		mockBot := mocks.NewMockBot()
+		update := mocks.CommandUpdate(chatID, userID, testChartWeekCommand)
+
+		b.handleChartCore(ctx, mockBot, update)
+
+		msg := mockBot.LastSentMessage()
+		require.NotNil(t, msg)
+		require.Contains(t, msg.Text, failedGenerateChartMsg)
+	})
 }
 
 func TestHandleChartCoreCurrency(t *testing.T) {

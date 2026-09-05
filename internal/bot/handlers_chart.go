@@ -130,7 +130,11 @@ func (b *Bot) handleChartCore(ctx context.Context, tg TelegramAPI, update *model
 			attribute.String("chart.currency", cur),
 			attribute.Int("chart.expense_count", len(filtered)),
 		)
-		chartData, err := GenerateExpenseChart(filtered, period)
+		genFn := b.generateChart
+		if genFn == nil {
+			genFn = GenerateExpenseChart
+		}
+		chartData, err := genFn(filtered, period)
 		if err != nil {
 			genSpan.RecordError(err)
 			genSpan.SetStatus(codes.Error, "chart generation failed")
