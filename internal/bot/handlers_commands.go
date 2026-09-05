@@ -1371,7 +1371,6 @@ func applyParsedEdit(
 	}
 	if parsed.Description != "" {
 		expense.Description = parsed.Description
-		expense.Merchant = parsed.Description
 	}
 	if parsed.CategoryName == "" {
 		return
