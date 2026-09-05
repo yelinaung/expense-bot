@@ -22,6 +22,7 @@ const (
 	targetIDField             = "target_id"
 	superadminIDLineFmt       = "  ID: <code>%d</code>\n"
 	superadminUsernameLineFmt = "  @%s\n"
+	invalidUserIDMsgFmt       = "Invalid user ID <code>%d</code>: Telegram user IDs are positive integers."
 )
 
 // extractAdminArgs extracts command arguments while preserving @username args.
@@ -146,6 +147,14 @@ func (b *Bot) handleRevokeCore(ctx context.Context, tg TelegramAPI, update *mode
 
 	// Try parsing as user ID first.
 	if targetID, err := strconv.ParseInt(args, 10, 64); err == nil {
+		if targetID == 0 {
+			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    chatID,
+				Text:      fmt.Sprintf(invalidUserIDMsgFmt, targetID),
+				ParseMode: models.ParseModeHTML,
+			})
+			return
+		}
 		if b.cfg.IsSuperAdmin(targetID, "") {
 			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID: chatID,
