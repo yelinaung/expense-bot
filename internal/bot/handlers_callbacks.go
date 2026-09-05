@@ -116,12 +116,13 @@ func (b *Bot) promptEditAmountCore(
 	}
 	b.pendingEditsMu.Unlock()
 
+	currencySymbol := getCurrencyOrCodeSymbol(expense.Currency)
 	text := fmt.Sprintf(`💰 <b>Edit Amount</b>
 
-Current amount: $%s SGD
+Current amount: %s%s %s
 
 Please type the new amount (e.g., <code>25.50</code>):`,
-		expense.Amount.StringFixed(2))
+		currencySymbol, expense.Amount.StringFixed(2), expense.Currency)
 
 	keyboard := &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{
@@ -330,14 +331,17 @@ func (b *Bot) processAmountEditCore(
 
 	keyboard := buildReceiptConfirmationKeyboard(expense.ID)
 
+	currencySymbol := getCurrencyOrCodeSymbol(expense.Currency)
 	text := fmt.Sprintf(`📸 <b>Amount Updated!</b>
 
-💰 Amount: $%s SGD
+💰 Amount: %s%s %s
 🏪 Merchant: %s
 📁 Category: %s
 
 Amount updated. Confirm to save.`,
+		currencySymbol,
 		expense.Amount.StringFixed(2),
+		expense.Currency,
 		escapeHTML(expense.Merchant),
 		categoryText)
 
@@ -515,14 +519,17 @@ func (b *Bot) processMerchantEditCore(
 
 	keyboard := buildReceiptConfirmationKeyboard(expense.ID)
 
+	currencySymbol := getCurrencyOrCodeSymbol(expense.Currency)
 	text := fmt.Sprintf(`📸 <b>Merchant Updated!</b>
 
-💰 Amount: $%s SGD
+💰 Amount: %s%s %s
 🏪 Merchant: %s
 📁 Category: %s
 
 Merchant updated. Confirm to save.`,
+		currencySymbol,
 		expense.Amount.StringFixed(2),
+		expense.Currency,
 		escapeHTML(expense.Merchant),
 		categoryText)
 
@@ -707,14 +714,17 @@ func (b *Bot) handleSetCategoryCallbackCore(ctx context.Context, tg TelegramAPI,
 
 	keyboard := buildReceiptConfirmationKeyboard(expense.ID)
 
+	currencySymbol := getCurrencyOrCodeSymbol(expense.Currency)
 	text := fmt.Sprintf(`📸 <b>Receipt Updated!</b>
 
-💰 Amount: $%s SGD
+💰 Amount: %s%s %s
 🏪 Merchant: %s
 📁 Category: %s
 
 Category updated. Confirm to save.`,
+		currencySymbol,
 		expense.Amount.StringFixed(2),
+		expense.Currency,
 		escapeHTML(expense.Merchant),
 		escapeHTML(category.Name))
 
@@ -808,14 +818,17 @@ func (b *Bot) processCategoryCreateCore(
 
 	keyboard := buildReceiptConfirmationKeyboard(expense.ID)
 
+	currencySymbol := getCurrencyOrCodeSymbol(expense.Currency)
 	text := fmt.Sprintf(`📸 <b>Category Created!</b>
 
-💰 Amount: $%s SGD
+💰 Amount: %s%s %s
 🏪 Merchant: %s
 📁 Category: %s
 
 New category created. Confirm to save.`,
+		currencySymbol,
 		expense.Amount.StringFixed(2),
+		expense.Currency,
 		escapeHTML(expense.Merchant),
 		escapeHTML(category.Name))
 
@@ -985,16 +998,19 @@ func (b *Bot) handleInlineEditExpenseCore(
 		categoryText = escapeHTML(expense.Category.Name)
 	}
 
+	currencySymbol := getCurrencyOrCodeSymbol(expense.Currency)
 	text := fmt.Sprintf(`✏️ <b>Edit Expense #%d</b>
 
 Current Details:
-💰 Amount: $%s SGD
+💰 Amount: %s%s %s
 📝 Description: %s
 📁 Category: %s
 
 What would you like to edit?`,
 		expense.UserExpenseNumber,
+		currencySymbol,
 		expense.Amount.StringFixed(2),
+		expense.Currency,
 		escapeHTML(expense.Description),
 		categoryText)
 
@@ -1032,16 +1048,19 @@ func (b *Bot) handleInlineDeleteExpenseCore(
 	messageID int,
 	expense *appmodels.Expense,
 ) {
+	currencySymbol := getCurrencyOrCodeSymbol(expense.Currency)
 	text := fmt.Sprintf(`🗑️ <b>Delete Expense?</b>
 
 Are you sure you want to delete this expense?
 
-💰 $%s SGD
+💰 %s%s %s
 📝 %s
 🆔 #%d
 
 This action cannot be undone.`,
+		currencySymbol,
 		expense.Amount.StringFixed(2),
+		expense.Currency,
 		escapeHTML(expense.Description),
 		expense.UserExpenseNumber)
 
@@ -1187,12 +1206,15 @@ func (b *Bot) handleBackToExpenseCallbackCore(ctx context.Context, tg TelegramAP
 		descText = "\n📝 " + escapeHTML(expense.Description)
 	}
 
+	currencySymbol := getCurrencyOrCodeSymbol(expense.Currency)
 	text := fmt.Sprintf(`✅ <b>Expense Added</b>
 
-💰 $%s SGD%s
+💰 %s%s %s%s
 📁 %s
 🆔 #%d`,
+		currencySymbol,
 		expense.Amount.StringFixed(2),
+		expense.Currency,
 		descText,
 		categoryText,
 		expense.UserExpenseNumber)
