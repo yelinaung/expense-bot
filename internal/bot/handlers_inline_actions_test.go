@@ -111,6 +111,21 @@ func TestHandleExpenseActionCallbackCore(t *testing.T) {
 		require.Equal(t, 0, mockBot.EditedMessageCount())
 	})
 
+	t.Run("handles invalid expense ID in callback data", func(t *testing.T) {
+		mockBot.Reset()
+
+		update := mocks.NewUpdateBuilder().
+			WithCallbackQuery("callback125b", 100, user.ID, 200, "edit_expense_notanumber").
+			Build()
+
+		b.handleExpenseActionCallbackCore(ctx, mockBot, update)
+
+		// Should answer callback exactly once (empty, no alert) but not edit message.
+		require.Equal(t, 1, mockBot.AnsweredCallbackCount())
+		require.False(t, mockBot.AnsweredCallbacks[0].ShowAlert)
+		require.Equal(t, 0, mockBot.EditedMessageCount())
+	})
+
 	t.Run("handles non-existent expense", func(t *testing.T) {
 		mockBot.Reset()
 
