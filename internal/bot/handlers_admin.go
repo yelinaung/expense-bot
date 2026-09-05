@@ -22,6 +22,7 @@ const (
 	targetIDField             = "target_id"
 	superadminIDLineFmt       = "  ID: <code>%d</code>\n"
 	superadminUsernameLineFmt = "  @%s\n"
+	revokeUsageMsg            = "Usage: <code>/revoke &lt;user_id&gt;</code> or <code>/revoke @username</code>"
 )
 
 // extractAdminArgs extracts command arguments while preserving @username args.
@@ -138,7 +139,7 @@ func (b *Bot) handleRevokeCore(ctx context.Context, tg TelegramAPI, update *mode
 	if args == "" {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      "Usage: <code>/revoke &lt;user_id&gt;</code> or <code>/revoke @username</code>",
+			Text:      revokeUsageMsg,
 			ParseMode: models.ParseModeHTML,
 		})
 		return
@@ -146,6 +147,18 @@ func (b *Bot) handleRevokeCore(ctx context.Context, tg TelegramAPI, update *mode
 
 	// Try parsing as user ID first.
 	if targetID, err := strconv.ParseInt(args, 10, 64); err == nil {
+		// user_id = 0 is the sentinel for "approved by @username only" rows and is
+		// never a real target; reject it as invalid usage so a single /revoke 0
+		// cannot reach the (sentinel-guarded) DELETE and cannot produce a
+		// misleading "User <code>0</code> has been revoked." reply.
+		if targetID == 0 {
+			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    chatID,
+				Text:      revokeUsageMsg,
+				ParseMode: models.ParseModeHTML,
+			})
+			return
+		}
 		if b.cfg.IsSuperAdmin(targetID, "") {
 			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID: chatID,
@@ -171,6 +184,18 @@ func (b *Bot) handleRevokeCore(ctx context.Context, tg TelegramAPI, update *mode
 
 	// Treat as username.
 	targetUsername := strings.TrimPrefix(args, "@")
+	// username = '' is the sentinel for "approved by ID only" rows and is never
+	// a real target (e.g. "/revoke @" trims to ""). Reject it as invalid usage so
+	// a single /revoke @ cannot reach the (sentinel-guarded) DELETE and cannot
+	// produce a misleading "User <code>@</code> has been revoked." reply.
+	if targetUsername == "" {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    chatID,
+			Text:      revokeUsageMsg,
+			ParseMode: models.ParseModeHTML,
+		})
+		return
+	}
 	if b.cfg.IsSuperAdmin(0, targetUsername) {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,

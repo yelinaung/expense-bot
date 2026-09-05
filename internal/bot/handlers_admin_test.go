@@ -187,6 +187,97 @@ func TestHandleRevokeCore(t *testing.T) {
 	})
 }
 
+// TestHandleRevokeCore_SentinelInputs covers the operator-error hazard where
+// "/revoke 0" (userID sentinel 0) and "/revoke @" (username sentinel "") used
+// to bulk-delete the opposite half of the approval list and reply with a
+// misleading per-user confirmation. After the fix, both must be treated as
+// invalid usage and must delete zero rows.
+func TestHandleRevokeCore_SentinelInputs(t *testing.T) {
+	ctx := context.Background()
+	tx := dbtest.TestTx(ctx, t)
+
+	cfg := &config.Config{
+		WhitelistedUserIDs:   []int64{100},
+		WhitelistedUsernames: []string{superadminUsername},
+	}
+	b := &Bot{
+		cfg:              cfg,
+		approvedUserRepo: repository.NewApprovedUserRepository(tx),
+		pendingEdits:     make(map[int64]*pendingEdit),
+	}
+
+	byIDs := []int64{11111, 22222, 33333}
+	byUsernames := []string{"alice", "bob", "carol"}
+
+	seed := func(t *testing.T) {
+		t.Helper()
+		for _, id := range byIDs {
+			require.NoError(t, b.approvedUserRepo.Approve(ctx, id, "", 100))
+		}
+		for _, u := range byUsernames {
+			require.NoError(t, b.approvedUserRepo.ApproveByUsername(ctx, u, 100))
+		}
+	}
+	count := func(t *testing.T) int {
+		t.Helper()
+		users, err := b.approvedUserRepo.GetAll(ctx)
+		require.NoError(t, err)
+		return len(users)
+	}
+
+	t.Run("/revoke 0 is usage error and mass-deletes nothing", func(t *testing.T) {
+		seed(t)
+		require.Equal(t, 6, count(t))
+
+		mockBot := mocks.NewMockBot()
+		update := mocks.NewUpdateBuilder().
+			WithMessage(1, 100, "/revoke 0").
+			WithFrom(100, superadminUsername, superadminFirstName, superadminLastName).
+			Build()
+		b.handleRevokeCore(ctx, mockBot, update)
+
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		require.Contains(t, mockBot.LastSentMessage().Text, "Usage")
+		require.NotContains(t, mockBot.LastSentMessage().Text, "has been revoked", "must not confirm a sentinel revoke")
+		require.Equal(t, 6, count(t), "/revoke 0 must delete zero rows")
+
+		for _, u := range byUsernames {
+			ok, _, _ := b.approvedUserRepo.IsApproved(ctx, 0, u)
+			require.True(t, ok, "username-only approval %q must survive /revoke 0", u)
+		}
+		for _, id := range byIDs {
+			ok, _, _ := b.approvedUserRepo.IsApproved(ctx, id, "")
+			require.True(t, ok, "by-ID approval %d must survive /revoke 0", id)
+		}
+	})
+
+	t.Run("/revoke @ is usage error and mass-deletes nothing", func(t *testing.T) {
+		seed(t)
+		require.Equal(t, 6, count(t))
+
+		mockBot := mocks.NewMockBot()
+		update := mocks.NewUpdateBuilder().
+			WithMessage(1, 100, "/revoke @").
+			WithFrom(100, superadminUsername, superadminFirstName, superadminLastName).
+			Build()
+		b.handleRevokeCore(ctx, mockBot, update)
+
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		require.Contains(t, mockBot.LastSentMessage().Text, "Usage")
+		require.NotContains(t, mockBot.LastSentMessage().Text, "has been revoked", "must not confirm a sentinel revoke")
+		require.Equal(t, 6, count(t), "/revoke @ must delete zero rows")
+
+		for _, id := range byIDs {
+			ok, _, _ := b.approvedUserRepo.IsApproved(ctx, id, "")
+			require.True(t, ok, "by-ID approval %d must survive /revoke @", id)
+		}
+		for _, u := range byUsernames {
+			ok, _, _ := b.approvedUserRepo.IsApproved(ctx, 0, u)
+			require.True(t, ok, "username-only approval %q must survive /revoke @", u)
+		}
+	})
+}
+
 func TestHandleUsersCore(t *testing.T) {
 	ctx := context.Background()
 	tx := dbtest.TestTx(ctx, t)
