@@ -158,12 +158,38 @@ func (r *TagRepository) GetAllByUserID(ctx context.Context, userID int64) ([]mod
 }
 
 // GetByName retrieves a tag by name (exact match).
+//
+// This is a GLOBAL lookup with no user scoping; it must not be used to
+// resolve tag names in user-facing handlers, as it can disclose whether a
+// tag name is used by any user. Use GetByNameForUser for user-facing lookups.
 func (r *TagRepository) GetByName(ctx context.Context, name string) (*models.Tag, error) {
 	var tag models.Tag
 	err := r.db.QueryRow(ctx, `SELECT id, name, created_at FROM tags WHERE name = $1`, name).
 		Scan(&tag.ID, &tag.Name, &tag.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tag by name: %w", err)
+	}
+	return &tag, nil
+}
+
+// GetByNameForUser retrieves a tag by name, scoped to tags actually used by
+// userID (across any of that user's expenses, regardless of status). A tag
+// name used only by other users is indistinguishable from a globally-unused
+// name — both return an error — so this lookup cannot serve as a cross-user
+// tag-name existence oracle. This mirrors the user scoping applied to the
+// /tags listing by GetAllByUserID.
+func (r *TagRepository) GetByNameForUser(ctx context.Context, userID int64, name string) (*models.Tag, error) {
+	var tag models.Tag
+	err := r.db.QueryRow(ctx, `
+		SELECT DISTINCT t.id, t.name, t.created_at
+		FROM tags t
+		JOIN expense_tags et ON et.tag_id = t.id
+		JOIN expenses e ON e.id = et.expense_id
+		WHERE t.name = $1 AND e.user_id = $2
+		LIMIT 1
+	`, name, userID).Scan(&tag.ID, &tag.Name, &tag.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tag by name for user: %w", err)
 	}
 	return &tag, nil
 }
