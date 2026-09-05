@@ -231,8 +231,8 @@ func parseVoiceExpenseResponse(response string) (*VoiceExpenseData, error) {
 		if !models.AmountExponentInRange(amount) {
 			return nil, fmt.Errorf("amount %q out of range in voice response", vr.Amount)
 		}
-		if amount.IsNegative() || amount.IsZero() {
-			return nil, fmt.Errorf("amount %q must be positive in voice response", vr.Amount)
+		if amount.IsNegative() {
+			return nil, fmt.Errorf("negative amount %q in voice response", vr.Amount)
 		}
 		if !models.AmountInRange(amount) {
 			return nil, fmt.Errorf("amount %q exceeds maximum allowed in voice response", vr.Amount)
