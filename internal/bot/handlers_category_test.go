@@ -77,8 +77,8 @@ func TestHandleCategoryCore(t *testing.T) {
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.Contains(t, msg.Text, "Test Food Category 999 Expenses")
-		require.Contains(t, msg.Text, "Total: $31.50") // 3 * 10.50
-		require.Contains(t, msg.Text, "#")             // Should contain expense IDs
+		require.Contains(t, msg.Text, "Total: S$31.50 SGD") // 3 * 10.50
+		require.Contains(t, msg.Text, "#")                  // Should contain expense IDs
 		require.Contains(t, msg.Text, "Lunch")
 	})
 
@@ -91,7 +91,7 @@ func TestHandleCategoryCore(t *testing.T) {
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.Contains(t, msg.Text, "Test Transport Category 999 Expenses")
-		require.Contains(t, msg.Text, "Total: $5.00")
+		require.Contains(t, msg.Text, "Total: S$5.00 SGD")
 		require.Contains(t, msg.Text, "Bus")
 	})
 
@@ -136,8 +136,51 @@ func TestHandleCategoryCore(t *testing.T) {
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.Contains(t, msg.Text, "Empty Category 999 Expenses")
-		require.Contains(t, msg.Text, "Total: $0.00")
+		require.Contains(t, msg.Text, "Total: S$0.00 SGD")
 		require.Contains(t, msg.Text, "No expenses found")
+	})
+
+	t.Run("renders total using non-SGD default currency", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+
+		eurUserID := int64(700920)
+		err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+			ID:        eurUserID,
+			Username:  "categoryeuruser",
+			FirstName: "CategoryEUR",
+		})
+		require.NoError(t, err)
+		require.NoError(t, b.userRepo.UpdateDefaultCurrency(ctx, eurUserID, "EUR"))
+
+		eurFoodCategory, err := b.categoryRepo.Create(ctx, "Test Food Category EUR 999")
+		require.NoError(t, err)
+
+		for range 2 {
+			expense := &appmodels.Expense{
+				UserID:      eurUserID,
+				Amount:      decimal.NewFromFloat(20.00),
+				Currency:    "EUR",
+				Description: "Lunch EUR",
+				CategoryID:  &eurFoodCategory.ID,
+				Status:      appmodels.ExpenseStatusConfirmed,
+			}
+			require.NoError(t, b.expenseRepo.Create(ctx, expense))
+		}
+
+		// Invalidate cache so new category is found
+		b.categoryCacheMu.Lock()
+		b.categoryCache = nil
+		b.categoryCacheMu.Unlock()
+
+		update := mocks.CommandUpdate(chatID, eurUserID, "/category Test Food Category EUR 999")
+		b.handleCategoryCore(ctx, mockBot, update)
+
+		require.Equal(t, 1, mockBot.SentMessageCount())
+		msg := mockBot.LastSentMessage()
+		require.Contains(t, msg.Text, "Test Food Category EUR 999 Expenses")
+		require.Contains(t, msg.Text, "Total: €40.00 EUR")
+		require.NotContains(t, msg.Text, "Total: $40.00")
+		require.NotContains(t, msg.Text, "SGD")
 	})
 
 	t.Run("returns early for nil message", func(t *testing.T) {

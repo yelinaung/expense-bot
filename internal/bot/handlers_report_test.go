@@ -109,6 +109,51 @@ func TestHandleReportCore(t *testing.T) {
 		require.Contains(t, doc.Caption, "Monthly Expenses")
 	})
 
+	t.Run("renders caption using non-SGD default currency", func(t *testing.T) {
+		mockBot := mocks.NewMockBot()
+
+		eurUserID := int64(800020)
+		err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+			ID:        eurUserID,
+			Username:  "reporteuruser",
+			FirstName: "ReportEUR",
+		})
+		require.NoError(t, err)
+		require.NoError(t, b.userRepo.UpdateDefaultCurrency(ctx, eurUserID, "EUR"))
+
+		now := time.Now()
+		weekday := int(now.Weekday())
+		if weekday == 0 {
+			weekday = 7
+		}
+		startOfWeek := time.Date(now.Year(), now.Month(), now.Day()-weekday+1, 10, 0, 0, 0, now.Location())
+
+		expense := &appmodels.Expense{
+			UserID:      eurUserID,
+			Amount:      decimal.NewFromFloat(15.00),
+			Currency:    "EUR",
+			Description: "Weekly EUR expense",
+			CategoryID:  &category.ID,
+			Status:      appmodels.ExpenseStatusConfirmed,
+		}
+		require.NoError(t, b.expenseRepo.Create(ctx, expense))
+		_, err = b.expenseRepo.Pool().Exec(ctx,
+			testUpdateExpenseTimeSQL,
+			startOfWeek, expense.ID)
+		require.NoError(t, err)
+
+		update := mocks.CommandUpdate(chatID, eurUserID, testReportWeekCommand)
+		b.handleReportCore(ctx, mockBot, update)
+
+		require.Equal(t, 1, mockBot.SentDocumentCount())
+		doc := mockBot.LastSentDocument()
+		require.NotNil(t, doc)
+		require.Contains(t, doc.Caption, "Weekly Expenses")
+		require.Contains(t, doc.Caption, "Total Expenses: €15.00 EUR")
+		require.NotContains(t, doc.Caption, "Total Expenses: $15.00")
+		require.NotContains(t, doc.Caption, "SGD")
+	})
+
 	t.Run("uses display timezone boundaries for weekly report", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 		originalDisplayLocation := b.displayLocation
@@ -163,7 +208,7 @@ func TestHandleReportCore(t *testing.T) {
 		require.NotNil(t, doc)
 		require.Equal(t, "expenses_week_2026-02-23.csv", doc.Filename)
 		require.Contains(t, doc.Caption, "Weekly Expenses (Feb 23 to Mar 1, 2026)")
-		require.Contains(t, doc.Caption, "Total Expenses: $5.00 SGD")
+		require.Contains(t, doc.Caption, "Total Expenses: S$5.00 SGD")
 		require.Contains(t, doc.Caption, "Count: 2")
 	})
 
@@ -221,7 +266,7 @@ func TestHandleReportCore(t *testing.T) {
 		require.NotNil(t, doc)
 		require.Equal(t, "expenses_month_2026-02.csv", doc.Filename)
 		require.Contains(t, doc.Caption, "Monthly Expenses (February 2026)")
-		require.Contains(t, doc.Caption, "Total Expenses: $50.00 SGD")
+		require.Contains(t, doc.Caption, "Total Expenses: S$50.00 SGD")
 		require.Contains(t, doc.Caption, "Count: 2")
 	})
 
