@@ -314,7 +314,16 @@ func (c *Config) IsSuperAdmin(userID int64, username string) bool {
 // created (needs persistence) and whether the user is whitelisted.
 func (c *Config) checkWhitelist(userID int64, username string) (*SuperadminBinding, bool) {
 	if slices.Contains(c.WhitelistedUserIDs, userID) {
-		return nil, true
+		// An env-listed user_id authorizes this caller unconditionally.
+		// Additionally, when the same caller also carries a whitelisted
+		// username, bind that username to this user_id now (when not yet
+		// bound) and surface the binding so the caller persists it.
+		// Without this, an admin listed in BOTH WHITELISTED_USER_IDS and
+		// WHITELISTED_USERNAMES would hit this early return and never
+		// reach the binding block below, leaving the username unbound —
+		// so a later recycler of that username would be bootstrapped to
+		// the attacker's user_id and authorized as a superadmin.
+		return c.tryBindWhitelistedUsername(userID, username), true
 	}
 
 	c.ensureResolvedMaps()
@@ -357,6 +366,32 @@ func (c *Config) checkWhitelist(userID int64, username string) (*SuperadminBindi
 		return &SuperadminBinding{Username: norm, UserID: userID}, true
 	}
 	return nil, true
+}
+
+// tryBindWhitelistedUsername binds a whitelisted username to userID when
+// the username is not already bound, returning a non-nil *SuperadminBinding
+// when a new binding was just created (so the caller can persist it). It
+// returns nil when userID is 0, the username is empty, the username is not
+// whitelisted, or the username is already bound to some user_id. The caller
+// retains the authorization decision; this method only manages the
+// recycled-username-protection binding side effect and does not reject.
+func (c *Config) tryBindWhitelistedUsername(userID int64, username string) *SuperadminBinding {
+	if userID == 0 || username == "" {
+		return nil
+	}
+	norm := normalizeUsername(username)
+	if !c.isWhitelistedUsername(norm) {
+		return nil
+	}
+	c.ensureResolvedMaps()
+	c.resolvedMu.Lock()
+	defer c.resolvedMu.Unlock()
+	if _, bound := c.resolvedSuperadmins[norm]; bound {
+		return nil
+	}
+	c.resolvedSuperadmins[norm] = userID
+	c.resolvedSuperadminIDs[userID] = struct{}{}
+	return &SuperadminBinding{Username: norm, UserID: userID}
 }
 
 // IsUserWhitelisted checks if a Telegram user ID or username is in the
