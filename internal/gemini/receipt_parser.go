@@ -233,8 +233,11 @@ func parseReceiptResponse(response string) (*ReceiptData, error) {
 		if !models.AmountExponentInRange(amount) {
 			return nil, fmt.Errorf("amount %q out of range in receipt response", rr.Amount)
 		}
-		if amount.IsNegative() {
-			return nil, fmt.Errorf("negative amount %q in receipt response", rr.Amount)
+		if amount.IsNegative() || amount.IsZero() {
+			return nil, fmt.Errorf("amount %q must be positive in receipt response", rr.Amount)
+		}
+		if !models.AmountInRange(amount) {
+			return nil, fmt.Errorf("amount %q exceeds maximum allowed in receipt response", rr.Amount)
 		}
 		data.Amount = amount
 	}

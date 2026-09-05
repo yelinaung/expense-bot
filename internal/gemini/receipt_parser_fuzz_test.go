@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
+	"gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
 func FuzzParseReceiptResponse(f *testing.F) {
@@ -42,6 +43,11 @@ func FuzzParseReceiptResponse(f *testing.F) {
 			// Invariant 1: If no error, amount must be non-negative.
 			if result.Amount.LessThan(decimal.Zero) {
 				t.Errorf("parseReceiptResponse(%q) returned negative amount: %v", input, result.Amount)
+			}
+			// Invariant 2: If no error, any non-zero amount must be storable in
+			// the amount DECIMAL(12,2) column, i.e. within models.MaxExpenseAmount.
+			if !result.Amount.IsZero() && !models.AmountInRange(result.Amount) {
+				t.Errorf("parseReceiptResponse(%q) returned out-of-range amount: %v", input, result.Amount)
 			}
 		}
 	})
