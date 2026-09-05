@@ -246,10 +246,10 @@ func TestHandleUsersCore(t *testing.T) {
 	})
 }
 
-// TestHandleRevokeCore_RejectsUserIDZero verifies that /revoke 0 (and decimal
-// forms that ParseInt collapses to 0) does not mass-delete username-only
-// approvals. The handler must reject the input up front.
-func TestHandleRevokeCore_RejectsUserIDZero(t *testing.T) {
+// TestHandleRevokeCore_RejectsNonPositiveUserID verifies that /revoke 0,
+// negative IDs, and decimal forms that ParseInt collapses to 0 do not
+// mass-delete username-only approvals. The handler must reject the input up front.
+func TestHandleRevokeCore_RejectsNonPositiveUserID(t *testing.T) {
 	ctx := context.Background()
 	tx := dbtest.TestTx(ctx, t)
 
@@ -278,7 +278,7 @@ func TestHandleRevokeCore_RejectsUserIDZero(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ok)
 
-	cases := []string{"/revoke 0", "/revoke 00", "/revoke +0", "/revoke -0"}
+	cases := []string{"/revoke 0", "/revoke 00", "/revoke +0", "/revoke -0", "/revoke -1", "/revoke -99999"}
 	for _, cmd := range cases {
 		t.Run(cmd, func(t *testing.T) {
 			mockBot := mocks.NewMockBot()

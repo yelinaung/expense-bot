@@ -147,7 +147,7 @@ func (b *Bot) handleRevokeCore(ctx context.Context, tg TelegramAPI, update *mode
 
 	// Try parsing as user ID first.
 	if targetID, err := strconv.ParseInt(args, 10, 64); err == nil {
-		if targetID == 0 {
+		if targetID <= 0 {
 			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    chatID,
 				Text:      fmt.Sprintf(invalidUserIDMsgFmt, targetID),

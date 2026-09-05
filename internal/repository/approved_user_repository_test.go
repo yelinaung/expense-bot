@@ -225,10 +225,10 @@ func TestApprovedUserRepository_ApproveDuplicate(t *testing.T) {
 	require.Equal(t, "hank_updated", users[0].Username)
 }
 
-// TestApprovedUserRepository_RevokeZeroDoesNotWipeUsernameOnlyApprovals
-// guards the sentinel value used by ApproveByUsername: revoking user_id 0
+// TestApprovedUserRepository_RevokeNonPositiveDoesNotWipeUsernameOnlyApprovals
+// guards against non-positive IDs: revoking user_id 0 or a negative ID
 // must error and must not delete any username-only approval rows.
-func TestApprovedUserRepository_RevokeZeroDoesNotWipeUsernameOnlyApprovals(t *testing.T) {
+func TestApprovedUserRepository_RevokeNonPositiveDoesNotWipeUsernameOnlyApprovals(t *testing.T) {
 	ctx := context.Background()
 	tx := dbtest.TestTx(ctx, t)
 
@@ -249,9 +249,11 @@ func TestApprovedUserRepository_RevokeZeroDoesNotWipeUsernameOnlyApprovals(t *te
 		require.True(t, approved, u)
 	}
 
-	// Revoke with userID 0 must error rather than mass-delete.
-	err = repo.Revoke(ctx, 0)
-	require.Error(t, err)
+	// Revoke with non-positive IDs must error.
+	for _, badID := range []int64{0, -1, -99999} {
+		err = repo.Revoke(ctx, badID)
+		require.Error(t, err, "expected error for Revoke(%d)", badID)
+	}
 
 	// The by-ID approval is untouched.
 	approved, _, err = repo.IsApproved(ctx, 11111, "")
@@ -262,7 +264,7 @@ func TestApprovedUserRepository_RevokeZeroDoesNotWipeUsernameOnlyApprovals(t *te
 	for _, u := range []string{"alice", "bob", "carol"} {
 		approved, _, err = repo.IsApproved(ctx, 0, u)
 		require.NoError(t, err)
-		require.True(t, approved, "username-only approval %q was wiped by Revoke(0)", u)
+		require.True(t, approved, "username-only approval %q was wiped by a non-positive Revoke", u)
 	}
 
 	// And the whole table is intact.
