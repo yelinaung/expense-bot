@@ -123,7 +123,7 @@ func (r *ExpenseRepository) GetByUserIDAndDateRange(
 ) ([]models.Expense, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT e.id, e.user_expense_number, e.user_id, e.amount, e.currency, e.description, e.merchant, e.category_id,
-		       e.receipt_file_id, e.status, e.created_at, e.updated_at,
+		       e.receipt_file_id, e.status, e.worth_it, e.spend_driver, e.reviewed_at, e.created_at, e.updated_at,
 		       c.id, c.name, c.created_at
 		FROM expenses e
 		LEFT JOIN categories c ON e.category_id = c.id
@@ -135,7 +135,10 @@ func (r *ExpenseRepository) GetByUserIDAndDateRange(
 	}
 	defer rows.Close()
 
-	return scanExpenses(rows)
+	// Use the reflection scanner so each expense's worth_it value is loaded.
+	// /report feeds these rows into GenerateExpensesCSV, whose "Worth It"
+	// column (worthItCSVCell) renders an empty cell when WorthIt is nil.
+	return scanExpensesWithReflection(rows)
 }
 
 // GetByUserIDAndCategory retrieves confirmed expenses for a user filtered by category.

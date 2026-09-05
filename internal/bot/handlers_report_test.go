@@ -1,7 +1,10 @@
 package bot
 
 import (
+	"bytes"
 	"context"
+	"encoding/csv"
+	"strconv"
 	"testing"
 	"time"
 
@@ -278,6 +281,107 @@ func TestHandleReportCore(t *testing.T) {
 		b.handleReportCore(ctx, mockBot, update)
 
 		require.Equal(t, 0, mockBot.SentMessageCount())
+	})
+
+	// Regresses CSV export "Worth It" column being permanently blank.
+	// handleReportCore fetches via GetByUserIDAndDateRange, whose SELECT
+	// historically omitted e.worth_it; the CSV then rendered an empty cell
+	// via worthItCSVCell even for expenses the user explicitly reviewed.
+	t.Run("renders Worth It column from persisted reflection in CSV body", func(t *testing.T) {
+		// Fixed clock + UTC so the weekly window is deterministic and isolated
+		// from the outer-scoped expenses (which use time.Now()).
+		originalNowFunc := b.nowFunc
+		originalDisplayLocation := b.displayLocation
+		b.displayLocation = time.UTC
+		fixedNow := time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC) // Thursday
+		b.nowFunc = func() time.Time { return fixedNow }
+		t.Cleanup(func() {
+			b.nowFunc = originalNowFunc
+			b.displayLocation = originalDisplayLocation
+		})
+
+		reflectUserID := int64(800010)
+		err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+			ID:        reflectUserID,
+			Username:  "reflectcsvuser",
+			FirstName: "ReflectCSV",
+		})
+		require.NoError(t, err)
+
+		// Monday of the fixed week: 2026-06-15 00:00..2026-06-22 00:00 UTC.
+		weekStart := time.Date(2026, 6, 15, 10, 0, 0, 0, time.UTC)
+
+		makeBackdated := func(amount, desc string, ts time.Time) *appmodels.Expense {
+			expense := &appmodels.Expense{
+				UserID:      reflectUserID,
+				Amount:      decimal.RequireFromString(amount),
+				Currency:    "SGD",
+				Description: desc,
+				CategoryID:  &category.ID,
+				Status:      appmodels.ExpenseStatusConfirmed,
+			}
+			err = b.expenseRepo.Create(ctx, expense)
+			require.NoError(t, err)
+			_, err = b.expenseRepo.Pool().Exec(ctx,
+				testUpdateExpenseTimeSQL, ts, expense.ID)
+			require.NoError(t, err)
+			return expense
+		}
+
+		worthItExp := makeBackdated("10.00", "Worth it row", weekStart.Add(1*time.Hour))
+		notWorthItExp := makeBackdated("20.00", "Not worth it row", weekStart.Add(2*time.Hour))
+		unreviewedExp := makeBackdated("30.00", "Unreviewed row", weekStart.Add(3*time.Hour))
+
+		worth := true
+		err = b.expenseRepo.UpdateReflection(ctx, worthItExp.ID, reflectUserID, &worth, "Necessity")
+		require.NoError(t, err)
+		notWorth := false
+		err = b.expenseRepo.UpdateReflection(ctx, notWorthItExp.ID, reflectUserID, &notWorth, "")
+		require.NoError(t, err)
+
+		// Confirm reflection actually persisted in DB (sanity check independent
+		// of the report query).
+		var dbWorthIt *bool
+		err = b.expenseRepo.Pool().QueryRow(ctx,
+			`SELECT worth_it FROM expenses WHERE id = $1`, worthItExp.ID).Scan(&dbWorthIt)
+		require.NoError(t, err)
+		require.NotNil(t, dbWorthIt)
+		require.True(t, *dbWorthIt)
+
+		mockBot := mocks.NewMockBot()
+		update := mocks.CommandUpdate(chatID, reflectUserID, testReportWeekCommand)
+		b.handleReportCore(ctx, mockBot, update)
+
+		require.Equal(t, 1, mockBot.SentDocumentCount())
+		doc := mockBot.LastSentDocument()
+		require.NotNil(t, doc)
+		require.NotEmpty(t, doc.Body, "mock should capture the CSV body bytes")
+
+		reader := csv.NewReader(bytes.NewReader(doc.Body))
+		records, err := reader.ReadAll()
+		require.NoError(t, err)
+		require.Len(t, records, 4, "header + 3 expense rows")
+
+		require.Equal(t,
+			[]string{"ID", "Date", "Amount", "Currency", "Description", "Merchant", "Category", "Worth It"},
+			records[0])
+
+		byNumber := make(map[string]string, len(records)-1)
+		for _, row := range records[1:] {
+			require.Len(t, row, 8)
+			byNumber[row[0]] = row[7]
+		}
+		require.Equal(t, "Worth it",
+			byNumber[strconv.FormatInt(worthItExp.UserExpenseNumber, 10)],
+			"reviewed-as-worth-it row must render 'Worth it' in the Worth It column")
+		require.Equal(t, "Not worth it",
+			byNumber[strconv.FormatInt(notWorthItExp.UserExpenseNumber, 10)],
+			"reviewed-as-not-worth-it row must render 'Not worth it' in the Worth It column")
+		// Unreviewed rows keep a nil WorthIt, which the CSV renders as an empty cell
+		// (see worthItCSVCell). Use Empty instead of Equal(t, "") per testifylint.
+		require.Empty(t,
+			byNumber[strconv.FormatInt(unreviewedExp.UserExpenseNumber, 10)],
+			"unreviewed row must render an empty Worth It cell")
 	})
 }
 
