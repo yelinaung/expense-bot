@@ -926,13 +926,12 @@ func (b *Bot) handleExpenseActionCallbackCore(ctx context.Context, tg TelegramAP
 		Int64("user_id", userID).
 		Msg("Processing expense action callback")
 
-	_, _ = tg.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
-		CallbackQueryID: update.CallbackQuery.ID,
-	})
-
 	parts := strings.Split(data, "_")
 	if len(parts) < 3 {
 		logger.Log.Error().Str(logFieldDataCB, data).Msg("Invalid callback data format")
+		_, _ = tg.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+			CallbackQueryID: update.CallbackQuery.ID,
+		})
 		return
 	}
 
@@ -940,12 +939,18 @@ func (b *Bot) handleExpenseActionCallbackCore(ctx context.Context, tg TelegramAP
 	expenseID, err := strconv.Atoi(parts[2])
 	if err != nil {
 		logger.Log.Error().Err(err).Str(logFieldDataCB, data).Msg("Failed to parse expense ID")
+		_, _ = tg.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+			CallbackQueryID: update.CallbackQuery.ID,
+		})
 		return
 	}
 
 	expense, err := b.expenseRepo.GetByID(ctx, expenseID)
 	if err != nil {
 		logger.Log.Error().Err(err).Int(logFieldExpenseIDCB, expenseID).Msg(expenseNotFoundLogMsgCB)
+		_, _ = tg.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+			CallbackQueryID: update.CallbackQuery.ID,
+		})
 		_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 			ChatID:    chatID,
 			MessageID: messageID,
@@ -963,6 +968,10 @@ func (b *Bot) handleExpenseActionCallbackCore(ctx context.Context, tg TelegramAP
 		})
 		return
 	}
+
+	_, _ = tg.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
 
 	switch action {
 	case actionEditExpenseCB:
