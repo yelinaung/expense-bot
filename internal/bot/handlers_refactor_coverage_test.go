@@ -176,6 +176,60 @@ func TestApplyMatchedSuggestion(t *testing.T) {
 	require.Nil(t, expense.CategoryID)
 }
 
+// TestApplyMatchedSuggestion_IrregularCategoryName pins the consumer side of
+// the SuggestCategory contract: when the AI suggestion returns the ORIGINAL
+// (unsanitized) DB name for a category whose name contains characters that
+// SanitizeCategoryName would rewrite (here, embedded double quotes), the
+// caller's strings.EqualFold against the unsanitized DB Name must still match
+// and the expense must be assigned to that category (not fall back to Others).
+func TestApplyMatchedSuggestion_IrregularCategoryName(t *testing.T) {
+	t.Parallel()
+
+	b := &Bot{}
+
+	irregularCategories := []appmodels.Category{
+		{ID: 10, Name: `Coffee "Special" Shop`},
+		{ID: 20, Name: "Food  Dining"}, // internal multiple spaces
+		{ID: 30, Name: "   Spaced Out   "},
+		{ID: 40, Name: "Cafe `Special` Bar"}, // backticks
+		{ID: 50, Name: "Others"},
+	}
+
+	tests := []struct {
+		name        string
+		suggested   string
+		wantApplied bool
+		wantID      int
+	}{
+		{name: "double quotes preserved", suggested: `Coffee "Special" Shop`, wantApplied: true, wantID: 10},
+		{name: "internal multiple spaces preserved", suggested: "Food  Dining", wantApplied: true, wantID: 20},
+		{name: "leading/trailing whitespace preserved", suggested: "   Spaced Out   ", wantApplied: true, wantID: 30},
+		{name: "backticks preserved", suggested: "Cafe `Special` Bar", wantApplied: true, wantID: 40},
+		{name: "sanitized form does not match unsanitized DB name", suggested: `Coffee 'Special' Shop`, wantApplied: false},
+		{name: "case-insensitive match still works", suggested: `coffee "special" shop`, wantApplied: true, wantID: 10},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			expense := &appmodels.Expense{}
+			ok := b.applyMatchedSuggestion(expense, "lunch", &gemini.CategorySuggestion{
+				Category:   tt.suggested,
+				Confidence: 0.9,
+				Matched:    true,
+			}, irregularCategories)
+			require.Equal(t, tt.wantApplied, ok)
+			if tt.wantApplied {
+				require.NotNil(t, expense.CategoryID)
+				require.Equal(t, tt.wantID, *expense.CategoryID)
+				require.NotNil(t, expense.Category)
+			} else {
+				require.Nil(t, expense.CategoryID)
+			}
+		})
+	}
+}
+
 func TestSendEditConfirmation(t *testing.T) {
 	t.Parallel()
 

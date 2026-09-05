@@ -777,3 +777,234 @@ func TestSuggestCategory_SanitizesCategoryEnum(t *testing.T) {
 	require.Equal(t, []string{testGeminiCategoryFoodDiningOut, testGeminiCategoryTransport, "Utilities"}, categorySchema.Enum)
 	require.NotContains(t, categorySchema.Enum, "")
 }
+
+// cleanedForm returns the sanitized (cleaned) form that SuggestCategory would
+// advertise to the model in the prompt and schema enum. This mirrors
+// sanitizeCategoriesWithOriginals' transformation so tests can craft a model
+// response that exactly echoes the enum entry.
+func cleanedForm(name string) string {
+	return strings.TrimSpace(SanitizeCategoryName(name))
+}
+
+// TestSuggestCategory_ReturnsOriginalNameWhenSanitizedDiffers pins the bug
+// fix: when SanitizeCategoryName rewrites a DB category name (quotes,
+// backticks, internal whitespace runs, leading/trailing whitespace), the
+// model only ever sees and echoes the cleaned form, but suggestion.Category
+// must be mapped back to the ORIGINAL DB name so consumers comparing against
+// unsanitized DB names (e.g. internal/bot.applyMatchedSuggestion) keep working.
+func TestSuggestCategory_ReturnsOriginalNameWhenSanitizedDiffers(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		categories []string
+		// originalName is the DB row the model should match; modelReturns is the
+		// (sanitized) string the model echoes back from the schema enum.
+		originalName   string
+		modelReturns   string
+		wantConfidence float64
+	}{
+		{
+			name:           "embedded double quotes become single quotes",
+			categories:     []string{`Coffee "Special" Shop`, testGeminiCategoryTransport},
+			originalName:   `Coffee "Special" Shop`,
+			modelReturns:   cleanedForm(`Coffee "Special" Shop`), // -> `Coffee 'Special' Shop`
+			wantConfidence: 0.9,
+		},
+		{
+			name:           "embedded backticks become single quotes",
+			categories:     []string{"Cafe `Special` Bar", testGeminiCategoryTransport},
+			originalName:   "Cafe `Special` Bar",
+			modelReturns:   cleanedForm("Cafe `Special` Bar"), // -> "Cafe 'Special' Bar"
+			wantConfidence: 0.85,
+		},
+		{
+			name:           "internal multiple spaces collapsed",
+			categories:     []string{"Food  Dining", testGeminiCategoryTransport},
+			originalName:   "Food  Dining",
+			modelReturns:   cleanedForm("Food  Dining"), // -> "Food Dining"
+			wantConfidence: 0.8,
+		},
+		{
+			name:           "leading and trailing whitespace trimmed",
+			categories:     []string{"   Spaced Out   ", testGeminiCategoryTransport},
+			originalName:   "   Spaced Out   ",
+			modelReturns:   cleanedForm("   Spaced Out   "), // -> "Spaced Out"
+			wantConfidence: 0.75,
+		},
+		{
+			name:           "mixed rewrites: quotes plus internal whitespace plus trimming",
+			categories:     []string{`  Coffee  "Special"  Shop  `, testGeminiCategoryTransport},
+			originalName:   `  Coffee  "Special"  Shop  `,
+			modelReturns:   cleanedForm(`  Coffee  "Special"  Shop  `), // -> "Coffee 'Special' Shop"
+			wantConfidence: 0.95,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			require.NotEqual(t, tt.originalName, tt.modelReturns,
+				"test setup: sanitized form must differ from the original DB name to exercise the bug")
+
+			mockGen := &mockGenerator{
+				response: createMockCategoryResponse(tt.modelReturns, tt.wantConfidence, "matched by model"),
+			}
+			client := NewClientWithGenerator(mockGen)
+
+			suggestion, err := client.SuggestCategory(context.Background(), "espresso", tt.categories)
+			require.NoError(t, err)
+			require.NotNil(t, suggestion)
+			require.True(t, suggestion.Matched, "matched suggestion must be reported as matched")
+			require.InEpsilon(t, tt.wantConfidence, suggestion.Confidence, 1e-9,
+				"confidence must round-trip exactly through the schema/parser")
+
+			// The fix: suggestion.Category is the ORIGINAL DB name, not the
+			// sanitized form the model echoed.
+			require.Equal(t, tt.originalName, suggestion.Category,
+				"suggestion.Category must be the original DB name, not the sanitized form")
+
+			// The prompt/schema enum still advertises only the SANITIZED form
+			// (prompt-injection hardening must be preserved).
+			require.NotNil(t, mockGen.lastConfig)
+			require.NotNil(t, mockGen.lastConfig.ResponseSchema)
+			categorySchema := mockGen.lastConfig.ResponseSchema.Properties[jsonFieldCategory]
+			require.NotNil(t, categorySchema)
+			require.Contains(t, categorySchema.Enum, tt.modelReturns,
+				"schema enum must contain the sanitized form the model sees")
+			require.NotContains(t, categorySchema.Enum, tt.originalName,
+				"schema enum must NOT leak the unsanitized (original) DB name")
+		})
+	}
+}
+
+// TestSuggestCategory_MatchedCaseInsensitiveWithSanitization ensures that
+// case-insensitive matching against the cleaned form still maps back to the
+// original DB name when the model returns a different case than the enum entry.
+func TestSuggestCategory_MatchedCaseInsensitiveWithSanitization(t *testing.T) {
+	t.Parallel()
+
+	original := `Coffee "Special" Shop`
+	cleaned := cleanedForm(original) // `Coffee 'Special' Shop`
+	require.NotEqual(t, original, cleaned)
+
+	// Model returns the cleaned form in all-lowercase; EqualFold must still match.
+	mockGen := &mockGenerator{
+		response: createMockCategoryResponse(strings.ToLower(cleaned), 0.9, "lowercased sanitized match"),
+	}
+	client := NewClientWithGenerator(mockGen)
+
+	suggestion, err := client.SuggestCategory(context.Background(), "espresso", []string{original, testGeminiCategoryTransport})
+	require.NoError(t, err)
+	require.NotNil(t, suggestion)
+	require.True(t, suggestion.Matched)
+	require.Equal(t, original, suggestion.Category,
+		"case-insensitive match on the cleaned form must still map to the original DB name")
+}
+
+// TestSuggestCategory_NewCategoryNormalizedToExisting_ReturnsOriginalName
+// covers the second matching path in normalizeSuggestion: when the model
+// reports matched=false with a new_category_name that equal-folds to an
+// existing (irregular) DB name. The fix must map back to the original name in
+// this path too, not the sanitized form.
+func TestSuggestCategory_NewCategoryNormalizedToExisting_ReturnsOriginalName(t *testing.T) {
+	t.Parallel()
+
+	original := `Coffee "Special" Shop`
+	cleaned := cleanedForm(original)
+	require.NotEqual(t, original, cleaned)
+
+	// Model proposes the CLEANED form as a "new" category; it matches an
+	// existing (irregular) DB name and so must be normalized back to it.
+	mockGen := &mockGenerator{
+		response: &genai.GenerateContentResponse{
+			Candidates: []*genai.Candidate{
+				{
+					Content: &genai.Content{
+						Parts: []*genai.Part{
+							{Text: fmt.Sprintf(
+								`{"category":"","confidence":0.9,"reasoning":"existing category phrased as new","matched":false,"new_category_name":%q}`,
+								cleaned,
+							)},
+						},
+					},
+				},
+			},
+		},
+	}
+	client := NewClientWithGenerator(mockGen)
+
+	suggestion, err := client.SuggestCategory(context.Background(), "espresso", []string{original, testGeminiCategoryTransport})
+	require.NoError(t, err)
+	require.NotNil(t, suggestion)
+	require.True(t, suggestion.Matched, "should normalize to the existing category")
+	require.Empty(t, suggestion.NewCategoryName)
+	require.Equal(t, original, suggestion.Category,
+		"new-category-normalized-to-existing must return the ORIGINAL DB name, not the sanitized form")
+}
+
+// TestSuggestCategory_CollisionFirstOriginalWins documents the deterministic
+// behavior when two distinct DB names sanitize to the same cleaned form. The
+// de-dup already collapses them into one enum entry; the fix maps that entry
+// back to the FIRST original DB name (deterministic), which is no worse than
+// the prior behavior and strictly better for the non-colliding cases.
+func TestSuggestCategory_CollisionFirstOriginalWins(t *testing.T) {
+	t.Parallel()
+
+	// Both sanitize to "Food - Dining Out" (case-insensitively identical).
+	first := testGeminiCategoryFoodDiningOut // "Food - Dining Out"
+	second := "food - dining out"            // lower-cased duplicate
+	categories := []string{first, second, testGeminiCategoryTransport}
+
+	mockGen := &mockGenerator{
+		response: createMockCategoryResponse(testGeminiCategoryFoodDiningOut, 0.9, "collision match"),
+	}
+	client := NewClientWithGenerator(mockGen)
+
+	suggestion, err := client.SuggestCategory(context.Background(), "lunch", categories)
+	require.NoError(t, err)
+	require.NotNil(t, suggestion)
+	require.True(t, suggestion.Matched)
+
+	// Cleaned list is de-duplicated to a single entry; the first original wins.
+	require.Equal(t, first, suggestion.Category,
+		"on cleaned-form collision, the first original DB name must be returned")
+
+	// The enum advertises exactly one entry for the collision.
+	require.NotNil(t, mockGen.lastConfig)
+	categorySchema := mockGen.lastConfig.ResponseSchema.Properties[jsonFieldCategory]
+	require.NotNil(t, categorySchema)
+	require.Len(t, categorySchema.Enum, 2, "Food - Dining Out + Transportation (collision de-duped)")
+}
+
+// TestSuggestCategory_NativeSanitizedCategoriesUnchanged is a regression guard:
+// for categories where SanitizeCategoryName is the identity (the seeded
+// default catalog), the suggestion.Category still equals the DB name exactly,
+// so no existing happy path regresses.
+func TestSuggestCategory_NativeSanitizedCategoriesUnchanged(t *testing.T) {
+	t.Parallel()
+
+	categories := []string{
+		testGeminiCategoryFoodDiningOut,
+		testGeminiCategoryFoodGroceries,
+		testGeminiCategoryTransport,
+		"Entertainment",
+		"Health & Fitness",
+	}
+
+	for _, cat := range categories {
+		require.Equal(t, cat, cleanedForm(cat),
+			"fixture %q must be a sanitize-identity for the regression guard", cat)
+	}
+
+	mockGen := &mockGenerator{
+		response: createMockCategoryResponse(testGeminiCategoryTransport, 0.95, "taxi"),
+	}
+	client := NewClientWithGenerator(mockGen)
+
+	suggestion, err := client.SuggestCategory(context.Background(), "uber", categories)
+	require.NoError(t, err)
+	require.NotNil(t, suggestion)
+	require.Equal(t, testGeminiCategoryTransport, suggestion.Category)
+}
