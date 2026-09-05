@@ -3,6 +3,7 @@ package bot
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/yelinaung/expense-bot/internal/config"
@@ -15,16 +16,16 @@ import (
 // when the same admin is listed in BOTH WHITELISTED_USER_IDS and
 // WHITELISTED_USERNAMES.
 //
-// It exercises the production superadmin binding upsert
-// (SuperadminBindingRepository.Save, the ON CONFLICT SQL that Bot.isAuthorized
-// runs in its persistence goroutine) and the production reload path
+// It exercises the production superadmin binding upsert via Bot.isAuthorized
+// (which launches the persistence goroutine that calls
+// SuperadminBindingRepository.Save) and the production reload path
 // (loadSuperadminBindings, run by Bot.New at startup) against a real
 // Postgres, and asserts the FIXED behavior across a simulated restart:
 //
-//  1. The legit dual-listed admin's first authorization surfaces a
-//     persistable binding (admin → 100) which, once upserted, populates
-//     superadmin_bindings (previously the env-ID short-circuit returned a
-//     nil binding and persisted NOTHING, leaving the username unbound).
+//  1. The legit dual-listed admin's first authorization via isAuthorized
+//     surfaces a persistable binding (admin → 100) and persists it through
+//     the production goroutine — previously the env-ID short-circuit returned
+//     a nil binding and persisted NOTHING, leaving the username unbound.
 //  2. A recycler using the same whitelisted username with a different
 //     user_id is REJECTED in-process and is NOT persisted (previously the
 //     recycler was authorized and its user_id was upserted over the
@@ -50,18 +51,34 @@ func TestRecycledUsernameBypassPersistedAcrossRestart(t *testing.T) {
 	}
 	bindingRepo := repository.NewSuperadminBindingRepository(tx)
 
-	// 1. Legit admin's first authorization via the env-ID path. With the
-	//    fix, CheckSuperAdmin surfaces a non-nil binding (admin → 100) so
-	//    isAuthorized persists it — exactly what the persistence goroutine
-	//    upserts. Simulate that goroutine by calling Save with the surfaced
-	//    binding (the production goroutine calls Save with the same args).
-	ok, binding := cfg.CheckSuperAdmin(legitID, adminUser)
-	require.True(t, ok, "legit dual-listed admin must be authorized")
-	require.NotNil(t, binding, "first dual-listed login must surface a binding to persist")
-	require.Equal(t, adminUser, binding.Username)
-	require.Equal(t, legitID, binding.UserID)
+	// Construct a Bot with the real binding repository so that Bot.isAuthorized
+	// exercises the production persistence goroutine.
+	b := &Bot{
+		cfg:          cfg,
+		db:           tx,
+		bindingRepo:  bindingRepo,
+		pendingEdits: make(map[int64]*pendingEdit),
+	}
 
-	require.NoError(t, bindingRepo.Save(ctx, binding.Username, binding.UserID))
+	// 1. Legit admin's first authorization through the production path.
+	//    isAuthorized calls cfg.CheckSuperAdmin, receives a non-nil binding
+	//    (admin → 100), and launches the persistence goroutine that calls
+	//    bindingRepo.Save. We poll the DB until the row appears (or the
+	//    test deadline fires) to wait deterministically for the goroutine.
+	require.True(t, b.isAuthorized(ctx, legitID, adminUser),
+		"legit dual-listed admin must be authorized")
+
+	// Poll until the persistence goroutine commits the row.
+	require.Eventually(t, func() bool {
+		bindings, err := bindingRepo.LoadAll(ctx)
+		if err != nil {
+			return false
+		}
+		m := bindingsToMap(bindings)
+		id, ok := m[adminUser]
+		return ok && id == legitID
+	}, 5*time.Second, 10*time.Millisecond,
+		"persistence goroutine must have written admin→legitID within 5s")
 
 	// The persisted row is admin → legitID (NOT empty, NOT the attacker).
 	bindings, err := bindingRepo.LoadAll(ctx)
@@ -74,9 +91,8 @@ func TestRecycledUsernameBypassPersistedAcrossRestart(t *testing.T) {
 	//    isAuthorized only persists when authorized, nothing is upserted
 	//    for the attacker. Assert rejection and that the DB row is
 	//    unchanged.
-	recycledOk, recycledBinding := cfg.CheckSuperAdmin(attackerID, adminUser)
-	require.False(t, recycledOk, "recycler with a different user_id must be rejected")
-	require.Nil(t, recycledBinding, "rejected recycler must not surface a binding to persist")
+	require.False(t, b.isAuthorized(ctx, attackerID, adminUser),
+		"recycler with a different user_id must be rejected")
 
 	bindings, err = bindingRepo.LoadAll(ctx)
 	require.NoError(t, err)
@@ -99,6 +115,49 @@ func TestRecycledUsernameBypassPersistedAcrossRestart(t *testing.T) {
 		"recycler must be rejected after restart+reload (was authorized in the buggy version)")
 	require.False(t, restarted.IsSuperAdmin(attackerID, ""),
 		"recycler must not be a superadmin by user_id alone after restart")
+}
+
+// TestRecycledUsernameBypassPersistedAcrossRestart_NonEnvListed covers the
+// non-env-listed (username-only bootstrap) logging branch in isAuthorized:
+// a user listed only in WhitelistedUsernames (not WhitelistedUserIDs) must
+// be authorized on first login, have their binding persisted through the
+// production goroutine, and have the non-env-ID log message emitted instead
+// of the env-ID locking message.
+func TestRecycledUsernameBypassPersistedAcrossRestart_NonEnvListed(t *testing.T) {
+	ctx := context.Background()
+	tx := dbtest.TestTx(ctx, t)
+
+	const onlyUsernameUser = "onlylisted"
+	const onlyUsernameID int64 = 200
+
+	cfg := &config.Config{
+		WhitelistedUserIDs:   []int64{},
+		WhitelistedUsernames: []string{onlyUsernameUser},
+	}
+	bindingRepo := repository.NewSuperadminBindingRepository(tx)
+
+	b := &Bot{
+		cfg:          cfg,
+		db:           tx,
+		bindingRepo:  bindingRepo,
+		pendingEdits: make(map[int64]*pendingEdit),
+	}
+
+	// Username-only listed user logs in: exercises the non-envListed branch
+	// (the "Persisted superadmin binding; consider adding user_id" log message).
+	require.True(t, b.isAuthorized(ctx, onlyUsernameID, onlyUsernameUser),
+		"username-only whitelisted user must be authorized")
+
+	require.Eventually(t, func() bool {
+		bindings, err := bindingRepo.LoadAll(ctx)
+		if err != nil {
+			return false
+		}
+		m := bindingsToMap(bindings)
+		id, ok := m[onlyUsernameUser]
+		return ok && id == onlyUsernameID
+	}, 5*time.Second, 10*time.Millisecond,
+		"persistence goroutine must have written the username-only binding within 5s")
 }
 
 // bindingsToMap converts a repository binding slice to a username → user_id
