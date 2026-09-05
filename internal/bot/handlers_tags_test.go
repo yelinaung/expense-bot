@@ -3,6 +3,7 @@ package bot
 import (
 	"context"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/go-telegram/bot/models"
@@ -10,6 +11,15 @@ import (
 	"gitlab.com/yelinaung/expense-bot/internal/bot/mocks"
 	appmodels "gitlab.com/yelinaung/expense-bot/internal/models"
 )
+
+// normalizeProbeTag replaces the user-supplied probed tag name in a response
+// with a placeholder. After normalization, probing another user's tag name
+// and a globally-unused name must produce byte-identical responses, proving
+// the existence oracle (divergent "not found" vs "Removed"/"No expenses
+// found") is closed. The echoed name is the caller's own input, not a leak.
+func normalizeProbeTag(s, probedName string) string {
+	return strings.ReplaceAll(s, probedName, "<name>")
+}
 
 const (
 	nilMessageReturnsEarlyTags = "nil message returns early"
@@ -265,6 +275,67 @@ func TestHandleUntagCore(t *testing.T) {
 		msg := mockBot.LastSentMessage()
 		require.Contains(t, msg.Text, notFoundTextTags)
 	})
+
+	t.Run("does not leak other users tag existence", func(t *testing.T) {
+		// /untag <my-expense> <name> must not distinguish "name used by another
+		// user" from "name unused by anyone". The buggy global GetByName
+		// resolved another user's tag, then the no-op RemoveTagFromExpense
+		// still printed "✅ Removed ...", leaking that the name is used.
+		otherUserID := int64(700097)
+		err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+			ID:       otherUserID,
+			Username: "untagoracleother",
+		})
+		require.NoError(t, err)
+
+		otherExpense := &appmodels.Expense{
+			UserID:      otherUserID,
+			Amount:      mustParseDecimal("4.00"),
+			Currency:    testCurrencySGD,
+			Description: "untag oracle other expense",
+			Status:      appmodels.ExpenseStatusConfirmed,
+		}
+		err = b.expenseRepo.Create(ctx, otherExpense)
+		require.NoError(t, err)
+
+		otherTag, err := b.tagRepo.GetOrCreate(ctx, "untagoracleother")
+		require.NoError(t, err)
+		require.NoError(t, b.tagRepo.AddTagsToExpense(ctx, otherExpense.ID, []int{otherTag.ID}))
+
+		mine := &appmodels.Expense{
+			UserID:      userID,
+			Amount:      mustParseDecimal("1.00"),
+			Currency:    testCurrencySGD,
+			Description: "untag oracle mine",
+			Status:      appmodels.ExpenseStatusConfirmed,
+		}
+		require.NoError(t, b.expenseRepo.Create(ctx, mine))
+
+		// Another user's tag name: must report "not found", never "Removed".
+		mockBotA := mocks.NewMockBot()
+		b.handleUntagCore(ctx, mockBotA, mocks.CommandUpdate(12345, userID, "/untag "+itoa(mine.UserExpenseNumber)+" untagoracleother"))
+		require.Equal(t, 1, mockBotA.SentMessageCount())
+		msgA := mockBotA.LastSentMessage()
+		require.Contains(t, msgA.Text, notFoundTextTags)
+		require.NotContains(t, msgA.Text, "Removed")
+
+		// A globally-unused name: also "not found".
+		mockBotB := mocks.NewMockBot()
+		b.handleUntagCore(ctx, mockBotB, mocks.CommandUpdate(12345, userID, "/untag "+itoa(mine.UserExpenseNumber)+" globallyunuseduntag"))
+		require.Equal(t, 1, mockBotB.SentMessageCount())
+		msgB := mockBotB.LastSentMessage()
+		require.Contains(t, msgB.Text, notFoundTextTags)
+		require.NotContains(t, msgB.Text, "Removed")
+
+		// No divergence modulo the echoed tag name: the only allowed
+		// difference is the name the caller themselves typed. The outcome
+		// class ("not found" vs "Removed") must be identical.
+		require.Equal(t,
+			normalizeProbeTag(msgA.Text, "untagoracleother"),
+			normalizeProbeTag(msgB.Text, "globallyunuseduntag"),
+			"other user's tag must be indistinguishable from an unused name",
+		)
+	})
 }
 
 func TestHandleTagsCore(t *testing.T) {
@@ -379,6 +450,60 @@ func TestHandleTagsCore(t *testing.T) {
 		require.Equal(t, 1, mockBot.SentMessageCount())
 		msg := mockBot.LastSentMessage()
 		require.Contains(t, msg.Text, notFoundTextTags)
+	})
+
+	t.Run("does not leak other users tag existence", func(t *testing.T) {
+		// /tags <name> must not distinguish "name used by another user" from
+		// "name unused by anyone". The buggy global GetByName resolved another
+		// user's tag, then the user-scoped GetExpensesByTagID returned empty,
+		// rendering "No expenses found." instead of "not found".
+		otherUserID := int64(700098)
+		err := b.userRepo.UpsertUser(ctx, &appmodels.User{
+			ID:       otherUserID,
+			Username: "tagsoracleother",
+		})
+		require.NoError(t, err)
+
+		otherExpense := &appmodels.Expense{
+			UserID:      otherUserID,
+			Amount:      mustParseDecimal("3.00"),
+			Currency:    testCurrencySGD,
+			Description: "oracle other expense",
+			Status:      appmodels.ExpenseStatusConfirmed,
+		}
+		err = b.expenseRepo.Create(ctx, otherExpense)
+		require.NoError(t, err)
+
+		otherTag, err := b.tagRepo.GetOrCreate(ctx, "oracleothertag")
+		require.NoError(t, err)
+		require.NoError(t, b.tagRepo.AddTagsToExpense(ctx, otherExpense.ID, []int{otherTag.ID}))
+
+		// Another user's tag name: must report "not found", never render the
+		// expense list ("No expenses found." / "Expenses tagged #...").
+		mockBotA := mocks.NewMockBot()
+		b.handleTagsCore(ctx, mockBotA, mocks.CommandUpdate(12345, userID, "/tags oracleothertag"))
+		require.Equal(t, 1, mockBotA.SentMessageCount())
+		msgA := mockBotA.LastSentMessage()
+		require.Contains(t, msgA.Text, notFoundTextTags)
+		require.NotContains(t, msgA.Text, "No expenses found.")
+		require.NotContains(t, msgA.Text, "Expenses tagged")
+
+		// A globally-unused name: also "not found".
+		mockBotB := mocks.NewMockBot()
+		b.handleTagsCore(ctx, mockBotB, mocks.CommandUpdate(12345, userID, "/tags globallyunusedname"))
+		require.Equal(t, 1, mockBotB.SentMessageCount())
+		msgB := mockBotB.LastSentMessage()
+		require.Contains(t, msgB.Text, notFoundTextTags)
+		require.NotContains(t, msgB.Text, "No expenses found.")
+
+		// No divergence modulo the echoed tag name: the only allowed
+		// difference is the name the caller themselves typed. The outcome
+		// class ("not found" vs "No expenses found") must be identical.
+		require.Equal(t,
+			normalizeProbeTag(msgA.Text, "oracleothertag"),
+			normalizeProbeTag(msgB.Text, "globallyunusedname"),
+			"other user's tag must be indistinguishable from an unused name",
+		)
 	})
 }
 
