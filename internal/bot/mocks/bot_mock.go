@@ -3,6 +3,7 @@ package mocks
 
 import (
 	"context"
+	"io"
 	"sync"
 
 	"github.com/go-telegram/bot"
@@ -50,6 +51,7 @@ type SentDocument struct {
 	Filename  string
 	Caption   string
 	ParseMode models.ParseMode
+	Body      []byte
 }
 
 // Compile-time check that MockBot implements TelegramAPI.
@@ -201,10 +203,14 @@ func (m *MockBot) SendDocument(_ context.Context, params *bot.SendDocumentParams
 		return nil, m.SendDocumentError
 	}
 
-	// Extract filename from InputFileUpload if available
+	// Extract filename and body from InputFileUpload if available.
 	filename := ""
+	var body []byte
 	if upload, ok := params.Document.(*models.InputFileUpload); ok {
 		filename = upload.Filename
+		if upload.Data != nil {
+			body, _ = io.ReadAll(upload.Data)
+		}
 	}
 
 	m.SentDocuments = append(m.SentDocuments, SentDocument{
@@ -212,6 +218,7 @@ func (m *MockBot) SendDocument(_ context.Context, params *bot.SendDocumentParams
 		Filename:  filename,
 		Caption:   params.Caption,
 		ParseMode: params.ParseMode,
+		Body:      body,
 	})
 
 	msgID := m.NextMessageID

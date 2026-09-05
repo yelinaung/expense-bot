@@ -1,6 +1,7 @@
 package mocks
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"testing"
@@ -227,6 +228,28 @@ func TestMockBot_SendDocumentAndCounters(t *testing.T) {
 	require.Equal(t, int64(123), doc.ChatID)
 	require.Equal(t, "report.csv", doc.Filename)
 	require.Equal(t, "report", doc.Caption)
+}
+
+func TestMockBot_SendDocumentCapturesBody(t *testing.T) {
+	t.Parallel()
+
+	mockBot := NewMockBot()
+
+	body := []byte("ID,Date\n1,2026-01-01\n")
+	_, err := mockBot.SendDocument(context.Background(), &bot.SendDocumentParams{
+		ChatID:  int64(456),
+		Caption: "with body",
+		Document: &models.InputFileUpload{
+			Filename: "report.csv",
+			Data:     bytes.NewReader(body),
+		},
+		ParseMode: models.ParseModeHTML,
+	})
+	require.NoError(t, err)
+
+	doc := mockBot.LastSentDocument()
+	require.NotNil(t, doc)
+	require.Equal(t, body, doc.Body, "SentDocument.Body should capture the document reader's bytes")
 }
 
 func TestMockBot_FileDownloadLink(t *testing.T) {
