@@ -147,11 +147,14 @@ func (b *Bot) handleRevokeCore(ctx context.Context, tg TelegramAPI, update *mode
 
 	// Try parsing as user ID first.
 	if targetID, err := strconv.ParseInt(args, 10, 64); err == nil {
-		// user_id = 0 is the sentinel for "approved by @username only" rows and is
-		// never a real target; reject it as invalid usage so a single /revoke 0
-		// cannot reach the (sentinel-guarded) DELETE and cannot produce a
-		// misleading "User <code>0</code> has been revoked." reply.
-		if targetID == 0 {
+		// Telegram user IDs are positive. user_id = 0 is the sentinel for
+		// "approved by @username only" rows, so /revoke 0 would reach an
+		// unguarded DELETE ... WHERE user_id = 0 and wipe every
+		// username-only approval; ParseInt also collapses forms like "+0"
+		// and "-0" to 0. Negative IDs are never real targets either.
+		// Reject the whole non-positive range as invalid usage, which also
+		// avoids a misleading "User <code>0</code> has been revoked." reply.
+		if targetID <= 0 {
 			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    chatID,
 				Text:      revokeUsageMsg,
@@ -186,7 +189,8 @@ func (b *Bot) handleRevokeCore(ctx context.Context, tg TelegramAPI, update *mode
 	targetUsername := strings.TrimPrefix(args, "@")
 	// username = '' is the sentinel for "approved by ID only" rows and is never
 	// a real target (e.g. "/revoke @" trims to ""). Reject it as invalid usage so
-	// a single /revoke @ cannot reach the (sentinel-guarded) DELETE and cannot
+	// a single /revoke @ cannot reach an unguarded DELETE ... WHERE
+	// LOWER(username) = '' that would wipe every by-ID approval, and cannot
 	// produce a misleading "User <code>@</code> has been revoked." reply.
 	if targetUsername == "" {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{

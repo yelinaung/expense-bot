@@ -276,6 +276,28 @@ func TestHandleRevokeCore_SentinelInputs(t *testing.T) {
 			require.True(t, ok, "username-only approval %q must survive /revoke @", u)
 		}
 	})
+
+	// ParseInt collapses "00", "+0" and "-0" to the same 0 sentinel, and
+	// negative IDs are never real Telegram users, so the whole non-positive
+	// range must be rejected before reaching Revoke.
+	for _, cmd := range []string{"/revoke 00", "/revoke +0", "/revoke -0", "/revoke -1", "/revoke -99999"} {
+		t.Run(cmd+" is usage error and mass-deletes nothing", func(t *testing.T) {
+			seed(t)
+			require.Equal(t, 6, count(t))
+
+			mockBot := mocks.NewMockBot()
+			update := mocks.NewUpdateBuilder().
+				WithMessage(1, 100, cmd).
+				WithFrom(100, superadminUsername, superadminFirstName, superadminLastName).
+				Build()
+			b.handleRevokeCore(ctx, mockBot, update)
+
+			require.Equal(t, 1, mockBot.SentMessageCount())
+			require.Contains(t, mockBot.LastSentMessage().Text, "Usage")
+			require.NotContains(t, mockBot.LastSentMessage().Text, "has been revoked", "must not confirm %q", cmd)
+			require.Equal(t, 6, count(t), "%q must delete zero rows", cmd)
+		})
+	}
 }
 
 func TestHandleUsersCore(t *testing.T) {
