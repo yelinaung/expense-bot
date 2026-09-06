@@ -110,6 +110,28 @@ func TestParseVoiceExpenseResponse(t *testing.T) {
 			},
 		},
 		{
+			name:     "zero amount encoded as 0.00 treated as missing amount",
+			response: `{"amount": "0.00", "description": "Coffee", "currency": "", "suggested_category": "Food - Dining Out", "confidence": 0.4}`,
+			want: &VoiceExpenseData{
+				Amount:            decimal.Zero,
+				Description:       "Coffee",
+				Currency:          "",
+				SuggestedCategory: testGeminiCategoryFoodDiningOut,
+				Confidence:        0.4,
+			},
+		},
+		{
+			name:     "zero amount encoded as 0.0 treated as missing amount",
+			response: `{"amount": "0.0", "description": "Tea", "currency": "", "suggested_category": "Food - Dining Out", "confidence": 0.4}`,
+			want: &VoiceExpenseData{
+				Amount:            decimal.Zero,
+				Description:       "Tea",
+				Currency:          "",
+				SuggestedCategory: testGeminiCategoryFoodDiningOut,
+				Confidence:        0.4,
+			},
+		},
+		{
 			name:     "empty amount string treated as zero",
 			response: `{"amount": "", "description": "Test", "currency": "", "suggested_category": "", "confidence": 0.5}`,
 			want: &VoiceExpenseData{
@@ -599,4 +621,38 @@ func TestAmountInRange(t *testing.T) {
 	require.True(t, models.AmountInRange(decimal.NewFromFloat(5.50)))
 	require.True(t, models.AmountInRange(decimal.RequireFromString("9999999999.99")))
 	require.False(t, models.AmountInRange(decimal.RequireFromString("99999999999.99")))
+}
+
+// TestParseVoiceExpense_ZeroPointZeroZeroPreservesExtraction exercises the full
+// ParseVoiceExpense path (mock generator → parseVoiceExpenseResponse → IsEmpty
+// gate) to confirm that a "0.00" amount, paired with a real description, is
+// treated as the "unknown amount" signal rather than hard-erroring, and the
+// extracted description/category/confidence are preserved through the IsEmpty
+// gate (which passes because the description is present).
+func TestParseVoiceExpense_ZeroPointZeroZeroPreservesExtraction(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockGenerator{
+		response: &genai.GenerateContentResponse{
+			Candidates: []*genai.Candidate{
+				{
+					Content: &genai.Content{
+						Parts: []*genai.Part{
+							{Text: `{"amount": "0.00", "description": "Coffee", "currency": "", "suggested_category": "Food - Dining Out", "confidence": 0.4}`},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	client := NewClientWithGenerator(mock)
+	result, err := client.ParseVoiceExpense(context.Background(), []byte(testGeminiFakeAudio), testGeminiAudioOGG, []string{testGeminiCategoryFoodDiningOut})
+
+	require.NoError(t, err, `"0.00" with a real description must not surface as a parse error`)
+	require.NotNil(t, result)
+	require.True(t, result.Amount.IsZero(), `amount is the missing-amount zero`)
+	require.Equal(t, "Coffee", result.Description)
+	require.Equal(t, testGeminiCategoryFoodDiningOut, result.SuggestedCategory)
+	require.InDelta(t, 0.4, result.Confidence, 0.001)
 }
