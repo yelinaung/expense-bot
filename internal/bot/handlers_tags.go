@@ -258,7 +258,7 @@ func (b *Bot) handleUntagCore(ctx context.Context, tg TelegramAPI, update *model
 		return
 	}
 
-	tag, err := b.tagRepo.GetByName(ctx, tagName)
+	tag, err := b.tagRepo.GetByNameForUser(ctx, userID, tagName)
 	if err != nil {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
@@ -352,7 +352,7 @@ func (b *Bot) handleTagsCore(ctx context.Context, tg TelegramAPI, update *models
 		return
 	}
 
-	tag, err := b.tagRepo.GetByName(ctx, tagName)
+	tag, err := b.tagRepo.GetByNameForUser(ctx, userID, tagName)
 	if err != nil {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
