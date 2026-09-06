@@ -48,8 +48,16 @@ const (
 )
 
 // SuggestCategory uses Gemini to suggest an appropriate category for an expense description.
+//
+// Category names are sanitized before being sent to the model (and before
+// being advertised in the response-schema enum) to prevent prompt-injection
+// via category names. The returned suggestion.Category is mapped back to the
+// ORIGINAL DB name so consumers that compare against unsanitized DB names
+// (e.g. internal/bot.applyMatchedSuggestion) keep working even when
+// SanitizeCategoryName rewrites a name (quotes, backticks, internal
+// whitespace runs, leading/trailing whitespace).
 func (c *Client) SuggestCategory(ctx context.Context, description string, availableCategories []string) (*CategorySuggestion, error) {
-	cleanedCategories := sanitizeAvailableCategories(availableCategories)
+	cleanedCategories, originalByCleaned := sanitizeCategoriesWithOriginals(availableCategories)
 	descHash := hashDescription(description)
 	logger.Log.Debug().
 		Str("description_hash", descHash).
@@ -148,7 +156,7 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 		Float64("confidence", suggestion.Confidence).
 		Msg("SuggestCategory: parsed Gemini suggestion")
 
-	return normalizeSuggestion(suggestion, cleanedCategories, descHash)
+	return normalizeSuggestion(suggestion, cleanedCategories, originalByCleaned, descHash)
 }
 
 func (c *Client) validateSuggestCategoryInput(description string, availableCategories []string) error {
@@ -167,13 +175,34 @@ func (c *Client) validateSuggestCategoryInput(description string, availableCateg
 	return nil
 }
 
+// sanitizeAvailableCategories returns the de-duplicated, sanitized category
+// names used to build the prompt and response-schema enum. It is a thin
+// wrapper around sanitizeCategoriesWithOriginals so the de-dup behavior stays
+// exercised by property-based tests.
 func sanitizeAvailableCategories(availableCategories []string) []string {
+	cleaned, _ := sanitizeCategoriesWithOriginals(availableCategories)
+	return cleaned
+}
+
+// sanitizeCategoriesWithOriginals sanitizes and de-duplicates the available
+// category names and returns a mapping from the lower-cased cleaned form back
+// to the ORIGINAL DB name. The prompt and response-schema enum still receive
+// the sanitized (cleaned) form for prompt-injection safety, but the matched
+// suggestion is mapped back to the original name so consumers comparing
+// against unsanitized DB names keep working.
+//
+// When two distinct DB names sanitize to the same cleaned form, the FIRST
+// occurrence wins. This mirrors the existing de-dup behavior, which already
+// collapses such names into a single enum entry (the model cannot
+// distinguish them either), and makes the mapping deterministic.
+func sanitizeCategoriesWithOriginals(availableCategories []string) ([]string, map[string]string) {
 	if len(availableCategories) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	cleaned := make([]string, 0, len(availableCategories))
 	seen := make(map[string]struct{}, len(availableCategories))
+	originalByCleaned := make(map[string]string, len(availableCategories))
 
 	for _, cat := range availableCategories {
 		sanitized := strings.TrimSpace(SanitizeCategoryName(cat))
@@ -186,9 +215,10 @@ func sanitizeAvailableCategories(availableCategories []string) []string {
 		}
 		seen[key] = struct{}{}
 		cleaned = append(cleaned, sanitized)
+		originalByCleaned[key] = cat
 	}
 
-	return cleaned
+	return cleaned, originalByCleaned
 }
 
 func (c *Client) callSuggestCategory(
@@ -245,6 +275,7 @@ func parseSuggestionFromText(fullText, descHash string) (CategorySuggestion, err
 func normalizeSuggestion(
 	suggestion CategorySuggestion,
 	availableCategories []string,
+	originalByCleaned map[string]string,
 	descHash string,
 ) (*CategorySuggestion, error) {
 	if suggestion.Confidence < 0.0 || suggestion.Confidence > 1.0 {
@@ -261,7 +292,7 @@ func normalizeSuggestion(
 	// as matched suggestions.
 	treatAsMatched := suggestion.Matched || (suggestion.Category != "" && suggestion.NewCategoryName == "")
 	if treatAsMatched {
-		return normalizeMatchedSuggestion(suggestion, availableCategories, descHash)
+		return normalizeMatchedSuggestion(suggestion, availableCategories, originalByCleaned, descHash)
 	}
 
 	if suggestion.NewCategoryName == "" {
@@ -271,7 +302,9 @@ func normalizeSuggestion(
 	for _, cat := range availableCategories {
 		if strings.EqualFold(cat, suggestion.NewCategoryName) {
 			suggestion.Matched = true
-			suggestion.Category = cat
+			// Map the matched cleaned form back to the ORIGINAL DB name so
+			// consumers comparing against unsanitized DB names keep working.
+			suggestion.Category = originalCategory(originalByCleaned, cat)
 			suggestion.NewCategoryName = ""
 			logger.Log.Debug().
 				Str("description_hash", descHash).
@@ -295,11 +328,14 @@ func normalizeSuggestion(
 func normalizeMatchedSuggestion(
 	suggestion CategorySuggestion,
 	availableCategories []string,
+	originalByCleaned map[string]string,
 	descHash string,
 ) (*CategorySuggestion, error) {
 	for _, cat := range availableCategories {
 		if strings.EqualFold(cat, suggestion.Category) {
-			suggestion.Category = cat
+			// Map the matched cleaned form back to the ORIGINAL DB name so
+			// consumers comparing against unsanitized DB names keep working.
+			suggestion.Category = originalCategory(originalByCleaned, cat)
 			suggestion.Matched = true
 			suggestion.NewCategoryName = ""
 			logger.Log.Debug().
@@ -317,6 +353,17 @@ func normalizeMatchedSuggestion(
 		Strs("available_categories", availableCategories).
 		Msg("SuggestCategory: suggested category not in available list")
 	return nil, fmt.Errorf("suggested category '%s' not in available categories", suggestion.Category)
+}
+
+// originalCategory maps a sanitized (cleaned) category name back to the
+// original DB name using originalByCleaned. It falls back to the cleaned form
+// itself when no mapping is present (e.g. empty/nil input) so behavior is
+// never worse than the previous implementation.
+func originalCategory(originalByCleaned map[string]string, cleaned string) string {
+	if original, ok := originalByCleaned[strings.ToLower(cleaned)]; ok && original != "" {
+		return original
+	}
+	return cleaned
 }
 
 // buildCategorySuggestionPrompt creates the prompt for category suggestion.
