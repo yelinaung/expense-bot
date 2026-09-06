@@ -394,7 +394,6 @@ func (c *Config) tryBindWhitelistedUsername(userID int64, username string) *Supe
 	return &SuperadminBinding{Username: norm, UserID: userID}
 }
 
-
 // CheckSuperAdmin is like IsSuperAdmin but also returns a non-nil
 // *SuperadminBinding when a new username → user_id binding was just
 // created and should be persisted by the caller.
