@@ -410,6 +410,14 @@ func (b *Bot) isAuthorized(ctx context.Context, userID int64, username string) b
 	isSuperAdmin, newBinding := b.cfg.CheckSuperAdmin(userID, username)
 	if isSuperAdmin {
 		if newBinding != nil {
+			// Capture synchronously whether the bound user_id is already
+			// env-listed, so the async goroutine does not read the config
+			// slice and so the log message matches the binding's origin:
+			// a binding created on the env-ID path means the user_id is
+			// already in WHITELISTED_USER_IDS, so the bootstrap advice
+			// ("consider adding user_id to WHITELISTED_USER_IDS") does
+			// not apply and would be misleading.
+			envListed := slices.Contains(b.cfg.WhitelistedUserIDs, newBinding.UserID)
 			saveCtx := context.WithoutCancel(ctx)
 			go func() {
 				if err := b.bindingRepo.Save(saveCtx, newBinding.Username, newBinding.UserID); err != nil {
@@ -417,6 +425,11 @@ func (b *Bot) isAuthorized(ctx context.Context, userID int64, username string) b
 						Str("username", newBinding.Username).
 						Int64("user_id", newBinding.UserID).
 						Msg("Failed to persist superadmin binding")
+				} else if envListed {
+					logger.Log.Info().
+						Str("username", newBinding.Username).
+						Int64("user_id", newBinding.UserID).
+						Msg("Locked whitelisted username to env-listed superadmin user_id")
 				} else {
 					logger.Log.Info().
 						Str("username", newBinding.Username).
