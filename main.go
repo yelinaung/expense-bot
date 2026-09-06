@@ -122,14 +122,27 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		return wrapRunError("Failed to create bot", err)
 	}
 
-	go func() {
-		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-		<-sigChan
-		logger.Log.Info().Msg("Shutting down...")
-		cancel()
-	}()
+	// The first SIGINT/SIGTERM triggers graceful shutdown via cancel; a second
+	// one forces an immediate exit so a stall (e.g. a slow OpenTelemetry flush)
+	// can be interrupted instead of swallowing the signal. The goroutine is
+	// detached: on the normal path run returns and the process exits while this
+	// blocks on the second read, which is harmless.
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	go watchSignals(sigChan, cancel, os.Exit)
 
 	telegramBot.Start(runCtx)
 	return nil
+}
+
+// watchSignals translates the first signal on sigChan into graceful shutdown
+// via cancel, then forces an exit via exit on a second signal so a slow
+// shutdown can be interrupted.
+func watchSignals(sigChan <-chan os.Signal, cancel context.CancelFunc, exit func(int)) {
+	<-sigChan
+	logger.Log.Info().Msg("Shutting down...")
+	cancel()
+	<-sigChan
+	logger.Log.Warn().Msg("Forcing exit")
+	exit(1)
 }
