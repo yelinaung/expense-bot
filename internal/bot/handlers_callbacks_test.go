@@ -1010,11 +1010,15 @@ func TestProcessMerchantEditCore(t *testing.T) {
 	t.Run("valid merchant updates expense", func(t *testing.T) {
 		mockBot := mocks.NewMockBot()
 
+		// Seed a cross-currency-style row where Description diverges from Merchant
+		// (it carries the FX original-amount note). Editing the merchant must only
+		// touch Merchant and leave Description/FX note intact.
+		const fxNote = "Old Name [orig: 15.00 USD -> 20.00 SGD @ 1.3333 (2026-01-01)]"
 		expense := &appmodels.Expense{
 			UserID:      userID,
 			Amount:      mustParseDecimal(amount20CBT),
 			Currency:    testCurrencySGD,
-			Description: oldNameTextCBT,
+			Description: fxNote,
 			Merchant:    oldNameTextCBT,
 			Status:      appmodels.ExpenseStatusDraft,
 		}
@@ -1032,7 +1036,8 @@ func TestProcessMerchantEditCore(t *testing.T) {
 		updated, err := b.expenseRepo.GetByID(ctx, expense.ID)
 		require.NoError(t, err)
 		require.Equal(t, newRestaurantTextCBT, updated.Merchant)
-		require.Equal(t, newRestaurantTextCBT, updated.Description)
+		require.Equal(t, fxNote, updated.Description,
+			"editing merchant must not overwrite the divergent Description / FX note")
 	})
 
 	t.Run("clears pending edit on success", func(t *testing.T) {

@@ -488,7 +488,6 @@ func (b *Bot) processMerchantEditCore(
 	}
 
 	expense.Merchant = merchant
-	expense.Description = merchant
 	if err := b.expenseRepo.Update(ctx, expense); err != nil {
 		logger.Log.Error().Err(err).Int(logFieldExpenseIDCB, expense.ID).Msg("Failed to update merchant")
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{

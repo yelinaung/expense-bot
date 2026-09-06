@@ -35,11 +35,14 @@ func TestParseEditCommand(t *testing.T) {
 func TestApplyParsedEdit(t *testing.T) {
 	t.Parallel()
 
+	// Seed Description and Merchant as distinct values (as they are for a
+	// cross-currency expense). Editing the description must only touch
+	// Description and leave Merchant intact.
 	expense := &appmodels.Expense{
 		Amount:      decimal.RequireFromString("1.00"),
 		Currency:    "USD",
 		Description: "old",
-		Merchant:    "old",
+		Merchant:    "Old Shop",
 	}
 	categories := []appmodels.Category{
 		{ID: 1, Name: testCategoryFood},
@@ -57,7 +60,8 @@ func TestApplyParsedEdit(t *testing.T) {
 	require.True(t, decimal.RequireFromString("9.99").Equal(expense.Amount))
 	require.Equal(t, testCurrencySGD, expense.Currency)
 	require.Equal(t, "Lunch", expense.Description)
-	require.Equal(t, "Lunch", expense.Merchant)
+	require.Equal(t, "Old Shop", expense.Merchant,
+		"editing description must not clobber the merchant name")
 	require.NotNil(t, expense.CategoryID)
 	require.Equal(t, 1, *expense.CategoryID)
 	require.NotNil(t, expense.Category)
