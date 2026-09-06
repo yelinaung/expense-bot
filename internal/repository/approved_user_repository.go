@@ -69,9 +69,14 @@ func (r *ApprovedUserRepository) IsApproved(ctx context.Context, userID int64, u
 }
 
 // Revoke removes a user from the approved list by user ID.
+//
+// The sentinel user_id = 0 marks "approved by @username only" rows and is
+// shared by every such row, so it is excluded from the WHERE clause (mirroring
+// the partial unique index predicate in the schema) to ensure a single revoke
+// can never bulk-delete the whole username-only half of the approval list.
 func (r *ApprovedUserRepository) Revoke(ctx context.Context, userID int64) error {
 	_, err := r.db.Exec(ctx, `
-		DELETE FROM approved_users WHERE user_id = $1
+		DELETE FROM approved_users WHERE user_id = $1 AND user_id != 0
 	`, userID)
 	if err != nil {
 		return fmt.Errorf("failed to revoke user: %w", err)
@@ -80,9 +85,14 @@ func (r *ApprovedUserRepository) Revoke(ctx context.Context, userID int64) error
 }
 
 // RevokeByUsername removes a user from the approved list by username.
+//
+// The sentinel empty username marks "approved by ID only" rows and is shared
+// by every such row, so it is excluded from the WHERE clause (mirroring the
+// partial unique index predicate in the schema) to ensure a single revoke can
+// never bulk-delete the whole by-ID half of the approval list.
 func (r *ApprovedUserRepository) RevokeByUsername(ctx context.Context, username string) error {
 	_, err := r.db.Exec(ctx, `
-		DELETE FROM approved_users WHERE LOWER(username) = LOWER($1)
+		DELETE FROM approved_users WHERE LOWER(username) = LOWER($1) AND username != ''
 	`, username)
 	if err != nil {
 		return fmt.Errorf("failed to revoke user by username: %w", err)

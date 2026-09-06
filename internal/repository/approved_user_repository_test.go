@@ -224,3 +224,66 @@ func TestApprovedUserRepository_ApproveDuplicate(t *testing.T) {
 	require.Len(t, users, 1)
 	require.Equal(t, "hank_updated", users[0].Username)
 }
+
+// TestApprovedUserRepository_RevokeSentinelGuard ensures the Revoke delete paths
+// apply the same sentinel exclusion the schema's partial unique indexes and
+// IsApproved apply. The sentinel user_id = 0 marks every "approved by @username
+// only" row and the sentinel empty username marks every "approved by ID only"
+// row; deleting with either sentinel must NOT bulk-remove the matching half of
+// the approval list.
+func TestApprovedUserRepository_RevokeSentinelGuard(t *testing.T) {
+	ctx := context.Background()
+	tx := dbtest.TestTx(ctx, t)
+
+	repo := NewApprovedUserRepository(tx)
+
+	byIDs := []int64{11111, 22222, 33333}
+	byUsernames := []string{"alice", "bob", "carol"}
+
+	for _, id := range byIDs {
+		require.NoError(t, repo.Approve(ctx, id, "", 100))
+	}
+	for _, u := range byUsernames {
+		require.NoError(t, repo.ApproveByUsername(ctx, u, 100))
+	}
+
+	count := func(t *testing.T) int {
+		t.Helper()
+		users, err := repo.GetAll(ctx)
+		require.NoError(t, err)
+		return len(users)
+	}
+	require.Equal(t, 6, count(t), "seeded approval list should hold 6 rows")
+
+	t.Run("Revoke(0) does not delete username-only approvals", func(t *testing.T) {
+		require.NoError(t, repo.Revoke(ctx, 0))
+		require.Equal(t, 6, count(t), "Revoke(0) must not delete any rows")
+
+		for _, u := range byUsernames {
+			ok, _, err := repo.IsApproved(ctx, 0, u)
+			require.NoError(t, err)
+			require.True(t, ok, "username-only approval %q must survive Revoke(0)", u)
+		}
+		for _, id := range byIDs {
+			ok, _, err := repo.IsApproved(ctx, id, "")
+			require.NoError(t, err)
+			require.True(t, ok, "by-ID approval %d must survive Revoke(0)", id)
+		}
+	})
+
+	t.Run("RevokeByUsername(\"\") does not delete by-ID approvals", func(t *testing.T) {
+		require.NoError(t, repo.RevokeByUsername(ctx, ""))
+		require.Equal(t, 6, count(t), `RevokeByUsername("") must not delete any rows`)
+
+		for _, id := range byIDs {
+			ok, _, err := repo.IsApproved(ctx, id, "")
+			require.NoError(t, err)
+			require.True(t, ok, "by-ID approval %d must survive RevokeByUsername(\"\")", id)
+		}
+		for _, u := range byUsernames {
+			ok, _, err := repo.IsApproved(ctx, 0, u)
+			require.NoError(t, err)
+			require.True(t, ok, "username-only approval %q must survive RevokeByUsername(\"\")", u)
+		}
+	})
+}
