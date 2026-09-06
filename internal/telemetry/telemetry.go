@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"path"
 	"strings"
 
 	"go.opentelemetry.io/otel"
@@ -143,11 +144,14 @@ func newTraceExporter(ctx context.Context, exporterType, endpoint string, insecu
 		}
 		return otlptracegrpc.New(ctx, opts...)
 	case ExporterOTLPHTTP:
-		httpEndpoint, httpInsecure, err := normalizeOTLPHTTPEndpoint(endpoint, insecure)
+		httpEndpoint, basePath, httpInsecure, err := normalizeOTLPHTTPEndpoint(endpoint, insecure)
 		if err != nil {
 			return nil, err
 		}
-		opts := []otlptracehttp.Option{otlptracehttp.WithEndpoint(httpEndpoint)}
+		opts := []otlptracehttp.Option{
+			otlptracehttp.WithEndpoint(httpEndpoint),
+			otlptracehttp.WithURLPath(path.Join(basePath, "/v1/traces")),
+		}
 		if httpInsecure {
 			opts = append(opts, otlptracehttp.WithInsecure())
 		}
@@ -168,11 +172,14 @@ func newMetricExporter(ctx context.Context, exporterType, endpoint string, insec
 		}
 		return otlpmetricgrpc.New(ctx, opts...)
 	case ExporterOTLPHTTP:
-		httpEndpoint, httpInsecure, err := normalizeOTLPHTTPEndpoint(endpoint, insecure)
+		httpEndpoint, basePath, httpInsecure, err := normalizeOTLPHTTPEndpoint(endpoint, insecure)
 		if err != nil {
 			return nil, err
 		}
-		opts := []otlpmetrichttp.Option{otlpmetrichttp.WithEndpoint(httpEndpoint)}
+		opts := []otlpmetrichttp.Option{
+			otlpmetrichttp.WithEndpoint(httpEndpoint),
+			otlpmetrichttp.WithURLPath(path.Join(basePath, "/v1/metrics")),
+		}
 		if httpInsecure {
 			opts = append(opts, otlpmetrichttp.WithInsecure())
 		}
@@ -184,19 +191,25 @@ func newMetricExporter(ctx context.Context, exporterType, endpoint string, insec
 	}
 }
 
-// normalizeOTLPHTTPEndpoint converts a URL-style endpoint into host:port as
-// expected by OTLP HTTP exporters and derives transport security from scheme.
-func normalizeOTLPHTTPEndpoint(endpoint string, insecure bool) (string, bool, error) {
+// normalizeOTLPHTTPEndpoint converts a URL-style endpoint into the host:port
+// and base URL path expected by OTLP HTTP exporters, and derives transport
+// security from the scheme. The returned basePath is the operator-supplied
+// path prefix from the endpoint URL (possibly empty). Callers must join it
+// with the per-signal default path (e.g. "/v1/traces", "/v1/metrics") before
+// passing the result to WithURLPath. This matches the base-URL semantics the
+// OTel SDK applies when parsing OTEL_EXPORTER_OTLP_ENDPOINT, so an endpoint
+// such as http://collector:4318/otlp sends traces to /otlp/v1/traces instead
+// of silently dropping the /otlp prefix.
+func normalizeOTLPHTTPEndpoint(endpoint string, insecure bool) (host, basePath string, httpInsecure bool, err error) {
 	u, err := url.Parse(endpoint)
 	if err != nil {
-		return "", false, fmt.Errorf("invalid otlp-http endpoint %q: %w", endpoint, err)
+		return "", "", false, fmt.Errorf("invalid otlp-http endpoint %q: %w", endpoint, err)
 	}
 	if u.Host == "" {
-		return "", false, fmt.Errorf("invalid otlp-http endpoint %q: host is required", endpoint)
+		return "", "", false, fmt.Errorf("invalid otlp-http endpoint %q: host is required", endpoint)
 	}
 
-	httpInsecure := insecure || u.Scheme == "http"
-	return u.Host, httpInsecure, nil
+	return u.Host, u.Path, insecure || u.Scheme == "http", nil
 }
 
 func buildSampler(rate float64) trace.Sampler {
