@@ -117,6 +117,26 @@ func TestParseExpenseInput_DescriptionFirst(t *testing.T) {
 			wantNil: true,
 		},
 		{
+			name:    "non-currency three-letter word not consumed as trailing code",
+			input:   "Lunch 10 cat",
+			wantNil: true,
+		},
+		{
+			name:    "non-currency lowercase three-letter word not consumed as trailing code",
+			input:   "Lunch 10 and",
+			wantNil: true,
+		},
+		{
+			name:    "non-currency trailing word after short amount rejected",
+			input:   "Coffee 5 ice",
+			wantNil: true,
+		},
+		{
+			name:    "multi-word description then non-currency trailing word rejected",
+			input:   "Lunch with friends 10 dog",
+			wantNil: true,
+		},
+		{
 			name:     "leading amount still works",
 			input:    "5.50 Coffee",
 			wantAmt:  testAmount550,
@@ -196,6 +216,57 @@ func TestParseExpenseInput_DescriptionFirst(t *testing.T) {
 				return
 			}
 
+			require.NotNil(t, result, testExpectedNonNilInput, tt.input)
+			require.Equal(t, tt.wantAmt, result.Amount.StringFixed(2))
+			require.Equal(t, tt.wantDesc, result.Description)
+			require.Equal(t, tt.wantCurrency, result.Currency)
+		})
+	}
+}
+
+// TestParseExpenseInput_NonCurrencyTrailingWordNotReordered is a regression
+// test for the bug where a description-first input ending in "<amount>
+// <non-currency 3-letter word>" had the trailing word consumed as a currency
+// code and reassembled *before* the description, scrambling it (e.g.
+// "Lunch 10 cat" -> "cat Lunch"). The trailing-code slot now accepts only
+// supported currency codes, so such inputs are rejected (nil) instead.
+func TestParseExpenseInput_NonCurrencyTrailingWordNotReordered(t *testing.T) {
+	t.Parallel()
+
+	rejectCases := []string{
+		"Lunch 10 cat",
+		"Lunch 10 and",
+		"Lunch 10 two",
+		"Coffee 5 ice",
+		"Lunch 10 dog",
+		"Lunch with friends 10 cat",
+	}
+	for _, in := range rejectCases {
+		t.Run("reject/"+in, func(t *testing.T) {
+			t.Parallel()
+			require.Nil(t, ParseExpenseInput(in), "expected nil for input: %s", in)
+		})
+	}
+
+	// Controls: a recognized currency code (any documented casing) must still
+	// be stripped from the tail and must not scramble the description order.
+	controlCases := []struct {
+		input        string
+		wantAmt      string
+		wantDesc     string
+		wantCurrency string
+	}{
+		{"Lunch 10 SGD", "10.00", "Lunch", "SGD"},
+		{"Lunch 10 sgd", "10.00", "Lunch", "SGD"},
+		{"Coffee 5.50 SGD", testAmount550, testCoffeeDesc, "SGD"},
+		{"Coffee 5.50 sgd", testAmount550, testCoffeeDesc, "SGD"},
+		{"Street food 100 THB", "100.00", "Street food", "THB"},
+		{"Hotel 200 USD", "200.00", "Hotel", "USD"},
+	}
+	for _, tt := range controlCases {
+		t.Run("control/"+tt.input, func(t *testing.T) {
+			t.Parallel()
+			result := ParseExpenseInput(tt.input)
 			require.NotNil(t, result, testExpectedNonNilInput, tt.input)
 			require.Equal(t, tt.wantAmt, result.Amount.StringFixed(2))
 			require.Equal(t, tt.wantDesc, result.Description)

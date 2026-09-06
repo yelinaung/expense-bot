@@ -1,9 +1,12 @@
 package bot
 
 import (
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/yelinaung/expense-bot/internal/models"
 )
 
 func TestParseExpenseInput_Currency(t *testing.T) {
@@ -210,6 +213,33 @@ func TestCurrencySymbolToCode(t *testing.T) {
 			code, ok := currencySymbolToCode[tt.symbol]
 			require.True(t, ok, "symbol %s should be in map", tt.symbol)
 			require.Equal(t, tt.code, code)
+		})
+	}
+}
+
+// TestBuildCurrencyCodeAlternation verifies the trailing-code alternation
+// covers every supported currency code (upper- and lowercase) and excludes
+// arbitrary three-letter words, so the trailing-amount regex cannot consume a
+// non-currency word as a currency code and scramble the description.
+func TestBuildCurrencyCodeAlternation(t *testing.T) {
+	t.Parallel()
+
+	re := regexp.MustCompile(`^(?:` + buildCurrencyCodeAlternation() + `)$`)
+
+	for code := range models.SupportedCurrencies {
+		t.Run("match/"+code, func(t *testing.T) {
+			t.Parallel()
+			require.True(t, re.MatchString(code), "alternation should match %s", code)
+			require.True(t, re.MatchString(strings.ToLower(code)), "alternation should match %s", strings.ToLower(code))
+		})
+	}
+
+	nonCurrencyWords := []string{"cat", "and", "two", "dog", "ice", "foo", "bar", "abc", "xyz"}
+	for _, word := range nonCurrencyWords {
+		t.Run("nomatch/"+word, func(t *testing.T) {
+			t.Parallel()
+			require.False(t, re.MatchString(word), "alternation should not match %q", word)
+			require.False(t, re.MatchString(strings.ToUpper(word)), "alternation should not match %q", strings.ToUpper(word))
 		})
 	}
 }
