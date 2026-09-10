@@ -238,6 +238,29 @@ func TestAggregateByCategory(t *testing.T) {
 	}
 }
 
+func TestFilterExpensesByCurrency(t *testing.T) {
+	t.Parallel()
+
+	expenses := []models.Expense{
+		{ID: 1, Amount: decimal.NewFromFloat(10), Currency: "USD"},
+		{ID: 2, Amount: decimal.NewFromFloat(20), Currency: "SGD"},
+		{ID: 3, Amount: decimal.NewFromFloat(30), Currency: "USD"},
+		{ID: 4, Amount: decimal.NewFromFloat(40), Currency: "JPY"},
+	}
+
+	usd := filterExpensesByCurrency(expenses, "USD")
+	require.Len(t, usd, 2)
+	require.Equal(t, "USD", usd[0].Currency)
+	require.Equal(t, "USD", usd[1].Currency)
+	require.Equal(t, 1, usd[0].ID)
+	require.Equal(t, 3, usd[1].ID)
+
+	require.Len(t, filterExpensesByCurrency(expenses, "JPY"), 1)
+	require.Empty(t, filterExpensesByCurrency(expenses, "EUR"))
+	require.Empty(t, filterExpensesByCurrency(nil, "USD"))
+	require.Empty(t, filterExpensesByCurrency([]models.Expense{}, "USD"))
+}
+
 func TestGenerateChartFilename(t *testing.T) {
 	tests := []struct {
 		name     string

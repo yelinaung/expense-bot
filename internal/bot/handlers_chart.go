@@ -98,36 +98,8 @@ func (b *Bot) handleChartCore(ctx context.Context, tg TelegramAPI, update *model
 		return
 	}
 
-	// Generate chart
-	_, genSpan := telemetry.StartSpan(
-		ctx, "chart.generate",
-		attribute.String("chart.period", period),
-		attribute.Int("chart.expense_count", len(expenses)),
-	)
-	chartData, err := GenerateExpenseChart(expenses, period)
-	if err != nil {
-		genSpan.RecordError(err)
-		genSpan.SetStatus(codes.Error, "chart generation failed")
-		genSpan.End()
-		logger.Log.Error().Err(err).Msg("Failed to generate chart")
-		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
-			Text:   failedGenerateChartMsg,
-		})
-		return
-	}
-	genSpan.SetAttributes(attribute.Int("chart.size_bytes", len(chartData)))
-	genSpan.End()
-
-	total, err := b.expenseRepo.GetTotalByUserIDAndDateRange(ctx, userID, startDate, endDate)
-	if err != nil {
-		logger.Log.Error().Err(err).Msg("Failed to calculate total for chart")
-		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
-			Text:   failedGenerateChartMsg,
-		})
-		return
-	}
+	totalsByCurrency := sumExpenseAmountsByCurrency(expenses)
+	currencies := sortedCurrencyKeys(totalsByCurrency)
 
 	// Format period range for caption
 	var periodRange string
@@ -138,39 +110,84 @@ func (b *Bot) handleChartCore(ctx context.Context, tg TelegramAPI, update *model
 		periodRange = startDate.Format("January 2006")
 	}
 
-	// Send chart as document
-	filename := generateChartFilename(strings.ToLower(args), b.displayLocation, now)
-	caption := fmt.Sprintf("📊 <b>%s</b>\n\nTotal: $%s SGD\nCount: %d expenses\nPeriod: %s",
-		title, total.StringFixed(2), len(expenses), periodRange)
-
-	sendCtx, sendSpan := telemetry.StartSpan(
-		ctx, "telegram.send_document",
-		attribute.Int("document.size_bytes", len(chartData)),
-		attribute.String("document.filename", filename),
-	)
-	_, err = tg.SendDocument(sendCtx, &bot.SendDocumentParams{
-		ChatID:    chatID,
-		Document:  &models.InputFileUpload{Filename: filename, Data: bytes.NewReader(chartData)},
-		Caption:   caption,
-		ParseMode: models.ParseModeHTML,
-	})
-	if err != nil {
-		sendSpan.RecordError(err)
-		sendSpan.SetStatus(codes.Error, "send document failed")
-		sendSpan.End()
-		logger.Log.Error().Err(err).Msg("Failed to send chart document")
-		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
-			Text:   "❌ Failed to send chart. Please try again.",
-		})
-		return
+	var totalsSB strings.Builder
+	for _, cur := range currencies {
+		fmt.Fprintf(&totalsSB, "\n  %s: %s%s",
+			escapeHTML(cur), escapeHTML(currencySymbol(cur)), totalsByCurrency[cur].StringFixed(2))
 	}
-	sendSpan.End()
+	caption := fmt.Sprintf("📊 <b>%s</b>\n\nTotal:%s\nCount: %d expenses\nPeriod: %s",
+		title, totalsSB.String(), len(expenses), periodRange)
+
+	multiCurrency := len(currencies) > 1
+	periodArg := strings.ToLower(args)
+
+	for i, cur := range currencies {
+		filtered := filterExpensesByCurrency(expenses, cur)
+
+		_, genSpan := telemetry.StartSpan(
+			ctx, "chart.generate",
+			attribute.String("chart.period", period),
+			attribute.String("chart.currency", cur),
+			attribute.Int("chart.expense_count", len(filtered)),
+		)
+		genFn := b.generateChart
+		if genFn == nil {
+			genFn = GenerateExpenseChart
+		}
+		chartData, err := genFn(filtered, period)
+		if err != nil {
+			genSpan.RecordError(err)
+			genSpan.SetStatus(codes.Error, "chart generation failed")
+			genSpan.End()
+			logger.Log.Error().Err(err).Msg("Failed to generate chart")
+			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID: chatID,
+				Text:   failedGenerateChartMsg,
+			})
+			return
+		}
+		genSpan.SetAttributes(attribute.Int("chart.size_bytes", len(chartData)))
+		genSpan.End()
+
+		filename := generateChartFilename(periodArg, b.displayLocation, now)
+		if multiCurrency {
+			filename = strings.TrimSuffix(filename, ".png") + "_" + cur + ".png"
+		}
+
+		docCaption := caption
+		if i > 0 {
+			docCaption = fmt.Sprintf("📊 <b>%s</b> (%s)", title, cur)
+		}
+
+		sendCtx, sendSpan := telemetry.StartSpan(
+			ctx, "telegram.send_document",
+			attribute.Int("document.size_bytes", len(chartData)),
+			attribute.String("document.filename", filename),
+		)
+		_, err = tg.SendDocument(sendCtx, &bot.SendDocumentParams{
+			ChatID:    chatID,
+			Document:  &models.InputFileUpload{Filename: filename, Data: bytes.NewReader(chartData)},
+			Caption:   docCaption,
+			ParseMode: models.ParseModeHTML,
+		})
+		if err != nil {
+			sendSpan.RecordError(err)
+			sendSpan.SetStatus(codes.Error, "send document failed")
+			sendSpan.End()
+			logger.Log.Error().Err(err).Msg("Failed to send chart document")
+			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID: chatID,
+				Text:   "❌ Failed to send chart. Please try again.",
+			})
+			return
+		}
+		sendSpan.End()
+	}
 
 	logger.Log.Info().
 		Int64("user_id", userID).
 		Str("period", period).
 		Int("expense_count", len(expenses)).
-		Str("total", total.String()).
+		Strs("currencies", currencies).
 		Msg("Chart generated successfully")
 }
