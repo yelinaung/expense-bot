@@ -874,7 +874,9 @@ func (b *Bot) handleTodayCore(ctx context.Context, tg TelegramAPI, update *model
 		})
 		return
 	}
-	header := fmt.Sprintf("📅 <b>Today's Expenses</b> (Total: $%s)", total.StringFixed(2))
+	currency := b.getUserDefaultCurrency(ctx, userID)
+	header := fmt.Sprintf("📅 <b>Today's Expenses</b> (Total: %s%s %s)",
+		getCurrencyOrCodeSymbol(currency), total.StringFixed(2), currency)
 	b.sendExpenseListCore(ctx, tg, chatID, expenses, header)
 }
 
@@ -914,7 +916,9 @@ func (b *Bot) handleWeekCore(ctx context.Context, tg TelegramAPI, update *models
 		})
 		return
 	}
-	header := fmt.Sprintf("📆 <b>This Week's Expenses</b> (Total: $%s)", total.StringFixed(2))
+	currency := b.getUserDefaultCurrency(ctx, userID)
+	header := fmt.Sprintf("📆 <b>This Week's Expenses</b> (Total: %s%s %s)",
+		getCurrencyOrCodeSymbol(currency), total.StringFixed(2), currency)
 	b.sendExpenseListCore(ctx, tg, chatID, expenses, header)
 }
 
@@ -991,7 +995,9 @@ func (b *Bot) handleCategoryCore(ctx context.Context, tg TelegramAPI, update *mo
 		})
 		return
 	}
-	header := fmt.Sprintf("📁 <b>%s Expenses</b> (Total: $%s)", escapeHTML(matchedCategory.Name), total.StringFixed(2))
+	currency := b.getUserDefaultCurrency(ctx, userID)
+	header := fmt.Sprintf("📁 <b>%s Expenses</b> (Total: %s%s %s)",
+		escapeHTML(matchedCategory.Name), getCurrencyOrCodeSymbol(currency), total.StringFixed(2), currency)
 	b.sendExpenseListCore(ctx, tg, chatID, expenses, header)
 
 	logger.Log.Info().
@@ -1200,8 +1206,9 @@ func (b *Bot) handleReportCore(ctx context.Context, tg TelegramAPI, update *mode
 
 	// Send CSV file
 	filename := generateReportFilename(period, b.displayLocation, now)
-	caption := fmt.Sprintf("📊 <b>%s</b>\n\nTotal Expenses: $%s SGD\nCount: %d",
-		title, total.StringFixed(2), len(expenses))
+	currency := b.getUserDefaultCurrency(ctx, userID)
+	caption := fmt.Sprintf("📊 <b>%s</b>\n\nTotal Expenses: %s%s %s\nCount: %d",
+		title, getCurrencyOrCodeSymbol(currency), total.StringFixed(2), currency, len(expenses))
 
 	_, err = tg.SendDocument(ctx, &bot.SendDocumentParams{
 		ChatID:    chatID,
