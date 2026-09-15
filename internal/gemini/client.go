@@ -47,7 +47,6 @@ func (m *modelsAdapter) GenerateContent(
 
 // Client wraps the Gemini API client.
 type Client struct {
-	client    *genai.Client
 	generator ContentGenerator
 }
 
@@ -66,7 +65,6 @@ func NewClient(ctx context.Context, apiKey string) (*Client, error) {
 	}
 
 	return &Client{
-		client:    client,
 		generator: &modelsAdapter{models: client.Models},
 	}, nil
 }
@@ -77,9 +75,4 @@ func NewClientWithGenerator(generator ContentGenerator) *Client {
 	return &Client{
 		generator: generator,
 	}
-}
-
-// GenerativeClient returns the underlying genai client for advanced usage.
-func (c *Client) GenerativeClient() *genai.Client {
-	return c.client
 }
