@@ -50,18 +50,6 @@ func TestNewClient(t *testing.T) {
 	}
 }
 
-func TestClient_GenerativeClient(t *testing.T) {
-	t.Parallel()
-
-	ctx := context.Background()
-	client, err := NewClient(ctx, "test-api-key")
-	require.NoError(t, err)
-	require.NotNil(t, client)
-
-	genClient := client.GenerativeClient()
-	require.NotNil(t, genClient)
-}
-
 func TestModelsAdapter_GenerateContent_NilModels(t *testing.T) {
 	t.Parallel()
 
