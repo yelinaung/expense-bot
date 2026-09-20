@@ -22,6 +22,7 @@ const (
 	targetIDField             = "target_id"
 	superadminIDLineFmt       = "  ID: <code>%d</code>\n"
 	superadminUsernameLineFmt = "  @%s\n"
+	approveUsageMsg           = "Usage: <code>/approve &lt;user_id&gt;</code> or <code>/approve @username</code>"
 	revokeUsageMsg            = "Usage: <code>/revoke &lt;user_id&gt;</code> or <code>/revoke @username</code>"
 )
 
@@ -75,7 +76,7 @@ func (b *Bot) handleApproveCore(ctx context.Context, tg TelegramAPI, update *mod
 	if args == "" {
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      "Usage: <code>/approve &lt;user_id&gt;</code> or <code>/approve @username</code>",
+			Text:      approveUsageMsg,
 			ParseMode: models.ParseModeHTML,
 		})
 		return
@@ -83,6 +84,25 @@ func (b *Bot) handleApproveCore(ctx context.Context, tg TelegramAPI, update *mod
 
 	// Try parsing as user ID first.
 	if targetID, err := strconv.ParseInt(args, 10, 64); err == nil {
+		// Telegram user IDs are positive. user_id = 0 is the sentinel for
+		// "approved by @username only" rows, so /approve 0 reaches the
+		// INSERT with targetID = 0 and username = "" and mints a (0, "")
+		// orphan row that sits outside both partial unique indexes (so it
+		// never deduplicates, once per call) and that IsApproved never
+		// matches (so it grants no access); it also cannot be removed via
+		// /revoke, whose DELETE excludes user_id = 0. ParseInt collapses
+		// forms like "+0" and "-0" to 0, and negative IDs are never real
+		// targets either. Reject the whole non-positive range as invalid
+		// usage, mirroring /revoke, which also avoids a misleading
+		// "User <code>0</code> has been approved." reply.
+		if targetID <= 0 {
+			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    chatID,
+				Text:      approveUsageMsg,
+				ParseMode: models.ParseModeHTML,
+			})
+			return
+		}
 		if err := b.approvedUserRepo.Approve(ctx, targetID, "", userID); err != nil {
 			logger.Log.Error().Err(err).Int64(targetIDField, targetID).Msg(failedApproveUserLogMsg)
 			_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
@@ -101,6 +121,21 @@ func (b *Bot) handleApproveCore(ctx context.Context, tg TelegramAPI, update *mod
 
 	// Treat as username.
 	targetUsername := strings.TrimPrefix(args, "@")
+	// username = "" is the sentinel for "approved by ID only" rows and is never
+	// a real target (e.g. "/approve @" trims to ""). Reject it as invalid usage
+	// so a single /approve @ cannot reach the INSERT with username = "" (which
+	// mints a (0, "") orphan row outside both partial unique indexes that never
+	// deduplicates, grants no access, and cannot be removed via /revoke @),
+	// mirroring /revoke, which also avoids a misleading "User <code>@</code>
+	// has been approved." reply.
+	if targetUsername == "" {
+		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    chatID,
+			Text:      approveUsageMsg,
+			ParseMode: models.ParseModeHTML,
+		})
+		return
+	}
 	if err := b.approvedUserRepo.ApproveByUsername(ctx, targetUsername, userID); err != nil {
 		logger.Log.Error().Err(err).Str(targetUsernameField, targetUsername).Msg(failedApproveUserLogMsg)
 		_, _ = tg.SendMessage(ctx, &bot.SendMessageParams{
