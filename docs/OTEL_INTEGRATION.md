@@ -51,8 +51,8 @@ github.com/exaring/otelpgx
 - `Shutdown(ctx)` — flushes and shuts down both providers (no-op when disabled)
 
 **`internal/telemetry/middleware.go`** — Telegram bot tracing middleware:
-- `TracingMiddleware(instruments) bot.Middleware` — creates root span per Telegram update
-- `classifyUpdate(update)` — derives span name: `telegram.command /add`, `telegram.photo`, `telegram.callback receipt_confirm`, etc.
+- `TracingMiddleware(metrics, knownCommands...) bot.Middleware` — creates root span per Telegram update. `knownCommands` is the set of registered command tokens (e.g. `/add`) eligible to appear in the span name; any command not in the set collapses to `telegram.command unknown` to bound span-name cardinality.
+- `classifyUpdate(update, knownCommands)` — derives a low-cardinality span name: `telegram.command /add`, `telegram.command unknown`, `telegram.photo`, `telegram.callback receipt_confirm`, etc. The command token is sanitized (lowercased, `@botname` stripped, length- and character-bounded) and allowlisted so attacker-supplied text cannot inflate trace span or metric-label cardinality.
 - `updateAttributes(update)` — extracts `telegram.chat_id`, `telegram.user_id`, `messaging.system=telegram` (see **Privacy** section below for ID handling)
 - Panic recovery that records error on span before re-panicking
 - Records handler duration (Histogram), handler count (Counter), and in-flight handlers (Int64UpDownCounter — not a synchronous Gauge, which has limited support in OTel Go)
@@ -113,11 +113,11 @@ This gives **automatic spans for every DB query** across all repositories with z
 ### Modify `internal/bot/bot.go`
 
 - Add `metrics *telemetry.BotMetrics` and `httpClient *http.Client` fields to `Bot` struct
-- In `New()`: if `cfg.OTelEnabled`, create `telemetry.NewInstruments()` and prepend `telemetry.TracingMiddleware(instruments)` before `whitelistMiddleware` in the middleware chain
+- In `New()`: if `cfg.OTelEnabled`, create `telemetry.NewBotMetrics()` and build the middleware chain with `buildMiddlewares`, which places `telemetry.TracingMiddleware(metrics, registeredCommands...)` *after* `whitelistMiddleware` (see below).
 - Initialize `httpClient` with `telemetry.InstrumentedTransport` when OTel enabled, plain `http.DefaultTransport` otherwise. **Must preserve the existing 30s `Timeout`** from the current `downloadClient` (`&http.Client{Timeout: 30 * time.Second, Transport: transport}`) to prevent goroutine leaks or hanging connections.
 - Replace package-level `downloadClient` usage in `downloadFile` with `b.httpClient`
 
-The tracing middleware runs **before** whitelist — so even rejected requests get a span (useful for monitoring unauthorized access attempts).
+The tracing middleware runs **after** the whitelist — blocked updates never open a span. This is a deliberate defense-in-depth against telemetry cardinality injection: the span name is derived from user-supplied command text, and the OTel Trace SDK applies no cap on span-name cardinality, so unauthorized users must not be able to create spans at all. Span-name cardinality is additionally bounded by allowlisting command tokens against `registeredCommands` (unknown commands collapse to `telegram.command unknown`).
 
 ---
 
