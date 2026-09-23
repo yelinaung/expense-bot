@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.15.1] - 2026-09-23 - Expense Parsing & Reliability Fixes
+
+### Fixed
+- **Description-first expenses**: Accepted attached ISO currency codes such as
+  `Lunch mixed rice SGD7.65`, while continuing to reject non-currency trailing
+  words that could scramble expense descriptions.
+- **Expense editing**: Preserved merchant and description fields independently
+  during edits, rendered each expense's actual currency in draft and confirmed
+  edit screens, and answered expense callback queries exactly once.
+- **Approval commands**: Rejected zero and username-sentinel inputs in
+  `/approve` and `/revoke` instead of applying unintended bulk operations.
+- **Reports**: Populated the worth-it column in exported expense CSV reports.
+- **CI database connectivity**: Connected integration tests to PostgreSQL via
+  the service alias on the CI bridge network.
+
+### Security
+- **Telemetry cardinality**: Bounded span names derived from user-supplied
+  Telegram commands to prevent unbounded metric cardinality.
+- **Dependency updates**: Updated the Go toolchain to 1.27.1 and refreshed
+  security-sensitive dependencies including gRPC.
+
 ## [v0.15.0] - 2026-08-20 - Security Hardening & Go 1.27
 
 ### Security
