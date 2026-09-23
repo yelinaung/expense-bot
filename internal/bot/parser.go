@@ -81,7 +81,7 @@ func buildCurrencyCodeAlternation() string {
 
 func buildTrailingAmountRegex(symbolAlt string) *regexp.Regexp {
 	codeAlt := buildCurrencyCodeAlternation()
-	amountPattern := `(?:` + symbolAlt + `)?\d+(?:[.,]\d{1,2})?(?:` + symbolAlt + `)?`
+	amountPattern := `(?:(?:` + codeAlt + `)\s*)?(?:` + symbolAlt + `)?\d+(?:[.,]\d{1,2})?(?:` + symbolAlt + `)?`
 	pattern := `\s(` + amountPattern + `)` +
 		`(?:\s+(?:` + codeAlt + `))?` +
 		`(?:\s+` + tagNamePattern + `)*` +
@@ -123,6 +123,7 @@ var amountRegex = regexp.MustCompile(`^(\d+(?:[.,]\d{1,2})?)`)
 //
 //	Coffee 5.50
 //	Taxi S$15
+//	Lunch SGD7.65
 //	Lunch 10€
 //	Lunch 10 SGD
 //	Lunch 10 sgd

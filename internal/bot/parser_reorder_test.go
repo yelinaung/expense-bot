@@ -37,6 +37,13 @@ func TestParseExpenseInput_DescriptionFirst(t *testing.T) {
 			wantCurrency: testCurrencySGD,
 		},
 		{
+			name:         "description then attached currency code and amount",
+			input:        "Lunch mixed rice SGD7.65",
+			wantAmt:      "7.65",
+			wantDesc:     "Lunch mixed rice",
+			wantCurrency: testCurrencySGD,
+		},
+		{
 			name:         "description then currency symbol and amount",
 			input:        "Taxi S$15",
 			wantAmt:      "15.00",

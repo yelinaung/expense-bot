@@ -2,6 +2,7 @@ package bot
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -153,6 +154,54 @@ func TestHegelParseExpenseInputAmountFirst(t *testing.T) {
 		amtStr := drawHegelPositiveAmountString(ht)
 		desc := hegel.Draw(ht, hegelDescriptionGen())
 		requireAmountFirstRoundtrip(ht, amtStr, desc)
+	})
+}
+
+// TestHegelParseExpenseInputDescriptionFirstCurrencyLayouts verifies every
+// supported description-first currency layout preserves the generated amount
+// and description. Currency symbols use their parser-defined currency because
+// some symbols are ambiguous across ISO codes.
+func TestHegelParseExpenseInputDescriptionFirstCurrencyLayouts(t *testing.T) {
+	t.Parallel()
+
+	symbols := slices.Clone(currencySymbolsByLenDesc)
+	slices.Sort(symbols)
+
+	hegel.Test(t, func(ht *hegel.T) {
+		amountString := drawHegelPositiveAmountString(ht)
+		description := hegel.Draw(ht, hegelDescriptionGen())
+		code := hegel.Draw(ht, hegel.SampledFrom(sortedSupportedCurrencyCodes()))
+		symbol := hegel.Draw(ht, hegel.SampledFrom(symbols))
+		layout := hegel.Draw(ht, hegel.Integers(0, 3))
+
+		var input, wantCurrency string
+		switch layout {
+		case 0:
+			input = description + " " + code + amountString
+			wantCurrency = code
+		case 1:
+			input = description + " " + code + " " + amountString
+			wantCurrency = code
+		case 2:
+			input = description + " " + amountString + " " + code
+			wantCurrency = code
+		case 3:
+			input = description + " " + symbol + amountString
+			wantCurrency = currencySymbolToCode[symbol]
+			if symbol == "$" {
+				wantCurrency = ""
+			}
+		}
+
+		parsed := ParseExpenseInput(input)
+		require.NotNil(ht, parsed, "ParseExpenseInput(%q)", input)
+
+		wantAmount, err := decimal.NewFromString(amountString)
+		require.NoError(ht, err)
+		require.True(ht, parsed.Amount.Equal(wantAmount),
+			"amount mismatch: got %s, want %s (input=%q)", parsed.Amount, wantAmount, input)
+		require.Equal(ht, description, parsed.Description, "input=%q", input)
+		require.Equal(ht, wantCurrency, parsed.Currency, "input=%q", input)
 	})
 }
 
