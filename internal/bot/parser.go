@@ -20,6 +20,7 @@ const (
 	currencyCodePatternUpper = `[A-Z]{3}`
 	tagNamePattern           = `#[a-zA-Z]\w{0,29}`
 	bracketCategoryPattern   = `\[[^\]]+\]`
+	amountNumberPattern      = `(?:\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:[.,]\d{1,2})?)`
 
 	currencyCodeUSD = "USD"
 	currencyCodeEUR = "EUR"
@@ -81,7 +82,7 @@ func buildCurrencyCodeAlternation() string {
 
 func buildTrailingAmountRegex(symbolAlt string) *regexp.Regexp {
 	codeAlt := buildCurrencyCodeAlternation()
-	amountPattern := `(?:(?:` + codeAlt + `)\s*)?(?:` + symbolAlt + `)?\d+(?:[.,]\d{1,2})?(?:` + symbolAlt + `)?`
+	amountPattern := `(?:(?:` + codeAlt + `)\s*)?(?:` + symbolAlt + `)?` + amountNumberPattern + `(?:` + symbolAlt + `)?`
 	pattern := `\s(` + amountPattern + `)` +
 		`(?:\s+(?:` + codeAlt + `))?` +
 		`(?:\s+` + tagNamePattern + `)*` +
@@ -107,8 +108,10 @@ type reorderedExpenseCandidate struct {
 	tail   string
 }
 
-// amountRegex matches amounts like "5", "5.50", "5,50".
-var amountRegex = regexp.MustCompile(`^(\d+(?:[.,]\d{1,2})?)`)
+// amountRegex matches amounts like "5", "5.50", "5,50", and "30,000".
+var amountRegex = regexp.MustCompile(`^(` + amountNumberPattern + `)`)
+
+var groupedAmountRegex = regexp.MustCompile(`^\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?$`)
 
 // trailingAmountRegex matches a currency-symbol/code + amount (or bare
 // amount) at the end of a string, optionally followed by a currency code
@@ -396,12 +399,17 @@ func parseAmountAndRest(input string) (decimal.Decimal, string) {
 	if match == "" {
 		return decimal.Zero, ""
 	}
-	match = strings.ReplaceAll(match, ",", ".")
+	matchedLength := len(match)
+	if groupedAmountRegex.MatchString(match) {
+		match = strings.ReplaceAll(match, ",", "")
+	} else {
+		match = strings.ReplaceAll(match, ",", ".")
+	}
 	amount, err := decimal.NewFromString(match)
 	if err != nil || amount.LessThanOrEqual(decimal.Zero) {
 		return decimal.Zero, ""
 	}
-	return amount, strings.TrimSpace(input[len(match):])
+	return amount, strings.TrimSpace(input[matchedLength:])
 }
 
 func parseCurrencyAfterAmount(detectedCurrency, rest string) (string, string) {

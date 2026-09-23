@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"fmt"
 	"regexp"
 	"slices"
 	"strings"
@@ -202,6 +203,28 @@ func TestHegelParseExpenseInputDescriptionFirstCurrencyLayouts(t *testing.T) {
 			"amount mismatch: got %s, want %s (input=%q)", parsed.Amount, wantAmount, input)
 		require.Equal(ht, description, parsed.Description, "input=%q", input)
 		require.Equal(ht, wantCurrency, parsed.Currency, "input=%q", input)
+	})
+}
+
+// TestHegelParseExpenseInputGroupedAmountWithCurrency verifies comma-grouped
+// amounts followed immediately by a supported currency code are not mistaken
+// for decimal-comma amounts.
+func TestHegelParseExpenseInputGroupedAmountWithCurrency(t *testing.T) {
+	t.Parallel()
+
+	hegel.Test(t, func(ht *hegel.T) {
+		thousands := hegel.Draw(ht, hegel.Integers(1, 999))
+		units := hegel.Draw(ht, hegel.Integers(0, 999))
+		code := hegel.Draw(ht, hegel.SampledFrom(sortedSupportedCurrencyCodes()))
+		description := hegel.Draw(ht, hegelDescriptionGen())
+		amountString := fmt.Sprintf("%d,%03d", thousands, units)
+		input := amountString + code + " " + description
+
+		parsed := ParseExpenseInput(input)
+		require.NotNil(ht, parsed, "ParseExpenseInput(%q)", input)
+		require.Equal(ht, decimal.NewFromInt(int64(thousands*1000+units)), parsed.Amount, "input=%q", input)
+		require.Equal(ht, description, parsed.Description, "input=%q", input)
+		require.Equal(ht, code, parsed.Currency, "input=%q", input)
 	})
 }
 

@@ -84,6 +84,13 @@ func TestParseExpenseInput_Currency(t *testing.T) {
 			wantCurrency: "THB",
 		},
 		{
+			name:         "grouped amount with attached currency suffix",
+			input:        "30,000VND Snack",
+			wantAmt:      "30000.00",
+			wantDesc:     "Snack",
+			wantCurrency: "VND",
+		},
+		{
 			name:         "no currency defaults to empty",
 			input:        "10.50 Coffee",
 			wantAmt:      "10.50",
