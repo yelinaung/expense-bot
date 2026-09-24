@@ -1078,10 +1078,16 @@ func (b *Bot) formatExpenseListItem(exp *appmodels.Expense, tags []appmodels.Tag
 	}
 
 	descText := ""
-	if exp.Merchant != "" {
+	if exp.Description != "" {
+		name := exp.Description
+		if i := strings.Index(name, " [orig:"); i >= 0 {
+			name = name[:i]
+		}
+		if name != "" {
+			descText = " - " + escapeHTML(name)
+		}
+	} else if exp.Merchant != "" {
 		descText = " - " + escapeHTML(exp.Merchant)
-	} else if exp.Description != "" {
-		descText = " - " + escapeHTML(exp.Description)
 	}
 
 	currencySymbol := appmodels.SupportedCurrencies[exp.Currency]
