@@ -149,11 +149,13 @@ func (b *Bot) handleReviewCallbackCore(ctx context.Context, tg TelegramAPI, upda
 	case strings.HasPrefix(data, reviewConfirmWorthPrefix):
 		expenseID, ok := parseReviewID(data, reviewConfirmWorthPrefix)
 		if ok {
+			b.stashConfirmationText(chatID, messageID, update.CallbackQuery.Message.Message.Text)
 			b.showDriverPrompt(ctx, tg, updateTarget{chatID: chatID, messageID: messageID}, userID, expenseID, true, false)
 		}
 	case strings.HasPrefix(data, reviewConfirmNotWorthPrefix):
 		expenseID, ok := parseReviewID(data, reviewConfirmNotWorthPrefix)
 		if ok {
+			b.stashConfirmationText(chatID, messageID, update.CallbackQuery.Message.Message.Text)
 			b.showDriverPrompt(ctx, tg, updateTarget{chatID: chatID, messageID: messageID}, userID, expenseID, false, false)
 		}
 	case strings.HasPrefix(data, reviewLaterPrefix):
@@ -235,7 +237,12 @@ func (b *Bot) handleReviewDriverCallback(
 }
 
 // editToConfirmation restores the expense confirmation message with its action
-// buttons after a confirmation-flow reflection has been recorded.
+// buttons after a confirmation-flow reflection has been recorded. The worth/
+// not-worth step already overwrote the confirmation message with the driver
+// prompt, so the original confirmation layout (receipt "Expense Confirmed!" or
+// /add "Expense Added" with its tags) is replayed from the stash captured at
+// the worth/not-worth tap; the /add rebuild is only a last-resort fallback,
+// matching dismissReflectionButtons ("Later").
 func (b *Bot) editToConfirmation(
 	ctx context.Context,
 	tg TelegramAPI,
@@ -243,13 +250,49 @@ func (b *Bot) editToConfirmation(
 	messageID int,
 	expense *appmodels.Expense,
 ) {
+	text, _ := b.popConfirmationText(chatID, messageID)
+	if text == "" {
+		text = buildExpenseAddedMessage(expense, nil)
+	}
 	_, _ = tg.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      chatID,
 		MessageID:   messageID,
-		Text:        buildExpenseAddedMessage(expense, nil),
+		Text:        text,
 		ParseMode:   models.ParseModeHTML,
 		ReplyMarkup: buildExpenseActionKeyboard(expense.ID),
 	})
+}
+
+// stashConfirmationText records the original confirmation message text for the
+// given chat/message so editToConfirmation can replay it after the driver-prompt
+// step overwrites the message. Read it back once via popConfirmationText.
+func (b *Bot) stashConfirmationText(chatID int64, messageID int, text string) {
+	b.confirmationStashMu.Lock()
+	if b.confirmationStash == nil {
+		b.confirmationStash = make(map[string]string)
+	}
+	b.confirmationStash[confirmationStashKey(chatID, messageID)] = text
+	b.confirmationStashMu.Unlock()
+}
+
+// popConfirmationText returns and removes the stashed confirmation text for the
+// given chat/message, if any.
+func (b *Bot) popConfirmationText(chatID int64, messageID int) (string, bool) {
+	b.confirmationStashMu.Lock()
+	defer b.confirmationStashMu.Unlock()
+	if b.confirmationStash == nil {
+		return "", false
+	}
+	key := confirmationStashKey(chatID, messageID)
+	text, ok := b.confirmationStash[key]
+	if ok {
+		delete(b.confirmationStash, key)
+	}
+	return text, ok
+}
+
+func confirmationStashKey(chatID int64, messageID int) string {
+	return strconv.FormatInt(chatID, 10) + ":" + strconv.Itoa(messageID)
 }
 
 type updateTarget struct {
