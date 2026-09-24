@@ -192,6 +192,103 @@ func TestHandleChartCore(t *testing.T) {
 
 		require.Equal(t, 0, mockBot.SentMessageCount())
 	})
+
+	t.Run("sends failure message when chart generation fails", func(t *testing.T) {
+		// Inject a failing chart generator.
+		b.generateChart = func(_ []appmodels.Expense, _ string) ([]byte, error) {
+			return nil, errors.New("render error")
+		}
+		defer func() { b.generateChart = nil }()
+
+		mockBot := mocks.NewMockBot()
+		update := mocks.CommandUpdate(chatID, userID, testChartWeekCommand)
+
+		b.handleChartCore(ctx, mockBot, update)
+
+		msg := mockBot.LastSentMessage()
+		require.NotNil(t, msg)
+		require.Contains(t, msg.Text, failedGenerateChartMsg)
+	})
+}
+
+func TestHandleChartCoreCurrency(t *testing.T) {
+	ctx := context.Background()
+	pool := testDB(ctx, t)
+	b := setupTestBot(t, pool)
+
+	now := time.Now()
+	loc := now.Location()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 11, 0, 0, 0, loc)
+
+	mkExpense := func(userID int64, amt float64, cur string) {
+		expense := &appmodels.Expense{
+			UserID:      userID,
+			Amount:      decimal.NewFromFloat(amt),
+			Currency:    cur,
+			Description: "chart currency test",
+			Status:      appmodels.ExpenseStatusConfirmed,
+		}
+		require.NoError(t, b.expenseRepo.Create(ctx, expense))
+		_, err := b.expenseRepo.Pool().Exec(ctx, testUpdateExpenseTimeSQL, today, expense.ID)
+		require.NoError(t, err)
+	}
+
+	chart := func(userID, chatID int64) *mocks.MockBot {
+		mb := mocks.NewMockBot()
+		b.handleChartCore(ctx, mb, mocks.CommandUpdate(chatID, userID, testChartWeekCommand))
+		return mb
+	}
+
+	t.Run("non-SGD default labels caption with default currency", func(t *testing.T) {
+		uid := int64(910001)
+		require.NoError(t, b.userRepo.UpsertUser(ctx, &appmodels.User{
+			ID: uid, Username: "chartusd", FirstName: "U",
+		}))
+		require.NoError(t, b.userRepo.UpdateDefaultCurrency(ctx, uid, "USD"))
+		mkExpense(uid, 10, "USD")
+		mkExpense(uid, 20, "USD")
+
+		mb := chart(uid, uid)
+
+		require.Equal(t, 1, mb.SentDocumentCount(), "single currency should produce a single document")
+		doc := mb.LastSentDocument()
+		require.Contains(t, doc.Caption, "Weekly Expenses")
+		require.Contains(t, doc.Caption, "Total:")
+		require.Contains(t, doc.Caption, "USD: $30.00")
+		require.NotContains(t, doc.Caption, "SGD", "caption must not hardcode SGD for USD default")
+		require.Contains(t, doc.Caption, "Count: 2 expenses")
+	})
+
+	t.Run("mixed currencies render one pie per currency with no cross-currency sum", func(t *testing.T) {
+		uid := int64(910002)
+		require.NoError(t, b.userRepo.UpsertUser(ctx, &appmodels.User{
+			ID: uid, Username: "chartmix", FirstName: "M",
+		}))
+		mkExpense(uid, 20, "SGD")
+		mkExpense(uid, 5000, "JPY")
+
+		mb := chart(uid, uid)
+
+		require.Equal(t, 2, mb.SentDocumentCount(), "two currencies should produce two documents")
+		require.Len(t, mb.SentDocuments, 2)
+
+		// sortedCurrencyKeys orders JPY before SGD, so the first document
+		// carries the full per-currency caption and the JPY pie.
+		first := mb.SentDocuments[0]
+		second := mb.SentDocuments[1]
+
+		require.Contains(t, first.Filename, "chart_week_")
+		require.Contains(t, first.Filename, "_JPY.png")
+		require.Contains(t, second.Filename, "_SGD.png")
+
+		require.Contains(t, first.Caption, "JPY: ¥5000.00")
+		require.Contains(t, first.Caption, "SGD: S$20.00")
+		require.NotContains(t, first.Caption, "5020", "caption must not mix numeric amounts across currencies")
+		require.Contains(t, first.Caption, "Count: 2 expenses")
+
+		require.Contains(t, second.Caption, "(SGD)")
+		require.NotContains(t, second.Caption, "Total:", "subsequent documents carry only a short tag")
+	})
 }
 
 func TestHandleChartWrapper(t *testing.T) {

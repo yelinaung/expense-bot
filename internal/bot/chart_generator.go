@@ -102,3 +102,13 @@ func generateChartFilename(period string, loc *time.Location, now time.Time) str
 		return fmt.Sprintf("chart_%s.png", current.Format("2006-01-02"))
 	}
 }
+
+func filterExpensesByCurrency(expenses []models.Expense, currency string) []models.Expense {
+	filtered := make([]models.Expense, 0, len(expenses))
+	for i := range expenses {
+		if expenses[i].Currency == currency {
+			filtered = append(filtered, expenses[i])
+		}
+	}
+	return filtered
+}
