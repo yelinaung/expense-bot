@@ -83,10 +83,9 @@ jobs:
       # Install gosec directly using host Go (not Docker action).
       - name: Install gosec
         run: |
-          if ! command -v gosec &>/dev/null; then
-            (cd .github/tools/gosec && go install -mod=readonly github.com/securego/gosec/v2/cmd/gosec)
-          fi
-          gosec --version
+          go -C .github/tools/gosec install -mod=readonly github.com/securego/gosec/v2/cmd/gosec
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          "$(go env GOPATH)/bin/gosec" --version
 
       - name: Run Gosec Security Scanner
         run: gosec -fmt sarif -out results.sarif ./...

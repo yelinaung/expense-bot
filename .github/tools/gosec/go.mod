@@ -1,6 +1,6 @@
 module gitlab.com/yelinaung/expense-bot/tools/gosec
 
-go 1.27.0
+go 1.27.2
 
 tool github.com/securego/gosec/v2/cmd/gosec
 
@@ -46,7 +46,7 @@ require (
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
-	golang.org/x/tools v0.49.0 // indirect
+	golang.org/x/tools v0.50.0 // indirect
 	google.golang.org/api v0.293.0 // indirect
 	google.golang.org/genai v1.69.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260819154853-08b0e4226688 // indirect
