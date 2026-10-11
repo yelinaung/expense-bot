@@ -123,8 +123,8 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
-          version: v2.13.1
-          install-mode: none
+          version: v2.14.0
+          install-mode: binary
         env:
           GOTOOLCHAIN: auto
 
@@ -148,7 +148,7 @@ jobs:
           # renovate: datasource=github-releases depName=j178/prek
           PREK_VERSION: "0.3.11"
           # renovate: datasource=github-releases depName=golangci/golangci-lint
-          GOLANGCI_LINT_VERSION: "2.13.0"
+          GOLANGCI_LINT_VERSION: "2.14.0"
         run: |
           set -euo pipefail
           mkdir -p "${HOME}/.local/bin"
