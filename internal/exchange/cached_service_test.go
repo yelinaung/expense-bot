@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -109,26 +110,28 @@ func TestCachedService_Convert(t *testing.T) {
 	t.Run("coalesces concurrent refreshes for same expired key", func(t *testing.T) {
 		t.Parallel()
 
-		upstream := &countingService{
-			rate:  decimal.RequireFromString("1.4"),
-			date:  time.Date(2026, 2, 14, 0, 0, 0, 0, time.UTC),
-			delay: 20 * time.Millisecond,
-		}
-		svc := NewCachedService(upstream, time.Nanosecond, nil)
+		synctest.Test(t, func(t *testing.T) {
+			upstream := &countingService{
+				rate:  decimal.RequireFromString("1.4"),
+				date:  time.Date(2026, 2, 14, 0, 0, 0, 0, time.UTC),
+				delay: 20 * time.Millisecond,
+			}
+			svc := NewCachedService(upstream, time.Nanosecond, nil)
 
-		_, err := svc.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
-		require.NoError(t, err)
-		time.Sleep(time.Millisecond)
+			_, err := svc.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
+			require.NoError(t, err)
+			time.Sleep(time.Millisecond)
 
-		var wg sync.WaitGroup
-		for range 8 {
-			wg.Go(func() {
-				_, _ = svc.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
-			})
-		}
-		wg.Wait()
+			var wg sync.WaitGroup
+			for range 8 {
+				wg.Go(func() {
+					_, _ = svc.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
+				})
+			}
+			wg.Wait()
 
-		require.Equal(t, 2, upstream.calls)
+			require.Equal(t, 2, upstream.calls)
+		})
 	})
 
 	t.Run("prunes expired entries to prevent unbounded growth", func(t *testing.T) {
