@@ -2,7 +2,7 @@
 # root is only used here for build-time package installation.
 # myoung34/github-runner:ubuntu-noble
 # NOSONAR
-FROM myoung34/github-runner:2.336.0-ubuntu-noble@sha256:c803ddbc5b91961aabf3411c6336cb2c838cdaa2f917f76654c15a1948934817
+FROM myoung34/github-runner:2.338.0-ubuntu-noble@sha256:2112bde2ee92b7480babfbe3043d0461e322b97ca01e6ac94698895f3dc1f528
 
 ARG GO_VERSION=1.27.3
 ARG GOLANGCI_LINT_VERSION=2.14.0
