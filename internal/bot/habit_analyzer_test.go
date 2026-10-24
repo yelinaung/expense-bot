@@ -135,6 +135,49 @@ func TestAnalyzeExpenseHabit(t *testing.T) {
 	}
 }
 
+func TestAnalyzeExpenseHabitCategoryTiebreakers(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name               string
+		reviewedByCategory map[string]int
+		wantCategory       string
+	}{
+		{
+			name:               "equal rates prefer more matching reviews over alphabetical order",
+			reviewedByCategory: map[string]int{"Food": 2, "Travel": 4},
+			wantCategory:       "Travel",
+		},
+		{
+			name:               "equal rates and counts prefer alphabetical order",
+			reviewedByCategory: map[string]int{"Food": 2, "Travel": 2},
+			wantCategory:       "Food",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var reviewed []appmodels.Expense
+			for category, count := range tt.reviewedByCategory {
+				for i := range count {
+					worth := i%2 == 0
+					reviewed = append(reviewed, appmodels.Expense{
+						Category: &appmodels.Category{Name: category},
+						WorthIt:  &worth,
+					})
+				}
+			}
+
+			summary := analyzeExpenseHabit(len(reviewed), reviewed, time.UTC, "This week")
+
+			require.Equal(t, tt.wantCategory, summary.BestValueCategory)
+			require.Equal(t, tt.wantCategory, summary.MostRegrettedCategory)
+		})
+	}
+}
+
 func requireCurrencyTotals(t *testing.T, want map[string]string, got map[string]decimal.Decimal) {
 	t.Helper()
 
