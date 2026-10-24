@@ -122,14 +122,24 @@ func TestCachedService_Convert(t *testing.T) {
 			require.NoError(t, err)
 			time.Sleep(time.Millisecond)
 
+			wantAmounts := []string{"1.40", "2.80", "4.20", "5.60", "7.00", "8.40", "9.80", "11.20"}
+			results := make([]ConversionResult, len(wantAmounts))
+			errs := make([]error, len(wantAmounts))
 			var wg sync.WaitGroup
-			for range 8 {
+			for i := range wantAmounts {
 				wg.Go(func() {
-					_, _ = svc.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
+					results[i], errs[i] = svc.Convert(context.Background(), decimal.NewFromInt(int64(i+1)), "USD", "SGD")
 				})
 			}
 			wg.Wait()
 
+			for i, wantAmount := range wantAmounts {
+				require.NoError(t, errs[i], "caller %d", i)
+				require.True(t, decimal.RequireFromString(wantAmount).Equal(results[i].Amount),
+					"caller %d: expected %s, got %s", i, wantAmount, results[i].Amount)
+				require.True(t, upstream.rate.Equal(results[i].Rate), "caller %d", i)
+				require.Equal(t, upstream.date, results[i].RateDate, "caller %d", i)
+			}
 			require.Equal(t, 2, upstream.calls)
 		})
 	})
