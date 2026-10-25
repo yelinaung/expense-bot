@@ -163,10 +163,8 @@ func sanitizeCategoryList(categories []string) []string {
 // so a model cannot be steered into emitting an arbitrary category.
 func buildVoiceGenerateConfig(categories []string) *genai.GenerateContentConfig {
 	sanitized := sanitizeCategoryList(categories)
-	temp := float32(0.2)
 
 	cfg := &genai.GenerateContentConfig{
-		Temperature:      &temp,
 		MaxOutputTokens:  int32(256),
 		ResponseMIMEType: "application/json",
 		ResponseSchema: &genai.Schema{

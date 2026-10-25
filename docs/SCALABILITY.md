@@ -305,7 +305,7 @@ Under load: 25 connections not enough
 
 ### Google Gemini API
 - **Free tier**: 60 requests/minute
-- **Paid tier**: 1,000 requests/minute (gemini-2.5-flash, the model in use)
+- **Paid tier**: Model- and project-dependent; check AI Studio for gemini-3.8-flash limits
 - **Timeout**: 30 seconds per request (you set to 30s)
 - **Image size**: 20MB max
 

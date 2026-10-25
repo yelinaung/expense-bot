@@ -69,7 +69,7 @@ expense-bot/
 - **Language**: Go 1.27+
 - **Database**: PostgreSQL with pgx driver
 - **Bot Framework**: go-telegram/bot
-- **AI/OCR**: Google Gemini API (gemini-2.5-flash model)
+- **AI/OCR**: Google Gemini API (gemini-3.8-flash model)
 - **Testing**: testify, table-driven tests, parallel execution
 - **CI/CD**: GitLab CI + GitHub Actions with linting, SAST, coverage enforcement, and GoReleaser
 

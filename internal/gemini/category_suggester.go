@@ -86,9 +86,7 @@ func (c *Client) SuggestCategory(ctx context.Context, description string, availa
 		},
 	}
 
-	temp := float32(0.3)
 	config := &genai.GenerateContentConfig{
-		Temperature:     &temp,      // Lower temperature for more consistent categorization
 		MaxOutputTokens: int32(500), // Increased to prevent truncation of reasoning text
 		SystemInstruction: &genai.Content{
 			Parts: []*genai.Part{
