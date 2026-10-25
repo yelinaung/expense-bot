@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.16.0] - 2026-10-25 - Gemini 3.8 Flash
+
+### Changed
+- **Gemini model**: Switched receipt OCR, voice parsing, and category suggestions
+  to the stable `gemini-3.8-flash` model. Removed custom sampling temperatures
+  for compatibility with newer Gemini models.
+- **Dependencies**: Updated the Gemini SDK to v1.73.0, Telegram SDK to v1.27.0,
+  PostgreSQL driver to v5.11.0, and OpenTelemetry SDK to v1.47.0.
+
+### Fixed
+- **Docker builds**: Updated the pinned Go builder image to 1.27.3 to match the
+  module's minimum Go version and restore Dokku deployments.
+- **Expense parsing**: Accepted comma-grouped amounts in expense messages.
+
+### Security
+- **Go toolchain**: Updated to Go 1.27.3 and refreshed dependencies to address
+  standard-library and dependency vulnerabilities.
+
 ## [v0.15.1] - 2026-09-23 - Expense Parsing & Reliability Fixes
 
 ### Fixed
