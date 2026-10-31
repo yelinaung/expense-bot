@@ -19,8 +19,8 @@ github.com/felixge/httpsnoop v1.1.0 h1:3YtUj32ZZkqZtt3sZZsClsymw/QDuVfpNhoA31zeO
 github.com/felixge/httpsnoop v1.1.0/go.mod h1:Zqxgdd+1Rkcz8euOqdr7lqgCRJztwr5hp9vDSi5UZCE=
 github.com/go-analyze/bulk v0.1.6 h1:D5v1mcSk3EaMuYEZZ0nPysqI/GWuP6RkvBLro4ZLuAM=
 github.com/go-analyze/bulk v0.1.6/go.mod h1:PQl14Aocgklq6C4EmHrWelnKtn4N+9g2AL0btNJijN4=
-github.com/go-analyze/charts v0.6.3 h1:uf9U+MyLL4SGuPcDQiMrJVfGD8MLJLaki81fh0fn7r0=
-github.com/go-analyze/charts v0.6.3/go.mod h1:QWKhp/FufZ6p1S3/LtukWRvJkrJpmT1uCGLXpws3oFY=
+github.com/go-analyze/charts v0.6.4 h1:6FXTvYtk6M4Mgs0xe0MQllwLPuv6su85Pt4UsiTtJlY=
+github.com/go-analyze/charts v0.6.4/go.mod h1:QWKhp/FufZ6p1S3/LtukWRvJkrJpmT1uCGLXpws3oFY=
 github.com/go-logr/logr v1.2.2/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
 github.com/go-logr/logr v1.4.4 h1:tG4xh9yMsRCAiodLVTxyrkzSZ9+o0L1Kg/+cPVcbP/8=
 github.com/go-logr/logr v1.4.4/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
