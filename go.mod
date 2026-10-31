@@ -24,7 +24,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.47.0
 	go.opentelemetry.io/otel/trace v1.47.0
 	google.golang.org/genai v1.75.0
-	hegel.dev/go/hegel v0.9.23
+	hegel.dev/go/hegel v0.9.25
 	pgregory.net/rapid v1.3.0
 )
 
@@ -35,7 +35,7 @@ require (
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/ebitengine/purego v0.11.0-alpha.6.0.20260707033313-5f49e7c49322 // indirect
+	github.com/ebitengine/purego v0.12.0-alpha.1.0.20261015130536-d456b1bb95e8 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/go-analyze/bulk v0.1.6 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
