@@ -2,3 +2,14 @@ ignore:
   - "**/*_test.go"
   - "**/mocks/**/*"
   - "internal/testutil/**/*"
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 0.5%
+    patch:
+      default:
+        target: auto
+        threshold: 0.5%
