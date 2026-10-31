@@ -18,7 +18,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 
 # Run stage
 # alpine:3
-FROM alpine@sha256:79ff19e9084a00eece421b2523fb93e22d730e2c0e525905de047e848e56d95f
+FROM alpine@sha256:c26612752c78b18faacd63c7d50f4592c2e7b0f25e0e20e82bd74e465c57ab0d
 
 # hadolint ignore=DL3018
 RUN apk --no-cache add ca-certificates tzdata \
