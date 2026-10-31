@@ -49,6 +49,13 @@
       "fetchChangeLogs": "off"
     },
     {
+      "description": "Track tool-only modules, which go marks as indirect.",
+      "matchManagers": ["gomod"],
+      "matchFileNames": ["runner/tools/**"],
+      "matchDepTypes": ["indirect"],
+      "enabled": true
+    },
+    {
       "matchManagers": [
         "gomod"
       ],
