@@ -91,20 +91,28 @@ func TestCachedService_Convert(t *testing.T) {
 
 	t.Run("ttl starts after upstream fetch completes", func(t *testing.T) {
 		t.Parallel()
-		upstream := &countingService{
-			rate:  decimal.RequireFromString("1.3"),
-			date:  time.Date(2026, 2, 14, 0, 0, 0, 0, time.UTC),
-			delay: 20 * time.Millisecond,
-		}
-		svc := NewCachedService(upstream, 10*time.Millisecond, nil)
 
-		_, err := svc.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
-		require.NoError(t, err)
-		_, err = svc.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
-		require.NoError(t, err)
+		synctest.Test(t, func(t *testing.T) {
+			upstream := &countingService{
+				rate:  decimal.RequireFromString("1.3"),
+				date:  time.Date(2026, 2, 14, 0, 0, 0, 0, time.UTC),
+				delay: 20 * time.Millisecond,
+			}
+			svc := NewCachedService(upstream, 10*time.Millisecond, nil)
 
-		// Should hit cache on second call despite slow upstream.
-		require.Equal(t, 1, upstream.calls)
+			_, err := svc.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
+			require.NoError(t, err)
+			time.Sleep(9 * time.Millisecond)
+			got, err := svc.Convert(context.Background(), decimal.RequireFromString("20"), "USD", "SGD")
+			require.NoError(t, err)
+			require.True(t, decimal.RequireFromString("26.00").Equal(got.Amount))
+			require.Equal(t, 1, upstream.calls)
+
+			time.Sleep(time.Millisecond)
+			_, err = svc.Convert(context.Background(), decimal.RequireFromString("10"), "USD", "SGD")
+			require.NoError(t, err)
+			require.Equal(t, 2, upstream.calls)
+		})
 	})
 
 	t.Run("coalesces concurrent refreshes for same expired key", func(t *testing.T) {
