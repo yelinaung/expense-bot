@@ -34,7 +34,7 @@ jobs:
     needs: [zizmor]
     steps:
       - name: Export workflow
-        uses: corentinmusard/otel-cicd-action@4826b79d63662fa91657272e7711420cb6aea543 # v4
+        uses: dash0hq/otel-cicd-action@4826b79d63662fa91657272e7711420cb6aea543 # v4
         with:
           otlpEndpoint: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}/v1/traces
           otlpHeaders: ${{ secrets.OTEL_EXPORTER_HEADERS }}
